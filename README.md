@@ -1,2 +1,3 @@
-# loops
-instant cross-platform jit engine inspired by Xbyak
+# Loops
+
+This is instant cross-platform jit engine inspired by Xbyak
