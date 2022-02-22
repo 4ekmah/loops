@@ -14,22 +14,23 @@ namespace loops
 {
 
 enum {
-    U8=0, I8=1, U16=2, I16=3, U32=4, I32=5, U64=6, I64=7,
-    FP16=8, BF16=9, FP32=10, FP64=11
+    TYPE_U8=0, TYPE_I8=1, TYPE_U16=2, TYPE_I16=3,
+    TYPE_U32=4, TYPE_I32=5, TYPE_U64=6, TYPE_I64=7,
+    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11
 };
 
 enum {
     OP_LOAD=0,
-    OP_LOAD_SCALAR,
     OP_LOADX,
+    OP_LOAD_SCALAR,
     OP_LOAD2X,
     OP_LOAD_DEINTERLEAVE,
     OP_STORE,
-    OP_STORE_SCALAR,
     OP_STOREX,
+    OP_STORE_SCALAR,
     OP_STORE2X,
     OP_STORE_INTERLEAVE,
-    OP_SET1,
+    OP_CONST,
 
     OP_CAST,
     OP_REINTERPRET,
@@ -87,43 +88,43 @@ enum {
 template<typename _Tp> struct ElemTraits {};
 template<> struct ElemTraits<uint8_t> {
     typedef uint8_t elemtype;
-    enum { depth = U8, elemsize=1 };
+    enum { depth = TYPE_U8, elemsize=1 };
 };
 template<> struct ElemTraits<int8_t> {
     typedef int8_t elemtype;
-    enum { depth = I8, elemsize=1 };
+    enum { depth = TYPE_I8, elemsize=1 };
 };
 template<> struct ElemTraits<uint16_t> {
     typedef uint16_t elemtype;
-    enum { depth = U16, elemsize=2 };
+    enum { depth = TYPE_U16, elemsize=2 };
 };
 template<> struct ElemTraits<int16_t> {
     typedef int16_t elemtype;
-    enum { depth = I16, elemsize=2 };
+    enum { depth = TYPE_I16, elemsize=2 };
 };
 template<> struct ElemTraits<uint32_t> {
     typedef uint32_t elemtype;
-    enum { depth = U32, elemsize=4 };
+    enum { depth = TYPE_U32, elemsize=4 };
 };
 template<> struct ElemTraits<int32_t> {
     typedef int32_t elemtype;
-    enum { depth = I32, elemsize=4 };
+    enum { depth = TYPE_I32, elemsize=4 };
 };
 template<> struct ElemTraits<uint64_t> {
     typedef uint64_t elemtype;
-    enum { depth = U64, elemsize=8 };
+    enum { depth = TYPE_U64, elemsize=8 };
 };
 template<> struct ElemTraits<int64_t> {
     typedef int64_t elemtype;
-    enum { depth = I64, elemsize=8 };
+    enum { depth = TYPE_I64, elemsize=8 };
 };
 template<> struct ElemTraits<float> {
     typedef float elemtype;
-    enum { depth = FP32, elemsize=4 };
+    enum { depth = TYPE_FP32, elemsize=4 };
 };
 template<> struct ElemTraits<double> {
     typedef double elemtype;
-    enum { depth = FP64, elemsize=8 };
+    enum { depth = TYPE_FP64, elemsize=8 };
 };
 
 class Context;
@@ -131,26 +132,13 @@ class Context;
 struct IReg
 {
     IReg();
-    IReg(int64_t val);
-    explicit IReg(const Context& ctx);
+    explicit IReg(int idx, const Context& ctx);
 
     IReg(const IReg& r);
-    IReg& operator = (const IReg& r); // may generate real code if 'this' is already initialized
+    IReg& operator = (const IReg& r); // may generate real code
+                                      // if 'this' is already initialized
 
-    int idx; // <0 for constant-initialized registers, 0 means uninitialized
-    int64_t value; // for constant-initialized registers
-    Context* ctx;
-};
-
-struct Label
-{
-    Label();
-    explicit Label(const Context& ctx);
-
-    Label(const Label& lbl);
-    Label& operator = (const Label& lbl);
-
-    int idx;
+    int idx; // 0 means uninitialized
     Context* ctx;
 };
 
@@ -160,16 +148,11 @@ template<typename _Tp> struct VReg
 
     VReg();
     VReg(int idx, const Context& ctx);
-    explicit VReg(const Context& ctx);
-    explicit VReg(_Tp val);
 
     VReg(const VReg<_Tp>& r);
     VReg<_Tp>& operator = (const VReg<_Tp>& r);
-    VReg<_Tp>& operator = (_Tp val);
 
-    int idx; // <0 for constant-initialized registers, 0 means initialized
-            // idx uses independent enumeration scheme from IReg::idx
-    elemtype value; // for constant-initialized registers
+    int idx; // 0 means uninitialized
     Context* ctx;
 };
 
@@ -186,17 +169,15 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    enum {EMPTY=0, IREG=1, ICONST=2, VREG=3, VCONST=4};
-
-    Arg();
+    Arg() : idx(0), ctx(0) {}
     Arg(const IReg& r);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
-    template<typename _Tp> VReg<_Tp> vreg() const;
+    
     IReg ireg() const;
+    template<typename _Tp> VReg<_Tp> vreg() const;
 
-    int tag;
-    int depth;
-    int64_t value;
+    int idx;
+    Context* ctx;
 };
 
 class Func
@@ -204,7 +185,7 @@ class Func
 public:
     Func();
     Func(const std::string& name, const Context& ctx,
-         std::initializer_list<IReg&> params);
+         std::initializer_list<IReg*> params);
     Func(const Func& f);
     Func& operator = (const Func& f);
     virtual ~Func();
@@ -225,10 +206,15 @@ public:
     virtual ~Context();
     Context& operator = (const Context& ctx);
 
-    void startfunc(const std::string& name, std::initializer_list<IReg&> params);
+    void startfunc(const std::string& name, std::initializer_list<IReg*> params);
     void endfunc(const IReg& retval);
     void getfuncs(std::vector<Func>& funcs);
     Func getfunc(const std::string& name);
+
+    IReg const_(int64_t value);
+    template<typename _Tp> VReg<_Tp> vconst_(_Tp value);
+    IReg ireg_();
+    template<typename _Tp> VReg<_Tp> vreg_();
 
     // control flow
     void do_();
@@ -250,30 +236,37 @@ protected:
     Impl* p;
 };
 
-Arg newop(int opcode, std::initializer_list<Arg> args);
+IReg newiop(int opcode, std::initializer_list<Arg> args);
+IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
 
 ///////////////////////////// integer operations ///////////////////////
 
-static inline IReg load(const IReg& base)
-{ return newop(OP_LOAD, {base}).ireg(); }
-
-static inline IReg load(const IReg& base, const IReg& offset)
-{ return newop(OP_LOAD, {base, offset}).ireg(); }
-
 // load with zero/sign extension
-static inline IReg loadx(const IReg& base, int depth);
-static inline IReg loadx(const IReg& base, const IReg& offset, int depth);
+static inline IReg loadx(const IReg& base, int depth)
+{ return newiop(OP_LOAD, depth, {base}); }
+static inline IReg loadx(const IReg& base, const IReg& offset, int depth)
+{ return newiop(OP_LOAD, depth, {base, offset}); }
+
+static inline IReg load(const IReg& base)
+{ return newiop(OP_LOAD, TYPE_I64, {base}); }
+static inline IReg load(const IReg& base, const IReg& offset)
+{ return newiop(OP_LOAD, TYPE_I64, {base, offset}); }
+
 template<typename _Tp> static inline IReg load_(const IReg& base)
 { return loadx(base, ElemTraits<_Tp>::depth); }
 template<typename _Tp> static inline
 IReg load_(const IReg& base, const IReg& offset)
 { return loadx(base, offset, ElemTraits<_Tp>::depth); }
 
-static inline void store(const IReg& base, const IReg& r);
-static inline void store(const IReg& base, const IReg& offset, const IReg& r);
 // store part of register
-static inline void storex(const IReg& base, const IReg& r, int depth);
-static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth);
+static inline void storex(const IReg& base, const IReg& r, int depth)
+{ newiop(OP_STORE, depth, {base, r}); }
+static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
+{ newiop(OP_STORE, depth, {base, offset, r}); }
+static inline void store(const IReg& base, const IReg& r)
+{ newiop(OP_STORE, TYPE_I64, {base, r}); }
+static inline void store(const IReg& base, const IReg& offset, const IReg& r)
+{ newiop(OP_STORE, TYPE_I64, {base, offset, r}); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& r)
 { return storex(base, r, ElemTraits<_Tp>::depth); }
@@ -281,40 +274,73 @@ template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& offset, const IReg& r)
 { return storex(base, offset, r, ElemTraits<_Tp>::depth); }
 
-static inline IReg operator + (const IReg& a, const IReg& b);
-static inline IReg operator - (const IReg& a, const IReg& b);
-static inline IReg operator * (const IReg& a, const IReg& b);
-static inline IReg operator / (const IReg& a, const IReg& b);
-static inline IReg operator % (const IReg& a, const IReg& b);
-static inline IReg operator >> (const IReg& a, const IReg& b);
-IReg operator << (const IReg& a, const IReg& b);
-IReg operator & (const IReg& a, const IReg& b);
-IReg operator | (const IReg& a, const IReg& b);
-IReg operator ^ (const IReg& a, const IReg& b);
-IReg operator ~ (const IReg& a);
-IReg operator - (const IReg& a);
-IReg operator == (const IReg& a, const IReg& b);
-IReg operator != (const IReg& a, const IReg& b);
-IReg operator <= (const IReg& a, const IReg& b);
-IReg operator >= (const IReg& a, const IReg& b);
-IReg operator > (const IReg& a, const IReg& b);
-IReg operator < (const IReg& a, const IReg& b);
-IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse);
-IReg max(const IReg& a, const IReg& b);
-IReg min(const IReg& a, const IReg& b);
-IReg abs(const IReg& a);
-IReg sign(const IReg& a);
+static inline IReg operator + (const IReg& a, const IReg& b)
+{ return newiop(OP_ADD, {a, b}); }
+static inline IReg operator - (const IReg& a, const IReg& b)
+{ return newiop(OP_SUB, {a, b}); }
+static inline IReg operator * (const IReg& a, const IReg& b)
+{ return newiop(OP_MUL, {a, b}); }
+static inline IReg operator / (const IReg& a, const IReg& b)
+{ return newiop(OP_DIV, {a, b}); }
+static inline IReg operator % (const IReg& a, const IReg& b)
+{ return newiop(OP_MOD, {a, b}); }
+static inline IReg operator >> (const IReg& a, const IReg& b)
+{ return newiop(OP_SHR, {a, b}); }
+IReg operator << (const IReg& a, const IReg& b)
+{ return newiop(OP_SHL, {a, b}); }
+IReg operator & (const IReg& a, const IReg& b)
+{ return newiop(OP_AND, {a, b}); }
+IReg operator | (const IReg& a, const IReg& b)
+{ return newiop(OP_OR, {a, b}); }
+IReg operator ^ (const IReg& a, const IReg& b)
+{ return newiop(OP_XOR, {a, b}); }
+IReg operator ~ (const IReg& a)
+{ return newiop(OP_NOT, {a}); }
+IReg operator - (const IReg& a)
+{ return newiop(OP_NEG, {a}); }
+IReg operator == (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_EQ, {a, b}); }
+IReg operator != (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_NE, {a, b}); }
+IReg operator <= (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_LE, {a, b}); }
+IReg operator >= (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_GE, {a, b}); }
+IReg operator > (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_GT, {a, b}); }
+IReg operator < (const IReg& a, const IReg& b)
+{ return newiop(OP_CMP_LT, {a, b}); }
+IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
+{ return newiop(OP_SELECT, {flag, iftrue, iffalse}); }
+IReg max(const IReg& a, const IReg& b)
+{ return newiop(OP_MAX, {a, b}); }
+IReg min(const IReg& a, const IReg& b)
+{ return newiop(OP_MIN, {a, b}); }
+IReg abs(const IReg& a)
+{ return newiop(OP_ABS, {a}); }
+IReg sign(const IReg& a)
+{ return newiop(OP_SIGN, {a}); }
 
-IReg& operator += (IReg& a, const IReg& b);
-IReg& operator -= (IReg& a, const IReg& b);
-IReg& operator *= (IReg& a, const IReg& b);
-IReg& operator /= (IReg& a, const IReg& b);
-IReg& operator %= (IReg& a, const IReg& b);
-IReg& operator >>= (IReg& a, const IReg& b);
-IReg& operator <<= (IReg& a, const IReg& b);
-IReg& operator &= (IReg& a, const IReg& b);
-IReg& operator |= (IReg& a, const IReg& b);
-IReg& operator ^= (IReg& a, const IReg& b);
+IReg& operator += (IReg& a, const IReg& b)
+{ newiop(OP_AUG_ADD, {a, b}); return a; }
+IReg& operator -= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_SUB, {a, b}); return a; }
+IReg& operator *= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_MUL, {a, b}); return a; }
+IReg& operator /= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_DIV, {a, b}); return a; }
+IReg& operator %= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_MOD, {a, b}); return a; }
+IReg& operator >>= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_SHR, {a, b}); return a; }
+IReg& operator <<= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_SHL, {a, b}); return a; }
+IReg& operator &= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_AND, {a, b}); return a; }
+IReg& operator |= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_OR, {a, b}); return a; }
+IReg& operator ^= (IReg& a, const IReg& b)
+{ newiop(OP_AUG_XOR, {a, b}); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 
