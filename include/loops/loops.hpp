@@ -140,7 +140,7 @@ struct IReg
     IReg(Context* a_ctx); 
 
     IReg(const IReg& r); //Must generate copy(mov) code 
-    IReg(IReg&& a);      //TODO(ch): Very important(!!!): this constructor must be called on every return! Must just copy fields.
+    IReg(IReg&& a);
     IReg& operator=(const IReg& r); // may generate real code
                                       // if 'this' is already initialized
 
@@ -186,7 +186,7 @@ struct Arg
 
     int idx;
     Context* ctx;
-    int tag;
+    size_t tag;
     int64_t value;
 };
 
@@ -195,7 +195,6 @@ class Func
     friend Func* _getImpl(const Func& wrapper);
 public:
     Func();
-    Func(const std::string& name, Context* ctx, std::initializer_list<IReg*> params); //TODO(ch): params or arguments? Unify names. TODO(ch): I think, this constructor must be hidden
     Func(const Func& f);
     Func& operator=(const Func& f);
     virtual ~Func();
@@ -204,6 +203,7 @@ public:
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
 protected:
+    static Func make(Func* a_wrapped);
     Func* impl;
 };
 
@@ -264,6 +264,8 @@ protected:
 
 IReg newiop(int opcode, ::std::initializer_list<Arg> args);
 IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
+void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
+void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -286,13 +288,13 @@ IReg load_(const IReg& base, const IReg& offset)
 
 // store part of register
 static inline void storex(const IReg& base, const IReg& r, int depth)
-{ newiop(OP_STORE, depth, {base, r}); }
+{ newiop_noret(OP_STORE, depth, {base, r}); }
 static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
-{ newiop(OP_STORE, depth, {base, offset, r}); } //TODO(ch): This code will create parasite idx, since newiop always creates new operation.
+{ newiop_noret(OP_STORE, depth, {base, offset, r}); }
 static inline void store(const IReg& base, const IReg& r)
-{ newiop(OP_STORE, TYPE_I64, {base, r}); }
+{ newiop_noret(OP_STORE, TYPE_I64, {base, r}); }
 static inline void store(const IReg& base, const IReg& offset, const IReg& r)
-{ newiop(OP_STORE, TYPE_I64, {base, offset, r}); }
+{ newiop_noret(OP_STORE, TYPE_I64, {base, offset, r}); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& r)
 { storex(base, r, ElemTraits<_Tp>::depth); }
@@ -348,25 +350,25 @@ static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
 
 static inline IReg& operator += (IReg& a, const IReg& b)
-{ newiop(OP_AUG_ADD, {a, b}); return a; } //TODO(ch): This code will create parasite idx, since newiop always creates new operation.
+{ newiop_noret(OP_AUG_ADD, {a, b}); return a; }
 static inline IReg& operator -= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SUB, {a, b}); return a; }
+{ newiop_noret(OP_AUG_SUB, {a, b}); return a; }
 static inline IReg& operator *= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_MUL, {a, b}); return a; }
+{ newiop_noret(OP_AUG_MUL, {a, b}); return a; }
 static inline IReg& operator /= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_DIV, {a, b}); return a; }
+{ newiop_noret(OP_AUG_DIV, {a, b}); return a; }
 static inline IReg& operator %= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_MOD, {a, b}); return a; }
+{ newiop_noret(OP_AUG_MOD, {a, b}); return a; }
 static inline IReg& operator >>= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SHR, {a, b}); return a; }
+{ newiop_noret(OP_AUG_SHR, {a, b}); return a; }
 static inline IReg& operator <<= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SHL, {a, b}); return a; }
+{ newiop_noret(OP_AUG_SHL, {a, b}); return a; }
 static inline IReg& operator &= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_AND, {a, b}); return a; }
+{ newiop_noret(OP_AUG_AND, {a, b}); return a; }
 static inline IReg& operator |= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_OR, {a, b}); return a; }
+{ newiop_noret(OP_AUG_OR, {a, b}); return a; }
 static inline IReg& operator ^= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_XOR, {a, b}); return a; }
+{ newiop_noret(OP_AUG_XOR, {a, b}); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 

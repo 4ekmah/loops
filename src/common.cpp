@@ -8,6 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <map>
 #include <stack>
 #include <sstream>
+#include <iomanip>
 
 namespace loops
 {
@@ -20,8 +21,11 @@ namespace loops
         friend class ContextImpl;
         friend IReg newiop(Context* ctx, int opcode, ::std::initializer_list<Arg> args);
         friend IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
+        friend void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
+        friend void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
     public:
         FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
+        static Func makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
 
         std::string name() const { return m_name; }; //TODO(ch): what for we need name here? 
         void call(std::initializer_list<int64_t> args) const;
@@ -38,6 +42,7 @@ namespace loops
             op(Context* ctx, int a_opcode, std::initializer_list<Arg> a_args);
             op(Context* ctx, int a_opcode, const std::vector<Arg>& a_args);
             op(const IReg& a_ret, int a_opcode, std::initializer_list<Arg> a_args);
+            op(const IReg& a_ret, int a_opcode, const std::vector<Arg>& a_args);
         };
 
         struct cflowbracket
@@ -144,7 +149,6 @@ namespace loops
     Arg::Arg(const IReg& r) : idx(r.idx), ctx(r.ctx), tag(r.ctx ? Arg::IREG : Arg::EMPTY), value(0) {}
 
     Func::Func() : impl(nullptr) {}
-    Func::Func(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : impl(new FuncImpl(name, ctx, params)) { static_cast<FuncImpl*>(impl)->refcount = 1; }
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->refcount++; }
 
     Func& Func::operator=(const Func& f)
@@ -171,6 +175,14 @@ namespace loops
     {
         ContextImpl* ctx = static_cast<FuncImpl*>(impl)->get_context();
         return ctx->get_compiler().compile(ctx->get_owner(), *this); //TODO(ch): Too much get's. Looks like wormholes interweaving.
+    }
+
+    Func Func::make(Func* a_wrapped)
+    {
+        Func ret; 
+        ret.impl = a_wrapped;
+        static_cast<FuncImpl*>(ret.impl)->refcount = 1;
+        return ret;
     }
 
     size_t Context::provideIdx() { return static_cast<ContextImpl*>(impl)->provideIdx(); }
@@ -214,6 +226,42 @@ namespace loops
         FuncImpl* func = getImpl(getImpl(*ctx)->get_current_func());
         func->m_program.emplace_back(ctx, opcode, interargs);
         return ireg_hidden_constructor(ctx, func->m_program.back().retidx);
+    }
+
+    void newiop_noret(int opcode, ::std::initializer_list<Arg> args)
+    {
+        Context* ctx = nullptr;
+        for (const Arg& arg : args)
+            if (arg.tag == Arg::IREG)
+            {
+                ctx = arg.ctx;
+                break;
+            }
+        if (ctx == nullptr)
+            throw std::string("Cannot find ctx in registers.");
+        FuncImpl* func = getImpl(getImpl(*ctx)->get_current_func());
+        IReg emptyreg;
+        func->m_program.emplace_back(emptyreg, opcode, args);
+    }
+
+    void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args)
+    {
+        std::vector<Arg> interargs(args.size() + 1, Arg());
+        std::copy(args.begin(), args.end(), interargs.begin() + 1);
+        interargs[0].tag = Arg::ICONST;
+        interargs[0].value = depth;
+        Context* ctx = nullptr;
+        for (const Arg& arg : args)
+            if (arg.tag == Arg::IREG)
+            {
+                ctx = arg.ctx;
+                break;
+            }
+        if (ctx == nullptr)
+            throw std::string("Cannot find ctx in registers.");
+        FuncImpl* func = getImpl(getImpl(*ctx)->get_current_func());
+        IReg emptyreg;
+        func->m_program.emplace_back(emptyreg, opcode, interargs);
     }
 
     Compiler::Compiler() : p(nullptr) {}
@@ -285,12 +333,17 @@ namespace loops
     FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params): refcount(0), m_name(name), m_context(getImpl(*ctx)) //TODO(ch): Should we check if ctx == nullptr?
     {
         m_params_idx.reserve(params.size());
-        for (IReg* argreg : params)
+        for (IReg* parreg : params)
         {
-            argreg->ctx = ctx;
-            argreg->idx = m_context->provideIdx(); //TODO(ch): It's hard to pretend situation when idx isn't 0 here, but you'd better check.
-            m_params_idx.emplace_back(argreg->idx);
+            parreg->ctx = ctx;
+            parreg->idx = m_context->provideIdx(); //TODO(ch): It's hard to pretend situation when idx isn't 0 here, but you'd better check.
+            m_params_idx.emplace_back(parreg->idx);
         }
+    }
+
+    Func FuncImpl::makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params)
+    {
+        return Func::make(new FuncImpl(name, ctx, params));
     }
 
     FuncImpl::op::op(const op& fwho) : opcode(fwho.opcode), retidx(fwho.retidx), args(fwho.args) {}
@@ -306,15 +359,16 @@ namespace loops
     
     FuncImpl::op::op(Context* ctx, int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), retidx(getImpl(*ctx)->provideIdx()), args(a_args) {}
     
-    FuncImpl::op::op(const IReg& a_ret, int a_opcode, std::initializer_list<Arg> a_args) : opcode(a_opcode)
+    FuncImpl::op::op(const IReg& a_ret, int a_opcode, std::initializer_list<Arg> a_args) : opcode(a_opcode), retidx(a_ret.idx)
     {
-        retidx = a_ret.idx;
         args.reserve(a_args.size());
         for (auto arg : a_args)
         {
             args.push_back(arg);
         }
     }
+
+    FuncImpl::op::op(const IReg& a_ret, int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), retidx(a_ret.idx), args(a_args) {}
 
     void* DumpCompiler::compile(Context* ctx, Func a_func) const
     {
@@ -358,9 +412,7 @@ namespace loops
 
     void DumpCompiler::print_instruction(::std::ostringstream& str, const FuncImpl::op& operation, size_t innum) const
     {
-        str << "    " << innum << " : ";
-        print_ireg(str, ireg_hidden_constructor(nullptr, operation.retidx)); //TODO(ch): nullptr? Ugly
-        str << " = ";
+        str << "   " << std::setw(6) << innum << " : ";
         switch (operation.opcode)
         {
         case OP_LOAD: str << "load "; break;
@@ -375,6 +427,13 @@ namespace loops
         case OP_RET : str << "ret "; break;
         default:
             throw std::string("Undefined operation type.");
+        }
+
+        if (operation.retidx)
+        {
+            print_ireg(str, ireg_hidden_constructor(nullptr, operation.retidx)); //TODO(ch): nullptr? Ugly
+            if (operation.args.size())
+                str << ", ";
         }
 
         for (size_t argnum = 0; argnum + 1 < operation.args.size(); argnum++)
@@ -392,12 +451,12 @@ namespace loops
         m_nextidx = 1;
         if(m_functionsStorage.find(name) != m_functionsStorage.end())
             throw std::string("Function is already registered.");  //TODO(ch): We need good exception class.
-        m_currentFunc = m_functionsStorage.emplace(name, Func(name, m_owner, params)).first->second;
+        m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
     }
 
     void ContextImpl::endfunc(const IReg& retval)
     {
-        newiop(m_owner, OP_RET, { retval });
+        newiop_noret(OP_RET, { retval });
         m_currentFunc = Func();
     }
 
