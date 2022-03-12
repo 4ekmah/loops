@@ -13,8 +13,7 @@ std::string gencode(Context& ctx)
 {
     IReg ptr, n, minpos_addr, maxpos_addr;
     ctx.startfunc("foo", {&ptr, &n, &minpos_addr, &maxpos_addr});
-    IReg z = ctx.const_(0);
-    IReg i = z, minpos = z, maxpos = z, minval = load(ptr), maxval = load(ptr);
+    IReg i = ctx.const_(0), minpos = ctx.const_(0), maxpos = ctx.const_(0), minval = load_<int>(ptr), maxval = minval;
     ctx.do_();
         IReg x = load_<int>(ptr, i);
         ctx.if_(x < minval);
@@ -29,7 +28,8 @@ std::string gencode(Context& ctx)
     ctx.while_(i < n);
     store_<int>(minpos_addr, minpos);
     store_<int>(maxpos_addr, maxpos);
-    ctx.endfunc(ctx.const_(0));
+    ctx.return_(ctx.const_(0));
+    ctx.endfunc();
     //return (minmaxfunc_t)ctx.getfunc("foo").ptr();
     return *((std::string*)(ctx.getfunc("foo").ptr()));
 }

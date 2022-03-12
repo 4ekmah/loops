@@ -85,9 +85,11 @@ enum {
     OP_AUG_MIN,
     OP_AUG_MAX,
 
+    OP_JMP,
     OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
     OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
-    OP_RET  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
+    OP_RET,  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
+    OP_LABEL
 };
 
 template<typename _Tp> struct ElemTraits {};
@@ -132,22 +134,22 @@ template<> struct ElemTraits<double> {
     enum { depth = TYPE_FP64, elemsize=8 };
 };
 
-class Context;
-
+class Func;
 struct IReg
 {
     IReg();
-    IReg(Context* a_ctx); 
 
     IReg(const IReg& r); //Must generate copy(mov) code 
     IReg(IReg&& a);
     IReg& operator=(const IReg& r); // may generate real code
                                       // if 'this' is already initialized
 
-    size_t idx; // 0 means uninitialized
-    Context* ctx;
+    size_t idx;
+    Func* m_func;
+    static const size_t NOIDX;
 };
 
+class Context;
 template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
@@ -175,24 +177,24 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    enum { EMPTY = 0, IREG = 1, ICONST = 2 };//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment. BUT!!! Before ask VP about consts!
+    enum { EMPTY = 0, IREG = 1, ICONST = 2 };//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment.
 
     Arg();
     Arg(const IReg& r);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
 
-    IReg ireg() const;
+    IReg ireg() const; //TODO(ch): what for?
     template<typename _Tp> VReg<_Tp> vreg() const;
 
-    int idx;
-    Context* ctx;
+    size_t idx; //TODO(ch): IRegInternal??? Or, it's better to create ArgInternal?
+    Func* m_func;
     size_t tag;
     int64_t value;
 };
 
 class Func
 {
-    friend Func* _getImpl(const Func& wrapper);
+    friend Func* _getImpl(Func* wrapper);
 public:
     Func();
     Func(const Func& f);
@@ -213,7 +215,7 @@ public:
     Compiler(const Compiler& f);
     Compiler& operator=(const Compiler& f);
     virtual ~Compiler();
-    virtual void* compile(Context* ctx, Func a_func) const;
+    virtual void* compile(Context* a_ctx, Func* a_func) const;
     static Compiler make_virtual_dump();
 protected:
     Compiler();
@@ -223,7 +225,7 @@ private:
 
 class Context
 {
-    friend Context* _getImpl(const Context& wrapper);
+    friend Context* _getImpl(Context* wrapper);
 public:
     Context();
     Context(Compiler cmpl);
@@ -232,7 +234,7 @@ public:
     Context& operator = (const Context& ctx);
 
     void startfunc(const std::string& name, std::initializer_list<IReg*> params);
-    void endfunc(const IReg& retval); //TODO(ch): I'm not sure about retval. There must be return_(retval) better. 
+    void endfunc();
     void getfuncs(std::vector<Func>& funcs);
     Func getfunc(const std::string& name);
 
@@ -251,13 +253,12 @@ public:
     void elif_(const IReg& r);
     void else_();
     void endif_();
+    void return_(const IReg& retval);
+    void return_();
     // direct call
     IReg call_(const IReg& addr, std::initializer_list<IReg> args);
     // indirect call
     IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
-
-    size_t provideIdx(); //TODO(ch) : This one must be hidden.
-
 protected:
     Context* impl;
 };
