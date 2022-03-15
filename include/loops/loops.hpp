@@ -9,6 +9,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include <inttypes.h>
 #include <string>
+#include <vector>
 
 namespace loops
 {
@@ -82,7 +83,13 @@ enum {
     OP_AUG_OR,
     OP_AUG_XOR,
     OP_AUG_MIN,
-    OP_AUG_MAX
+    OP_AUG_MAX,
+
+    OP_JMP,
+    OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
+    OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
+    OP_RET,  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
+    OP_LABEL
 };
 
 template<typename _Tp> struct ElemTraits {};
@@ -127,21 +134,22 @@ template<> struct ElemTraits<double> {
     enum { depth = TYPE_FP64, elemsize=8 };
 };
 
-class Context;
-
+class Func;
 struct IReg
 {
     IReg();
-    explicit IReg(int idx, const Context& ctx);
 
-    IReg(const IReg& r);
-    IReg& operator = (const IReg& r); // may generate real code
+    IReg(const IReg& r); //Must generate copy(mov) code 
+    IReg(IReg&& a);
+    IReg& operator=(const IReg& r); // may generate real code
                                       // if 'this' is already initialized
 
-    int idx; // 0 means uninitialized
-    Context* ctx;
+    size_t idx;
+    Func* m_func;
+    static const size_t NOIDX;
 };
 
+class Context;
 template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
@@ -169,45 +177,64 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    Arg() : idx(0), ctx(0) {}
+    enum { EMPTY = 0, IREG = 1, ICONST = 2 };//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment.
+
+    Arg();
     Arg(const IReg& r);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
-    
-    IReg ireg() const;
+
+    IReg ireg() const; //TODO(ch): what for?
     template<typename _Tp> VReg<_Tp> vreg() const;
 
-    int idx;
-    Context* ctx;
+    size_t idx; //TODO(ch): IRegInternal??? Or, it's better to create ArgInternal?
+    Func* m_func;
+    size_t tag;
+    int64_t value;
 };
 
 class Func
 {
+    friend Func* _getImpl(Func* wrapper);
 public:
     Func();
-    Func(const std::string& name, const Context& ctx,
-         std::initializer_list<IReg*> params);
     Func(const Func& f);
-    Func& operator = (const Func& f);
+    Func& operator=(const Func& f);
     virtual ~Func();
 
-    std::string name() const;
+    std::string name() const; //TODO(ch): what for we need name here? 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
 protected:
-    struct Impl;
-    Impl* p;
+    static Func make(Func* a_wrapped);
+    Func* impl;
+};
+
+class Compiler
+{
+public:
+    Compiler(const Compiler& f);
+    Compiler& operator=(const Compiler& f);
+    virtual ~Compiler();
+    virtual void* compile(Context* a_ctx, Func* a_func) const;
+    static Compiler make_virtual_dump();
+protected:
+    Compiler();
+private: 
+    Compiler* p;
 };
 
 class Context
 {
+    friend Context* _getImpl(Context* wrapper);
 public:
     Context();
+    Context(Compiler cmpl);
     Context(const Context& ctx);
     virtual ~Context();
     Context& operator = (const Context& ctx);
 
     void startfunc(const std::string& name, std::initializer_list<IReg*> params);
-    void endfunc(const IReg& retval);
+    void endfunc();
     void getfuncs(std::vector<Func>& funcs);
     Func getfunc(const std::string& name);
 
@@ -226,18 +253,20 @@ public:
     void elif_(const IReg& r);
     void else_();
     void endif_();
+    void return_(const IReg& retval);
+    void return_();
     // direct call
     IReg call_(const IReg& addr, std::initializer_list<IReg> args);
     // indirect call
     IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
-
 protected:
-    struct Impl;
-    Impl* p;
+    Context* impl;
 };
 
-IReg newiop(int opcode, std::initializer_list<Arg> args);
+IReg newiop(int opcode, ::std::initializer_list<Arg> args);
 IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
+void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
+void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -248,7 +277,7 @@ static inline IReg loadx(const IReg& base, const IReg& offset, int depth)
 { return newiop(OP_LOAD, depth, {base, offset}); }
 
 static inline IReg load(const IReg& base)
-{ return newiop(OP_LOAD, TYPE_I64, {base}); }
+{ return static_cast<IReg&&>(newiop(OP_LOAD, TYPE_I64, {base})); }
 static inline IReg load(const IReg& base, const IReg& offset)
 { return newiop(OP_LOAD, TYPE_I64, {base, offset}); }
 
@@ -256,23 +285,23 @@ template<typename _Tp> static inline IReg load_(const IReg& base)
 { return loadx(base, ElemTraits<_Tp>::depth); }
 template<typename _Tp> static inline
 IReg load_(const IReg& base, const IReg& offset)
-{ return loadx(base, offset, ElemTraits<_Tp>::depth); }
+{ return static_cast<IReg&&>(loadx(base, offset, ElemTraits<_Tp>::depth)); }
 
 // store part of register
 static inline void storex(const IReg& base, const IReg& r, int depth)
-{ newiop(OP_STORE, depth, {base, r}); }
+{ newiop_noret(OP_STORE, depth, {base, r}); }
 static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
-{ newiop(OP_STORE, depth, {base, offset, r}); }
+{ newiop_noret(OP_STORE, depth, {base, offset, r}); }
 static inline void store(const IReg& base, const IReg& r)
-{ newiop(OP_STORE, TYPE_I64, {base, r}); }
+{ newiop_noret(OP_STORE, TYPE_I64, {base, r}); }
 static inline void store(const IReg& base, const IReg& offset, const IReg& r)
-{ newiop(OP_STORE, TYPE_I64, {base, offset, r}); }
+{ newiop_noret(OP_STORE, TYPE_I64, {base, offset, r}); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& r)
-{ return storex(base, r, ElemTraits<_Tp>::depth); }
+{ storex(base, r, ElemTraits<_Tp>::depth); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& offset, const IReg& r)
-{ return storex(base, offset, r, ElemTraits<_Tp>::depth); }
+{ storex(base, offset, r, ElemTraits<_Tp>::depth); }
 
 static inline IReg operator + (const IReg& a, const IReg& b)
 { return newiop(OP_ADD, {a, b}); }
@@ -286,117 +315,117 @@ static inline IReg operator % (const IReg& a, const IReg& b)
 { return newiop(OP_MOD, {a, b}); }
 static inline IReg operator >> (const IReg& a, const IReg& b)
 { return newiop(OP_SHR, {a, b}); }
-IReg operator << (const IReg& a, const IReg& b)
+static inline IReg operator << (const IReg& a, const IReg& b)
 { return newiop(OP_SHL, {a, b}); }
-IReg operator & (const IReg& a, const IReg& b)
+static inline IReg operator & (const IReg& a, const IReg& b)
 { return newiop(OP_AND, {a, b}); }
-IReg operator | (const IReg& a, const IReg& b)
+static inline IReg operator | (const IReg& a, const IReg& b)
 { return newiop(OP_OR, {a, b}); }
-IReg operator ^ (const IReg& a, const IReg& b)
+static inline IReg operator ^ (const IReg& a, const IReg& b)
 { return newiop(OP_XOR, {a, b}); }
-IReg operator ~ (const IReg& a)
+static inline IReg operator ~ (const IReg& a)
 { return newiop(OP_NOT, {a}); }
-IReg operator - (const IReg& a)
+static inline IReg operator - (const IReg& a)
 { return newiop(OP_NEG, {a}); }
-IReg operator == (const IReg& a, const IReg& b)
+static inline IReg operator == (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_EQ, {a, b}); }
-IReg operator != (const IReg& a, const IReg& b)
+static inline IReg operator != (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_NE, {a, b}); }
-IReg operator <= (const IReg& a, const IReg& b)
+static inline IReg operator <= (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_LE, {a, b}); }
-IReg operator >= (const IReg& a, const IReg& b)
+static inline IReg operator >= (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_GE, {a, b}); }
-IReg operator > (const IReg& a, const IReg& b)
+static inline IReg operator > (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_GT, {a, b}); }
-IReg operator < (const IReg& a, const IReg& b)
+static inline IReg operator < (const IReg& a, const IReg& b)
 { return newiop(OP_CMP_LT, {a, b}); }
-IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
+static inline IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
 { return newiop(OP_SELECT, {flag, iftrue, iffalse}); }
-IReg max(const IReg& a, const IReg& b)
+static inline IReg max(const IReg& a, const IReg& b)
 { return newiop(OP_MAX, {a, b}); }
-IReg min(const IReg& a, const IReg& b)
+static inline IReg min(const IReg& a, const IReg& b)
 { return newiop(OP_MIN, {a, b}); }
-IReg abs(const IReg& a)
+static inline IReg abs(const IReg& a)
 { return newiop(OP_ABS, {a}); }
-IReg sign(const IReg& a)
+static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
 
-IReg& operator += (IReg& a, const IReg& b)
-{ newiop(OP_AUG_ADD, {a, b}); return a; }
-IReg& operator -= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SUB, {a, b}); return a; }
-IReg& operator *= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_MUL, {a, b}); return a; }
-IReg& operator /= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_DIV, {a, b}); return a; }
-IReg& operator %= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_MOD, {a, b}); return a; }
-IReg& operator >>= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SHR, {a, b}); return a; }
-IReg& operator <<= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_SHL, {a, b}); return a; }
-IReg& operator &= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_AND, {a, b}); return a; }
-IReg& operator |= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_OR, {a, b}); return a; }
-IReg& operator ^= (IReg& a, const IReg& b)
-{ newiop(OP_AUG_XOR, {a, b}); return a; }
+static inline IReg& operator += (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_ADD, {a, b}); return a; }
+static inline IReg& operator -= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_SUB, {a, b}); return a; }
+static inline IReg& operator *= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_MUL, {a, b}); return a; }
+static inline IReg& operator /= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_DIV, {a, b}); return a; }
+static inline IReg& operator %= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_MOD, {a, b}); return a; }
+static inline IReg& operator >>= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_SHR, {a, b}); return a; }
+static inline IReg& operator <<= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_SHL, {a, b}); return a; }
+static inline IReg& operator &= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_AND, {a, b}); return a; }
+static inline IReg& operator |= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_OR, {a, b}); return a; }
+static inline IReg& operator ^= (IReg& a, const IReg& b)
+{ newiop_noret(OP_AUG_XOR, {a, b}); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 
-template<typename _Tp> VReg<_Tp> loadv(const IReg& base);
-template<typename _Tp> VReg<_Tp> loadv(const IReg& base, const IReg& offset);
-// load with zero/sign extension
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int depth);
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset, int depth);
-
-template<typename _Tp> void storev(const IReg& base, const VReg<_Tp>& r);
-template<typename _Tp> void storev(const IReg& base, const IReg& offset, const IReg& r);
-// cast and store
-template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r, int depth);
-template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r, int depth);
-
-template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator * (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator % (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator << (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator ^ (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator ~ (const VReg<_Tp>& a);
-template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a);
-// SSE, NEON etc. comparison operations on vectors produce vectors of the same type as the compared vectors.
-template<typename _Tp> VReg<_Tp> operator == (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator != (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator <= (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator >= (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator > (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> select(const VReg<_Tp>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse);
-template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
-template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
-
-template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& a, const VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b);
-
-// if all/any of the elements is true
-template<typename _Tp> IReg all(VReg<_Tp>& a);
-template<typename _Tp> IReg any(VReg<_Tp>& a);
+//template<typename _Tp> VReg<_Tp> loadv(const IReg& base);
+//template<typename _Tp> VReg<_Tp> loadv(const IReg& base, const IReg& offset);
+//// load with zero/sign extension
+//template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int depth);
+//template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset, int depth);
+//
+//template<typename _Tp> void storev(const IReg& base, const VReg<_Tp>& r);
+//template<typename _Tp> void storev(const IReg& base, const IReg& offset, const IReg& r);
+//// cast and store
+//template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r, int depth);
+//template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r, int depth);
+//
+//template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator * (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator % (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator << (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator ^ (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator ~ (const VReg<_Tp>& a);
+//template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a);
+//// SSE, NEON etc. comparison operations on vectors produce vectors of the same type as the compared vectors.
+//template<typename _Tp> VReg<_Tp> operator == (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator != (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator <= (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator >= (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator > (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> select(const VReg<_Tp>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse);
+//template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
+//template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
+//
+//template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b);
+//
+//// if all/any of the elements is true
+//template<typename _Tp> IReg all(VReg<_Tp>& a);
+//template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
 
