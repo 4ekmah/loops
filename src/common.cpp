@@ -5,6 +5,8 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
+#include "common.hpp"
+#include "aarch64.hpp"
 #include <map>
 #include <stack>
 #include <sstream>
@@ -12,98 +14,16 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    typedef size_t IRegInternal;
-    class ContextImpl;
-    class FuncImpl : public Func
-    {
-    public:
-        FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-        static Func makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-
-        std::string name() const { return m_name; }; //TODO(ch): what for we need name here? 
-        void call(std::initializer_list<int64_t> args) const;
-        void* ptr();
-
-        size_t refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-        inline size_t provide_idx() { return m_nextidx++; }
-        size_t append_label();
-        static const size_t EMPTYLABEL;
-
-        inline IReg newiop(int opcode, ::std::initializer_list<Arg> args);
-        inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
-        inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg);
-        inline void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
-        inline void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
-
-        void endfunc();
-
-        IReg const_(int64_t value);
-
-        void do_();
-        //void do_if_(const IReg& r);
-        void while_(const IReg& r);
-        //void break_();
-        //void continue_();
-        void if_(const IReg& r);
-        //void elif_(const IReg& r);
-        //void else_();
-        void endif_();
-        void return_(const IReg& retval);
-        void return_();
-
-        struct op
-        {
-            int opcode;
-            IRegInternal retidx;
-            std::vector<Arg> args;
-            op(const op& fwho);
-            op(FuncImpl* func, int a_opcode, std::initializer_list<Arg> a_args);
-            op(FuncImpl* func, int a_opcode, const std::vector<Arg>& a_args);
-            op(IRegInternal a_ret, int a_opcode, std::initializer_list<Arg> a_args);
-            op(IRegInternal a_ret, int a_opcode, const std::vector<Arg>& a_args);
-        };
-
-        inline const std::vector<IRegInternal>& getParams() const { return m_params_idx; }
-        inline const std::vector<op>& getProgram() const { return m_program; }
-    private:
-
-        struct cflowbracket
-        {
-            enum { DO, DOIF, IF, ELSE };
-            size_t m_tag;
-            size_t m_label_or_pos;
-            cflowbracket(size_t a_tag, size_t a_label_or_pos) : m_tag(a_tag), m_label_or_pos(a_label_or_pos) {}
-        };
-        std::stack<cflowbracket> m_cflowstack;
-
-        std::vector<op> m_program;
-        std::vector<IRegInternal> m_params_idx;
-        IRegInternal m_return_idx;
-        std::vector<size_t> m_return_positions;
-        std::string m_name;
-        ContextImpl* m_context;
-        size_t m_nextidx;
-        size_t m_nextlabelidx;
-
-        inline std::vector<Arg> depthed_args(int depth, std::initializer_list<Arg> args);
-    };
-
-    class RCCompiler : public Compiler
-    {
-    public:
-        size_t refcount;
-        RCCompiler() : Compiler(), refcount(0) {}
-    };
-
     class DumpCompiler : public RCCompiler
     {
     public:
-        DumpCompiler() {}
+        DumpCompiler() : m_aarch64(false),m_aarch64bin(false) {}
         virtual void* compile(Context* a_ctx, Func* a_func) const override final;
+        inline void setAarch64AsTarget() {m_aarch64 = true;}
+        inline void setAarch64BinAsTarget() {m_aarch64bin = true;}
     private:
-        void print_ireg(::std::ostream& str, IRegInternal idx) const;
-        void print_arg(::std::ostream& str, const Arg& arg) const;
-        void print_instruction(::std::ostream& str, const FuncImpl::op& operation, size_t innum) const;
+        bool m_aarch64; //TODO(ch) : Kolkhoz i isolenta.
+        bool m_aarch64bin;
         static std::string type_suffixes[];
         mutable std::vector<std::string> m_listings;
     };
@@ -174,6 +94,7 @@ namespace loops
 
     Arg::Arg() : idx(IReg::NOIDX), m_func(nullptr), tag(EMPTY), value(0) {}
     Arg::Arg(const IReg& r) : idx(r.idx), m_func(r.m_func), tag(r.m_func ? Arg::IREG : Arg::EMPTY), value(0) {}
+    Arg::Arg(int64_t a_value) : tag(Arg::ICONST), value(a_value){}
 
     Func::Func() : impl(nullptr) {}
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->refcount++; }
@@ -268,6 +189,15 @@ namespace loops
 
     void* Compiler::compile(Context* ctx, Func* a_func) const { return p->compile(ctx, a_func); }
 
+    Compiler Compiler::make_aarch64_compiler()
+    {
+        Compiler res;
+        AArch64Compiler* content = new AArch64Compiler();
+        content->refcount = 1;
+        res.p = content;
+        return res;
+    }
+
     Compiler Compiler::make_virtual_dump()
     {
         Compiler res;
@@ -275,7 +205,27 @@ namespace loops
         content->refcount = 1;
         res.p = content;
         return res;
-    } ;
+    }
+
+    Compiler Compiler::make_aarch64_dump()
+    {
+        Compiler res;
+        DumpCompiler* content = new DumpCompiler();
+        content->setAarch64AsTarget();
+        content->refcount = 1;
+        res.p = content;
+        return res;
+    }
+
+    Compiler Compiler::make_aarch64_bin_dump()
+    {
+        Compiler res;
+        DumpCompiler* content = new DumpCompiler();
+        content->setAarch64BinAsTarget();
+        content->refcount = 1;
+        res.p = content;
+        return res;
+    }
 
     Context::Context() : impl(nullptr) {}
     Context::Context(Compiler cmpl) : impl(new ContextImpl(this, cmpl)) { static_cast<ContextImpl*>(impl)->refcount = 1; }
@@ -354,30 +304,35 @@ namespace loops
 
     inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)
     {
-        m_program.emplace_back(this, opcode, args);
-        return ireg_hidden_constructor(this, m_program.back().retidx);
+        size_t retidx = provide_idx();
+        m_program.emplace_back(opcode, std::initializer_list<Arg>({ireg_hidden_constructor(this, retidx)}), args);
+        return ireg_hidden_constructor(this, retidx);
     }
 
     inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args)
     {
-        m_program.emplace_back(this, opcode, depthed_args(depth, args));
-        return ireg_hidden_constructor(this, m_program.back().retidx);
+        size_t retidx = provide_idx();
+        m_program.emplace_back(opcode, std::initializer_list<Arg>({ireg_hidden_constructor(this, retidx), depth}), args);
+        return ireg_hidden_constructor(this, retidx);
     }
 
     inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg)
     {
-        m_program.emplace_back(retreg, opcode, args);
-        return ireg_hidden_constructor(this, m_program.back().retidx);
+        Arg retarg;
+        retarg.tag = Arg::IREG;
+        retarg.idx = retreg;
+        m_program.emplace_back(opcode, std::initializer_list<Arg>({retarg}), args);
+        return ireg_hidden_constructor(this, retreg);
     }
 
     inline void FuncImpl::newiop_noret(int opcode, ::std::initializer_list<Arg> args)
     {
-        m_program.emplace_back(IReg::NOIDX, opcode, args);
+        m_program.emplace_back(opcode, args);
     }
 
     inline void FuncImpl::newiop_noret(int opcode, int depth, std::initializer_list<Arg> args)
     {
-        m_program.emplace_back(IReg::NOIDX, opcode, depthed_args(depth, args));
+        m_program.emplace_back(opcode, std::initializer_list<Arg>({Arg(depth)}), args);
     }
 
     void FuncImpl::endfunc()
@@ -396,7 +351,7 @@ namespace loops
             size_t endfunclabel = append_label();
             for (size_t retpos : m_return_positions)
             {
-                FuncImpl::op& jmpop = m_program[retpos];
+                syntop& jmpop = m_program[retpos];
                 if (jmpop.args.size() != 1 || jmpop.args[0].tag != Arg::ICONST)
                     throw std::string("\"If\" internal error: wrong JMP command format");
                 jmpop.args[0].value = endfunclabel;
@@ -430,7 +385,7 @@ namespace loops
         Arg loopstart;
         loopstart.tag = Arg::ICONST;
         loopstart.value = bracket.m_label_or_pos;
-        newiop_noret(OP_JNE, { r, loopstart });
+        newiop_noret(OP_JZ, { r, loopstart });
     }
     void FuncImpl::if_(const IReg& r)
     {
@@ -438,7 +393,7 @@ namespace loops
         Arg ifstart;
         ifstart.tag = Arg::ICONST;
         ifstart.value = 0;
-        newiop_noret(OP_JZ, { r, ifstart });
+        newiop_noret(OP_JNE, { r, ifstart });
     }
     void FuncImpl::endif_() //TODO(ch): Corresponding tag also can be ELSE or ELIF.
     {
@@ -451,19 +406,21 @@ namespace loops
         size_t posnext = m_program.size();
         if (bracket.m_label_or_pos >= posnext)
             throw std::string("\"If\" internal error: wrong branch start address");
-        FuncImpl::op& ifop = m_program[bracket.m_label_or_pos];
+        const syntop& ifop = m_program[bracket.m_label_or_pos];
         if (ifop.args.size() != 2 || ifop.args[1].tag != Arg::ICONST)
             throw std::string("\"If\" internal error: wrong JZ command format");
-        ifop.args[1].value = append_label();
+        m_program[bracket.m_label_or_pos].args[1].value = append_label();
     }
 
     void FuncImpl::return_(const IReg& retval)
     {
         if (m_return_positions.size() && m_return_idx == IReg::NOIDX)
             throw std::string("Mixed return types.");
-        IRegInternal ret_idx = m_return_idx;
-        ret_idx = (ret_idx == IReg::NOIDX) ? provide_idx() : ret_idx;
-        m_program.emplace_back(ret_idx, (int)OP_MOV, std::initializer_list<Arg>({ retval }));
+        m_return_idx = (m_return_idx == IReg::NOIDX) ? provide_idx() : m_return_idx;
+        Arg rettar;
+        rettar.tag = Arg::IREG;
+        rettar.idx = m_return_idx;
+        m_program.emplace_back(OP_MOV, std::initializer_list<Arg>({ rettar, retval }));
         Arg funcfinish;
         funcfinish.tag = Arg::ICONST;
         funcfinish.value = 0;
@@ -482,38 +439,61 @@ namespace loops
         newiop_noret(OP_JMP, { funcfinish });
     }
 
-    inline std::vector<Arg> FuncImpl::depthed_args(int depth, std::initializer_list<Arg> args)
+    syntop::syntop(const syntop& fwho) : opcode(fwho.opcode), args(fwho.args) {}
+
+    syntop::syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args(a_args){}
+        
+    syntop::syntop(int a_opcode, std::initializer_list<Arg> a_prefix,                                             std::initializer_list<Arg> a_args): opcode(a_opcode)
     {
-        std::vector<Arg> interargs(args.size() + 1, Arg());
-        std::copy(args.begin(), args.end(), interargs.begin() + 1);
-        interargs[0].tag = Arg::ICONST;
-        interargs[0].value = depth;
-        return interargs;
+        args.reserve(a_prefix.size() + a_args.size());
+        for(auto arg:a_prefix) args.emplace_back(arg);
+        for(auto arg:a_args) args.emplace_back(arg);
     }
 
-    FuncImpl::op::op(const op& fwho) : opcode(fwho.opcode), retidx(fwho.retidx), args(fwho.args) {}
-
-    FuncImpl::op::op(FuncImpl* func, int a_opcode, std::initializer_list<Arg> a_args) : opcode(a_opcode), retidx(func->provide_idx())
+    inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
     {
-        args.reserve(a_args.size());
-        for (auto arg : a_args)
+        switch (arg.tag)
         {
-            args.push_back(arg);
+        case Arg::IREG: str << "i" << arg.idx; break;
+        case Arg::ICONST: str << arg.value; break;
+        default:
+            throw std::string("Undefined argument type.");
+        };
+        return str;
+    }
+
+    void print_program(::std::ostream& str, const syntprogram& prog,
+                       const std::unordered_map<int, std::string>& opstrings,
+                       const std::unordered_map<int, std::function<void(::std::ostream&, const syntop&)> >& p_overrules, size_t firstop, size_t lastop)
+    {
+        firstop = (firstop == -1) ? 0 : firstop;
+        lastop = (lastop == -1) ? prog.size(): lastop;
+        for(size_t opnum = firstop; opnum<lastop; opnum++)
+        {
+            const syntop& op = prog[opnum];
+            str << "   " << std::setw(6) << opnum << " : ";
+            if (p_overrules.count(op.opcode) == 0)
+            {
+                if (opstrings.count(op.opcode) == 0)
+                    throw std::string("Printer: unprintable operation");
+                str<<opstrings.at(op.opcode)<<" ";
+                for (size_t argnum = 0 ; argnum + 1 < op.args.size(); argnum++)
+                    str << op.args[argnum]<<", ";
+                if(op.args.size())
+                    str<<op.args.back();
+            }
+            else
+                p_overrules.at(op.opcode)(str, op);
+            str << std::endl;
         }
     }
-    
-    FuncImpl::op::op(FuncImpl* func, int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), retidx(func->provide_idx()), args(a_args) {}
-    
-    FuncImpl::op::op(IRegInternal a_ret, int a_opcode, std::initializer_list<Arg> a_args) : opcode(a_opcode), retidx(a_ret)
-    {
-        args.reserve(a_args.size());
-        for (auto arg : a_args)
-        {
-            args.push_back(arg);
-        }
-    }
 
-    FuncImpl::op::op(IRegInternal a_ret, int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), retidx(a_ret), args(a_args) {}
+    void print_program(::std::ostream& str, const syntprogram& prog,
+                       const std::unordered_map<int, std::string>& opstrings, size_t firstop, size_t lastop)
+    {
+        std::unordered_map<int, std::function<void(::std::ostream&, const syntop&)> > dummy;
+        print_program(str, prog, opstrings, dummy, firstop, lastop);
+    }
 
     void* DumpCompiler::compile(Context* a_ctx, Func* a_func) const
     {
@@ -523,15 +503,59 @@ namespace loops
             ::std::ostringstream str(listing, ::std::ios::out);
             str << func->name() << "(";
             for (size_t argnum = 0; argnum + 1 < func->getParams().size(); argnum++)
-            {
-                print_ireg(str, func->getParams()[argnum]);
-                str << ", ";
-            }
+                str << "i" << (func->getParams())[argnum] << ", ";
             if (func->getParams().size())
-                print_ireg(str, func->getParams().back());
+                str<<"i"<<func->getParams().back();
             str << ")" << std::endl;
-            for (size_t innum = 0; innum < func->getProgram().size(); innum++)
-                print_instruction(str, func->getProgram()[innum], innum);
+            if(m_aarch64bin)
+            {
+                std::vector<syntop> aarch64code = bytecode2arm64(func->getProgram(), func->getParams(), func->getRetReg());
+                p_canvas canvas2print;
+                canvas2print.fromsynt(aarch64instructionset(), aarch64code);
+                if(canvas2print.m_buffer.size()%4 != 0)
+                    throw std::string("AArch64 binary must be multiple of 4");
+                size_t opnum = 0;
+                for(size_t ipos = 0; ipos < canvas2print.m_buffer.size(); ipos+=4)
+                {
+                    str << "   " << std::setfill(' ') << std::setw(6) << opnum++ << " : ";
+                    for(size_t pos = ipos; pos < ipos + 4; pos++) //TODO(ch): Print variants
+                        str << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)*(canvas2print.m_buffer.begin()+pos);
+//                    for(size_t pos = ipos+3; pos + 1> ipos; pos--) //TODO(ch): Again, ensure, that all instructions will be 4-bytes-wide
+//                        str << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)*(canvas2print.m_buffer.begin()+pos);
+                    str << std::endl;
+                }
+            }
+            else if(m_aarch64)
+            {
+                std::vector<syntop> aarch64code = bytecode2arm64(func->getProgram(), func->getParams(),func->getRetReg());
+                std::unordered_map<int, std::string> opstrings = {{A64_LDRSW_R, "ldrsw.r"}, {A64_LDRSW_I, "ldrsw.i"}, {A64_STR32_I, "str.32.i"}, {A64_MOV_I, "mov.i"}, {A64_MOV_R, "mov.r"}, {A64_ADD_R, "add.r"}, {A64_MUL, "mul"}, {A64_SDIV, "sdiv"}, {A64_CMP_R, "cmp.r"}, {A64_B_LT, "b.lt"}, {A64_B_GT, "b.gt"}, {A64_B_GE, "b.ge"}, {A64_B_LE, "b.le"}, {A64_RET, "ret"}};
+                //TODO(ch): add overrule for ret("ret i30" -> "ret")
+                print_program(str, aarch64code, opstrings);
+            }
+            else
+            {
+                std::unordered_map<int, std::string> opstrings = {{OP_MOV, "mov"}, {OP_CMP_LT, "cmp_lt"}, {OP_CMP_LE, "cmp_le"}, {OP_CMP_GT, "cmp_gt"}, {OP_AUG_ADD, "aug_add"}, {OP_AUG_MUL, "aug_mul"}, {OP_AUG_DIV, "aug_div"}, {OP_JNE, "jne"}, {OP_JZ, "jz"}, {OP_RET, "ret"}};//TODO(ch): will you create at every print?
+                std::unordered_map<int, std::function<void(::std::ostream&, const syntop&)> > printoverrules = {
+                    {OP_LOAD, [this](::std::ostream& str, const syntop& op){
+                        if ((op.args.size() != 3 && op.args.size() != 4) || op.args[1].tag != Arg::ICONST)
+                            throw std::string("Wrong LOAD format");
+                        str << "load." << type_suffixes[op.args[1].value]<<" " << op.args[0]<<", "<<op.args[2];
+                        if(op.args.size() == 4)
+                            str << ", " <<op.args[3];
+                    }},
+                    {OP_STORE, [this](::std::ostream& str, const syntop& op){
+                        if (op.args.size() != 3|| op.args[0].tag != Arg::ICONST)
+                            throw std::string("Wrong STORE format");
+                        str << "store." << type_suffixes[op.args[0].value]<<" " << op.args[1]<<", "<<op.args[2];
+                    }},
+                    {OP_LABEL, [this](::std::ostream& str, const syntop& op){
+                        if (op.args.size() != 1 || op.args[0].tag != Arg::ICONST)
+                            throw std::string("Wrong LABEL format");
+                        str << "label " << op.args[0] << ":";
+                    }},
+                    };
+                print_program(str, func->getProgram(), opstrings, printoverrules);
+            }
             str.flush();
             listing = str.str();
         }
@@ -553,75 +577,6 @@ namespace loops
         "fp32",
         "fp64",
     };
-
-    void DumpCompiler::print_ireg(::std::ostream& str, IRegInternal idx) const
-    {
-        str << "i" << idx;
-    }
-
-    void DumpCompiler::print_arg(::std::ostream& str, const Arg& arg) const
-    {
-        switch (arg.tag)
-        {
-        case Arg::IREG: print_ireg(str, arg.idx); break;
-        case Arg::ICONST: str << arg.value; break;
-        default:
-            throw std::string("Undefined argument type.");
-        };
-    }
-
-    void DumpCompiler::print_instruction(::std::ostream& str, const FuncImpl::op& operation, size_t innum) const
-    {
-        str << "   " << std::setw(6) << innum << " : ";
-        switch (operation.opcode)
-        {
-        case OP_LOAD:
-            if(operation.args.size() < 1 || operation.args[0].tag != Arg::ICONST)
-                throw std::string("Depthed operation don't have depth.");
-            str << "load." << type_suffixes[operation.args[0].value]<<" ";
-            break;
-        case OP_STORE:
-            if (operation.args.size() < 1 || operation.args[0].tag != Arg::ICONST)
-                throw std::string("Depthed operation don't have depth.");
-            str << "store." << type_suffixes[operation.args[0].value] << " ";
-            break;
-        case OP_MOV: str << "mov "; break;
-        case OP_CMP_LT: str << "cmp_lt "; break;
-        case OP_CMP_LE : str << "cmp_le "; break;
-        case OP_CMP_GT: str << "cmp_gt "; break;
-        case OP_AUG_ADD : str << "aug_add "; break;
-        case OP_JNE : str << "jne "; break;
-        case OP_JZ : str << "jz "; break;
-        case OP_RET : str << "ret "; break;
-        case OP_LABEL : str << "label "; break;
-        default:
-            throw std::string("Undefined operation type.");
-        }
-
-        if (operation.retidx != IReg::NOIDX)
-        {
-            print_ireg(str, operation.retidx);
-            if (operation.args.size())
-                str << ", ";
-        }
-
-        size_t argnum = 0;
-        if (operation.opcode == OP_STORE ||
-            operation.opcode == OP_LOAD)
-            argnum = 1;
-            
-        for (; argnum + 1 < operation.args.size(); argnum++)
-        {
-            print_arg(str, operation.args[argnum]);
-            str << ", ";
-        }
-        if (operation.args.size())
-            print_arg(str, operation.args.back());
-        if (operation.opcode == OP_LABEL) 
-            str << ":";
-
-        str << std::endl;
-    }
 
     void ContextImpl::startfunc(const std::string& name, std::initializer_list<IReg*> params)
     {

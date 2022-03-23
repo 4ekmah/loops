@@ -181,6 +181,7 @@ struct Arg
 
     Arg();
     Arg(const IReg& r);
+    Arg(int64_t a_value);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
 
     IReg ireg() const; //TODO(ch): what for?
@@ -216,7 +217,10 @@ public:
     Compiler& operator=(const Compiler& f);
     virtual ~Compiler();
     virtual void* compile(Context* a_ctx, Func* a_func) const;
+    static Compiler make_aarch64_compiler();
     static Compiler make_virtual_dump();
+    static Compiler make_aarch64_dump();
+    static Compiler make_aarch64_bin_dump();
 protected:
     Compiler();
 private: 
