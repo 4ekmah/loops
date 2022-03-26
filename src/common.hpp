@@ -9,98 +9,116 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #include <unordered_map>
 #include <stack>
+    
 namespace loops
 {
     struct syntop
     {
         int opcode;
         std::vector<Arg> args; //TODO(ch): recreate as Arg[10] instead of vector.
+        syntop();
         syntop(const syntop& fwho);
+        syntop(int a_opcode, const std::vector<Arg>& a_args);
         syntop(int a_opcode, std::initializer_list<Arg> a_args);
         syntop(int a_opcode, std::initializer_list<Arg> a_prefix,                                             std::initializer_list<Arg> a_args);
     };
-    typedef std::vector<syntop> syntprogram;
+    
+    typedef size_t IRegInternal;
+
+    struct syntfunc
+    {
+        std::vector<syntop> m_program;
+        std::vector<IRegInternal> m_params;
+        IRegInternal m_retreg;
+        syntfunc() : m_retreg(IReg::NOIDX) {}
+    };
+
+    template<typename T>
+    struct arg_indexed_array //TODO(ch): can't we implement syntop_indexed_array at last???
+    {
+        enum {C_ARRSIZE, C_ARGTYPE, C_ARGVALUE, C_LEAF};
+        int m_condition;
+        size_t m_argnum;
+        T m_leaf;
+        std::unordered_map<int, arg_indexed_array<T> > m_branches;
+        arg_indexed_array(): m_condition(C_LEAF) {}
+        arg_indexed_array(const T& a_leaf): m_condition(C_LEAF), m_leaf(a_leaf) {}
+        const T& operator[](const std::vector<Arg>& index) const
+        {
+            const arg_indexed_array* branch = this;
+            while(branch->m_condition != C_LEAF)
+            {
+                int condition_val;
+                switch(branch->m_condition)
+                {
+                    case(C_ARRSIZE):
+                    {
+                        condition_val = index.size();
+                        break;
+                    }
+                    case(C_ARGTYPE):
+                    {
+                        if(branch->m_argnum >= index.size())
+                            throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
+                        condition_val = index[branch->m_argnum].tag;
+                        break;
+                    }
+                    case(C_ARGVALUE):
+                    {
+                        if(branch->m_argnum >= index.size())
+                            throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
+                        condition_val = index[branch->m_argnum].value;
+                        break;
+                    }
+                    default:
+                        throw std::string("Argument-indexed Array: Unknown condition type.");
+                }
+                if(branch->m_branches.count(condition_val) == 0)
+                    throw std::string("Argument-indexed Array: don't have such an element.");
+                branch = &(branch->m_branches.at(condition_val));
+            }
+            return branch->m_leaf;
+        }
+    };
+
     
     //TODO(ch): create normal printer class with ability to set overrules.
-    void print_program(::std::ostream& str, const syntprogram& prog,
+    void print_program(::std::ostream& str, const syntfunc& func,
                        const std::unordered_map<int, std::string>& opstrings,
                        const std::unordered_map<int, std::function<void(::std::ostream&, const syntop&)> >& p_overrules, size_t firstop = -1, size_t lastop = -1);
     
-    void print_program(::std::ostream& str, const syntprogram& prog,
+    void print_program(::std::ostream& str, const syntfunc& func,
                        const std::unordered_map<int, std::string>& opstrings, size_t firstop = -1, size_t lastop = -1);
 
-    typedef size_t IRegInternal;
-    class ContextImpl;
-
-    class FuncImpl : public Func
+    class ContextImpl : public Context
     {
-    public:
-        FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-        static Func makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-
-        std::string name() const { return m_name; }; //TODO(ch): what for we need name here?
-        void call(std::initializer_list<int64_t> args) const;
-        void* ptr();
-
-        size_t refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-        inline size_t provide_idx() { return m_nextidx++; }
-        size_t append_label();
-        static const size_t EMPTYLABEL;
-
-        inline IReg newiop(int opcode, ::std::initializer_list<Arg> args);
-        inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
-        inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg);
-        inline void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
-        inline void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
-
-        void endfunc();
-
-        IReg const_(int64_t value);
-
-        void do_();
-        //void do_if_(const IReg& r);
-        void while_(const IReg& r);
-        //void break_();
-        //void continue_();
-        void if_(const IReg& r);
-        //void elif_(const IReg& r);
-        //void else_();
-        void endif_();
-        void return_(const IReg& retval);
-        void return_();
-
-        inline const std::vector<IRegInternal>& getParams() const { return m_params_idx; }
-        inline const std::vector<syntop>& getProgram() const { return m_program; }
-        inline const IRegInternal getRetReg() const { return m_return_idx; }
     private:
-
-        struct cflowbracket
-        {
-            enum { DO, DOIF, IF, ELSE };
-            size_t m_tag;
-            size_t m_label_or_pos;
-            cflowbracket(size_t a_tag, size_t a_label_or_pos) : m_tag(a_tag), m_label_or_pos(a_label_or_pos) {}
-        };
-        std::stack<cflowbracket> m_cflowstack;
-
-        syntprogram m_program;
-        std::vector<IRegInternal> m_params_idx;
-        IRegInternal m_return_idx;
-        std::vector<size_t> m_return_positions;
-        std::string m_name;
-        ContextImpl* m_context;
-        size_t m_nextidx;
-        size_t m_nextlabelidx;
-
-        inline std::vector<Arg> depthed_args(int depth, std::initializer_list<Arg> args);
-    };
-
-    class RCCompiler : public Compiler
-    {
+        std::unordered_map<std::string, Func> m_functionsStorage; //TODO(ch): unordered map?
+        Func m_currentFunc;
+        Context* m_owner;
+        Backend m_cmpl;
     public:
-        size_t refcount;
-        RCCompiler() : Compiler(), refcount(0) {}
+        ContextImpl(Context* owner, Backend cmpl) : m_owner(owner), m_cmpl(cmpl) {}
+        void startfunc(const std::string& name, std::initializer_list<IReg*> params);
+        void endfunc();
+        Func getfunc(const std::string& name);
+
+        int refcount;
+        inline Func* get_current_func() { return &m_currentFunc; }
+        inline Backend* get_compiler() { return &m_cmpl; }
+        inline Context* get_owner() const { return m_owner; }
     };
+
+
+    inline Func* _getImpl(Func* wrapper) { return wrapper->impl; };
+    inline Context* _getImpl(Context* wrapper) { return wrapper->impl; };
+    inline Backend* _getImpl(Backend* wrapper) { return wrapper->impl; };
+    inline ContextImpl* getImpl(Context* wrapper)
+    {
+        if(!wrapper)
+            throw std::string("Null context pointer.");
+        return static_cast<ContextImpl*>(_getImpl(wrapper));
+    }
 };
 
 #endif //__LOOPS_COMMON_HPP__

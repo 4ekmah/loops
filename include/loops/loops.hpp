@@ -8,6 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_LOOPS_HPP__
 
 #include <inttypes.h>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -89,7 +90,9 @@ enum {
     OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
     OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
     OP_RET,  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
-    OP_LABEL
+    OP_LABEL,
+    
+    OP_NOINIT
 };
 
 template<typename _Tp> struct ElemTraits {};
@@ -205,26 +208,29 @@ public:
     std::string name() const; //TODO(ch): what for we need name here? 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
+    void print_bytecode(std::ostream& out) const;
+    void print_target_mnemonics(std::ostream& out) const;
+    void print_target_hex(std::ostream& out) const;
+
 protected:
     static Func make(Func* a_wrapped);
     Func* impl;
 };
 
-class Compiler
+class Backend
 {
+    friend Backend* _getImpl(Backend* wrapper);
 public:
-    Compiler(const Compiler& f);
-    Compiler& operator=(const Compiler& f);
-    virtual ~Compiler();
+    Backend(const Backend& f);
+    Backend& operator=(const Backend& f);
+    virtual ~Backend();
     virtual void* compile(Context* a_ctx, Func* a_func) const;
-    static Compiler make_aarch64_compiler();
-    static Compiler make_virtual_dump();
-    static Compiler make_aarch64_dump();
-    static Compiler make_aarch64_bin_dump();
+    static Backend make_aarch64_compiler();
 protected:
-    Compiler();
-private: 
-    Compiler* p;
+    Backend();
+private:
+    Backend(Backend* a_p);
+    Backend* impl;
 };
 
 class Context
@@ -232,7 +238,7 @@ class Context
     friend Context* _getImpl(Context* wrapper);
 public:
     Context();
-    Context(Compiler cmpl);
+    Context(Backend cmpl);
     Context(const Context& ctx);
     virtual ~Context();
     Context& operator = (const Context& ctx);

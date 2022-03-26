@@ -5,7 +5,7 @@
 
 typedef int (*justcompiled_t)(const int* ptr, int64_t n,
                             int* minpos, int* maxpos);
-void* gencode(loops::Context& ctx)
+loops::Func gencode(loops::Context& ctx)
 {
     using namespace loops;
     IReg ptr, n, minpos_addr, maxpos_addr;
@@ -35,8 +35,7 @@ void* gencode(loops::Context& ctx)
     store_<int>(maxpos_addr, maxpos);
     ctx.return_(ctx.const_(0));
     ctx.endfunc();
-    void* res = ctx.getfunc("foo").ptr();
-    return res;
+    return ctx.getfunc("foo");
 }
 
 //typedef int (*justcompiled_t)(const int* ptr, int64_t n, int* out);
@@ -77,29 +76,18 @@ void* gencode(loops::Context& ctx)
 
 int main(int argc, char** argv)
 {
-    {//Print bytecode dumps.
-        std::cout<<"======--BYTECODE-LISTING--======="<<std::endl;
-        loops::Context ctx(loops::Compiler::make_virtual_dump());
-        std::cout<<*((std::string*)gencode(ctx))<<std::endl;
-    }
-    
-    {//Print aarch64 dump
-        std::cout<<"======--AARCH64--LISTING--======="<<std::endl;
-        loops::Context ctx(loops::Compiler::make_aarch64_dump());
-        std::cout<<*((std::string*)gencode(ctx))<<std::endl;
-    }
-    
-    {//Print aarch64 hexdump
-        std::cout<<"====--AARCH64-HEX-LISTING--======"<<std::endl;
-        loops::Context ctx(loops::Compiler::make_aarch64_bin_dump());
-        std::cout<<*((std::string*)gencode(ctx))<<std::endl;
-    }
-    
     {//Function usage
+        loops::Context ctx(loops::Backend::make_aarch64_compiler());
+        loops::Func lfunc = gencode(ctx);
+        std::cout<<"======--BYTECODE-LISTING--======="<<std::endl;
+        lfunc.print_bytecode(std::cout);
+        std::cout<<"======--AARCH64--LISTING--======="<<std::endl;
+        lfunc.print_target_mnemonics(std::cout);
+//        std::cout<<"====--AARCH64-HEX-LISTING--======"<<std::endl;
+//        lfunc.print_target_hex(std::cout);
         std::cout<<"======---FUNCTION-USAGE---======="<<std::endl;
-        loops::Context ctx(loops::Compiler::make_aarch64_compiler());
-        justcompiled_t f = reinterpret_cast<justcompiled_t>(gencode(ctx));
-        
+        justcompiled_t f = reinterpret_cast<justcompiled_t>(lfunc.ptr());
+
         //minmax array
         std::vector<int> v = { 8, 2, -5, 7, 6 };
         int minpos = -1, maxpos = -1;
