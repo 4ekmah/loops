@@ -9,7 +9,7 @@ loops::Func gencode(loops::Context& ctx)
 {
     using namespace loops;
     IReg ptr, n, minpos_addr, maxpos_addr;
-    ctx.startfunc("foo", {&ptr, &n, &minpos_addr, &maxpos_addr});
+    ctx.startFunc("foo", {&ptr, &n, &minpos_addr, &maxpos_addr});
     IReg i = ctx.const_(0);
     IReg minpos = ctx.const_(0);
     IReg maxpos = ctx.const_(0);
@@ -34,8 +34,8 @@ loops::Func gencode(loops::Context& ctx)
     store_<int>(minpos_addr, minpos);
     store_<int>(maxpos_addr, maxpos);
     ctx.return_(ctx.const_(0));
-    ctx.endfunc();
-    return ctx.getfunc("foo");
+    ctx.endFunc();
+    return ctx.getFunc("foo");
 }
 
 //typedef int (*justcompiled_t)(const int* ptr, int64_t n, int* out);
@@ -77,12 +77,12 @@ loops::Func gencode(loops::Context& ctx)
 int main(int argc, char** argv)
 {
     {//Function usage
-        loops::Context ctx(loops::Backend::make_aarch64_compiler());
+        loops::Context ctx(loops::Backend::makeAarch64Compiler());
         loops::Func lfunc = gencode(ctx);
         std::cout<<"======--BYTECODE-LISTING--======="<<std::endl;
-        lfunc.print_bytecode(std::cout);
+        lfunc.printBytecode(std::cout);
         std::cout<<"======--AARCH64--LISTING--======="<<std::endl;
-        lfunc.print_target_mnemonics(std::cout);
+        lfunc.printAssembly(std::cout);
 //        std::cout<<"====--AARCH64-HEX-LISTING--======"<<std::endl;
 //        lfunc.print_target_hex(std::cout);
         std::cout<<"======---FUNCTION-USAGE---======="<<std::endl;

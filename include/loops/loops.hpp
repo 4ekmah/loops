@@ -72,20 +72,6 @@ enum {
     OP_ALL,
     OP_ANY,
 
-    OP_AUG_ADD,
-    OP_AUG_SUB,
-    OP_AUG_MUL,
-    OP_AUG_MUL_HIGH,
-    OP_AUG_DIV,
-    OP_AUG_MOD,
-    OP_AUG_SHL,
-    OP_AUG_SHR,
-    OP_AUG_AND,
-    OP_AUG_OR,
-    OP_AUG_XOR,
-    OP_AUG_MIN,
-    OP_AUG_MAX,
-
     OP_JMP,
     OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
     OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
@@ -148,7 +134,7 @@ struct IReg
                                       // if 'this' is already initialized
 
     size_t idx;
-    Func* m_func;
+    Func* func;
     static const size_t NOIDX;
 };
 
@@ -191,7 +177,7 @@ struct Arg
     template<typename _Tp> VReg<_Tp> vreg() const;
 
     size_t idx; //TODO(ch): IRegInternal??? Or, it's better to create ArgInternal?
-    Func* m_func;
+    Func* func;
     size_t tag;
     int64_t value;
 };
@@ -208,9 +194,9 @@ public:
     std::string name() const; //TODO(ch): what for we need name here? 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
-    void print_bytecode(std::ostream& out) const;
-    void print_target_mnemonics(std::ostream& out) const;
-    void print_target_hex(std::ostream& out) const;
+    void printBytecode(std::ostream& out) const;
+    void printAssembly(std::ostream& out) const;
+    void printTargetHex(std::ostream& out) const; //IMPORTANT: delete this one and implement table-printer in printAssembly.
 
 protected:
     static Func make(Func* a_wrapped);
@@ -225,7 +211,7 @@ public:
     Backend& operator=(const Backend& f);
     virtual ~Backend();
     virtual void* compile(Context* a_ctx, Func* a_func) const;
-    static Backend make_aarch64_compiler();
+    static Backend makeAarch64Compiler();
 protected:
     Backend();
 private:
@@ -241,12 +227,12 @@ public:
     Context(Backend cmpl);
     Context(const Context& ctx);
     virtual ~Context();
-    Context& operator = (const Context& ctx);
+    Context& operator=(const Context& ctx);
 
-    void startfunc(const std::string& name, std::initializer_list<IReg*> params);
-    void endfunc();
-    void getfuncs(std::vector<Func>& funcs);
-    Func getfunc(const std::string& name);
+    void startFunc(const std::string& name, std::initializer_list<IReg*> params);
+    void endFunc();
+    void getFuncs(std::vector<Func>& funcs);
+    Func getFunc(const std::string& name);
 
     IReg const_(int64_t value);
     template<typename _Tp> VReg<_Tp> vconst_(_Tp value);
@@ -275,8 +261,9 @@ protected:
 
 IReg newiop(int opcode, ::std::initializer_list<Arg> args);
 IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
-void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
-void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
+void newiopNoret(int opcode, ::std::initializer_list<Arg> args);
+void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args);
+void newiopAug(int opcode, ::std::initializer_list<Arg> args);
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -299,13 +286,13 @@ IReg load_(const IReg& base, const IReg& offset)
 
 // store part of register
 static inline void storex(const IReg& base, const IReg& r, int depth)
-{ newiop_noret(OP_STORE, depth, {base, r}); }
+{ newiopNoret(OP_STORE, depth, {base, r}); }
 static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
-{ newiop_noret(OP_STORE, depth, {base, offset, r}); }
+{ newiopNoret(OP_STORE, depth, {base, offset, r}); }
 static inline void store(const IReg& base, const IReg& r)
-{ newiop_noret(OP_STORE, TYPE_I64, {base, r}); }
+{ newiopNoret(OP_STORE, TYPE_I64, {base, r}); }
 static inline void store(const IReg& base, const IReg& offset, const IReg& r)
-{ newiop_noret(OP_STORE, TYPE_I64, {base, offset, r}); }
+{ newiopNoret(OP_STORE, TYPE_I64, {base, offset, r}); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& r)
 { storex(base, r, ElemTraits<_Tp>::depth); }
@@ -361,25 +348,25 @@ static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
 
 static inline IReg& operator += (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_ADD, {a, b}); return a; }
+{ newiopAug(OP_ADD, {a, a, b}); return a; }
 static inline IReg& operator -= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SUB, {a, b}); return a; }
+{ newiopAug(OP_SUB, {a, a, b}); return a; }
 static inline IReg& operator *= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_MUL, {a, b}); return a; }
+{ newiopAug(OP_MUL, {a, a, b}); return a; }
 static inline IReg& operator /= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_DIV, {a, b}); return a; }
+{ newiopAug(OP_DIV, {a, a, b}); return a; }
 static inline IReg& operator %= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_MOD, {a, b}); return a; }
+{ newiopAug(OP_MOD, {a, a, b}); return a; }
 static inline IReg& operator >>= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SHR, {a, b}); return a; }
+{ newiopAug(OP_SHR, {a, a, b}); return a; }
 static inline IReg& operator <<= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SHL, {a, b}); return a; }
+{ newiopAug(OP_SHL, {a, a, b}); return a; }
 static inline IReg& operator &= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_AND, {a, b}); return a; }
+{ newiopAug(OP_AND, {a, a, b}); return a; }
 static inline IReg& operator |= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_OR, {a, b}); return a; }
+{ newiopAug(OP_OR, {a, a, b}); return a; }
 static inline IReg& operator ^= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_XOR, {a, b}); return a; }
+{ newiopAug(OP_XOR, {a, a, b}); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 

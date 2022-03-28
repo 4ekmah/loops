@@ -30,31 +30,31 @@ enum {
     A64_RET
 };
 
-class aarch64_backend : public backend_impl
+class Aarch64Backend : public BackendImpl
 {
+public:
+    Aarch64Backend();
+    virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
+    virtual Arg translateReg(IRegInternal tofind) const override final;
+    virtual std::unordered_map<int, std::string> getOpStrings() const override final;
+private:
     struct label_ref_info
     {
-        size_t m_opnum;
-        size_t m_argnum;
-        size_t m_opoffset;
-        label_ref_info(): m_opnum(0), m_argnum(0), m_opoffset(0) {}
-        label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset): m_opnum(a_opnum), m_argnum(a_argnum), m_opoffset(a_opoffset) {}
+        size_t opnum;
+        size_t argnum;
+        size_t opoffset;
+        label_ref_info(): opnum(0), argnum(0), opoffset(0) {}
+        label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset): opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
     };
 
     mutable size_t m_nextidx; //TODO(ch): Do something with thread-safety.
-    mutable std::unordered_map<size_t, size_t> m_regmap;
-    mutable IRegInternal m_retreg;
-    mutable int m_lastcondition; //TODO(ch): scheme of using this variable isn't ok. Think, we have to avoid OP_CMP_GT etc. logic. Use standard OP_CMP instead.
-    mutable std::unordered_map<size_t, size_t> m_labelmap;
-    mutable std::unordered_map<size_t, std::vector<label_ref_info> > m_labelrefmap; // label
+    mutable std::unordered_map<size_t, size_t> m_regMap;
+    mutable IRegInternal m_retReg;
+    mutable int m_lastCondition; //TODO(ch): scheme of using this variable isn't ok. Think, we have to avoid OP_CMP_GT etc. logic. Use standard OP_CMP instead.
+    mutable std::unordered_map<size_t, size_t> m_labelMap;
+    mutable std::unordered_map<size_t, std::vector<label_ref_info> > m_labelRefMap; // label
 
-    virtual bool handle_bytecodeop(const syntop& a_btop, syntfunc& a_formingtarget) const override final;
-public:
-    aarch64_backend();
-    virtual void* compile(Context* a_ctx, Func* a_func) const override final;
-    virtual syntfunc bytecode2target(const syntfunc& a_bcfunc) const override final;
-    virtual Arg translate_reg(IRegInternal tofind) const override final;
-    virtual std::unordered_map<int, std::string> get_op_strings() const override final;
+    virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const override final;
 };
 
 };

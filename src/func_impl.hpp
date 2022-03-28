@@ -24,20 +24,21 @@ public:
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
 
-    void print_bytecode(std::ostream& out) const;
-    void print_target_mnemonics(std::ostream& out) const;
-    void print_target_hex(std::ostream& out) const;
+    void printBytecode(std::ostream& out) const;
+    enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
+    void printAssembly(std::ostream& out, int colums = PC_OPNUM | PC_OP) const;//TODO(ch): Implement columns!
+    void printTargetHex(std::ostream& out) const;
 
-    size_t refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline size_t provide_idx() { return m_nextidx++; }
-    size_t append_label();
+    size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
+    inline size_t provideIdx() { return m_nextIdx++; }
+    size_t appendLabel();
     static const size_t EMPTYLABEL;
 
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args);
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg);
-    inline void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
-    inline void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
+    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args);
+    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args);
 
     void endfunc();
 
@@ -55,42 +56,40 @@ public:
     void return_(const IReg& retval);
     void return_();
 
-    const syntfunc& getData() const { return m_data; }
+    const Syntfunc& getData() const { return m_data; }
 private:
-    void print_function_header(std::ostream& out) const;
+    void printFunctionHeader(std::ostream& out) const;
 
     struct cflowbracket
     {
         enum { DO, DOIF, IF, ELSE };
-        size_t m_tag;
-        size_t m_label_or_pos;
-        cflowbracket(size_t a_tag, size_t a_label_or_pos) : m_tag(a_tag), m_label_or_pos(a_label_or_pos) {}
+        size_t tag;
+        size_t labelOrPos;
+        cflowbracket(size_t a_tag, size_t a_labelOrPos) : tag(a_tag), labelOrPos(a_labelOrPos) {}
     };
-    std::stack<cflowbracket> m_cflowstack;
-    syntfunc m_data;
-    std::vector<size_t> m_return_positions;
+    std::stack<cflowbracket> m_cflowStack;
+    Syntfunc m_data;
+    std::vector<size_t> m_returnPositions;
     std::string m_name;
     ContextImpl* m_context;
-    size_t m_nextidx;
-    size_t m_nextlabelidx;
-
-    inline std::vector<Arg> depthed_args(int depth, std::initializer_list<Arg> args);
+    size_t m_nextIdx;
+    size_t m_nextLabelIdx;
 };
 
-IReg ireg_hidden_constructor(Func* a_func, size_t a_idx); //Don't use this function directly!
+IReg iregHiddenConstructor(Func* a_func, size_t a_idx); //Don't use this function directly!
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)
 {
-    size_t retidx = provide_idx();
-    m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({ireg_hidden_constructor(this, retidx)}), args);
-    return ireg_hidden_constructor(this, retidx);
+    size_t retidx = provideIdx();
+    m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({iregHiddenConstructor(this, retidx)}), args);
+    return iregHiddenConstructor(this, retidx);
 }
 
 inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args)
 {
-    size_t retidx = provide_idx();
-    m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({ireg_hidden_constructor(this, retidx), depth}), args);
-    return ireg_hidden_constructor(this, retidx);
+    size_t retidx = provideIdx();
+    m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({iregHiddenConstructor(this, retidx), depth}), args);
+    return iregHiddenConstructor(this, retidx);
 }
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg)
@@ -99,15 +98,15 @@ inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, IReg
     retarg.tag = Arg::IREG;
     retarg.idx = retreg;
     m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({retarg}), args);
-    return ireg_hidden_constructor(this, retreg);
+    return iregHiddenConstructor(this, retreg);
 }
 
-inline void FuncImpl::newiop_noret(int opcode, ::std::initializer_list<Arg> args)
+inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args)
 {
     m_data.m_program.emplace_back(opcode, args);
 }
 
-inline void FuncImpl::newiop_noret(int opcode, int depth, std::initializer_list<Arg> args)
+inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
 {
     m_data.m_program.emplace_back(opcode, std::initializer_list<Arg>({Arg(depth)}), args);
 }
