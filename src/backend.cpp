@@ -51,16 +51,12 @@ size_t Mnemotr::targetArgNum(size_t a_srcnum) const
 
 bool BackendImpl::isConstFit(const Syntop& a_op, size_t argnum) const
 {
-    if(m_2tararch.count(a_op.opcode) == 0)
-        throw std::string("Mnemonic translator: undefined operation.");
-    const Mnemotr& m2m = m_2tararch.at(a_op.opcode)[a_op];
+    const Mnemotr& m2m = m_2tararch[a_op];
     argnum = m2m.targetArgNum(argnum);
     if(argnum == Mnemotr::ARG_NOT_USED)
         return true;
     Syntop tar_op = m2m.apply(a_op);
-    if(m_2binary.count(tar_op.opcode) == 0)
-        throw std::string("Binary translator: undefined operation.");
-    const Binatr& instemp = m_2binary.at(tar_op.opcode)[tar_op];
+    const Binatr& instemp = m_2binary[tar_op];
     if(argnum >= a_op.size())
         throw std::string("Binary translator: non-existent argument is requested.");
     if(a_op.args[argnum].tag != Arg::ICONST)
@@ -83,32 +79,85 @@ bool BackendImpl::isConstFit(const Syntop& a_op, size_t argnum) const
             argnum--;
         }
     throw std::string("Binary translator: non-existent argument is requested.");
-    
+}
+
+std::set<size_t> BackendImpl::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
+{
+    std::set<size_t> result;
+    if (!m_2tararch.has(a_op.opcode))
+        return result;
+    const Mnemotr& m2m = m_2tararch[a_op];
+    const Binatr& m2b = m_2binary[m2m.apply(a_op)];
+    size_t bpiecenum = 0;
+    for(size_t argnum = 0; argnum < m2m.m_argsList.size(); ++argnum)
+    {
+        while(bpiecenum < m2b.size() && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
+        const Mnemotr::Argutr& ar = m2m.m_argsList[argnum];
+        if(ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
+        {
+            if (ar.srcArgnum >= a_op.size())
+                throw std::string("Binary translator: non-existent argument is requested.");
+            if (a_op[ar.srcArgnum].tag == Arg::IREG && m2b.m_compound[bpiecenum].fieldOflags & flagmask)
+                result.insert(ar.srcArgnum);
+        }
+        ++bpiecenum; //Drop one biantr argument.
+    }
+    return result;
+}
+
+std::set<size_t> BackendImpl::getOutRegistersIdxs(const Syntop& a_op) const
+{
+    return getUsedRegistersIdxs(a_op, Binatr::Detail::D_OUTPUT);
+}
+
+std::set<size_t> BackendImpl::getInRegistersIdxs(const Syntop& a_op) const
+{
+    return getUsedRegistersIdxs(a_op, Binatr::Detail::D_INPUT);
+}
+
+std::set<IRegInternal> BackendImpl::getUsedRegisters(const Syntop& a_op, uint64_t flagmask) const
+{
+    std::set<size_t> preres = getUsedRegistersIdxs(a_op, flagmask);
+    std::set<IRegInternal> result;
+    for(size_t arnum: preres)
+    {
+        if(arnum >= a_op.size())
+            throw std::string("Compile error: non-existent argument is requested.");
+        if(a_op[arnum].tag != Arg::IREG)
+            throw std::string("Compile error: constant is requested instead of register.");
+        result.insert(a_op[arnum].idx);
+    }
+    return result;
+}
+
+std::set<IRegInternal> BackendImpl::getOutRegisters(const Syntop& a_op) const
+{
+    return getUsedRegisters(a_op, Binatr::Detail::D_OUTPUT);
+}
+
+std::set<IRegInternal> BackendImpl::getInRegisters(const Syntop& a_op) const
+{
+    return getUsedRegisters(a_op, Binatr::Detail::D_INPUT);
 }
 
 Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
     Syntfunc result;
-    result.m_params = a_bcfunc.m_params;
-    result.m_retreg = a_bcfunc.m_retreg;
-    result.m_program.reserve(a_bcfunc.m_program.size());
-    for(size_t parreg = 0; parreg<a_bcfunc.m_params.size(); parreg++ ) //TODO(ch): You need to analyze arguments better.
-        translateReg(parreg);
-    //TODO(ch): there must be function prologue definition.
+    result.params = a_bcfunc.params;
+    result.program.reserve(a_bcfunc.program.size());
+    result.name = a_bcfunc.name;
     m_m2mCurrentOffset = 0;
-    for(const Syntop& op: a_bcfunc.m_program)
+    for(const Syntop& op: a_bcfunc.program)
     {
-        size_t curr_tar_op = result.m_program.size();
+        size_t curr_tar_op = result.program.size();
         if(!this->handleBytecodeOp(op, result)) //Philosophically, we have to ask map BEFORE overrules, not after.
         {
-            if(m_2tararch.count(op.opcode) == 0)
-                throw std::string("AArch64: unsupported bytecode instruction.");
-            result.m_program.emplace_back(m_2tararch.at(op.opcode)[op].apply(op,this));
+            result.program.emplace_back(m_2tararch[op].apply(op,this));
         }
-        for(size_t addedop = curr_tar_op; addedop<result.m_program.size(); addedop++)
+        for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
-            const Syntop& lastop = result.m_program[addedop];
-            m_m2mCurrentOffset += m_2binary.at(lastop.opcode)[lastop].size();
+            const Syntop& lastop = result.program[addedop];
+            m_m2mCurrentOffset += m_2binary[lastop].size();
         }
     }
     return result;
@@ -117,15 +166,8 @@ Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
 const FuncBodyBuf BackendImpl::target2Hex(const Syntfunc& a_bcfunc) const
 {
     Bitwriter bitstream(this);
-    for(const Syntop& op : a_bcfunc.m_program)
-    {
-        auto snippetrator = m_2binary.find(op.opcode);
-        if (snippetrator == m_2binary.end())
-            throw std::string("Synt2bin translation: unknown instruction");
-        const Binatr& bitexpansioner = snippetrator->second[op];
-        bitexpansioner.applyNAppend(op, &bitstream);
-    }
-    
+    for(const Syntop& op : a_bcfunc.program)
+        m_2binary[op].applyNAppend(op, &bitstream);
     return bitstream.buffer();
 }
 

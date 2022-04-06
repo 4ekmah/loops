@@ -42,11 +42,13 @@ namespace loops
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET};
-            Detail(int tag, size_t fieldsize);
+            enum {D_INPUT = 1, D_OUTPUT = 2};
+            Detail(int tag, size_t fieldsize, uint64_t  regflag = 0);
             Detail(int tag, uint64_t val, size_t fieldsize);
             int tag;
             size_t width; //in bits //TODO(ch): unsigned char?
-            uint64_t field;
+            uint64_t fieldOflags;
+            inline uint64_t flags() { return fieldOflags;}
         };
         std::vector<Detail> m_compound;
         size_t m_size;
@@ -56,7 +58,31 @@ namespace loops
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
     };
 
-    typedef std::unordered_map<int, ArgIndexedArray<Binatr> > M2bMap;//m2b is for "mnemonic to binary"
+    namespace BinatrTableConstructor
+    {
+        using BackendTableConstructor::SFsiz;
+        using BackendTableConstructor::SFtyp;
+        using BackendTableConstructor::SFval;
+
+        inline BackendTableConstructor::SyntopTreeTempBranch<Binatr> Sb(int cval, const typename SyntopIndexedArray<Binatr>::ArgIndA& val)
+        {
+            using namespace BackendTableConstructor;
+            return _Sb<Binatr>(cval, val);
+        }
+
+        inline SyntopIndexedArray<Binatr>::ArgIndA Sl(std::initializer_list<Binatr::Detail> details)
+        {
+            return BackendTableConstructor::Sl(Binatr(details));
+        }
+
+        inline Binatr::Detail BDsta(uint64_t field, size_t width) {return Binatr::Detail(Binatr::Detail::D_STATIC, field, width); }
+        inline Binatr::Detail BDreg(size_t width, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) { return Binatr::Detail(Binatr::Detail::D_REG, width, regflag); }
+        inline Binatr::Detail BDcon(size_t width) {return Binatr::Detail(Binatr::Detail::D_CONST, width); }
+        inline Binatr::Detail BDoff(size_t width) {return Binatr::Detail(Binatr::Detail::D_OFFSET, width); }
+        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT};
+    };
+
+    typedef SyntopIndexedArray<Binatr> M2bMap;//m2b is for "mnemonic to binary"
 };
 
 #endif //__LOOPS_COMPOSER_HPP__

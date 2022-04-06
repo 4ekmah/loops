@@ -53,17 +53,12 @@ enum {
     OP_MOD,
     OP_SHL,
     OP_SHR,
-    OP_AND,
+    OP_AND, //Note: It's bitwise operations.
     OP_OR,
     OP_XOR,
     OP_NOT,
     OP_NEG,
-    OP_CMP_EQ,
-    OP_CMP_NE,
-    OP_CMP_LT,
-    OP_CMP_LE,
-    OP_CMP_GE,
-    OP_CMP_GT,
+    OP_CMP,
     OP_SELECT,
     OP_MIN,
     OP_MAX,
@@ -71,13 +66,29 @@ enum {
     OP_SIGN,
     OP_ALL,
     OP_ANY,
+    
+    OP_SPILL,    //For service usage only
+    OP_UNSPILL,
 
     OP_JMP,
-    OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
-    OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
-    OP_RET,  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
+    OP_JMP_GT,
+    OP_JMP_GE,
+    OP_JMP_LT,
+    OP_JMP_LE,
+    OP_JMP_NE,
+    OP_JMP_EQ,
+    OP_RET,
     OP_LABEL,
-    
+
+    OP_IF,
+    OP_ELIF,
+    OP_ELSE,
+    OP_ENDIF,
+    OP_DO,
+    OP_WHILE,
+    OP_DOIF,
+    OP_ENDDOIF,
+
     OP_NOINIT
 };
 
@@ -173,10 +184,9 @@ struct Arg
     Arg(int64_t a_value);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
 
-    IReg ireg() const; //TODO(ch): what for?
     template<typename _Tp> VReg<_Tp> vreg() const;
 
-    size_t idx; //TODO(ch): IRegInternal??? Or, it's better to create ArgInternal?
+    size_t idx;
     Func* func;
     size_t tag;
     int64_t value;
@@ -195,8 +205,8 @@ public:
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
     void printBytecode(std::ostream& out) const;
-    void printAssembly(std::ostream& out) const;
-    void printTargetHex(std::ostream& out) const; //IMPORTANT: delete this one and implement table-printer in printAssembly.
+    enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
+    void printAssembly(std::ostream& out, int columns = PC_OPNUM | PC_OP | PC_HEX) const;
 
 protected:
     static Func make(Func* a_wrapped);
@@ -240,9 +250,10 @@ public:
     template<typename _Tp> VReg<_Tp> vreg_();
 
     // control flow
-    void do_();
-    void do_if_(const IReg& r); // start loop if r == true
+    void do_();                 //TODO(ch): repeat/until?
     void while_(const IReg& r); // continue loop if r == true
+    void doif_(const IReg& r); // start loop if r == true
+    void enddoif_();
     void break_();
     void continue_();
     void if_(const IReg& r);
@@ -324,18 +335,12 @@ static inline IReg operator ~ (const IReg& a)
 { return newiop(OP_NOT, {a}); }
 static inline IReg operator - (const IReg& a)
 { return newiop(OP_NEG, {a}); }
-static inline IReg operator == (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_EQ, {a, b}); }
-static inline IReg operator != (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_NE, {a, b}); }
-static inline IReg operator <= (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_LE, {a, b}); }
-static inline IReg operator >= (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_GE, {a, b}); }
-static inline IReg operator > (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_GT, {a, b}); }
-static inline IReg operator < (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_LT, {a, b}); }
+IReg operator == (const IReg& a, const IReg& b);
+IReg operator != (const IReg& a, const IReg& b);
+IReg operator <= (const IReg& a, const IReg& b);
+IReg operator >= (const IReg& a, const IReg& b);
+IReg operator > (const IReg& a, const IReg& b);
+IReg operator < (const IReg& a, const IReg& b);
 static inline IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
 { return newiop(OP_SELECT, {flag, iftrue, iffalse}); }
 static inline IReg max(const IReg& a, const IReg& b)

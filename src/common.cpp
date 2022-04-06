@@ -64,9 +64,8 @@ namespace loops
     std::string Func::name() const { return static_cast<FuncImpl*>(impl)->name(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
-void Func::printBytecode(std::ostream& out) const { static_cast<FuncImpl*>(impl)->printBytecode(out); }
-void Func::printAssembly(std::ostream& out) const { static_cast<FuncImpl*>(impl)->printAssembly(out); }
-void Func::printTargetHex(std::ostream& out) const { static_cast<FuncImpl*>(impl)->printTargetHex(out); }
+    void Func::printBytecode(std::ostream& out) const { static_cast<FuncImpl*>(impl)->printBytecode(out); }
+    void Func::printAssembly(std::ostream& out, int columns) const { static_cast<FuncImpl*>(impl)->printAssembly(out, columns); }
 
     Func Func::make(Func* a_wrapped)
     {
@@ -76,45 +75,66 @@ void Func::printTargetHex(std::ostream& out) const { static_cast<FuncImpl*>(impl
         return ret;
     }
     
-    FuncImpl* verifyArgs(std::initializer_list<Arg> args) //TODO(ch): Can it be FuncImpl's method?
-    {
-        FuncImpl* func = nullptr;
-        for (const Arg& arg : args)
-            if (arg.tag == Arg::IREG)
-            {
-                if (func == nullptr) 
-                    func = static_cast<FuncImpl*>(arg.func);
-                else if(func != static_cast<FuncImpl*>(arg.func)) 
-                    throw std::string("Registers of different functions as arguments of one instruction.");
-            }
-        if (func == nullptr)
-            throw std::string("Cannot find mother function in registers.");
-        return func;
-    }
-
     IReg newiop(int opcode, std::initializer_list<Arg> args)
     {
-        return static_cast<IReg&&>(verifyArgs(args)->newiop(opcode, args));
+        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args));
     }
 
     IReg newiop(int opcode, int depth, std::initializer_list<Arg> args)
     {
-        return verifyArgs(args)->newiop(opcode,depth,args);
+        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args);
     }
 
     void newiopNoret(int opcode, ::std::initializer_list<Arg> args)
     {
-        verifyArgs(args)->newiopNoret(opcode, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args);
     }
 
     void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
     {
-        verifyArgs(args)->newiopNoret(opcode, depth, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args);
     }
     
     void newiopAug(int opcode, ::std::initializer_list<Arg> args)
     {
         return newiopNoret(opcode, args);
+    }
+
+    IReg operator == (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_EQ;
+        newiopNoret(OP_CMP, {a, b});
+    }
+    IReg operator != (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_NE;
+        newiopNoret(OP_CMP, {a, b});
+    }
+    IReg operator <= (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_LE;
+        newiopNoret(OP_CMP, {a, b});
+    }
+    IReg operator >= (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_GE;
+        newiopNoret(OP_CMP, {a, b});
+    }
+    IReg operator > (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_GT;
+        newiopNoret(OP_CMP, {a, b});
+    }
+    IReg operator < (const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = OP_JMP_LT;
+        newiopNoret(OP_CMP, {a, b});
     }
 
     Backend::Backend() : impl(nullptr) {}

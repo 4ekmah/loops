@@ -16,18 +16,20 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
 enum {
-    A64_LDRSW = 0,
-    A64_STR32_I,
-    A64_MOV,
-    A64_ADD_R,
-    A64_MUL,
-    A64_SDIV,
-    A64_CMP_R,
-    A64_B_LT,
-    A64_B_LE,
-    A64_B_GT,
-    A64_B_GE,
-    A64_RET
+    AARCH64_LDRSW = 0,
+    AARCH64_LDR,
+    AARCH64_STR,
+    AARCH64_MOV,
+    AARCH64_ADD,
+    AARCH64_SUB_I,
+    AARCH64_MUL,
+    AARCH64_SDIV,
+    AARCH64_CMP_R,
+    AARCH64_B_LT,
+    AARCH64_B_LE,
+    AARCH64_B_GT,
+    AARCH64_B_GE,
+    AARCH64_RET
 };
 
 class Aarch64Backend : public BackendImpl
@@ -36,7 +38,10 @@ public:
     Aarch64Backend();
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
     virtual Arg translateReg(IRegInternal tofind) const override final;
+    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
+    virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
+    virtual Printer::ColPrinter rowHexPrinter(const Syntfunc& toP) const override final;
 private:
     struct label_ref_info
     {
@@ -47,10 +52,7 @@ private:
         label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset): opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
     };
 
-    mutable size_t m_nextidx; //TODO(ch): Do something with thread-safety.
-    mutable std::unordered_map<size_t, size_t> m_regMap;
     mutable IRegInternal m_retReg;
-    mutable int m_lastCondition; //TODO(ch): scheme of using this variable isn't ok. Think, we have to avoid OP_CMP_GT etc. logic. Use standard OP_CMP instead.
     mutable std::unordered_map<size_t, size_t> m_labelMap;
     mutable std::unordered_map<size_t, std::vector<label_ref_info> > m_labelRefMap; // label
 

@@ -89,16 +89,19 @@ void Bitwriter::endInstruction()
     m_startsize = NOTRANSACTION;
 }
 
-Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag), width(fieldsize)
+Binatr::Detail::Detail(int tag, size_t fieldsize, uint64_t regflag): tag(tag), width(fieldsize), fieldOflags(regflag)
 {
     if(tag != D_REG && tag != D_CONST && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET)
-        throw std::string("Wrong snippet constructor.");
+        throw std::string("Binary translator: wrong detail constructor.");
+    if(tag != D_REG && regflag != 0)
+        throw std::string("Binary translator: registerflag is given for non-register instruction detail.");
+        
 }
 
-Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize): tag(tag), width(fieldsize), field(val)
+Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize): tag(tag), width(fieldsize), fieldOflags(val)
 {
     if(tag != D_STATIC)
-        throw std::string("Wrong snippet constructor.");
+        throw std::string("Binary translator: wrong detail constructor.");
 }
 
 Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_size(0)
@@ -111,7 +114,7 @@ Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_size(0)
 void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
-       throw std::string("I_Snippet: null pointer to writer.");
+       throw std::string("Binary translator: null writer pointer.");
     bits->startInstruction();
     size_t argnum = 0;
     for(const Detail& det : m_compound)
@@ -126,7 +129,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 break;
             case (Detail::D_STATIC): break;
             default:
-                throw std::string("Unknown snippet detail type.");
+                throw std::string("Binary translator: unknown detail type.");
         };
     if(argnum != op.size())
         throw std::string("Amounts of arguments and placeholder are not equal.");
@@ -137,7 +140,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         switch (det.tag)
         {
             case (Detail::D_STATIC):
-                piece = det.field;
+                piece = det.fieldOflags;
                 break;
             case (Detail::D_REG):
                 piece = op[argnum++].idx;
@@ -152,7 +155,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 piece = static_cast<uint64_t>(op[argnum++].value);
                 break;
             default:
-                throw std::string("Unknown snippet detail type.");
+                throw std::string("Binary translator: unknown detail type.");
         };
         bits->writeDetail(piece, det.width);
     }
