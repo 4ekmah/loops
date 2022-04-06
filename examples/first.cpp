@@ -83,8 +83,7 @@ int main(int argc, char** argv)
         lfunc.printBytecode(std::cout);
         std::cout<<"======--AARCH64--LISTING--======="<<std::endl;
         lfunc.printAssembly(std::cout);
-//        std::cout<<"====--AARCH64-HEX-LISTING--======"<<std::endl;
-//        lfunc.print_target_hex(std::cout);
+//        lfunc.printAssembly(std::cout, loops::Func::PC_HEX);
         std::cout<<"======---FUNCTION-USAGE---======="<<std::endl;
         justcompiled_t f = reinterpret_cast<justcompiled_t>(lfunc.ptr());
 
