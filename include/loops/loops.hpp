@@ -8,6 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_LOOPS_HPP__
 
 #include <inttypes.h>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -52,17 +53,12 @@ enum {
     OP_MOD,
     OP_SHL,
     OP_SHR,
-    OP_AND,
+    OP_AND, //Note: It's bitwise operations.
     OP_OR,
     OP_XOR,
     OP_NOT,
     OP_NEG,
-    OP_CMP_EQ,
-    OP_CMP_NE,
-    OP_CMP_LT,
-    OP_CMP_LE,
-    OP_CMP_GE,
-    OP_CMP_GT,
+    OP_CMP,
     OP_SELECT,
     OP_MIN,
     OP_MAX,
@@ -70,26 +66,30 @@ enum {
     OP_SIGN,
     OP_ALL,
     OP_ANY,
-
-    OP_AUG_ADD,
-    OP_AUG_SUB,
-    OP_AUG_MUL,
-    OP_AUG_MUL_HIGH,
-    OP_AUG_DIV,
-    OP_AUG_MOD,
-    OP_AUG_SHL,
-    OP_AUG_SHR,
-    OP_AUG_AND,
-    OP_AUG_OR,
-    OP_AUG_XOR,
-    OP_AUG_MIN,
-    OP_AUG_MAX,
+    
+    OP_SPILL,    //For service usage only
+    OP_UNSPILL,
 
     OP_JMP,
-    OP_JNE, //TODO(ch): I mean jump-if-not-equal, or, let's better say jump-if-true.  There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
-    OP_JZ,  //TODO(ch): I mean jump-if-zero     , or, let's better say jump-if-false. There is not such an instruction in real processors. It's 100% virtual, in reality we must analyze closest context.
-    OP_RET,  //TODO(ch): At virtual code stage we don't know call convention and cannot understand what is the target for where we have move result. In final code it will be mov/push + ret.
-    OP_LABEL
+    OP_JMP_GT,
+    OP_JMP_GE,
+    OP_JMP_LT,
+    OP_JMP_LE,
+    OP_JMP_NE,
+    OP_JMP_EQ,
+    OP_RET,
+    OP_LABEL,
+
+    OP_IF,
+    OP_ELIF,
+    OP_ELSE,
+    OP_ENDIF,
+    OP_DO,
+    OP_WHILE,
+    OP_DOIF,
+    OP_ENDDOIF,
+
+    OP_NOINIT
 };
 
 template<typename _Tp> struct ElemTraits {};
@@ -145,7 +145,7 @@ struct IReg
                                       // if 'this' is already initialized
 
     size_t idx;
-    Func* m_func;
+    Func* func;
     static const size_t NOIDX;
 };
 
@@ -181,13 +181,13 @@ struct Arg
 
     Arg();
     Arg(const IReg& r);
+    Arg(int64_t a_value);
     template<typename _Tp> Arg(const VReg<_Tp>& vr);
 
-    IReg ireg() const; //TODO(ch): what for?
     template<typename _Tp> VReg<_Tp> vreg() const;
 
-    size_t idx; //TODO(ch): IRegInternal??? Or, it's better to create ArgInternal?
-    Func* m_func;
+    size_t idx;
+    Func* func;
     size_t tag;
     int64_t value;
 };
@@ -204,23 +204,29 @@ public:
     std::string name() const; //TODO(ch): what for we need name here? 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer
+    void printBytecode(std::ostream& out) const;
+    enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
+    void printAssembly(std::ostream& out, int columns = PC_OPNUM | PC_OP | PC_HEX) const;
+
 protected:
     static Func make(Func* a_wrapped);
     Func* impl;
 };
 
-class Compiler
+class Backend
 {
+    friend Backend* _getImpl(Backend* wrapper);
 public:
-    Compiler(const Compiler& f);
-    Compiler& operator=(const Compiler& f);
-    virtual ~Compiler();
+    Backend(const Backend& f);
+    Backend& operator=(const Backend& f);
+    virtual ~Backend();
     virtual void* compile(Context* a_ctx, Func* a_func) const;
-    static Compiler make_virtual_dump();
+    static Backend makeAarch64Compiler();
 protected:
-    Compiler();
-private: 
-    Compiler* p;
+    Backend();
+private:
+    Backend(Backend* a_p);
+    Backend* impl;
 };
 
 class Context
@@ -228,15 +234,15 @@ class Context
     friend Context* _getImpl(Context* wrapper);
 public:
     Context();
-    Context(Compiler cmpl);
+    Context(Backend cmpl);
     Context(const Context& ctx);
     virtual ~Context();
-    Context& operator = (const Context& ctx);
+    Context& operator=(const Context& ctx);
 
-    void startfunc(const std::string& name, std::initializer_list<IReg*> params);
-    void endfunc();
-    void getfuncs(std::vector<Func>& funcs);
-    Func getfunc(const std::string& name);
+    void startFunc(const std::string& name, std::initializer_list<IReg*> params);
+    void endFunc();
+    void getFuncs(std::vector<Func>& funcs);
+    Func getFunc(const std::string& name);
 
     IReg const_(int64_t value);
     template<typename _Tp> VReg<_Tp> vconst_(_Tp value);
@@ -244,9 +250,10 @@ public:
     template<typename _Tp> VReg<_Tp> vreg_();
 
     // control flow
-    void do_();
-    void do_if_(const IReg& r); // start loop if r == true
+    void do_();                 //TODO(ch): repeat/until?
     void while_(const IReg& r); // continue loop if r == true
+    void doif_(const IReg& r); // start loop if r == true
+    void enddoif_();
     void break_();
     void continue_();
     void if_(const IReg& r);
@@ -265,8 +272,9 @@ protected:
 
 IReg newiop(int opcode, ::std::initializer_list<Arg> args);
 IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
-void newiop_noret(int opcode, ::std::initializer_list<Arg> args);
-void newiop_noret(int opcode, int depth, std::initializer_list<Arg> args);
+void newiopNoret(int opcode, ::std::initializer_list<Arg> args);
+void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args);
+void newiopAug(int opcode, ::std::initializer_list<Arg> args);
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -289,13 +297,13 @@ IReg load_(const IReg& base, const IReg& offset)
 
 // store part of register
 static inline void storex(const IReg& base, const IReg& r, int depth)
-{ newiop_noret(OP_STORE, depth, {base, r}); }
+{ newiopNoret(OP_STORE, depth, {base, r}); }
 static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
-{ newiop_noret(OP_STORE, depth, {base, offset, r}); }
+{ newiopNoret(OP_STORE, depth, {base, offset, r}); }
 static inline void store(const IReg& base, const IReg& r)
-{ newiop_noret(OP_STORE, TYPE_I64, {base, r}); }
+{ newiopNoret(OP_STORE, TYPE_I64, {base, r}); }
 static inline void store(const IReg& base, const IReg& offset, const IReg& r)
-{ newiop_noret(OP_STORE, TYPE_I64, {base, offset, r}); }
+{ newiopNoret(OP_STORE, TYPE_I64, {base, offset, r}); }
 template<typename _Tp> static inline
 void store_(const IReg& base, const IReg& r)
 { storex(base, r, ElemTraits<_Tp>::depth); }
@@ -327,18 +335,12 @@ static inline IReg operator ~ (const IReg& a)
 { return newiop(OP_NOT, {a}); }
 static inline IReg operator - (const IReg& a)
 { return newiop(OP_NEG, {a}); }
-static inline IReg operator == (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_EQ, {a, b}); }
-static inline IReg operator != (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_NE, {a, b}); }
-static inline IReg operator <= (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_LE, {a, b}); }
-static inline IReg operator >= (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_GE, {a, b}); }
-static inline IReg operator > (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_GT, {a, b}); }
-static inline IReg operator < (const IReg& a, const IReg& b)
-{ return newiop(OP_CMP_LT, {a, b}); }
+IReg operator == (const IReg& a, const IReg& b);
+IReg operator != (const IReg& a, const IReg& b);
+IReg operator <= (const IReg& a, const IReg& b);
+IReg operator >= (const IReg& a, const IReg& b);
+IReg operator > (const IReg& a, const IReg& b);
+IReg operator < (const IReg& a, const IReg& b);
 static inline IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
 { return newiop(OP_SELECT, {flag, iftrue, iffalse}); }
 static inline IReg max(const IReg& a, const IReg& b)
@@ -351,25 +353,25 @@ static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
 
 static inline IReg& operator += (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_ADD, {a, b}); return a; }
+{ newiopAug(OP_ADD, {a, a, b}); return a; }
 static inline IReg& operator -= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SUB, {a, b}); return a; }
+{ newiopAug(OP_SUB, {a, a, b}); return a; }
 static inline IReg& operator *= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_MUL, {a, b}); return a; }
+{ newiopAug(OP_MUL, {a, a, b}); return a; }
 static inline IReg& operator /= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_DIV, {a, b}); return a; }
+{ newiopAug(OP_DIV, {a, a, b}); return a; }
 static inline IReg& operator %= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_MOD, {a, b}); return a; }
+{ newiopAug(OP_MOD, {a, a, b}); return a; }
 static inline IReg& operator >>= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SHR, {a, b}); return a; }
+{ newiopAug(OP_SHR, {a, a, b}); return a; }
 static inline IReg& operator <<= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_SHL, {a, b}); return a; }
+{ newiopAug(OP_SHL, {a, a, b}); return a; }
 static inline IReg& operator &= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_AND, {a, b}); return a; }
+{ newiopAug(OP_AND, {a, a, b}); return a; }
 static inline IReg& operator |= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_OR, {a, b}); return a; }
+{ newiopAug(OP_OR, {a, a, b}); return a; }
 static inline IReg& operator ^= (IReg& a, const IReg& b)
-{ newiop_noret(OP_AUG_XOR, {a, b}); return a; }
+{ newiopAug(OP_XOR, {a, a, b}); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 
