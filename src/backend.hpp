@@ -64,7 +64,6 @@ namespace MnemotrTableConstructor
     inline Mnemotr::Argutr MAcop(size_t argnum) { return Mnemotr::Argutr(argnum); }
 };
 
-
 class BackendImpl : public Backend
 {
 public:
@@ -88,11 +87,16 @@ public:
     virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
-    virtual Printer::ColPrinter rowHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
+    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
+    virtual Printer::ArgPrinter argPrinter() const = 0;
+    OpPrintInfo getPrintInfo(const Syntop& op);
+
+    Allocator* getAllocator() {return m_exeAlloc;}
     inline bool isLittleEndianInstructions() const {return m_isLittleEndianInstructions;}
     inline bool isMonowidthInstruction() const {return m_isMonowidthInstruction;}
     inline size_t instructionWidth () const {return m_instructionWidth;} ;
     size_t registersAmount() const { return m_registersAmount; }
+    inline std::string name() const {return m_name;} ;
     virtual Arg translateReg(IRegInternal tofind) const = 0; //Don't use it directly. it's for bytecode2target
 private:
     mutable size_t m_m2mCurrentOffset; //TODO(ch): Do something with thread-safety.
@@ -107,6 +111,7 @@ protected:
     bool m_isMonowidthInstruction;
     size_t m_instructionWidth;
     size_t m_registersAmount;
+    std::string m_name;
 };
 
 inline BackendImpl* getImpl(Backend* wrapper)
@@ -115,6 +120,13 @@ inline BackendImpl* getImpl(Backend* wrapper)
         throw std::string("Null context pointer.");
     return static_cast<BackendImpl*>(_getImpl(wrapper));
 }
+inline const BackendImpl* getImpl(const Backend* wrapper)
+{
+    if(!wrapper)
+        throw std::string("Null context pointer.");
+    return static_cast<BackendImpl*>(_getImpl(const_cast<Backend*>(wrapper)));
+}
+
 
 };
 #endif // __LOOPS_BACKEND_HPP__

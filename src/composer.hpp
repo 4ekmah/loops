@@ -8,8 +8,9 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_COMPOSER_HPP__
 
 #include "loops/loops.hpp"
-#include "allocator.hpp"
 #include "common.hpp"
+#include "allocator.hpp"
+#include "printer.hpp"
 #include <vector>
 #include <unordered_map>
 
@@ -24,7 +25,10 @@ namespace loops
         void startInstruction();
         void writeDetail(uint64_t a_detail, size_t a_fieldwidth);
         void endInstruction();
-        const FuncBodyBuf buffer() const {return m_buffer;}
+        const FuncBodyBuf buffer() const
+        {
+            return std::make_shared<std::vector<uint8_t> >(m_buffer->data(), m_buffer->data() + m_size); //TODO(ch): eliminate unneccessary copy.
+        }
         inline size_t bitAddress() { return (m_size << 3) + m_bitpos; }
     private:
         const BackendImpl* m_backend;
@@ -35,6 +39,13 @@ namespace loops
         enum {NOTRANSACTION = -1, MINIMAL_BUFFER_SIZE = 512};
     };
     
+//TODO(ch):
+// Our printer:    ldr   x5, [sp], #0x05 ; e5 17 40 f9
+// Normal printer: ldr   x5, [sp, #0x28]
+// This #0x05 must fixed. For such a thing we need more complex out modifiers, than a flags. In this case it's
+// D_OUTMULTIPLIER(8).
+// Same for current D_32Dep, which must be dependend on number of argument.
+// Same for [base,offset] pairs.
 //TODO(ch): Binatr collection is static data. This collection must be created at compile time. Currently, even if we will create this collection as global object, it will be initialized at runtime with unnecessary computational losts.
     struct Binatr //is for "binary translation"
     {
@@ -42,13 +53,14 @@ namespace loops
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET};
-            enum {D_INPUT = 1, D_OUTPUT = 2};
+            enum {D_INPUT = 1, D_OUTPUT = 2, D_PRINTADDRESS = 4, D_32Dep = 8}; //TODO(ch): D_32Dep is 32 if args[0] is equal to 0. Do something with this semihardcode.
             Detail(int tag, size_t fieldsize, uint64_t  regflag = 0);
             Detail(int tag, uint64_t val, size_t fieldsize);
             int tag;
             size_t width; //in bits //TODO(ch): unsigned char?
             uint64_t fieldOflags;
             inline uint64_t flags() { return fieldOflags;}
+            size_t printNum;
         };
         std::vector<Detail> m_compound;
         size_t m_size;
@@ -56,6 +68,7 @@ namespace loops
         Binatr(std::initializer_list<Detail> lst);
         inline size_t size() const { return m_size; }
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
+        OpPrintInfo getPrintInfo(const Syntop& op) const;
     };
 
     namespace BinatrTableConstructor
@@ -76,10 +89,25 @@ namespace loops
         }
 
         inline Binatr::Detail BDsta(uint64_t field, size_t width) {return Binatr::Detail(Binatr::Detail::D_STATIC, field, width); }
-        inline Binatr::Detail BDreg(size_t width, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) { return Binatr::Detail(Binatr::Detail::D_REG, width, regflag); }
-        inline Binatr::Detail BDcon(size_t width) {return Binatr::Detail(Binatr::Detail::D_CONST, width); }
-        inline Binatr::Detail BDoff(size_t width) {return Binatr::Detail(Binatr::Detail::D_OFFSET, width); }
-        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT};
+        inline Binatr::Detail BDreg(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT)
+        {
+            Binatr::Detail res(Binatr::Detail::D_REG, width, regflag);
+            res.printNum = prnum;
+            return res;
+        }
+        inline Binatr::Detail BDcon(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)//TODO(ch): Rename const -> immediate, BDcon->BDimm
+        {
+            Binatr::Detail res(Binatr::Detail::D_CONST, width);
+            res.printNum = prnum;
+            return res;
+        }
+        inline Binatr::Detail BDoff(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)
+        {
+            Binatr::Detail res(Binatr::Detail::D_OFFSET, width);
+            res.printNum = prnum;
+            return res;
+        }
+        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT, IO = Binatr::Detail::D_OUTPUT, A32D = Binatr::Detail::D_32Dep, PAdr = Binatr::Detail::D_PRINTADDRESS};
     };
 
     typedef SyntopIndexedArray<Binatr> M2bMap;//m2b is for "mnemonic to binary"

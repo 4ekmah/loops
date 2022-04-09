@@ -13,73 +13,76 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
 
-M2bMap instrucion_set;
+std::shared_ptr<M2bMap> instrucion_set;
 void init_instrucion_set()
 {
+    instrucion_set = std::make_shared<M2bMap>();
     using namespace BinatrTableConstructor;
     //TODO(ch): Ldrsw also have many options to be added here. Literal loading, register shift or post/pre-indexing. Format isn't full now and hardcoded.
-    instrucion_set.add(AARCH64_LDRSW,
+
+    instrucion_set->add(AARCH64_LDRSW,
         SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x5C5,11), BDreg(5, In), BDsta(0x1A,6), BDreg(5, In), BDreg(5, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x5C4,11), BDcon(9), BDsta(0x1,2), BDreg(5, In), BDreg(5, Out)}))
+            Sb(Arg::IREG, Sl({BDsta(0x5C5,11), BDreg(5, 2, In), BDsta(0x1A,6), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)})),
+            Sb(Arg::ICONST, Sl({BDsta(0x5C4,11), BDcon(9, 2), BDsta(0x1,2), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)}))
         }));
 
     //TODO(ch): It's LDR's specialization: immediate offset.
-    instrucion_set.add(AARCH64_LDR,
+    instrucion_set->add(AARCH64_LDR,
         SFtyp(1, {
-            Sb(Arg::ICONST, Sl({BDsta(0x1, 1), BDcon(1), BDsta(0xE5, 8), BDcon(12), BDreg(5, In), BDreg(5, Out)}))
+            Sb(Arg::ICONST, Sl({BDsta(0x1, 1), BDcon(1), BDsta(0xE5, 8), BDcon(12, 2), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)}))
         }));
 
     //TODO(ch): It's STR's specialization: immediate offset)
-    instrucion_set.add(AARCH64_STR,
+    instrucion_set->add(AARCH64_STR,
         SFtyp(1, {
-            Sb(Arg::ICONST, Sl({BDsta(0x1,  1), BDcon(1), BDsta(0xE4, 8), BDcon(12), BDreg(5, In), BDreg(5, In)}))
+            Sb(Arg::ICONST, Sl({BDsta(0x1,  1), BDcon(1), BDsta(0xE4, 8), BDcon(12, 2), BDreg(5, 1, In|PAdr), BDreg(5, 0, In|A32D)}))
         }));
 
     //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
-    instrucion_set.add(AARCH64_MOV,
+    instrucion_set->add(AARCH64_MOV,
         SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x550,11), BDreg(5, In), BDsta(0x1F ,11), BDreg(5, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x694,11), BDcon(16), BDreg(5, Out)}))
+            Sb(Arg::IREG, Sl({BDsta(0x550,11), BDreg(5, 1, In), BDsta(0x1F ,11), BDreg(5, 0, Out)})),
+            Sb(Arg::ICONST, Sl({BDsta(0x694,11), BDcon(16, 1), BDreg(5, 0, Out)}))
         }));
 
     //TODO(ch): This specialized version of ADD: 64 bit only, noshift(for register).
-    instrucion_set.add(AARCH64_ADD,
+    instrucion_set->add(AARCH64_ADD,
         SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x458, 11), BDreg(5, In), BDsta(0, 6), BDreg(5, In), BDreg(5, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x244, 10), BDcon(12), BDreg(5, In), BDreg(5, Out)}))
+            Sb(Arg::IREG, Sl({BDsta(0x458, 11), BDreg(5, 2, In), BDsta(0, 6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
+            Sb(Arg::ICONST, Sl({BDsta(0x244, 10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}))
         }));
 
     //TODO(ch): there is no SUB_I instruction in ARM processors, it's prespecialized version of SUB(immediate). We must make switchers much more flexible and functional to support real SUB. Specialization is: 64 registers, noshift, immediate.
-    instrucion_set.add(AARCH64_SUB_I, Sl({BDsta(0x344,10), BDcon(12), BDreg(5, In), BDreg(5, Out)}));
+    instrucion_set->add(AARCH64_SUB_I, Sl({BDsta(0x344,10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}));
     //TODO(ch): Specialization: 64 registers.
-    instrucion_set.add(AARCH64_MUL, Sl({BDsta(0x4D8,11), BDreg(5, In), BDsta(0x1F, 6), BDreg(5, In), BDreg(5, Out)}));
+    instrucion_set->add(AARCH64_MUL, Sl({BDsta(0x4D8,11), BDreg(5, 2, In), BDsta(0x1F, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
     //TODO(ch): Specialization: 64 registers.
-    instrucion_set.add(AARCH64_SDIV, Sl({BDsta(0x4D6,11), BDreg(5, In), BDsta(0x3, 6), BDreg(5, In), BDreg(5, Out)}));
+    instrucion_set->add(AARCH64_SDIV, Sl({BDsta(0x4D6,11), BDreg(5, 2, In), BDsta(0x3, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
     //TODO(ch): there is no CMP_R instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
-    instrucion_set.add(AARCH64_CMP_R, Sl({BDsta(0x758,11), BDreg(5, In), BDsta(0x0,6), BDreg(5, In), BDsta(0x1F,5)}));
+    instrucion_set->add(AARCH64_CMP_R, Sl({BDsta(0x758,11), BDreg(5, 1, In), BDsta(0x0,6), BDreg(5, 0, In), BDsta(0x1F,5)}));
     //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
-    instrucion_set.add(AARCH64_B_LT, Sl({BDsta(0x54,8), BDoff(19), BDsta(0xB,5)}));
-    instrucion_set.add(AARCH64_B_LE, Sl({BDsta(0x54,8), BDoff(19), BDsta(0xD,5)}));
-    instrucion_set.add(AARCH64_B_GT, Sl({BDsta(0x54,8), BDoff(19), BDsta(0xC,5)}));
-    instrucion_set.add(AARCH64_B_GE, Sl({BDsta(0x54,8), BDoff(19), BDsta(0xA,5)}));
-    instrucion_set.add(AARCH64_RET, Sl({BDsta(0x3597C0,22), BDreg(5, In), BDsta(0x0,5)}));
+    instrucion_set->add(AARCH64_B_LT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xB,5)}));
+    instrucion_set->add(AARCH64_B_LE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xD,5)}));
+    instrucion_set->add(AARCH64_B_GT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xC,5)}));
+    instrucion_set->add(AARCH64_B_GE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xA,5)}));
+    instrucion_set->add(AARCH64_RET, Sl({BDsta(0x3597C0, 22), BDreg(5, OpPrintInfo::PI_NOTASSIGNED, In), BDsta(0x0,5)}));
 };
 
 inline M2bMap& get_instrucion_set()
 {
-    if(instrucion_set.empty())
+    if(instrucion_set.get() == nullptr)
         init_instrucion_set();
-    return instrucion_set;
+    return *instrucion_set.get();
 }
 
-M2mMap target_mnemonics;
+std::shared_ptr<M2mMap> target_mnemonics;
 void init_target_mnemonics()
 {
+    target_mnemonics = std::make_shared<M2mMap>();
     using namespace MnemotrTableConstructor;
     const IRegInternal SP = 31; //Stack pointer
     const IRegInternal RetReg = 30; //Standart filler for return. Return values must be located in I0-I7
-    target_mnemonics.add(OP_LOAD,
+    target_mnemonics->add(OP_LOAD,
         SFval(1,
         {
             Sb(TYPE_I32, SFsiz(
@@ -96,7 +99,7 @@ void init_target_mnemonics()
                 Sb(Arg::ICONST, Sl(AARCH64_LDR, {MAcon(1), MAcop(3), MAcop(2), MAcop(0)}))
             }))
         }));
-    target_mnemonics.add(OP_STORE,
+    target_mnemonics->add(OP_STORE,
         SFsiz(
         {
             Sb(3, SFval(0,
@@ -114,23 +117,23 @@ void init_target_mnemonics()
                 Sb(TYPE_U64, Sl(AARCH64_STR, {MAcon(1), MAcop(2), MAcop(1), MAcop(3)}))
             }))
         }));
-    target_mnemonics.add(OP_MOV,     Sl(AARCH64_MOV,   {MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_ADD,     Sl(AARCH64_ADD,   {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_SUB,     Sl(AARCH64_SUB_I, {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_MUL,     Sl(AARCH64_MUL,   {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_DIV,     Sl(AARCH64_SDIV,  {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_CMP,     Sl(AARCH64_CMP_R, {MAcop(1), MAcop(0)}));
-    target_mnemonics.add(OP_UNSPILL, Sl(AARCH64_LDR,   {MAcon(1), MAcop(1), MAreg(SP), MAcop(0)}));
-    target_mnemonics.add(OP_SPILL,   Sl(AARCH64_STR,   {MAcon(1), MAcop(0), MAreg(SP), MAcop(1)}));
-    target_mnemonics.add(OP_RET,     Sl(AARCH64_RET,   {MAreg(RetReg)}));
+    target_mnemonics->add(OP_MOV,     Sl(AARCH64_MOV,   {MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_ADD,     Sl(AARCH64_ADD,   {MAcop(2), MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_SUB,     Sl(AARCH64_SUB_I, {MAcop(2), MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_MUL,     Sl(AARCH64_MUL,   {MAcop(2), MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_DIV,     Sl(AARCH64_SDIV,  {MAcop(2), MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_CMP,     Sl(AARCH64_CMP_R, {MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_UNSPILL, Sl(AARCH64_LDR,   {MAcon(1), MAcop(1), MAreg(SP), MAcop(0)}));
+    target_mnemonics->add(OP_SPILL,   Sl(AARCH64_STR,   {MAcon(1), MAcop(0), MAreg(SP), MAcop(1)}));
+    target_mnemonics->add(OP_RET,     Sl(AARCH64_RET,   {MAreg(RetReg)}));
 
 };
 
 inline M2mMap& get_target_mnemonics()
 {
-    if(target_mnemonics.empty())
+    if(target_mnemonics.get() == nullptr)
         init_target_mnemonics();
-    return target_mnemonics;
+    return *target_mnemonics.get();
 }
 
 Aarch64Backend::Aarch64Backend()
@@ -142,6 +145,7 @@ Aarch64Backend::Aarch64Backend()
     m_isMonowidthInstruction = true;
     m_instructionWidth = 4;
     m_registersAmount = 7;
+    m_name = "AArch64";
 }
 
 bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const
@@ -249,7 +253,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SUB_I, "sub"},
         {AARCH64_MUL, "mul"},
         {AARCH64_SDIV, "sdiv"},
-        {AARCH64_CMP_R, "cmp.r"},
+        {AARCH64_CMP_R, "cmp"},
         {AARCH64_B_LT, "b.lt"},
         {AARCH64_B_GT, "b.gt"},
         {AARCH64_B_GE, "b.ge"},
@@ -257,14 +261,57 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_RET, "ret"}});
 }
 
-Printer::ColPrinter Aarch64Backend::rowHexPrinter(const Syntfunc& toP) const
+Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
     FuncBodyBuf buffer = target2Hex(toP);
-    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum)
+    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
-            out << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)*(hexfield+pos);
+            out << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)*(hexfield+pos)<<" ";
+    };
+}
+
+Printer::ArgPrinter Aarch64Backend::argPrinter() const
+{
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum, const OpPrintInfo& pinfo)
+    {
+        OpPrintInfo::operand ainfo;
+        if(pinfo.size() != 0)
+            ainfo = pinfo[argNum];
+        Arg arg = (ainfo.argnum == OpPrintInfo::PI_NOTASSIGNED) ? toPrint[argNum] : toPrint[ainfo.argnum];
+        if((ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_OFFSET)
+        {
+            if (arg.tag != Arg::ICONST)
+                throw std::string("Printer: register offsets are not supported.");
+            int64_t targetline = rowNum + arg.value;
+            out << "["<< targetline<< "]";
+            return;
+        }
+        bool w32 = (ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_REG32;
+        bool address = (ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_ADDRESS;
+        if (address)
+            out<<"[";
+        switch (arg.tag)
+        {
+            case Arg::IREG:
+                if(arg.idx == Syntfunc::RETREG)
+                    out << "xR";
+                else if(arg.idx == 31)
+                    out << "sp";
+                else
+                    out << (w32 ? "w" : "x") << arg.idx;
+                break;
+            case Arg::ICONST:
+                if(arg.value == 0)
+                    out << "#0";
+                else
+                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value; break;
+            default:
+                throw std::string("Undefined argument type.");
+        };
+        if (address)
+            out<<"]";
     };
 }
 };

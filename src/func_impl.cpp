@@ -10,7 +10,6 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 #include <deque>
-#include <iostream>
 
 namespace loops
 {
@@ -34,6 +33,7 @@ FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<
     , m_nextLabelIdx(0)
     , m_context(getImpl(ctx))
     , m_returnType(RT_NOTDEFINED)
+    , m_compiled(nullptr)
 {
     m_data.name = name;
     m_data.params.reserve(params.size());
@@ -54,32 +54,31 @@ Func FuncImpl::makeWrapper(const std::string& name, Context* ctx, std::initializ
 
 void* FuncImpl::ptr()
 {
-    return m_context->getBackend()->compile(m_context, this);
+    if(!m_compiled)
+        m_compiled = m_context->getBackend()->compile(m_context, this);
+    return m_compiled;
 }
 
 void FuncImpl::printBytecode(std::ostream& out) const
 {
-    std::unordered_map<int, Printer::ColPrinter > printoverrules = {
-        {OP_LOAD, [this](::std::ostream& str, const Syntop& op, size_t){
-            if ((op.size() != 3 && op.size() != 4) || op.args[1].tag != Arg::ICONST)
-                throw std::string("Wrong LOAD format");
-            str << "load." << type_suffixes[op.args[1].value]<<" " << op.args[0]<<", "<<op.args[2];
-            if(op.size() == 4)
-                str << ", " <<op.args[3];
+    std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
+        {OP_LOAD, [this](::std::ostream& str, const Syntop& op, size_t, BackendImpl*){
+            str << "load." << type_suffixes[op.args[1].value];
         }},
-        {OP_STORE, [this](::std::ostream& str, const Syntop& op, size_t){
-            if ((op.size() != 3 && op.size() != 4) || op.args[0].tag != Arg::ICONST)
-                throw std::string("Wrong STORE format");
-            str << "store." << type_suffixes[op.args[0].value]<<" " << op.args[1]<<", "<<op.args[2];
-            if(op.size() == 4)
-                str << ", " <<op.args[3];
+        {OP_STORE, [this](::std::ostream& str, const Syntop& op, size_t, BackendImpl*){
+            str << "store." << type_suffixes[op.args[0].value];
         }},
-        {OP_LABEL, [this](::std::ostream& str, const Syntop& op, size_t){
+        {OP_LABEL, [this](::std::ostream& str, const Syntop& op, size_t, BackendImpl*){
             if (op.size() != 1 || op.args[0].tag != Arg::ICONST)
                 throw std::string("Wrong LABEL format");
             str << "label " << op.args[0] << ":";
-        }},
-        };
+        }}
+    };
+    
+    std::unordered_map<int, Printer::ColPrinter > argoverrules = {
+        {OP_LABEL, [this](::std::ostream& str, const Syntop& op, size_t, BackendImpl*){}}
+    };
+
     std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
         {OP_MOV, "mov"},
         {OP_CMP, "cmp"},
@@ -102,8 +101,9 @@ void FuncImpl::printBytecode(std::ostream& out) const
         {OP_ENDIF,"annotation:endif"},
         {OP_DO, "annotation:do"},
         {OP_WHILE, "annotation:while"},
-        {OP_RET, "ret"}};
-    Printer printer({Printer::rowNumPrinter(0), Printer::rowSynPrinter(opstrings, printoverrules)});
+        {OP_RET, "ret"},
+    };
+    Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(argoverrules)});
     printer.print(out, m_data);
 }
 
@@ -114,12 +114,20 @@ void FuncImpl::printAssembly(std::ostream& out, int columns) const
     std::vector<Printer::ColPrinter> columnPrs;
     columnPrs.reserve(3);
     if(columns&PC_OPNUM)
-        columnPrs.push_back(Printer::rowNumPrinter(0));
+        columnPrs.push_back(Printer::colNumPrinter(0));
     if(columns&PC_OP)
-        columnPrs.push_back(Printer::rowSynPrinter(be->getOpStrings()));
+    {
+        columnPrs.push_back(Printer::colOpnamePrinter(be->getOpStrings()));
+        columnPrs.push_back(Printer::colArgListPrinter());
+    }
     if(columns&PC_HEX)
-        columnPrs.push_back(be->rowHexPrinter(tarcode));
+    {
+        if(columns&PC_OP)
+            columnPrs.push_back(Printer::colDelimeterPrinter());
+        columnPrs.push_back(be->colHexPrinter(tarcode));
+    }
     Printer printer(columnPrs);
+    printer.setBackend(be);
     printer.print(out, tarcode);
 }
 
@@ -433,14 +441,13 @@ void FuncImpl::allocateRegisters()
     int64_t spoffset = 0;
     std::map<IRegInternal, int64_t> spilled;
     std::map<IRegInternal, IRegInternal> renamingMap;
-    { // Looking spilled registers and reusing registers with renaming map
+    { // Looking spilled registers and reusing registers with renaming map.
         for(IRegInternal parreg = 0; parreg < m_data.params.size(); parreg ++)
             renamingMap[parreg] = parreg;
         renamingMap[Syntfunc::RETREG] = Syntfunc::RETREG;
         std::set<IRegInternal> registerPool;
         for(IRegInternal freeReg = m_data.params.size(); freeReg < R; ++freeReg) registerPool.insert(freeReg);
         std::multiset<LiveInterval, endordering> active;
-//        std::multimap<size_t, IRegInternal> active;
         for(auto interval : liveintervals)
         {
             { //Dropping expired registers.
@@ -448,7 +455,12 @@ void FuncImpl::allocateRegisters()
                     auto removerator = active.begin();
                     for(;removerator != active.end(); ++removerator)
                         if (removerator->end <= interval.start)
-                            registerPool.insert(removerator->idx);
+                        {
+                            if(renamingMap.count(removerator->idx) == 1)
+                                registerPool.insert(renamingMap.at(removerator->idx));
+                            else
+                                registerPool.insert(removerator->idx);
+                        }
                         else
                             break;
                     active.erase(active.begin(), removerator);

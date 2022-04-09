@@ -209,9 +209,12 @@ namespace loops
 
     void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(); }
+    std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
+    void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
+
 
     Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
-    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size)
+    Syntop::Syntop(const Syntop& fwho) : ExpandableClass(fwho), opcode(fwho.opcode), args_size(fwho.args_size)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::string("Syntaxic operation: too much args!");
@@ -260,5 +263,47 @@ namespace loops
         if(found == m_functionsStorage.end()) 
             throw std::string("Cannot find function.");
         return found->second;
+    }
+    
+    std::string ContextImpl::getPlatformName() const
+    {
+        const BackendImpl* backend = getImpl(&m_bcknd);
+        return backend->name();
+    }
+
+    void ContextImpl::compileAll()
+    {
+        const size_t funcAlignment = 16; //TODO(ch): Get precise info from backend.
+        size_t totalSize = funcAlignment;
+        BackendImpl* backend = getImpl(&m_bcknd);
+        std::vector<FuncBodyBuf> bodies;
+        bodies.reserve(m_functionsStorage.size());
+        for(auto par:m_functionsStorage)
+        {
+            FuncImpl* func = getImpl(&par.second);
+            FuncBodyBuf body = backend->target2Hex(backend->bytecode2Target(func->getData()));
+            size_t bsize = body->size();
+            bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?
+            totalSize += bsize;
+            bodies.push_back(body);
+        }
+        Allocator* alloc= backend->getAllocator();
+        uint8_t* exebuf = alloc->allocate(totalSize);
+        uint8_t* exeptr = exebuf;
+        auto curBody = bodies.begin();
+        for(auto par:m_functionsStorage)
+        {
+            FuncImpl* func = getImpl(&par.second);
+            uint64_t dptr = reinterpret_cast<uint64_t>(exeptr);
+            dptr %= funcAlignment;
+            dptr = dptr ? funcAlignment - dptr : 0;
+            exeptr += dptr;
+            memcpy(exeptr, (void*)(*curBody)->data(), (*curBody)->size()); //TODO(ch): You have to change used adresses before.
+            func->setCompiledPtr(exeptr);
+            exeptr += (*curBody)->size();
+            ++curBody;
+        }
+        alloc->protect2Execution(exebuf);
+        return exeptr;
     }
 }

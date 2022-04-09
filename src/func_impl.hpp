@@ -24,9 +24,11 @@ public:
 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
+    void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
 
     void printBytecode(std::ostream& out) const;
     void printAssembly(std::ostream& out, int columns) const;
+    std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
     inline size_t provideIdx() { return m_nextIdx++; }
@@ -80,6 +82,8 @@ private:
     void allocateRegisters();
     void jumpificate();
     std::map<IRegInternal, std::pair<size_t, size_t> > livenessAnalysis();
+    
+    void* m_compiled;
 };
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)

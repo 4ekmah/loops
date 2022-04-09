@@ -161,4 +161,29 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
     }
     bits->endInstruction();
 }
+
+OpPrintInfo Binatr::getPrintInfo(const Syntop& op) const
+{
+    OpPrintInfo printInfo;
+    size_t argNum = 0;
+    for(const Detail& det : m_compound)
+        if(det.tag != Detail::D_STATIC)
+        {
+            if(det.printNum != OpPrintInfo::PI_NOTASSIGNED)
+            {
+
+                OpPrintInfo::operand oprnd;
+                oprnd.argnum = argNum;
+                oprnd.flags |= (det.tag == Detail::D_OFFSET) ? OpPrintInfo::PI_OFFSET : 0;
+                oprnd.flags |= ((det.fieldOflags&Detail::D_PRINTADDRESS) != 0) ? OpPrintInfo::PI_ADDRESS : 0;
+                oprnd.flags |= ((((det.fieldOflags&Detail::D_32Dep) != 0) && (op.args[0].value == 0)) ? OpPrintInfo::PI_REG32 : 0); // TODO(ch):op.args[0].value == 0 is unsafe
+                printInfo[det.printNum] = oprnd;
+            }
+            argNum++;
+        }
+    for(const OpPrintInfo::operand& oprnd: printInfo)
+        if(oprnd.argnum == OpPrintInfo::PI_NOTASSIGNED)
+            throw std::string("Binary translator: argument printing numbers are given with gap.");
+    return printInfo;
+}
 };

@@ -9,7 +9,6 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-
 Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed) {}
 Mnemotr::Argutr::Argutr(size_t a_src_arnum) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum) {}
 Mnemotr::Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
@@ -152,7 +151,8 @@ Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
         size_t curr_tar_op = result.program.size();
         if(!this->handleBytecodeOp(op, result)) //Philosophically, we have to ask map BEFORE overrules, not after.
         {
-            result.program.emplace_back(m_2tararch[op].apply(op,this));
+            OpPrintInfo pinfo;
+            result.program.emplace_back(m_2tararch[op].apply(op, this));
         }
         for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
@@ -185,4 +185,13 @@ void* BackendImpl::compile(Context* a_ctx, Func* a_func) const
     alloc->protect2Execution(exebuf);
     return exebuf;
 }
+
+OpPrintInfo BackendImpl::getPrintInfo(const Syntop& op)
+{
+    OpPrintInfo res;
+    if(m_2binary.has(op.opcode))
+        res = m_2binary[op].getPrintInfo(op);
+    return res;
+}
+
 };

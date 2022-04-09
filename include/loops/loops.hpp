@@ -266,6 +266,9 @@ public:
     IReg call_(const IReg& addr, std::initializer_list<IReg> args);
     // indirect call
     IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
+
+    std::string getPlatformName() const;
+    void compileAll();
 protected:
     Context* impl;
 };
