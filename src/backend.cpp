@@ -96,7 +96,7 @@ std::set<size_t> BackendImpl::getUsedRegistersIdxs(const loops::Syntop &a_op, ui
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::string("Binary translator: non-existent argument is requested.");
-            if (a_op[ar.srcArgnum].tag == Arg::IREG && m2b.m_compound[bpiecenum].fieldOflags & flagmask)
+            if (a_op[ar.srcArgnum].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
         ++bpiecenum; //Drop one biantr argument.
@@ -180,7 +180,7 @@ void* BackendImpl::compile(Context* a_ctx, Func* a_func) const
     Allocator* alloc = m_exeAlloc;
     uint8_t* exebuf = alloc->allocate(body->size());
     
-    memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adresses before.
+    memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adressess before.
     
     alloc->protect2Execution(exebuf);
     return exebuf;

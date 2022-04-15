@@ -11,6 +11,6 @@ See https://github.com/vpisarev/loops/LICENSE
 int main(int argc, char** argv)
 {
     loops::TestSuite* suite = loops::TestSuite::getInstance();
-    suite->run();
+    suite->run(false);
     return 0;
 }

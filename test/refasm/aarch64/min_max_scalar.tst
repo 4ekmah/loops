@@ -38,9 +38,9 @@ min_max_scalar(i0, i1, i2, i3)
     36 : ldr   x5, [sp], #0x05 ; e5 17 40 f9  
     37 : add   x4, x4, x5      ; 84 00 05 8b  
     38 : str   x4, [sp], #0    ; e4 03 00 f9  
-    39 : ldr   x4, [sp], #0    ; e4 03 40 f9  
-    40 : ldr   x5, [sp], #0x06 ; e5 1b 40 f9  
-    41 : cmp   x4, x5          ; 9f 00 05 eb  
+    39 : ldr   x4, [sp], #0x06 ; e4 1b 40 f9  
+    40 : ldr   x5, [sp], #0    ; e5 03 40 f9  
+    41 : cmp   x5, x4          ; bf 00 04 eb  
     42 : b.lt  [17]            ; eb fc ff 54  
     43 : ldr   x4, [sp], #0x01 ; e4 07 40 f9  
     44 : ldr   x5, [sp], #0x05 ; e5 17 40 f9  

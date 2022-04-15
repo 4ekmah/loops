@@ -20,7 +20,7 @@ inline bool fileexists(const std::string& name) //TODO(ch): need crossplatform s
 
 bool Test::testAssembly(bool a_rewriteIfWrong)
 {
-    std::string tarcname = m_ctx.getPlatformName();
+    std::string tarcname = CTX.getPlatformName();
     std::string bfilename("./refasm/"); //TODO(ch): IMPORTANT: Now I'm manually copying refasm folder to build folder. What is the best known practices???
     std::string tfilename = bfilename;
     bool result = true;
@@ -182,7 +182,7 @@ void TestSuite::run(bool rewriteListings)
     size_t listingFail = 0;
     for(std::shared_ptr<Test> tptr: m_testList)
         tptr->generateCode();
-    m_ctx.compileAll();
+    CTX.compileAll();
     for(std::shared_ptr<Test> tptr: m_testList)
     {
         ++total;

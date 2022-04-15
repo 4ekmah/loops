@@ -17,7 +17,7 @@ namespace loops
 class Test
 {
 public:
-    Test(std::ostream& out, Context& ctx): m_out(&out), m_ctx(ctx) {}
+    Test(std::ostream& out, Context& ctx): m_out(&out), CTX(ctx) {}
     virtual std::string generateCode() = 0;
     virtual bool testExecution() = 0;
     bool testAssembly(bool a_rewriteIfWrong = false);
@@ -32,7 +32,7 @@ public:
     }
 #define TEST_EQ(a,b) if(!test_eq((a),(b))) return false;
 protected:
-    Context m_ctx;
+    Context CTX;
     Func m_func;
 private:
     std::ostream* m_out;
@@ -47,14 +47,14 @@ public:
     template<typename T>
     void regTest()
     {
-        std::shared_ptr<T> toAdd = std::make_shared<T>(*m_out, m_ctx);
+        std::shared_ptr<T> toAdd = std::make_shared<T>(*m_out, CTX);
         m_testList.push_back(std::static_pointer_cast<Test>(toAdd));
     };
 private:
     std::list<std::shared_ptr<Test> > m_testList;
-    Context m_ctx;
+    Context CTX;
     std::ostream* m_out;
-    TestSuite(std::ostream& a_out = std::cout) : m_out(&a_out), m_ctx(Backend::makeAarch64Compiler()) {}
+    TestSuite(std::ostream& a_out = std::cout) : m_out(&a_out), CTX(Backend::makeAarch64Compiler()) {}
 };
 };
 
@@ -67,7 +67,7 @@ public:                                                         \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         __VA_ARGS__                                             \
-        m_func = m_ctx.getFunc(TESTNAME);                       \
+        m_func = CTX.getFunc(TESTNAME);                         \
         return TESTNAME;                                        \
     }                                                           \
     virtual bool testExecution();                               \

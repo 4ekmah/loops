@@ -45,22 +45,30 @@ void init_instrucion_set()
             Sb(Arg::ICONST, Sl({BDsta(0x694,11), BDcon(16, 1), BDreg(5, 0, Out)}))
         }));
 
-    //TODO(ch): This specialized version of ADD: 64 bit only, noshift(for register).
+    //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
     instrucion_set->add(AARCH64_ADD,
         SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x458, 11), BDreg(5, 2, In), BDsta(0, 6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
+            Sb(Arg::IREG, Sl({BDsta(0x458, 11), BDreg(5, 2, In), BDsta(0x0, 6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
             Sb(Arg::ICONST, Sl({BDsta(0x244, 10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}))
         }));
 
-    //TODO(ch): there is no SUB_I instruction in ARM processors, it's prespecialized version of SUB(immediate). We must make switchers much more flexible and functional to support real SUB. Specialization is: 64 registers, noshift, immediate.
-    instrucion_set->add(AARCH64_SUB_I, Sl({BDsta(0x344,10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}));
+    //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
+    instrucion_set->add(AARCH64_SUB,
+        SFtyp(0, {
+            Sb(Arg::IREG, Sl({BDsta(0x658,11), BDreg(5, 2, In), BDsta(0x0,6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
+            Sb(Arg::ICONST, Sl({BDsta(0x344,10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}))
+        }));
+
     //TODO(ch): Specialization: 64 registers.
     instrucion_set->add(AARCH64_MUL, Sl({BDsta(0x4D8,11), BDreg(5, 2, In), BDsta(0x1F, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
     //TODO(ch): Specialization: 64 registers.
     instrucion_set->add(AARCH64_SDIV, Sl({BDsta(0x4D6,11), BDreg(5, 2, In), BDsta(0x3, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
     //TODO(ch): there is no CMP_R instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
     instrucion_set->add(AARCH64_CMP_R, Sl({BDsta(0x758,11), BDreg(5, 1, In), BDsta(0x0,6), BDreg(5, 0, In), BDsta(0x1F,5)}));
+    instrucion_set->add(AARCH64_B, Sl({BDsta(0x5,6), BDoff(26, 0)}));
     //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
+    instrucion_set->add(AARCH64_B_NE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0x1,5)}));
+    instrucion_set->add(AARCH64_B_EQ, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0x0,5)}));
     instrucion_set->add(AARCH64_B_LT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xB,5)}));
     instrucion_set->add(AARCH64_B_LE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xD,5)}));
     instrucion_set->add(AARCH64_B_GT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xC,5)}));
@@ -119,7 +127,7 @@ void init_target_mnemonics()
         }));
     target_mnemonics->add(OP_MOV,     Sl(AARCH64_MOV,   {MAcop(1), MAcop(0)}));
     target_mnemonics->add(OP_ADD,     Sl(AARCH64_ADD,   {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_SUB,     Sl(AARCH64_SUB_I, {MAcop(2), MAcop(1), MAcop(0)}));
+    target_mnemonics->add(OP_SUB,     Sl(AARCH64_SUB, {MAcop(2), MAcop(1), MAcop(0)}));
     target_mnemonics->add(OP_MUL,     Sl(AARCH64_MUL,   {MAcop(2), MAcop(1), MAcop(0)}));
     target_mnemonics->add(OP_DIV,     Sl(AARCH64_SDIV,  {MAcop(2), MAcop(1), MAcop(0)}));
     target_mnemonics->add(OP_CMP,     Sl(AARCH64_CMP_R, {MAcop(1), MAcop(0)}));
@@ -158,16 +166,18 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         case (OP_JMP_GT):
         case (OP_JMP_LE):
         case (OP_JMP_GE):
+        case (OP_JMP):
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
                 throw std::string("Wrong JMP format.");
-            if (a_btop.opcode != OP_JMP_LT && a_btop.opcode != OP_JMP_GT && a_btop.opcode != OP_JMP_LE && a_btop.opcode != OP_JMP_GE)
-                throw std::string("Unsupported B. condition");
             m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
-            int targetop = (a_btop.opcode == OP_JMP_LT) ? AARCH64_B_LT : (
+            int targetop = (a_btop.opcode == OP_JMP_NE) ? AARCH64_B_NE : (
+                           (a_btop.opcode == OP_JMP_EQ) ? AARCH64_B_EQ : (
+                           (a_btop.opcode == OP_JMP_LT) ? AARCH64_B_LT : (
                            (a_btop.opcode == OP_JMP_GT) ? AARCH64_B_GT : (
-                           (a_btop.opcode == OP_JMP_GE) ? AARCH64_B_GE :
-                                                            AARCH64_B_LE ));
+                           (a_btop.opcode == OP_JMP_GE) ? AARCH64_B_GE : (
+                           (a_btop.opcode == OP_JMP_LE) ? AARCH64_B_LE :
+                                                            AARCH64_B )))));
             a_formingtarget.program.emplace_back(targetop, std::initializer_list<Arg>({getM2mCurrentOffset()}));
             return true;
         }
@@ -246,19 +256,22 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 {
     return std::unordered_map<int, std::string>({
         {AARCH64_LDRSW, "ldrsw"},
-        {AARCH64_LDR, "ldr"},
-        {AARCH64_STR, "str"},
-        {AARCH64_MOV, "mov"},
-        {AARCH64_ADD, "add"},
-        {AARCH64_SUB_I, "sub"},
-        {AARCH64_MUL, "mul"},
-        {AARCH64_SDIV, "sdiv"},
+        {AARCH64_LDR,   "ldr"},
+        {AARCH64_STR,   "str"},
+        {AARCH64_MOV,   "mov"},
+        {AARCH64_ADD,   "add"},
+        {AARCH64_SUB, "sub"},
+        {AARCH64_MUL,   "mul"},
+        {AARCH64_SDIV,  "sdiv"},
         {AARCH64_CMP_R, "cmp"},
-        {AARCH64_B_LT, "b.lt"},
-        {AARCH64_B_GT, "b.gt"},
-        {AARCH64_B_GE, "b.ge"},
-        {AARCH64_B_LE, "b.le"},
-        {AARCH64_RET, "ret"}});
+        {AARCH64_B,     "b"},
+        {AARCH64_B_NE,  "b.ne"},
+        {AARCH64_B_EQ,  "b.eq"},
+        {AARCH64_B_LT,  "b.lt"},
+        {AARCH64_B_GT,  "b.gt"},
+        {AARCH64_B_GE,  "b.ge"},
+        {AARCH64_B_LE,  "b.le"},
+        {AARCH64_RET,   "ret"}});
 }
 
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const

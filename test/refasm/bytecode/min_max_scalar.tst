@@ -41,9 +41,9 @@ min_max_scalar(i0, i1, i2, i3)
     39 : unspill   i5, 5         
     40 : add       i4, i4, i5    
     41 : spill     0, i4         
-    42 : unspill   i4, 0         
-    43 : unspill   i5, 6         
-    44 : cmp       i4, i5        
+    42 : unspill   i4, 6         
+    43 : unspill   i5, 0         
+    44 : cmp       i5, i4        
     45 : jmp_gt    0             
     46 : unspill   i4, 1         
     47 : unspill   i5, 5         

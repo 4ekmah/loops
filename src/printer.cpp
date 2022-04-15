@@ -59,6 +59,7 @@ Printer::ColPrinter Printer::colDelimeterPrinter()
         out << ";";
     };
 }
+
 Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
 {
     return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* backend)

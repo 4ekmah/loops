@@ -203,8 +203,14 @@ namespace loops
     IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
     void Context::do_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->do_(); }
     void Context::while_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
+    void Context::doif_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->doif_(r); }
+    void Context::enddo_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->enddo_(); }
+    void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->break_(); }
+    void Context::continue_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->continue_(); }
 
     void Context::if_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->if_(r); }
+    void Context::elif_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->elif_(r); };
+    void Context::else_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->else_(); };
     void Context::endif_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endif_(); }
 
     void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }

@@ -70,6 +70,8 @@ public:
     size_t m_refcount;
     bool isConstFit(const Syntop& a_op, size_t argnum) const;
 
+    //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
+    //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
     std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const;
     std::set<size_t> getOutRegistersIdxs(const Syntop& a_op) const;

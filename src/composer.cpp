@@ -121,11 +121,17 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         switch (det.tag)
         {
             case (Detail::D_REG):
+                if(op.args[argnum].tag != Arg::IREG)
+                    throw std::string("Binary translator: syntop bring const instead of register.");
+                ++argnum;
+                break;
             case (Detail::D_CONST):
             case (Detail::D_ADDRESS):
             case (Detail::D_OFFSET):
             case (Detail::D_STACKOFFSET):
-                argnum++;
+                if(op.args[argnum].tag != Arg::ICONST)
+                    throw std::string("Binary translator: syntop bring register instead of const.");
+                ++argnum;
                 break;
             case (Detail::D_STATIC): break;
             default:
@@ -147,7 +153,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 break;
             case (Detail::D_ADDRESS):
             {
-//                canvas->m_addresses.push_back(bits->bitaddress()); //IMPORTANT: Place adressess somewhere! I think, in FuncImpl
+//                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
             }
             case (Detail::D_CONST):
             case (Detail::D_OFFSET):
