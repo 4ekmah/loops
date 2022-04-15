@@ -9,7 +9,9 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #include <unordered_map>
 #include <stack>
-    
+#include <unordered_map>
+#include <typeindex>
+
 namespace loops
 {
     typedef size_t IRegInternal;
@@ -40,7 +42,91 @@ namespace loops
         return res;
     }
 
-    struct Syntop
+    struct ExpandableClass
+    {
+    public:
+        template<typename T>
+        void addExtension(const T& toAdd)
+        {
+            if(m_dictionary.get() == nullptr)
+                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
+            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
+            if(dictionary.count(typeid(T)) != 0)
+                throw std::string("Internal error: trying to add extension already defined.");
+            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >(toAdd);
+            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
+            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
+            dictionary.insert(partoadd);
+        }
+
+        template<typename T>
+        void addExtension()
+        {
+            if(m_dictionary.get() == nullptr)
+                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
+            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
+            if(dictionary.count(typeid(T)) != 0)
+                throw std::string("Internal error: trying to add extension already defined.");
+            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >();
+            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
+            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
+            dictionary.insert(partoadd);
+        }
+
+        template<typename T>
+        T& getExtension()
+        {
+            if(m_dictionary.get() == nullptr)
+                throw std::string("Internal error: asking for nonexistent expansion.");
+            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
+            if(dictionary.count(typeid(T)) == 0)
+                throw std::string("Internal error: asking for nonexistent expansion.");
+            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
+            return extptr->get();
+        }
+
+        template<typename T>
+        const T& getExtension() const
+        {
+            if(m_dictionary.get() == nullptr)
+                throw std::string("Internal error: asking for nonexistent expansion.");
+            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
+            if(dictionary.count(typeid(T)) == 0)
+                throw std::string("Internal error: asking for nonexistent expansion.");
+            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
+            return extptr->get();
+        }
+        
+        template<typename T>
+        bool haveExtension() const
+        {
+            if(m_dictionary.get() == nullptr)
+                return false;
+            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
+            if(dictionary.count(typeid(T)) == 0)
+                return false;
+            return true;
+        }
+    private:
+        struct voidshrd
+        {
+            public:
+            virtual ~voidshrd() {}
+        };
+        template <typename T>
+        struct shrd : public voidshrd
+        {
+            std::shared_ptr<T> content;
+            inline shrd() : content(std::make_shared<T>()) {}
+            inline shrd(const T& cp) : content(std::make_shared<T>(cp)) {}
+            virtual ~shrd() {}
+            inline T& get() { return *content; }
+            inline const T& get() const { return *content; }
+        };
+        std::shared_ptr< std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > > m_dictionary;
+    };
+
+    struct Syntop: public ExpandableClass
     {
     private:
         enum {SYNTOP_ARGS_MAX = 10};
@@ -225,20 +311,22 @@ namespace loops
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context* owner, Backend cmpl) : m_owner(owner), m_cmpl(cmpl) {}
+        ContextImpl(Context* owner, Backend bcknd) : m_owner(owner), m_bcknd(bcknd) {}
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
         void endFunc();
         Func getFunc(const std::string& name);
+        std::string getPlatformName() const;
+        void compileAll();
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
-        inline Backend* getBackend() { return &m_cmpl; }
+        inline Backend* getBackend() { return &m_bcknd; }
         inline Context* getOwner() const { return m_owner; }
     private:
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
         Context* m_owner;
-        Backend m_cmpl;
+        Backend m_bcknd;
     };
 
     inline Func* _getImpl(Func* wrapper) { return wrapper->impl; };

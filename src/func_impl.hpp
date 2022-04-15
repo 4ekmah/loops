@@ -9,7 +9,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include "common.hpp"
-#include <stack>
+#include <deque>
 #include <map>
 #include <set>
 
@@ -24,14 +24,16 @@ public:
 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
+    void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
 
     void printBytecode(std::ostream& out) const;
     void printAssembly(std::ostream& out, int columns) const;
+    std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
     inline size_t provideIdx() { return m_nextIdx++; }
     size_t provideLabel();
-    static const size_t EMPTYLABEL;
+    enum {NOLABEL = -1};
 
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args);
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
@@ -45,29 +47,33 @@ public:
     IReg const_(int64_t value);
 
     void do_();
-    //void doif_(const IReg& r);
     void while_(const IReg& r);
-    //void break_();
-    //void continue_();
+    void doif_(const IReg& r);
+    void enddo_();
+    void break_();
+    void continue_();
     void if_(const IReg& r);
-    //void elif_(const IReg& r);
-    //void else_();
+    void elif_(const IReg& r);
+    void else_();
     void endif_();
     void return_(const IReg& retval);
     void return_();
 
     const Syntfunc& getData() const { return m_data; }
     
-    int m_cmpopcode; // TODO(ch): IMPORTANT delete this trivial workaround ASAP;
+    int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
 private:
     struct cflowbracket
     {
-        enum { DO, DOIF, IF, ELSE };
+        enum { DO, DOIF, IF, ELSE};
         size_t tag;
         size_t labelOrPos;
-        cflowbracket(size_t a_tag, size_t a_labelOrPos) : tag(a_tag), labelOrPos(a_labelOrPos) {}
+        size_t elifRepeats;
+        std::vector<size_t> breaks;
+        std::vector<size_t> continues;
+        cflowbracket(size_t a_tag, size_t a_labelOrPos, size_t a_elifRep = 0) : tag(a_tag), labelOrPos(a_labelOrPos), elifRepeats(a_elifRep) {}
     };
-    std::stack<cflowbracket> m_cflowStack;
+    std::deque<cflowbracket> m_cflowStack;
     Syntfunc m_data;
     ContextImpl* m_context;
     size_t m_nextIdx;
@@ -80,6 +86,10 @@ private:
     void allocateRegisters();
     void jumpificate();
     std::map<IRegInternal, std::pair<size_t, size_t> > livenessAnalysis();
+    int invertCondition(int condition) const;
+    void printSyntopBC(const Syntop& op) const; //Debug purposes only
+    
+    void* m_compiled;
 };
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)

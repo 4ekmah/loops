@@ -21,10 +21,13 @@ enum {
     AARCH64_STR,
     AARCH64_MOV,
     AARCH64_ADD,
-    AARCH64_SUB_I,
+    AARCH64_SUB,
     AARCH64_MUL,
     AARCH64_SDIV,
     AARCH64_CMP_R,
+    AARCH64_B,
+    AARCH64_B_NE,
+    AARCH64_B_EQ,
     AARCH64_B_LT,
     AARCH64_B_LE,
     AARCH64_B_GT,
@@ -41,7 +44,8 @@ public:
     virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
     virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
-    virtual Printer::ColPrinter rowHexPrinter(const Syntfunc& toP) const override final;
+    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
+    virtual Printer::ArgPrinter argPrinter() const override final;
 private:
     struct label_ref_info
     {

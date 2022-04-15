@@ -9,7 +9,6 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-
 Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed) {}
 Mnemotr::Argutr::Argutr(size_t a_src_arnum) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum) {}
 Mnemotr::Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
@@ -97,7 +96,7 @@ std::set<size_t> BackendImpl::getUsedRegistersIdxs(const loops::Syntop &a_op, ui
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::string("Binary translator: non-existent argument is requested.");
-            if (a_op[ar.srcArgnum].tag == Arg::IREG && m2b.m_compound[bpiecenum].fieldOflags & flagmask)
+            if (a_op[ar.srcArgnum].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
         ++bpiecenum; //Drop one biantr argument.
@@ -152,7 +151,8 @@ Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
         size_t curr_tar_op = result.program.size();
         if(!this->handleBytecodeOp(op, result)) //Philosophically, we have to ask map BEFORE overrules, not after.
         {
-            result.program.emplace_back(m_2tararch[op].apply(op,this));
+            OpPrintInfo pinfo;
+            result.program.emplace_back(m_2tararch[op].apply(op, this));
         }
         for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
@@ -180,9 +180,18 @@ void* BackendImpl::compile(Context* a_ctx, Func* a_func) const
     Allocator* alloc = m_exeAlloc;
     uint8_t* exebuf = alloc->allocate(body->size());
     
-    memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adresses before.
+    memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adressess before.
     
     alloc->protect2Execution(exebuf);
     return exebuf;
 }
+
+OpPrintInfo BackendImpl::getPrintInfo(const Syntop& op)
+{
+    OpPrintInfo res;
+    if(m_2binary.has(op.opcode))
+        res = m_2binary[op].getPrintInfo(op);
+    return res;
+}
+
 };

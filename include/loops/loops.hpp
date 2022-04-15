@@ -81,13 +81,14 @@ enum {
     OP_LABEL,
 
     OP_IF,
-    OP_ELIF,
     OP_ELSE,
     OP_ENDIF,
     OP_DO,
-    OP_WHILE,
-    OP_DOIF,
-    OP_ENDDOIF,
+    OP_WHILE, //WHILE <CMPcode>, <startlabel>, <continuelabel>, <breaklabel> //TODO(ch): keep there more annotations
+    OP_DOIF,  //DOIF  <CMPcode>, <continuelabel>, <breaklabel>
+    OP_ENDDO, //ENDDO <continuelabel>, <breaklabel>
+    OP_BREAK,
+    OP_CONTINUE,
 
     OP_NOINIT
 };
@@ -253,7 +254,7 @@ public:
     void do_();                 //TODO(ch): repeat/until?
     void while_(const IReg& r); // continue loop if r == true
     void doif_(const IReg& r); // start loop if r == true
-    void enddoif_();
+    void enddo_();
     void break_();
     void continue_();
     void if_(const IReg& r);
@@ -266,6 +267,9 @@ public:
     IReg call_(const IReg& addr, std::initializer_list<IReg> args);
     // indirect call
     IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
+
+    std::string getPlatformName() const;
+    void compileAll();
 protected:
     Context* impl;
 };

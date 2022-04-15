@@ -30,9 +30,7 @@ uint8_t* Allocator::allocate(size_t size)
 #else
 #error "not supported"
 #endif
-//#ifdef XBYAK_USE_MAP_JIT
     mode |= MAP_JIT;
-//#endif
     void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, mode, -1, 0);
     if (p == MAP_FAILED)
       throw std::string("Memory allocation failure");

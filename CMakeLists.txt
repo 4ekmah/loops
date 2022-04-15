@@ -12,3 +12,6 @@ include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_executable(first examples/first.cpp)
 target_link_libraries(first loops)
+
+add_executable(testall test/testall.cpp)
+target_link_libraries(testall loops)
