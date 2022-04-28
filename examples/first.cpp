@@ -40,13 +40,13 @@ loops::Func gencode(loops::Context& ctx)
 int main(int argc, char** argv)
 {
     {//Function usage
-        loops::Context ctx(loops::Backend::makeAarch64Compiler());
+        loops::Context ctx;
         loops::Func lfunc = gencode(ctx);
-        std::cout<<"======--BYTECODE-LISTING--======="<<std::endl;
+        std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
         lfunc.printBytecode(std::cout);
-        std::cout<<"======--AARCH64--LISTING--======="<<std::endl;
+        std::cout << "======--AARCH64--LISTING--=======" << std::endl;
         lfunc.printAssembly(std::cout);
-        std::cout<<"======---FUNCTION-USAGE---======="<<std::endl;
+        std::cout << "======---FUNCTION-USAGE---=======" << std::endl;
         justcompiled_t f = reinterpret_cast<justcompiled_t>(lfunc.ptr());
 
         //minmax array

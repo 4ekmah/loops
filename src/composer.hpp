@@ -16,12 +16,12 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    class BackendImpl;
+    class Backend;
     typedef std::shared_ptr<std::vector<uint8_t> > FuncBodyBuf;
     class Bitwriter
     {
     public:
-        Bitwriter(const BackendImpl* a_backend);
+        Bitwriter(const Backend* a_backend);
         void startInstruction();
         void writeDetail(uint64_t a_detail, size_t a_fieldwidth);
         void endInstruction();
@@ -30,8 +30,10 @@ namespace loops
             return std::make_shared<std::vector<uint8_t> >(m_buffer->data(), m_buffer->data() + m_size); //TODO(ch): eliminate unneccessary copy.
         }
         inline size_t bitAddress() { return (m_size << 3) + m_bitpos; }
+        const Backend* getBackend() const { return m_backend; }
+        static uint64_t revertDetail(uint64_t a_det, size_t dwidth);
     private:
-        const BackendImpl* m_backend;
+        const Backend* m_backend;
         FuncBodyBuf m_buffer;
         size_t m_size;
         size_t m_bitpos;
@@ -52,9 +54,9 @@ namespace loops
         struct Detail
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
-            enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET};
+            enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET, D_SPILLED};
             enum {D_INPUT = 1, D_OUTPUT = 2, D_PRINTADDRESS = 4, D_32Dep = 8}; //TODO(ch): D_32Dep is 32 if args[0] is equal to 0. Do something with this semihardcode.
-            Detail(int tag, size_t fieldsize, uint64_t  regflag = 0);
+            Detail(int tag, size_t fieldsize);
             Detail(int tag, uint64_t val, size_t fieldsize);
             int tag;
             size_t width; //in bits //TODO(ch): unsigned char?
@@ -63,10 +65,11 @@ namespace loops
             size_t printNum;
         };
         std::vector<Detail> m_compound;
-        size_t m_size;
-        Binatr(){}
+        std::vector<size_t> m_reordering;
+        size_t m_bytewidth;
+        Binatr(): m_bytewidth(0) {}
         Binatr(std::initializer_list<Detail> lst);
-        inline size_t size() const { return m_size; }
+        size_t size(const Syntop& op) const;
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
         OpPrintInfo getPrintInfo(const Syntop& op) const;
     };
@@ -75,7 +78,17 @@ namespace loops
     {
         using BackendTableConstructor::SFsiz;
         using BackendTableConstructor::SFtyp;
-        using BackendTableConstructor::SFval;
+        using BackendTableConstructor::SFflg;
+        using BackendTableConstructor::SFtyp;
+
+        inline std::vector<size_t> ROrd(std::initializer_list<size_t> reordering)
+        {
+            uint64_t bitmask = ((uint64_t)(1) << reordering.size()) - 1;
+            for (size_t rdr : reordering)
+                bitmask ^= (uint64_t)(1) << rdr;
+            Assert(bitmask == 0);
+            return std::vector<size_t>(reordering);
+        }
 
         inline BackendTableConstructor::SyntopTreeTempBranch<Binatr> Sb(int cval, const typename SyntopIndexedArray<Binatr>::ArgIndA& val)
         {
@@ -83,18 +96,29 @@ namespace loops
             return _Sb<Binatr>(cval, val);
         }
 
-        inline SyntopIndexedArray<Binatr>::ArgIndA Sl(std::initializer_list<Binatr::Detail> details)
+        inline SyntopIndexedArray<Binatr>::ArgIndA Sl(std::initializer_list<Binatr::Detail> details, const std::vector<size_t>& reordering = std::vector<size_t>())
         {
-            return BackendTableConstructor::Sl(Binatr(details));
+            auto res = Binatr(details);
+            res.m_reordering = reordering;
+            return BackendTableConstructor::Sl(res);
         }
 
         inline Binatr::Detail BDsta(uint64_t field, size_t width) {return Binatr::Detail(Binatr::Detail::D_STATIC, field, width); }
         inline Binatr::Detail BDreg(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT)
         {
-            Binatr::Detail res(Binatr::Detail::D_REG, width, regflag);
+            Binatr::Detail res(Binatr::Detail::D_REG, width);
+            res.fieldOflags = regflag;
             res.printNum = prnum;
             return res;
         }
+
+        inline Binatr::Detail BDspl(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)
+        {
+            Binatr::Detail res(Binatr::Detail::D_SPILLED, width);
+            res.printNum = prnum;
+            return res;
+        }
+
         inline Binatr::Detail BDcon(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)//TODO(ch): Rename const -> immediate, BDcon->BDimm
         {
             Binatr::Detail res(Binatr::Detail::D_CONST, width);

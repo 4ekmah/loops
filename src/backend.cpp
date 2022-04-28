@@ -9,11 +9,11 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed) {}
-Mnemotr::Argutr::Argutr(size_t a_src_arnum) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum) {}
+Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(-1), transitFlags(0) {}
+Mnemotr::Argutr::Argutr(size_t a_src_arnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum), transitFlags(flags) {}
 Mnemotr::Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
-Syntop Mnemotr::apply(const Syntop& a_source, const BackendImpl* a_bcknd) const
+Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_bcknd) const
 {
     std::vector<Arg> resargs;
     resargs.reserve(m_argsList.size());
@@ -27,7 +27,17 @@ Syntop Mnemotr::apply(const Syntop& a_source, const BackendImpl* a_bcknd) const
                 if(argt.srcArgnum >= a_source.size())
                     throw std::string("Mnemonic translator: non-existent argument is requested.");
                 Arg toAdd = a_source.args[argt.srcArgnum];
-                toAdd = (a_bcknd != nullptr && toAdd.tag == Arg::IREG) ? a_bcknd->translateReg(toAdd.idx): toAdd;
+                toAdd.flags |= argt.transitFlags;
+                resargs.push_back(toAdd);
+                break;
+            }
+            case Argutr::T_TRANSFORMTOSPILL:
+            {
+                Assert(argt.srcArgnum < a_source.size());
+                Assert(a_source.args[argt.srcArgnum].tag == Arg::ICONST);
+                Arg toAdd = argISpilled(a_source.args[argt.srcArgnum].value);
+                toAdd.flags |= argt.transitFlags;
+                toAdd.value *= 8;//TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
                 resargs.push_back(toAdd);
                 break;
             }
@@ -48,7 +58,7 @@ size_t Mnemotr::targetArgNum(size_t a_srcnum) const
     return res;
 }
 
-bool BackendImpl::isConstFit(const Syntop& a_op, size_t argnum) const
+bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
 {
     const Mnemotr& m2m = m_2tararch[a_op];
     argnum = m2m.targetArgNum(argnum);
@@ -80,7 +90,31 @@ bool BackendImpl::isConstFit(const Syntop& a_op, size_t argnum) const
     throw std::string("Binary translator: non-existent argument is requested.");
 }
 
-std::set<size_t> BackendImpl::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
+std::set<size_t> Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
+{
+    std::set<size_t> result;
+    if (!m_2tararch.has(a_op.opcode))
+        return result;
+    std::map<size_t, size_t> backArgMap;
+    std::set<size_t> tarTFilter;
+    const Mnemotr& m2m = m_2tararch[a_op];
+    Syntop tar_op = m2m.apply(a_op);
+    for (size_t tF : toFilter)
+    {
+        Assert(tF < a_op.size() && a_op[tF].tag == Arg::IREG);
+        size_t tArgnum = m2m.targetArgNum(tF);
+        if (tArgnum == Mnemotr::ARG_NOT_USED)
+            continue;
+        tarTFilter.insert(tArgnum);
+        backArgMap[tArgnum] = tF;
+    }
+    tarTFilter = m_2binary.filterStackPlaceable(tar_op, tarTFilter);
+    for (size_t tR : tarTFilter)
+        result.insert(backArgMap[tR]);
+    return result;
+}
+
+std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
 {
     std::set<size_t> result;
     if (!m_2tararch.has(a_op.opcode))
@@ -88,33 +122,41 @@ std::set<size_t> BackendImpl::getUsedRegistersIdxs(const loops::Syntop &a_op, ui
     const Mnemotr& m2m = m_2tararch[a_op];
     const Binatr& m2b = m_2binary[m2m.apply(a_op)];
     size_t bpiecenum = 0;
+    std::vector<size_t> rodr = m2b.m_reordering;
+    if (rodr.empty())
+    {
+        rodr.reserve(a_op.size());
+        for (size_t n = 0; n < a_op.size(); n++) 
+            rodr.push_back(n);
+    }
+
     for(size_t argnum = 0; argnum < m2m.m_argsList.size(); ++argnum)
     {
-        while(bpiecenum < m2b.size() && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
+        while(bpiecenum < m2b.size(a_op) && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
         const Mnemotr::Argutr& ar = m2m.m_argsList[argnum];
         if(ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::string("Binary translator: non-existent argument is requested.");
-            if (a_op[ar.srcArgnum].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
-                result.insert(ar.srcArgnum);
+            if (a_op[rodr[ar.srcArgnum]].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
+                result.insert(rodr[ar.srcArgnum]);
         }
         ++bpiecenum; //Drop one biantr argument.
     }
     return result;
 }
 
-std::set<size_t> BackendImpl::getOutRegistersIdxs(const Syntop& a_op) const
+std::set<size_t> Backend::getOutRegistersIdxs(const Syntop& a_op) const
 {
     return getUsedRegistersIdxs(a_op, Binatr::Detail::D_OUTPUT);
 }
 
-std::set<size_t> BackendImpl::getInRegistersIdxs(const Syntop& a_op) const
+std::set<size_t> Backend::getInRegistersIdxs(const Syntop& a_op) const
 {
     return getUsedRegistersIdxs(a_op, Binatr::Detail::D_INPUT);
 }
 
-std::set<IRegInternal> BackendImpl::getUsedRegisters(const Syntop& a_op, uint64_t flagmask) const
+std::set<IRegInternal> Backend::getUsedRegisters(const Syntop& a_op, uint64_t flagmask) const
 {
     std::set<size_t> preres = getUsedRegistersIdxs(a_op, flagmask);
     std::set<IRegInternal> result;
@@ -129,17 +171,17 @@ std::set<IRegInternal> BackendImpl::getUsedRegisters(const Syntop& a_op, uint64_
     return result;
 }
 
-std::set<IRegInternal> BackendImpl::getOutRegisters(const Syntop& a_op) const
+std::set<IRegInternal> Backend::getOutRegisters(const Syntop& a_op) const
 {
     return getUsedRegisters(a_op, Binatr::Detail::D_OUTPUT);
 }
 
-std::set<IRegInternal> BackendImpl::getInRegisters(const Syntop& a_op) const
+std::set<IRegInternal> Backend::getInRegisters(const Syntop& a_op) const
 {
     return getUsedRegisters(a_op, Binatr::Detail::D_INPUT);
 }
 
-Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
+Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
     Syntfunc result;
     result.params = a_bcfunc.params;
@@ -157,21 +199,21 @@ Syntfunc BackendImpl::bytecode2Target(const Syntfunc& a_bcfunc) const
         for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
             const Syntop& lastop = result.program[addedop];
-            m_m2mCurrentOffset += m_2binary[lastop].size();
+            m_m2mCurrentOffset += m_2binary[lastop].size(op);
         }
     }
     return result;
 }
 
-const FuncBodyBuf BackendImpl::target2Hex(const Syntfunc& a_bcfunc) const
+const FuncBodyBuf Backend::target2Hex(const Syntfunc& a_bcfunc) const
 {
     Bitwriter bitstream(this);
-    for(const Syntop& op : a_bcfunc.program)
+    for (const Syntop& op : a_bcfunc.program)
         m_2binary[op].applyNAppend(op, &bitstream);
     return bitstream.buffer();
 }
 
-void* BackendImpl::compile(Context* a_ctx, Func* a_func) const
+void* Backend::compile(Context* a_ctx, Func* a_func) const
 {
     FuncImpl* func = static_cast<FuncImpl*>(a_func);
     Syntfunc tarcode = bytecode2Target(func->getData());
@@ -186,7 +228,7 @@ void* BackendImpl::compile(Context* a_ctx, Func* a_func) const
     return exebuf;
 }
 
-OpPrintInfo BackendImpl::getPrintInfo(const Syntop& op)
+OpPrintInfo Backend::getPrintInfo(const Syntop& op)
 {
     OpPrintInfo res;
     if(m_2binary.has(op.opcode))
@@ -194,4 +236,22 @@ OpPrintInfo BackendImpl::getPrintInfo(const Syntop& op)
     return res;
 }
 
+size_t Backend::registersAmount() const
+{ //TODO(ch): Implement more effective.
+    std::set<IRegInternal> allRegisters;
+    allRegisters.insert(m_parameterRegisters.begin(), m_parameterRegisters.end());
+    allRegisters.insert(m_returnRegisters.begin(), m_returnRegisters.end());
+    allRegisters.insert(m_calleeSavedRegisters.begin(), m_calleeSavedRegisters.end());
+    allRegisters.insert(m_callerSavedRegisters.begin(), m_callerSavedRegisters.end());
+    return allRegisters.size();
+}
+
+Backend::Backend() : m_exeAlloc(nullptr)
+, m_isLittleEndianInstructions(true)
+, m_isLittleEndianOperands(false)
+, m_isMonowidthInstruction(false)
+, m_instructionWidth(0)
+, m_registersAmount(8)
+, m_m2mCurrentOffset(0)
+    {}
 };

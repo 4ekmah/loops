@@ -13,8 +13,8 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
 
-std::shared_ptr<M2bMap> instrucion_set;
-void init_instrucion_set()
+static std::shared_ptr<M2bMap> instrucion_set;
+static void init_instrucion_set()
 {
     instrucion_set = std::make_shared<M2bMap>();
     using namespace BinatrTableConstructor;
@@ -83,8 +83,8 @@ inline M2bMap& get_instrucion_set()
     return *instrucion_set.get();
 }
 
-std::shared_ptr<M2mMap> target_mnemonics;
-void init_target_mnemonics()
+static std::shared_ptr<M2mMap> target_mnemonics;
+static void init_target_mnemonics()
 {
     target_mnemonics = std::make_shared<M2mMap>();
     using namespace MnemotrTableConstructor;
@@ -150,6 +150,7 @@ Aarch64Backend::Aarch64Backend()
     m_2tararch = get_target_mnemonics();
     m_exeAlloc = Allocator::getInstance();
     m_isLittleEndianInstructions = true;
+    m_isLittleEndianOperands = false;
     m_isMonowidthInstruction = true;
     m_instructionWidth = 4;
     m_registersAmount = 7;
@@ -197,10 +198,10 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
 
 Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
-    m_retReg = a_bcfunc.RETREG;
+    m_retReg = Syntfunc::RETREG;
     m_labelMap.clear();//labels offsets from start.
     m_labelRefMap.clear(); // label referenes map is needed to calculate and put in relative offsets after
-    Syntfunc result = BackendImpl::bytecode2Target(a_bcfunc);
+    Syntfunc result = Backend::bytecode2Target(a_bcfunc);
     for(auto label: m_labelRefMap)
     {
         if(m_labelMap.count(label.first) == 0)
@@ -221,14 +222,7 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     return result;
 }
 
-Arg Aarch64Backend::translateReg(IRegInternal tofind) const
-{
-    if(tofind == m_retReg)
-        return argIReg(0);
-    return argIReg(tofind);
-}
-
-void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const
+void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
 {
     //TODO(ch): Spill also callee-saved registers.
     if(a_regSpilled)
@@ -240,7 +234,7 @@ void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop
     }
 }
 
-void Aarch64Backend::writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const
+void Aarch64Backend::writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
 {
     //TODO(ch): Unspill also callee-saved registers.
     if(a_regSpilled)
@@ -277,7 +271,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
     FuncBodyBuf buffer = target2Hex(toP);
-    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* )
+    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
@@ -285,7 +279,7 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
     };
 }
 
-Printer::ArgPrinter Aarch64Backend::argPrinter() const
+Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
 {
     return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum, const OpPrintInfo& pinfo)
     {

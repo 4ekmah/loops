@@ -46,7 +46,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
 
 Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl*)
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
     {
         out << std::setw(6) << rowNum << " :";
     };
@@ -54,7 +54,7 @@ Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
 
 Printer::ColPrinter Printer::colDelimeterPrinter()
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl*)
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
     {
         out << ";";
     };
@@ -62,7 +62,7 @@ Printer::ColPrinter Printer::colDelimeterPrinter()
 
 Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
 {
-    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* backend)
+    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
@@ -75,9 +75,9 @@ Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std:
     };
 }
 
-Printer::ColPrinter Printer::colArgListPrinter(const std::unordered_map<int, Printer::ColPrinter>& p_overrules)
+Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const std::unordered_map<int, Printer::ColPrinter>& p_overrules)
 {
-    return [p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* backend)
+    return [suppfunc, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
@@ -86,7 +86,7 @@ Printer::ColPrinter Printer::colArgListPrinter(const std::unordered_map<int, Pri
                     out<<toPrint[argNum];
                 };
             if(backend)
-                argprinter = backend->argPrinter();
+                argprinter = backend->argPrinter(suppfunc);
             OpPrintInfo pinfo;
             if(backend)
                 pinfo = backend->getPrintInfo(const_cast<Syntop&>(toPrint));

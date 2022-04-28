@@ -71,7 +71,7 @@ enum {
     OP_UNSPILL,
 
     OP_JMP,
-    OP_JMP_GT,
+    OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
     OP_JMP_GE,
     OP_JMP_LT,
     OP_JMP_LE,
@@ -141,7 +141,7 @@ struct IReg
     IReg();
 
     IReg(const IReg& r); //Must generate copy(mov) code 
-    IReg(IReg&& a);
+    IReg(IReg&& a) noexcept;
     IReg& operator=(const IReg& r); // may generate real code
                                       // if 'this' is already initialized
 
@@ -178,7 +178,7 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    enum { EMPTY = 0, IREG = 1, ICONST = 2 };//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment.
+    enum { EMPTY = 0, IREG = 1, ICONST = 2, ISPILLED = 3};//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment.
 
     Arg();
     Arg(const IReg& r);
@@ -191,6 +191,7 @@ struct Arg
     Func* func;
     size_t tag;
     int64_t value;
+    uint64_t flags;
 };
 
 class Func
@@ -214,28 +215,11 @@ protected:
     Func* impl;
 };
 
-class Backend
-{
-    friend Backend* _getImpl(Backend* wrapper);
-public:
-    Backend(const Backend& f);
-    Backend& operator=(const Backend& f);
-    virtual ~Backend();
-    virtual void* compile(Context* a_ctx, Func* a_func) const;
-    static Backend makeAarch64Compiler();
-protected:
-    Backend();
-private:
-    Backend(Backend* a_p);
-    Backend* impl;
-};
-
 class Context
 {
     friend Context* _getImpl(Context* wrapper);
 public:
     Context();
-    Context(Backend cmpl);
     Context(const Context& ctx);
     virtual ~Context();
     Context& operator=(const Context& ctx);
@@ -271,6 +255,7 @@ public:
     std::string getPlatformName() const;
     void compileAll();
 protected:
+    Context(Context* a_impl): impl(a_impl) {}
     Context* impl;
 };
 

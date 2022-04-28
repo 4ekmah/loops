@@ -6,7 +6,9 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include "aarch64.hpp"
+#include "intel64.hpp"
 #include "backend.hpp"
+#include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
 #include <map>
@@ -25,7 +27,7 @@ namespace loops
         func = selfval.func;
     }
 
-    IReg::IReg(IReg&& a) : func(a.func), idx(a.idx) {}
+    IReg::IReg(IReg&& a) noexcept : func(a.func), idx(a.idx) {}
 
     IReg& IReg::operator=(const IReg& r)
     {
@@ -36,9 +38,9 @@ namespace loops
         return (*this);
     }
 
-    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0) {}
-    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0) {}
-    Arg::Arg(int64_t a_value) : tag(Arg::ICONST), value(a_value){}
+    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0) {}
+    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
+    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), func(nullptr), tag(Arg::ICONST), value(a_value), flags(0) {}
 
     Func::Func() : impl(nullptr) {}
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->m_refcount++; }
@@ -105,77 +107,49 @@ namespace loops
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_EQ;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator != (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_NE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_LE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator >= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_GE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_GT;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator < (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_LT;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
-    Backend::Backend() : impl(nullptr) {}
-    Backend::Backend(Backend* a_p):impl(a_p)
+    Context::Context() : impl(nullptr)
     {
-        BackendImpl* rcb = dynamic_cast<BackendImpl*>(a_p);
-        if (rcb == nullptr)
-            throw std::string("Backend: wrong backend implementation pointer.");
-        rcb->m_refcount = 1;
+        impl = new ContextImpl(this);
     }
 
-    Backend::Backend(const Backend& f) : impl(f.impl) { (static_cast<BackendImpl*>(impl))->m_refcount++; }
-
-    Backend& Backend::operator=(const Backend& f)
-    {
-        BackendImpl* old_p = static_cast<BackendImpl*>(impl);
-        if ((static_cast<BackendImpl*>(impl))) (static_cast<BackendImpl*>(impl))->m_refcount--;
-        impl = f.impl;
-        if (impl != nullptr)
-            (static_cast<BackendImpl*>(impl))->m_refcount++;
-        if (old_p && !old_p->m_refcount)
-            delete old_p;
-        return *this;
-    }
-
-    Backend::~Backend()
-    {
-        BackendImpl* _p = static_cast<BackendImpl*>(impl);
-        if (_p && !(--(_p->m_refcount)))
-            delete _p;
-    }
-
-    void* Backend::compile(Context* ctx, Func* a_func) const { return impl->compile(ctx, a_func); }
-
-    Backend Backend::makeAarch64Compiler()
-    {
-        return Backend(new Aarch64Backend());
-    }
-
-    Context::Context() : impl(nullptr) {}
-    Context::Context(Backend cmpl) : impl(new ContextImpl(this, cmpl)) { static_cast<ContextImpl*>(impl)->m_refcount = 1; }
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
 
     Context& Context::operator=(const Context& f)
@@ -241,12 +215,22 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix,                                             std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::string("Syntaxic operation: too much args!");
         std::copy(a_prefix.begin(), a_prefix.end(), args);
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
+    }
+
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
+#if defined(__APPLE__) //TODO(ch): this conditions are actually inaccurate. We have to ask system about type of compiler. 
+        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
+#elif defined(_WIN32)
+        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
+#endif
+        m_bcknd = std::static_pointer_cast<Backend>(backend);
+        m_registerAllocator = std::make_shared<RegisterAllocator>(this);
     }
 
     void ContextImpl::startFunc(const std::string& name, std::initializer_list<IReg*> params)
@@ -273,27 +257,25 @@ namespace loops
     
     std::string ContextImpl::getPlatformName() const
     {
-        const BackendImpl* backend = getImpl(&m_bcknd);
-        return backend->name();
+        return m_bcknd->name();
     }
 
     void ContextImpl::compileAll()
     {
         const size_t funcAlignment = 16; //TODO(ch): Get precise info from backend.
         size_t totalSize = funcAlignment;
-        BackendImpl* backend = getImpl(&m_bcknd);
         std::vector<FuncBodyBuf> bodies;
         bodies.reserve(m_functionsStorage.size());
         for(auto par:m_functionsStorage)
         {
             FuncImpl* func = getImpl(&par.second);
-            FuncBodyBuf body = backend->target2Hex(backend->bytecode2Target(func->getData()));
+            FuncBodyBuf body = m_bcknd->target2Hex(m_bcknd->bytecode2Target(func->getData()));
             size_t bsize = body->size();
             bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?
             totalSize += bsize;
             bodies.push_back(body);
         }
-        Allocator* alloc= backend->getAllocator();
+        Allocator* alloc= m_bcknd->getAllocator();
         uint8_t* exebuf = alloc->allocate(totalSize);
         uint8_t* exeptr = exebuf;
         auto curBody = bodies.begin();
@@ -310,6 +292,5 @@ namespace loops
             ++curBody;
         }
         alloc->protect2Execution(exebuf);
-        return exeptr;
     }
 }

@@ -77,6 +77,7 @@ inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
     switch (arg.tag)
     {
         case Arg::IREG: if(arg.idx == Syntfunc::RETREG) {str << "iR";} else {str << "i" << arg.idx;} break;
+        case Arg::ISPILLED: {str << "s" << arg.value; } break; //TODO(ch): IMPORTANT: there cannot be spilled registers in bytecode.
         case Arg::ICONST: str << arg.value; break;
         default:
             throw std::string("Undefined argument type.");
@@ -84,23 +85,23 @@ inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
     return str;
 }
 
-class BackendImpl;
+class Backend;
 class Printer
 {
     public:
-        typedef std::function<void(::std::ostream&, const Syntop&, size_t, BackendImpl* )> ColPrinter;
+        typedef std::function<void(::std::ostream&, const Syntop&, size_t, Backend* )> ColPrinter;
         typedef std::function<void(::std::ostream&, const Syntop&, size_t, size_t, const OpPrintInfo&)> ArgPrinter;
         Printer(const std::vector<ColPrinter>& columns);
-        void setBackend(BackendImpl* a_backend) { m_backend = a_backend; }
+        void setBackend(Backend* a_backend) { m_backend = a_backend; }
         void print(std::ostream& out, const Syntfunc& toPrint, bool printheader = true, size_t firstop = 0, size_t lastop = -1) const;
         static ColPrinter colDelimeterPrinter();
         static ColPrinter colNumPrinter(size_t firstRow = 0);
         static ColPrinter colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules = std::unordered_map<int, Printer::ColPrinter >());
-        static ColPrinter colArgListPrinter(const std::unordered_map<int, Printer::ColPrinter >& p_overrules = std::unordered_map<int, Printer::ColPrinter >());
+        static ColPrinter colArgListPrinter(const Syntfunc& suppfunc, const std::unordered_map<int, Printer::ColPrinter >& p_overrules = std::unordered_map<int, Printer::ColPrinter >());
     private:
         void printHeader(std::ostream& out, const Syntfunc& toPrint) const;
         std::vector<ColPrinter> m_columns;
-        BackendImpl* m_backend;
+        Backend* m_backend;
 };
 
 };

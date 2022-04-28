@@ -35,17 +35,16 @@ enum {
     AARCH64_RET
 };
 
-class Aarch64Backend : public BackendImpl
+class Aarch64Backend : public Backend
 {
 public:
     Aarch64Backend();
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
-    virtual Arg translateReg(IRegInternal tofind) const override final;
-    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
-    virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regUsed, size_t a_regSpilled) const override final;
+    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const override final;
+    virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
-    virtual Printer::ArgPrinter argPrinter() const override final;
+    virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
 private:
     struct label_ref_info
     {
