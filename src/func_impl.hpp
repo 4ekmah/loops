@@ -17,7 +17,7 @@ namespace loops {
 
 class ContextImpl;
 
-struct cflowbracket //DUBUGGG: Rename since you moved it out of FuncImpl class! Move to common.hpp???
+struct ControlFlowBracket
 {
     enum { DO, DOIF, IF, ELSE };
     size_t tag;
@@ -25,7 +25,7 @@ struct cflowbracket //DUBUGGG: Rename since you moved it out of FuncImpl class! 
     size_t elifRepeats;
     std::vector<size_t> breaks;
     std::vector<size_t> continues;
-    cflowbracket(size_t a_tag, size_t a_labelOrPos, size_t a_elifRep = 0) : tag(a_tag), labelOrPos(a_labelOrPos), elifRepeats(a_elifRep) {}
+    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t a_elifRep = 0) : tag(a_tag), labelOrPos(a_labelOrPos), elifRepeats(a_elifRep) {}
 };
 
 class FuncImpl : public Func
@@ -75,7 +75,7 @@ public:
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
 private:
-    std::deque<cflowbracket> m_cflowStack;
+    std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
     ContextImpl* m_context;
     size_t m_nextIdx;

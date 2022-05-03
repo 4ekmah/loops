@@ -55,6 +55,8 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_MUL, "mul"},
     {OP_DIV, "div"},
     {OP_SUB, "sub"},
+    {OP_NEG, "neg"},
+    {OP_CQO, "cqo"},
     {OP_JMP, "jmp"},
     {OP_JMP_EQ, "jmp_eq"},
     {OP_JMP_NE, "jmp_ne"},
@@ -165,6 +167,9 @@ void FuncImpl::endfunc()
     //TODO(ch): block somehow adding new instruction after this call.
     m_context->getRegisterAllocator()->process(this,m_data,m_nextIdx);
     jumpificate();
+    auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
+    for (CompilerStagePtr araStage : afterRegAlloc)
+        araStage->process(m_data);
 }
 
 IReg FuncImpl::const_(int64_t value)
@@ -175,7 +180,7 @@ IReg FuncImpl::const_(int64_t value)
 void FuncImpl::do_()
 {
     size_t label = provideLabel();
-    m_cflowStack.push_back(cflowbracket(cflowbracket::DO, label));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::DO, label));
     newiopNoret(OP_DO, {argIConst(label,this)});
 }
 
@@ -184,7 +189,7 @@ void FuncImpl::while_(const IReg& r)
     if (m_cflowStack.size() == 0)
         throw std::string("Unclosed control flow bracket: there is no \"do\" for \"while\".");
     auto bracket = m_cflowStack.back();
-    if (bracket.tag != cflowbracket::DO)
+    if (bracket.tag != ControlFlowBracket::DO)
         throw std::string("Control flow bracket error: expected corresponding \"do\" for \"while\".");
     m_cflowStack.pop_back();
     size_t brekLabel = NOLABEL;
@@ -226,7 +231,7 @@ void FuncImpl::doif_(const IReg& r)
     size_t nextPos = m_data.program.size();
     size_t contLabel = provideLabel();
     size_t brekLabel = NOLABEL;
-    m_cflowStack.push_back(cflowbracket(cflowbracket::DOIF, nextPos));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, nextPos));
     m_cmpopcode = invertCondition(m_cmpopcode);
     if(m_cmpopcode == OP_JMP)
         throw std::string("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
@@ -240,7 +245,7 @@ void FuncImpl::enddo_()
         throw std::string("Unclosed control flow bracket: there is no \"doif\" for \"enddo\".");
     auto bracket = m_cflowStack.back();
     m_cflowStack.pop_back();
-    if (bracket.tag != cflowbracket::DOIF)
+    if (bracket.tag != ControlFlowBracket::DOIF)
         throw std::string("Control flow bracket error: expected corresponding \"doif\" for \"enddo\".");
     size_t nextPos = m_data.program.size();
     size_t doifPos = bracket.labelOrPos;
@@ -268,7 +273,7 @@ void FuncImpl::break_()
 {
     auto rator = m_cflowStack.rbegin();
     for(; rator != m_cflowStack.rend(); ++rator)
-        if(rator->tag == cflowbracket::DO || rator->tag == cflowbracket::DOIF)
+        if(rator->tag == ControlFlowBracket::DO || rator->tag == ControlFlowBracket::DOIF)
             break;
     size_t nextPos = m_data.program.size();
     if (rator == m_cflowStack.rend())
@@ -281,13 +286,13 @@ void FuncImpl::continue_()
 {
     auto rator = m_cflowStack.rbegin();
     for(; rator != m_cflowStack.rend(); ++rator)
-        if(rator->tag == cflowbracket::DO || rator->tag == cflowbracket::DOIF)
+        if(rator->tag == ControlFlowBracket::DO || rator->tag == ControlFlowBracket::DOIF)
             break;
     if (rator == m_cflowStack.rend())
         throw std::string("Unclosed control flow bracket: there is no \"do\" or \"doif\" for \"break\".");
     size_t nextPos = m_data.program.size();
     size_t targetLabel = 0;
-    if(rator->tag == cflowbracket::DOIF)
+    if(rator->tag == ControlFlowBracket::DOIF)
     {
         size_t doifPos = rator->labelOrPos;
         if(doifPos >= m_data.program.size())
@@ -304,7 +309,7 @@ void FuncImpl::continue_()
 
 void FuncImpl::if_(const IReg& r)
 {
-    m_cflowStack.push_back(cflowbracket(cflowbracket::IF, m_data.program.size()));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
     m_cmpopcode = invertCondition(m_cmpopcode);
     if(m_cmpopcode == OP_JMP)
         throw std::string("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
@@ -319,8 +324,8 @@ void FuncImpl::elif_(const IReg& r)
     {
         if (m_cflowStack.size() == 0)
             throw std::string("Unclosed control flow bracket: there is no \"if\", for \"elif\".");
-        cflowbracket& bracket = m_cflowStack.back();
-        if (bracket.tag != cflowbracket::IF)
+        ControlFlowBracket& bracket = m_cflowStack.back();
+        if (bracket.tag != ControlFlowBracket::IF)
             throw std::string("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
         size_t elifRep = bracket.elifRepeats;
     }
@@ -331,8 +336,8 @@ void FuncImpl::elif_(const IReg& r)
     if_(r);
     if (m_cflowStack.size() == 0)
         throw std::string("Unclosed control flow bracket: there is no \"if\", for \"elif\".");
-    cflowbracket& bracket = m_cflowStack.back();
-    if (bracket.tag != cflowbracket::IF)
+    ControlFlowBracket& bracket = m_cflowStack.back();
+    if (bracket.tag != ControlFlowBracket::IF)
         throw std::string("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
     bracket.elifRepeats = elifRep + 1;
 }
@@ -341,12 +346,12 @@ void FuncImpl::else_()
 {
     if (m_cflowStack.size() == 0)
         throw std::string("Unclosed control flow bracket: there is no \"if\", for \"else\".");
-    cflowbracket& bracket = m_cflowStack.back();
-    if (bracket.tag != cflowbracket::IF)
+    ControlFlowBracket& bracket = m_cflowStack.back();
+    if (bracket.tag != ControlFlowBracket::IF)
         throw std::string("Control flow bracket error: expected corresponding \"if\", for \"else\".");
     size_t posnext = m_data.program.size();
     size_t prevBranchPos = bracket.labelOrPos;
-    m_cflowStack.push_back(cflowbracket(cflowbracket::ELSE, m_data.program.size()));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, m_data.program.size()));
     if (prevBranchPos >= posnext)
         throw std::string("\"If\" internal error: wrong branch start address");
     const Syntop& ifop = m_data.program[prevBranchPos];
@@ -362,12 +367,12 @@ void FuncImpl::endif_()
 {
     if (m_cflowStack.size() == 0)
         throw std::string("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
-    cflowbracket bracket = m_cflowStack.back();
+    ControlFlowBracket bracket = m_cflowStack.back();
     m_cflowStack.pop_back();
     size_t posnext = m_data.program.size();
     size_t label = provideLabel();
     bool rewriteNEAddress = true;
-    if (bracket.tag == cflowbracket::ELSE)
+    if (bracket.tag == ControlFlowBracket::ELSE)
     {
         rewriteNEAddress = false;
         size_t elsePos = bracket.labelOrPos;
@@ -382,7 +387,7 @@ void FuncImpl::endif_()
         bracket = m_cflowStack.back();
         m_cflowStack.pop_back();
     }
-    if (bracket.tag != cflowbracket::IF)
+    if (bracket.tag != ControlFlowBracket::IF)
         throw std::string("Control flow bracket error: expected corresponding \"if\", \"elif\" or \"else\" for \"endif\".");
 
     size_t ifPos = bracket.labelOrPos;

@@ -6,7 +6,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include "backend.hpp"
 #include "func_impl.hpp"
-
+#include <iostream>
 namespace loops
 {
 Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(-1), transitFlags(0) {}
@@ -114,32 +114,43 @@ std::set<size_t> Backend::filterStackPlaceable(const Syntop& a_op, const std::se
     return result;
 }
 
+size_t Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+{
+    return -1;
+}
+
+size_t Backend::spillSpaceNeeded(const Syntop& a_op) const
+{
+    return 0;
+}
+
 std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
 {
     std::set<size_t> result;
     if (!m_2tararch.has(a_op.opcode))
         return result;
     const Mnemotr& m2m = m_2tararch[a_op];
-    const Binatr& m2b = m_2binary[m2m.apply(a_op)];
+    Syntop tarop = m2m.apply(a_op);
+    const Binatr& m2b = m_2binary[tarop];
     size_t bpiecenum = 0;
     std::vector<size_t> rodr = m2b.m_reordering;
     if (rodr.empty())
     {
-        rodr.reserve(a_op.size());
-        for (size_t n = 0; n < a_op.size(); n++) 
+        rodr.reserve(tarop.size());
+        for (size_t n = 0; n < tarop.size(); n++) 
             rodr.push_back(n);
     }
 
-    for(size_t argnum = 0; argnum < m2m.m_argsList.size(); ++argnum)
+    for (size_t argnum = 0; argnum < m2m.m_argsList.size(); ++argnum)
     {
-        while(bpiecenum < m2b.size(a_op) && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
-        const Mnemotr::Argutr& ar = m2m.m_argsList[argnum];
+        while (bpiecenum < m2b.size(a_op) && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
+        const Mnemotr::Argutr& ar = m2m.m_argsList[rodr[argnum]];
         if(ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::string("Binary translator: non-existent argument is requested.");
-            if (a_op[rodr[ar.srcArgnum]].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
-                result.insert(rodr[ar.srcArgnum]);
+            if (a_op[ar.srcArgnum].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
+                result.insert(ar.srcArgnum);
         }
         ++bpiecenum; //Drop one biantr argument.
     }
@@ -199,7 +210,7 @@ Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
         for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
             const Syntop& lastop = result.program[addedop];
-            m_m2mCurrentOffset += m_2binary[lastop].size(op);
+            m_m2mCurrentOffset += m_2binary[lastop].size(lastop);
         }
     }
     return result;

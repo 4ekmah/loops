@@ -195,6 +195,44 @@ LTESTexe(nonnegative_odd, {
     TEST_EQ(tested(0, 0), -1);
 });
 
+LTEST(arithm_arrs, { //There we are tesing stack parameter passing(obviously, it's enough 6 registers only on Intel)
+    IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul;
+    CTX.startFunc(TESTNAME, { &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul });
+    IReg offset = CTX.const_(0);
+    IReg i = CTX.const_(0);
+    IReg elemsize = CTX.const_((int)sizeof(int));
+    IReg one = CTX.const_(1);
+    CTX.do_();
+        IReg a = load_<int>(ptrA, offset);
+        IReg b = load_<int>(ptrB, offset);
+        store_<int>(ptrAdd, a + b);
+        store_<int>(ptrSub, a - b);
+        store_<int>(ptrMul, a * b);
+        i += one;
+        offset += elemsize;
+        ptrAdd += elemsize;
+        ptrSub += elemsize;
+        ptrMul += elemsize;
+    CTX.while_(i < n);
+    CTX.return_(CTX.const_(0));
+    CTX.endFunc();
+});
+LTESTexe(arithm_arrs, {
+    typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul);
+    arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(EXEPTR);
+    std::vector<int> A = { 8, 2, -5, 7, 6 };
+    std::vector<int> B = { 2, -5, 7, 6, 8 };
+    int addArr[5];
+    int subArr[5];
+    int mulArr[5];
+    TEST_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr), 0);
+    for (size_t n = 0; n < 5; n++)
+    {
+        TEST_EQ(A[n] + B[n], addArr[n]);
+        TEST_EQ(A[n] - B[n], subArr[n]);
+        TEST_EQ(A[n] * B[n], mulArr[n]);
+    }
+});
 };
 
 #endif//__LOOPS_TEST_BASIC_HPP__

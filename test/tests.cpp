@@ -30,7 +30,7 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         ::std::ostringstream bcstream(bctext, ::std::ios::out);
         m_func.printBytecode(bcstream);
         bctext = bcstream.str();
-        bfilename += "bytecode/";
+        bfilename += tarcname + "/bytecode/";
         bfilename += m_func.name() + ".tst";
         if(fileexists(bfilename))
         {

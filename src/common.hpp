@@ -48,6 +48,23 @@ namespace loops
         return res;
     }
 
+    inline bool regOrSpi(const Arg& toCheck)
+    {
+        return toCheck.tag == Arg::IREG || toCheck.tag == Arg::ISPILLED;
+    }
+
+    inline bool regOrSpiEq(const Arg& toCmp1, const Arg& toCmp2)
+    {
+        Assert(regOrSpi(toCmp1) && regOrSpi(toCmp2));
+        if (toCmp1.tag != toCmp2.tag)
+            return false;
+        if (toCmp1.tag == Arg::IREG)
+            return toCmp1.idx == toCmp2.idx;
+        if (toCmp1.tag == Arg::ISPILLED)
+            return toCmp1.value == toCmp2.value;
+        return false;
+    }
+
     inline Arg argIConst(int64_t val, Func* impl = nullptr)
     {
         Arg res;
@@ -207,6 +224,13 @@ namespace loops
         Syntfunc() {}
     };
 
+    class CompilerStage
+    {
+    public:
+        virtual void process(Syntfunc& a_processed) const = 0;
+        virtual ~CompilerStage() {}
+    };
+    typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
 
     template<typename T>
     struct SyntopIndexedArray
@@ -230,10 +254,13 @@ namespace loops
         inline bool empty() const { return containment.empty();}
         inline bool has(int opcode) const { return containment.count(opcode) != 0;} //Check only existence of command. For checking existance of variant correspondent to given arguments use has(Syntop& index)
     private:
-        static std::set<size_t> filterStackPlaceable_(const Syntop& index, const std::set<size_t>& toFilter, const ArgIndA& argind)
+        static std::set<size_t> filterStackPlaceable_(const Syntop& index, const std::set<size_t>& toFilter, const ArgIndA& argind, bool& exists)
         {
             if (argind.m_condition == ArgIndA::C_LEAF)
+            {
+                exists = true;
                 return std::set<size_t>();
+            }
             int64_t condition_val;
             switch (argind.m_condition)
             {
@@ -249,17 +276,20 @@ namespace loops
                 if (condition_val == Arg::IREG && toFilter.count(argind.m_argnum) && argind.m_branches.count(Arg::ISPILLED))
                 {
                     Assert(argind.m_branches.count(Arg::IREG));
-                    std::set<size_t> resNsp = filterStackPlaceable_(index, toFilter, argind.m_branches.at(Arg::IREG));
+                    bool exNsp;
+                    std::set<size_t> resNsp = filterStackPlaceable_(index, toFilter, argind.m_branches.at(Arg::IREG), exNsp);
                     std::set<size_t> toFilter2 = toFilter;
                     toFilter2.erase(argind.m_argnum);
-                    std::set<size_t> resSp = filterStackPlaceable_(index, toFilter2, argind.m_branches.at(Arg::ISPILLED));
-                    if (resSp.size() + 1 > resNsp.size())
-                    {
-                        resSp.insert(argind.m_argnum);
+                    bool exSp;
+                    std::set<size_t> resSp = filterStackPlaceable_(index, toFilter2, argind.m_branches.at(Arg::ISPILLED), exSp);
+                    resSp.insert(argind.m_argnum);
+                    exists = (exSp || exNsp);
+                    if ((exSp && exNsp && resSp.size() > resNsp.size()) || (exSp && !exNsp))
                         return resSp;
-                    }
-                    else
+                    else if (exNsp)
                         return resNsp;
+                    else
+                        return std::set<size_t>();
                 }
                 break;
             }
@@ -278,8 +308,12 @@ namespace loops
             default:
                 throw std::string("Argument-indexed Array: Unknown condition type.");
             }
-            Assert(argind.m_branches.count(condition_val) != 0);
-            return filterStackPlaceable_(index, toFilter, argind.m_branches.at(condition_val));
+            if (argind.m_branches.count(condition_val) == 0)
+            {
+                exists = false;
+                return std::set<size_t>();
+            }
+            return filterStackPlaceable_(index, toFilter, argind.m_branches.at(condition_val), exists);
         }
     };
 
@@ -335,7 +369,8 @@ namespace loops
     {
         auto opcoderator = containment.find(index.opcode);
         Assert(opcoderator != containment.end());
-        return filterStackPlaceable_(index, toFilter, *(&(opcoderator->second)));
+        bool exists;
+        return filterStackPlaceable_(index, toFilter, *(&(opcoderator->second)), exists);
     }
 
     namespace BackendTableConstructor

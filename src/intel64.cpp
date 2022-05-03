@@ -66,10 +66,13 @@ namespace loops
                                         })),
                                     Sb(Arg::ISPILLED, Sl({ BDsta(0x12225, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) })) //mov [rsp + offset], rbx
                                 })),
-                            Sb(Arg::ISPILLED, //TODO(ch): IMPORTANT: Forbid cases with switch on I64AF_ADDRESS on 0 index.
+                            Sb(Arg::ISPILLED,
                                 SFtyp(1,
                                 {
-                                    Sb(Arg::IREG, Sl({ BDsta(0x1222D, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) }, ROrd({1,0}))), //mov rax, [rsp + offset]
+                                    Sb(Arg::IREG, SFflg(1, I64AF_ADDRESS,
+                                        {
+                                            Sb(0, Sl({ BDsta(0x1222D, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) }, ROrd({1,0}))) //mov rax, [rsp + offset]
+                                        }))
                                 })),
                             Sb(Arg::ICONST,
                                 SFtyp(1,
@@ -95,12 +98,12 @@ namespace loops
                         SFtyp(1,
                         {
                             Sb(Arg::IREG, Sl({ BDsta(0x12007, 18), BDreg(3, 1, In), BDreg(3, 0, In | Out) })), //add rax, rbx 
-                            Sb(Arg::ISPILLED, Sl({ BDsta(0x1200D, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) })) //add [rsp + offset], rbx
+                            Sb(Arg::ISPILLED, Sl({ BDsta(0x12005, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) })) //add [rsp + offset], rbx
                         })),
                     Sb(Arg::ISPILLED,
                         SFtyp(1,
                         {
-                            Sb(Arg::IREG, Sl({ BDsta(0x12005, 18), BDreg(3, 0, In), BDsta(0x424, 11), BDspl(8, 1) }, ROrd({1,0}))), //add rax, [rsp + offset]
+                            Sb(Arg::IREG, Sl({ BDsta(0x1200D, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) }, ROrd({1,0}))), //add rax, [rsp + offset]
                         })),
                     Sb(Arg::ICONST,
                         SFtyp(1,
@@ -134,8 +137,19 @@ namespace loops
                     )
                 }));
 
-        //instrucion_set->add(INTEL64_MUL, Sl({ BDsta(0x4D8,11), BDreg(5, 2, In), BDsta(0x1F, 6), BDreg(5, 1, In), BDreg(5, 0, Out) }));
-        //instrucion_set->add(INTEL64_SDIV, Sl({ BDsta(0x4D6,11), BDreg(5, 2, In), BDsta(0x3, 6), BDreg(5, 1, In), BDreg(5, 0, Out) }));
+        instrucion_set->add(INTEL64_IMUL,
+            SFtyp(1,
+                {
+                Sb(Arg::IREG, Sl({ BDsta(0x1203EBF, 26), BDreg(3, 0, In|Out), BDreg(3, 1, In) })),
+                Sb(Arg::ISPILLED, Sl({ BDsta(0x1203EBC, 26), BDreg(3, 0, In|Out), BDreg(3, 1, In) }))
+                }));
+
+        instrucion_set->add(INTEL64_IDIV,
+            SFtyp(0,
+                {
+                    Sb(Arg::IREG, Sl({ BDsta(0x91EFF, 21), BDreg(3, 0, In)})),
+                    Sb(Arg::ISPILLED, Sl({ BDsta(0x48f77c24, 32), BDspl(8, 0)}))
+                }));
         
         instrucion_set->add(INTEL64_CMP,
             SFtyp(0,
@@ -160,6 +174,14 @@ namespace loops
                     )
                 }));
 
+        instrucion_set->add(INTEL64_NEG,
+            SFtyp(0,
+                {
+                    Sb(Arg::IREG, Sl({ BDsta(0x91EFB, 21), BDreg(3, 0, In|Out)})),
+                    Sb(Arg::ISPILLED, Sl({ BDsta(0x48f75c24, 32), BDspl(8, 0) }))
+                }));
+
+        instrucion_set->add(INTEL64_CQO, Sl({ BDsta(0x4899, 16) }));
         instrucion_set->add(INTEL64_JMP, Sl({ BDsta(0xE9,8), BDoff(32, 0) }));
         instrucion_set->add(INTEL64_JNE, Sl({ BDsta(0xf85,16), BDoff(32, 0) }));
         instrucion_set->add(INTEL64_JE,  Sl({ BDsta(0xf84,16), BDoff(32, 0) }));
@@ -218,10 +240,12 @@ namespace loops
                     //}))
                 }));
         target_mnemonics->add(OP_MOV, Sl(INTEL64_MOV, { MAcop(1), MAcop(0) }));
-        target_mnemonics->add(OP_ADD, Sl(INTEL64_ADD, { MAcop(2), MAcop(0) })); //TODO(ch): check somehow that arg[0] == arg [1]
+        target_mnemonics->add(OP_ADD, Sl(INTEL64_ADD, { MAcop(2), MAcop(0) }));
         target_mnemonics->add(OP_SUB, Sl(INTEL64_SUB, { MAcop(2), MAcop(0) }));
-        //target_mnemonics->add(OP_MUL, Sl(INTEL64_MUL, { MAcop(2), MAcop(1), MAcop(0) }));
-        //target_mnemonics->add(OP_DIV, Sl(INTEL64_SDIV, { MAcop(2), MAcop(1), MAcop(0) }));
+        target_mnemonics->add(OP_MUL, Sl(INTEL64_IMUL, { MAcop(0), MAcop(2) }));
+        target_mnemonics->add(OP_DIV, Sl(INTEL64_IDIV, { MAcop(2) }));
+        target_mnemonics->add(OP_NEG, Sl(INTEL64_NEG, { MAcop(0) }));
+        target_mnemonics->add(OP_CQO, Sl(INTEL64_CQO, {}));
         target_mnemonics->add(OP_CMP, Sl(INTEL64_CMP, { MAcop(1), MAcop(0) }));
         target_mnemonics->add(OP_UNSPILL, Sl(INTEL64_MOV, { MAcopspl(1), MAcop(0) }));
         target_mnemonics->add(OP_SPILL,   Sl(INTEL64_MOV, { MAcop(1), MAcopspl(0) }));
@@ -236,6 +260,17 @@ namespace loops
         return *target_mnemonics.get();
     }
 
+    class Three2Two : public CompilerStage
+    {
+    public:
+        virtual void process(Syntfunc& a_processed) const override;
+        virtual ~Three2Two() override {}
+        static CompilerStagePtr make()
+        {
+            return std::static_pointer_cast<CompilerStage>(std::make_shared<Three2Two>());
+        } 
+    };
+
     Intel64Backend::Intel64Backend()
     {
         m_2binary = get_instrucion_set();
@@ -246,6 +281,7 @@ namespace loops
         m_isMonowidthInstruction = false;
         m_registersAmount = 40;
         m_name = "Intel64";
+        m_afterRegAllocStages.push_back(Three2Two::make());
 #if defined(_WIN32)
         m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 }); //TODO(ch): IMPORTANT: Implement same for AARCH64!
         m_returnRegisters = std::vector<IRegInternal>({ RAX });
@@ -297,6 +333,83 @@ namespace loops
         };
     }
 
+    size_t Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+    {
+        switch (a_op.opcode)
+        {
+        case OP_ADD:
+        case OP_MUL:
+        {
+            if (undefinedArgNums.count(1))
+                return 1;
+            if (undefinedArgNums.count(2))
+                return 2;
+            break;
+        }
+        case OP_SUB:
+        {
+            if (undefinedArgNums.count(1))
+                return 1;
+            break;
+        }
+        default:
+            break;
+        }
+        return Backend::reusingPreferences(a_op, undefinedArgNums);
+    }
+
+    size_t Intel64Backend::spillSpaceNeeded(const Syntop& a_op) const
+    {
+        switch (a_op.opcode)
+        {
+        case (OP_DIV):
+            return 2;
+            break;
+        default:
+            break;
+        }
+        return Backend::spillSpaceNeeded(a_op);
+    }
+
+    std::set<size_t> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask) const
+    {
+        //TODO(ch): This specialized version of function must disappear after introducing snippets. 
+        //They will give info about used registers, like now instructions answers.
+        //Actually, it's easy to think, that we have to keep used registers info on level of mnemotr. Hmm...
+
+        std::set<size_t> res;
+        bool bypass = true;
+        switch (a_op.opcode)
+        {
+            case (OP_ADD):
+            case (OP_SUB):
+            case (OP_MUL):
+            case (OP_DIV):
+            {
+                Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+                if (a_op[0].idx != a_op[1].idx && a_op[2].tag == Arg::IREG && ((~(Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) & flagmask) == 0))
+                {
+                    bool in = Binatr::Detail::D_INPUT & flagmask;
+                    bool out = Binatr::Detail::D_OUTPUT & flagmask;
+                    if (out&!in)
+                        res.insert(0);
+                    if (in&!out)
+                    {
+                        res.insert(1);
+                        res.insert(2);
+                    }
+                    bypass = false;
+                }
+                break;
+            }
+            default:
+                break;
+        };
+        if (bypass)
+            return Backend::getUsedRegistersIdxs(a_op, flagmask);
+        return res;
+    }
+
     Syntfunc Intel64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     {
         m_retReg = Syntfunc::RETREG;
@@ -323,10 +436,13 @@ namespace loops
         return result;
     }
 
-    void Intel64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
+    void Intel64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const
     {
-        //TODO(ch): Do something with stack-passed variables.
+        for(size_t stackParamNum = 0; stackParamNum < a_paramsInStack.size(); stackParamNum++)
+            a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(a_paramsInStack[stackParamNum]), argIConst(stackParamNum + 5) })); //TODO(ch): I have to understand, why it's 5??? I just got it by experiments.
         size_t spAddAligned = a_regSpilled + a_calleeSaved.size(); //TODO(ch): Align to 16 or 32 if SIMD's are used.
+        if (!spAddAligned)
+            return;
         spAddAligned = (spAddAligned + ((spAddAligned % 2)?0:1)) * 8; //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
         Arg SP = argIReg(RSP);
         Arg SPinc = argIConst(spAddAligned);
@@ -340,6 +456,8 @@ namespace loops
     {
         //TODO(ch): Do something with stack-passed variables.
         size_t spAddAligned = a_regSpilled + a_calleeSaved.size(); //TODO(ch): Align to 16 or 32 if SIMD's are used.
+        if (!spAddAligned)
+            return;
         spAddAligned = (spAddAligned + ((spAddAligned % 2) ? 0 : 1)) * 8;
         Arg SP = argIReg(RSP);
         Arg SPinc = argIConst(spAddAligned);
@@ -356,8 +474,10 @@ namespace loops
             {INTEL64_MOV,     "mov"},
             {INTEL64_ADD,     "add"},
             {INTEL64_SUB,     "sub"},
-            //{INTEL64_MUL,   "mul"}, //TODO(ch): IMPORTANT: Implement!
-            //{INTEL64_SDIV,  "sdiv"},
+            {INTEL64_IMUL,    "imul"},
+            {INTEL64_IDIV,    "idiv"},
+            {INTEL64_NEG,     "neg"},
+            {INTEL64_CQO,     "cqo"},
             {INTEL64_CMP,     "cmp"},
             {INTEL64_JMP,     "jmp"},
             {INTEL64_JNE,     "jne"},
@@ -448,5 +568,96 @@ namespace loops
             if (address)
                 out << "]";
         };
+    }
+
+    void Three2Two::process(Syntfunc& a_processed) const
+    {
+        std::vector<Syntop> newProg;
+        newProg.reserve(2 * a_processed.program.size());
+        for (Syntop& op : a_processed.program)
+            switch (op.opcode)
+            {
+            case OP_ADD: 
+            case OP_MUL:
+            {
+                Assert(op.size() == 3 && regOrSpi(op[0]));
+                if (op[1].tag == Arg::ICONST)
+                    std::swap(op[1], op[2]);
+                Assert(regOrSpi(op[1]));
+                if (regOrSpi(op[2]) && regOrSpiEq(op[0], op[2]) && !regOrSpiEq(op[0], op[1]))
+                    std::swap(op[1], op[2]);
+                if (!regOrSpiEq(op[0], op[1]))
+                {
+                    newProg.push_back(Syntop(OP_MOV, { op[0],op[1] }));
+                    op[1] = op[0];
+                }
+                newProg.push_back(op);
+                break;
+            }
+            case OP_SUB:
+            {
+                Assert(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
+                if (regOrSpi(op[1]) && regOrSpiEq(op[0], op[1]))
+                {
+                    newProg.push_back(op);
+                }
+                else if (!regOrSpi(op[2]) || !regOrSpiEq(op[0], op[2]))
+                {
+                    newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                    newProg.push_back(Syntop(OP_SUB, { op[0], op[0], op[2] }));
+                } 
+                else //op[0] == op[2] != op[0]
+                {
+                    newProg.push_back(Syntop(OP_SUB, { op[0], op[0], op[1] }));
+                    newProg.push_back(Syntop(OP_NEG, { op[0] }));
+                }
+                break;
+            }
+            case OP_DIV:
+            {
+                Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
+                bool unspillRax = false;;
+                if (op[0].idx != RAX)
+                {
+                    newProg.push_back(Syntop(OP_SPILL, { 0, argIReg(RAX) }));
+                    unspillRax = true;
+                }
+                bool unspillRdx = false;
+                if (op[0].idx != RDX)
+                {
+                    newProg.push_back(Syntop(OP_SPILL, { 1, argIReg(RDX) }));
+                    unspillRdx = true;
+                }
+                Arg effectiveDivider = op[2];
+                if (op[2].tag == Arg::IREG && op[2].idx == RAX)
+                {
+                    if (!unspillRax)
+                        newProg.push_back(Syntop(OP_SPILL, { 0, argIReg(RAX) }));
+                    effectiveDivider = argISpilled(0);
+                }
+                else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
+                {
+                    if (!unspillRdx)
+                        newProg.push_back(Syntop(OP_SPILL, { 1, argIReg(RDX) }));
+                    effectiveDivider = argISpilled(8);  //TODO(ch): IMPORTANT: Why it's 8?(See. backend:T_TRANSFORMTOSPILL)
+                }
+                if (op[1].idx != RAX)
+                    newProg.push_back(Syntop(OP_MOV, { argIReg(RAX), op[1] }));
+                newProg.push_back(Syntop(OP_CQO, {}));
+                newProg.push_back(Syntop(OP_DIV, { argIReg(RAX), argIReg(RAX), effectiveDivider }));
+                if(op[0].idx != RAX)
+                    newProg.push_back(Syntop(OP_MOV, { op[0], argIReg(RAX) }));
+                if (unspillRax)
+                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RAX), 0 }));
+                if (unspillRdx)
+                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RDX), 1 }));
+                break;
+            }
+
+            default:
+                newProg.push_back(op);
+                break;
+            }
+        a_processed.program = newProg;
     }
 };

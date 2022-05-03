@@ -16,8 +16,10 @@ namespace loops
         INTEL64_MOV,
         INTEL64_ADD,
         INTEL64_SUB,
-        //INTEL64_MUL,
-        //INTEL64_SDIV,
+        INTEL64_IMUL,
+        INTEL64_IDIV,
+        INTEL64_NEG,
+        INTEL64_CQO,
         INTEL64_CMP,
         INTEL64_JMP,
         INTEL64_JNE,
@@ -33,8 +35,11 @@ namespace loops
     {
     public:
         Intel64Backend();
+        virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
+        virtual size_t spillSpaceNeeded(const Syntop& a_op) const override final;
+        virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const override final;
         virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
-        virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const override final;
+        virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const override final;
         virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const override final;
         virtual std::unordered_map<int, std::string> getOpStrings() const override final;
         virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;

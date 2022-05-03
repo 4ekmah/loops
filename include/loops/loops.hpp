@@ -90,6 +90,9 @@ enum {
     OP_BREAK,
     OP_CONTINUE,
 
+//Intel-only operations:
+    OP_CQO, //TODO(ch): I don't think, that there will be need to direct use of this command, so it must be in some service sector, actually.
+
     OP_NOINIT
 };
 

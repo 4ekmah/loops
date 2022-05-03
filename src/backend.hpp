@@ -77,11 +77,13 @@ class Backend
 public:
     bool isConstFit(const Syntop& a_op, size_t argnum) const;
     std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
+    virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
+    virtual size_t spillSpaceNeeded(const Syntop& a_op) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const;
+    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const;
     std::set<size_t> getOutRegistersIdxs(const Syntop& a_op) const;
     std::set<size_t> getInRegistersIdxs(const Syntop& a_op) const;
 
@@ -93,7 +95,7 @@ public:
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const; //TODO(ch): most part of this function must be implemeted here. Or it must be there fully.
     const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
     void* compile(Context* a_ctx, Func* a_func) const;
-    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const = 0;
+    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const = 0;
     virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
@@ -101,18 +103,19 @@ public:
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
     OpPrintInfo getPrintInfo(const Syntop& op);
 
-    Allocator* getAllocator() {return m_exeAlloc;}
-    inline bool isLittleEndianInstructions() const {return m_isLittleEndianInstructions;}
+    Allocator* getAllocator() { return m_exeAlloc; }
+    inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
-    inline bool isMonowidthInstruction() const {return m_isMonowidthInstruction;}
-    inline size_t instructionWidth () const {return m_instructionWidth;} ;
+    inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
+    inline size_t instructionWidth() const { return m_instructionWidth; };
     size_t registersAmount() const;
     virtual const std::vector<IRegInternal>& parameterRegisters() const { return m_parameterRegisters; }
     virtual const std::vector<IRegInternal>& returnRegisters() const { return m_returnRegisters; }
     virtual const std::vector<IRegInternal>& callerSavedRegisters() const { return m_callerSavedRegisters; }
     virtual const std::vector<IRegInternal>& calleeSavedRegisters() const { return m_calleeSavedRegisters; }
-    inline std::string name() const {return m_name;} ;
+    inline std::string name() const { return m_name; };
 
+    const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
 private:
     mutable size_t m_m2mCurrentOffset; //TODO(ch): Do something with thread-safety.
 protected:
@@ -131,6 +134,7 @@ protected:
     std::vector<IRegInternal> m_returnRegisters;
     std::vector<IRegInternal> m_callerSavedRegisters;
     std::vector<IRegInternal> m_calleeSavedRegisters;
+    std::vector<CompilerStagePtr> m_afterRegAllocStages;
     std::string m_name;
 };
 };

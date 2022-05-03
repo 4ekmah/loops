@@ -47,6 +47,7 @@ namespace loops
         , m_epilogueSize(0)
         , m_knownRegsAmount(0)
         , m_spillPlaceholdersTop(0)
+        , m_snippetCausedSpills(0)
     {
         Assert(m_owner != nullptr);
     }
@@ -74,16 +75,36 @@ namespace loops
             for (auto interval = _liveparams.begin(); interval != _liveparams.end(); ++interval)
                 parActive.insert(interval->second);
         }
-        int64_t spoffset = 0;
+
+        int64_t spoffset = m_snippetCausedSpills;
         std::map<IRegInternal, int64_t> spilled;
         std::map<IRegInternal, IRegInternal> renamingMap;
+        std::vector<IRegInternal> paramsInStack;
+        paramsInStack.reserve(a_processed.params.size());
         initRegisterPool();
         { // Looking spilled registers and reusing registers with renaming map.
-            for (IRegInternal parreg = 0; parreg < a_processed.params.size(); parreg++)
-                renamingMap[parreg] = provideParamFromPool();
+            {//Get pseudonames for parameters.
+                IRegInternal parreg = 0;
+                for (; parreg < a_processed.params.size(); parreg++)
+                {
+                    size_t attempt = provideParamFromPool();
+                    if (attempt == IReg::NOIDX)
+                        break;
+                    renamingMap[parreg] = attempt;
+                }
+                for (; parreg < a_processed.params.size(); parreg++)
+                {
+                    size_t attempt = provideRegFromPool();
+                    if (attempt == IReg::NOIDX)
+                        throw std::runtime_error("Register allocator : so much arguments is not supported for now.");
+                    renamingMap[parreg] = attempt;
+                    paramsInStack.push_back(attempt);
+                }
+            }
             std::multiset<LiveInterval, endordering> active;
             for (auto interval = liveintervals.begin(); interval != liveintervals.end(); ++interval)
             {
+                std::unordered_map<IRegInternal, IRegInternal> opUndefs; //TODO(ch): You also have to consider spilled undefs.
                 { //Dropping expired registers.
                     {
                         auto removerator = active.begin();
@@ -94,6 +115,8 @@ namespace loops
                                 if (renrator == renamingMap.end())
                                     throw std::runtime_error("Register allocator : internal renaming error.");
                                 releaseRegister(renrator->second);
+                                if (removerator->end == interval->start) //Current line, line of definition of considered register
+                                    opUndefs.insert(*renrator);
                             }
                             else
                                 break;
@@ -108,6 +131,8 @@ namespace loops
                                 if (renrator == renamingMap.end())
                                     throw std::string("Register allocator : internal renaming error.");
                                 releaseRegister(renrator->second);
+                                if (removerator->end == interval->start) //Current line, line of definition of considered register
+                                    opUndefs.insert(*renrator);
                             }
                             else
                                 break;
@@ -130,8 +155,25 @@ namespace loops
                 }
                 else
                 {
+                    IRegInternal poolHint = IReg::NOIDX;
                     active.insert(*interval);
-                    renamingMap[interval->idx] = provideRegFromPool();
+                    if (opUndefs.size())
+                    {
+                        std::unordered_map<size_t, IRegInternal> opUndefsIdxMap;
+                        std::set<size_t> opUndefsIdx;
+                        const Syntop& op = a_processed.program[interval->start];
+                        std::set<size_t> iNs = backend->getInRegistersIdxs(op);
+                        for (size_t in : iNs)
+                            if (opUndefs.count(op[in].idx))
+                            {
+                                opUndefsIdxMap[in] = opUndefs.at(op[in].idx);
+                                opUndefsIdx.insert(in);
+                            }
+                        size_t idxHint = backend->reusingPreferences(op, opUndefsIdx);
+                        if (idxHint != -1)
+                            poolHint = opUndefsIdxMap.at(idxHint);
+                    }
+                    renamingMap[interval->idx] = provideRegFromPool(poolHint);
                 }
             }
         }
@@ -139,7 +181,7 @@ namespace loops
 
         std::vector<Syntop> newProg;
         newProg.reserve(a_processed.program.size() * 3);
-        backend->writePrologue(a_processed, newProg, spilled.size(), m_usedCallee);
+        backend->writePrologue(a_processed, newProg, spilled.size() + m_snippetCausedSpills, m_usedCallee, paramsInStack);
 
         // TODO(ch):
         // 1.) Let's consider sequence of instructions, where it's used one register. Obviously, it can be unspilled only once at start of sequence and
@@ -200,10 +242,9 @@ namespace loops
                     else
                         spilledArgs.insert(op.args[argNum].idx);
 
-
                 std::map<IRegInternal, IRegInternal> argRenaming;
 
-                clearSpillHolders();
+                clearSpillPlaceholders();
                 for (IRegInternal regAr : unspilledArgs)
                 {
                     IRegInternal pseudoname = provideSpillPlaceholder();
@@ -236,7 +277,7 @@ namespace loops
             }
         }
         m_epilogueSize = newProg.size();
-        backend->writeEpilogue(a_processed, newProg, spilled.size(), m_usedCallee);
+        backend->writeEpilogue(a_processed, newProg, spilled.size() + m_snippetCausedSpills, m_usedCallee);
         m_epilogueSize = newProg.size() - m_epilogueSize;
         a_processed.program = newProg;
     }
@@ -250,7 +291,6 @@ namespace loops
         m_callerSavedRegisters = backend->callerSavedRegisters();
         m_calleeSavedRegisters = backend->calleeSavedRegisters();
         m_usedCallee.clear();
-        //TODO(ch): It's better to use some kind of category map.
         for (IRegInternal par : m_parameterRegisters)
             m_registersDistr[par] |= RT_PARAMETER;
         for (IRegInternal par : m_returnRegisters)
@@ -285,16 +325,23 @@ namespace loops
         if (m_parameterRegisters.size() != 0)
             res = m_parameterRegisters[0];
         removeFromAllBaskets(res);
-        if (res == IReg::NOIDX)
-            throw std::string("Not enough parameter registers!"); //TODO(ch): Remove this constraint and support passing of spilled parameters.
         return res;
     }
 
-    IRegInternal RegisterAllocator::provideRegFromPool()
+    IRegInternal RegisterAllocator::provideRegFromPool(IRegInternal a_hint)
     {
         static const size_t maximumSpills = 3; //TODO(ch):need more detailed scheme
         IRegInternal res = IReg::NOIDX;
-        if (m_parameterRegisters.size() != 0) //We are sure, that all real parameters are already taken.
+        if (a_hint != IReg::NOIDX)
+        {
+            bool hintfound = std::find(m_parameterRegisters.begin(), m_parameterRegisters.end(), a_hint) != m_parameterRegisters.end();
+            hintfound = hintfound || std::find(m_returnRegisters.begin(), m_returnRegisters.end(), a_hint) != m_returnRegisters.end();
+            hintfound = hintfound || std::find(m_callerSavedRegisters.begin(), m_callerSavedRegisters.end(), a_hint) != m_callerSavedRegisters.end();
+            hintfound = hintfound || std::find(m_calleeSavedRegisters.begin(), m_calleeSavedRegisters.end(), a_hint) != m_calleeSavedRegisters.end();
+            Assert(hintfound);
+            res = a_hint;
+        }
+        else if (m_parameterRegisters.size() != 0) //We are sure, that all real parameters are already taken.
             res = m_parameterRegisters[0];
         else if (m_returnRegisters.size() != 0) //We are sure, that all real return registers will be needed only after usage them in general purposes.
             res = m_returnRegisters[0];
@@ -328,7 +375,7 @@ namespace loops
         return res;
     }
 
-    void RegisterAllocator::clearSpillHolders()
+    void RegisterAllocator::clearSpillPlaceholders()
     {
         m_spillPlaceholdersTop = 0;
     }
@@ -372,31 +419,39 @@ namespace loops
             m_returnRegisters.insert(m_returnRegisters.begin(), freeReg);
         if (m_registersDistr[freeReg] & RT_CALLERSAVED)
             m_callerSavedRegisters.insert(m_callerSavedRegisters.begin(), freeReg);
-        if (m_registersDistr[freeReg] & RT_PARAMETER)
+        if (m_registersDistr[freeReg] & RT_CALLEESAVED)
             m_calleeSavedRegisters.insert(m_calleeSavedRegisters.begin(), freeReg);
     }
 
     std::map<IRegInternal, std::pair<size_t, size_t> > RegisterAllocator::livenessAnalysis(Syntfunc& a_processed)
     {
+        //This function accomplishes four goals:
+        //1.) Separates all intervals of registers(variables) usage to small def-use subintervals. There can be a lot of usages in one subinterval, but only one definition.
+        //2.) Expand subinteravls, which intersects with loop's body, or branches in some certain cases.
+        //3.) Rename subintervals got into new variables.
+        //4.) Also, find the biggest number of spilled variables needed for deployment of some instructions into snippets(e.g., DIV on intel).
+        
+        m_snippetCausedSpills = 0;
         Backend* backend = m_owner->getBackend();
         //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
         std::multimap<size_t, LAEvent> loopQueue;
         std::multimap<size_t, LAEvent> branchQueue;
         std::vector<LALayout> subintervals(m_knownRegsAmount, LALayout());
         { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
-            std::deque<cflowbracket> flowstack;
+            std::deque<ControlFlowBracket> flowstack;
             for (IRegInternal par = 0; par < a_processed.params.size(); par++)
                 subintervals[par].push_back(LiveInterval(par, 0));
             for (size_t opnum = 0; opnum < a_processed.program.size(); opnum++)
             {
                 const Syntop& op = a_processed.program[opnum];
+                m_snippetCausedSpills = std::max(m_snippetCausedSpills, backend->spillSpaceNeeded(op));
                 switch (op.opcode)
                 {
                 case (OP_IF):
                 {
                     if (op.size() != 2 || op.args[0].tag != Arg::ICONST || op.args[1].tag != Arg::ICONST)
                         throw std::string("Internal error: wrong IF command format");
-                    flowstack.push_back(cflowbracket(cflowbracket::IF, opnum));
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
                     LAEvent toAdd;
                     toAdd.eventType = LAEvent::LAE_STARTBRANCH;
                     branchQueue.insert(std::make_pair(opnum, toAdd));
@@ -406,9 +461,9 @@ namespace loops
                 {
                     if (op.size() != 2 || op.args[0].tag != Arg::ICONST || op.args[1].tag != Arg::ICONST)
                         throw std::string("Internal error: wrong \"endif\" command format");
-                    if (!flowstack.size() || flowstack.back().tag != cflowbracket::IF)
+                    if (!flowstack.size() || flowstack.back().tag != ControlFlowBracket::IF)
                         throw std::string("Internal error: control brackets error.");
-                    flowstack.push_back(cflowbracket(cflowbracket::ELSE, opnum));
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, opnum));
                     continue;
                 }
                 case (OP_ENDIF):
@@ -417,10 +472,10 @@ namespace loops
                         throw std::string("Internal error: wrong \"endif\" command format");
                     if (!flowstack.size())
                         throw std::string("Internal error: control brackets error.");
-                    cflowbracket bracket = flowstack.back();
+                    ControlFlowBracket bracket = flowstack.back();
                     flowstack.pop_back();
                     size_t elsePos = LAEvent::NONDEF;
-                    if (bracket.tag == cflowbracket::ELSE)
+                    if (bracket.tag == ControlFlowBracket::ELSE)
                     {
                         elsePos = bracket.labelOrPos;
                         if (!flowstack.size())
@@ -428,7 +483,7 @@ namespace loops
                         bracket = flowstack.back();
                         flowstack.pop_back();
                     }
-                    if (bracket.tag != cflowbracket::IF)
+                    if (bracket.tag != ControlFlowBracket::IF)
                         throw std::string("Internal error: control brackets error.");
                     auto rator = branchQueue.find(bracket.labelOrPos);
                     if (rator == branchQueue.end())
@@ -441,7 +496,7 @@ namespace loops
                 {
                     if (op.size() != 1 || op.args[0].tag != Arg::ICONST)
                         throw std::string("Internal error: wrong DO command format");
-                    flowstack.push_back(cflowbracket(cflowbracket::DO, opnum));
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DO, opnum));
                     LAEvent toAdd;
                     toAdd.eventType = LAEvent::LAE_STARTLOOP;
                     loopQueue.insert(std::make_pair(opnum, toAdd));
@@ -451,9 +506,9 @@ namespace loops
                 {
                     if (op.size() != 4 || op.args[0].tag != Arg::ICONST || op.args[1].tag != Arg::ICONST || op.args[2].tag != Arg::ICONST || op.args[3].tag != Arg::ICONST)
                         throw std::string("Internal error: wrong WHILE command format");
-                    if (!flowstack.size() || flowstack.back().tag != cflowbracket::DO)
+                    if (!flowstack.size() || flowstack.back().tag != ControlFlowBracket::DO)
                         throw std::string("Internal error: control brackets error.");
-                    const cflowbracket& bracket = flowstack.back();
+                    const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
                     auto rator = loopQueue.find(bracket.labelOrPos);
                     if (rator == loopQueue.end())
@@ -467,7 +522,7 @@ namespace loops
                         throw std::string("Internal error: wrong DOIF command format");
                     if (opnum < 2)
                         throw std::string("Temporary condition solution needs one instruction before DOIF cycle.");
-                    flowstack.push_back(cflowbracket(cflowbracket::DOIF, opnum - 2));
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, opnum - 2));
                     LAEvent toAdd;
                     toAdd.eventType = LAEvent::LAE_STARTLOOP;
                     loopQueue.insert(std::make_pair(opnum - 2, toAdd)); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
@@ -477,9 +532,9 @@ namespace loops
                 {
                     if (op.size() != 2 || op.args[0].tag != Arg::ICONST || op.args[1].tag != Arg::ICONST)
                         throw std::string("Internal error: wrong ENDDO command format");
-                    if (!flowstack.size() || flowstack.back().tag != cflowbracket::DOIF)
+                    if (!flowstack.size() || flowstack.back().tag != ControlFlowBracket::DOIF)
                         throw std::string("Internal error: control brackets error.");
-                    const cflowbracket& bracket = flowstack.back();
+                    const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
                     auto rator = loopQueue.find(bracket.labelOrPos);
                     if (rator == loopQueue.end())
@@ -489,6 +544,7 @@ namespace loops
                 }
                 default:
                 {
+                    
                     std::set<IRegInternal> inRegs = backend->getInRegisters(op);
                     std::set<IRegInternal> outRegs = backend->getOutRegisters(op);
                     std::set<IRegInternal> inOutRegs = backend->getUsedRegisters(op, Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT);

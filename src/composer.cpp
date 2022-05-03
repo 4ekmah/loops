@@ -207,6 +207,54 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
             m_compound[0].fieldOflags = 0x130ED;
         break;
     }
+    case(0x120A7):
+    {
+        size_t statn = (op[0].idx > 7) ? 1 : 0;
+        statn |= (op[1].idx > 7) ? 2 : 0;
+        static uint64_t stats[4] = { 0x120A7, 0x130A7, 0x124A7, 0x134A7 };
+        m_compound[0].fieldOflags = stats[statn];
+        break;
+    }
+    case(0x120A5):
+    {
+        if (op[0].idx > 7)
+            m_compound[0].fieldOflags = 0x130A5;
+        break;
+    }
+    case(0x120AD):
+    {
+        if (op[1].idx > 7)
+            m_compound[0].fieldOflags = 0x130AD;
+        break;
+    }
+    case(0x9107D):
+    {
+        if (op[1].idx > 7)
+            m_compound[0].fieldOflags = 0x9307D;
+        break;
+    }
+    case(0x91EFF):
+    {
+        if (op[0].idx > 7)
+            m_compound[0].fieldOflags = 0x93EFF;
+        break;
+    }
+    case(0x1203EBF):
+    {
+        size_t statn = (op[0].idx > 7) ? 1 : 0;
+        statn |= (op[1].idx > 7) ? 2 : 0;
+        static uint64_t stats[4] = { 0x1203EBF, 0x1303EBF, 0x1243EBF, 0x1343EBF };
+        m_compound[0].fieldOflags = stats[statn];
+        break;
+    }
+    case(0x1203EBC):
+    {
+        size_t statn = (op[0].idx > 7) ? 1 : 0;
+        statn |= (op[1].idx > 7) ? 2 : 0;
+        static uint64_t stats[4] = { 0x1203EBC, 0x1303EBC, 0x1243EBC, 0x1343EBC };
+        m_compound[0].fieldOflags = stats[statn];
+        break;
+    }
     case(0x12227):
     {
         size_t statn = (op[1].idx > 7) ? 1 : 0;
@@ -219,7 +267,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
     {
         size_t statn = (op[1].idx > 7) ? 1 : 0;
         statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x12007, 0x13007, 0x12407, 0x13407 };
+        static uint64_t stats[4] = { 0x12007, 0x12407,  0x13007, 0x13407 };
         m_compound[0].fieldOflags = stats[statn];
         break;
     }
@@ -243,6 +291,12 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
     {
         if (op[1].idx > 7)
             m_compound[0].fieldOflags = 0x1322D;
+        break;
+    }
+    case(0x91EFB):
+    {
+        if (op[0].idx > 7)
+            m_compound[0].fieldOflags = 0x93EFB;
         break;
     }
     default:

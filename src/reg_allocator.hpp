@@ -14,7 +14,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops {
 class FuncImpl;
-class RegisterAllocator
+class RegisterAllocator //TODO(ch): Can you make it derivative from CompilerStage?
 {
 public:
     RegisterAllocator(ContextImpl* a_owner);
@@ -27,10 +27,10 @@ private:
     size_t freeRegsAmount() const;
     bool havefreeRegs() const;
     IRegInternal provideParamFromPool(); //Must be called first.
-    IRegInternal provideRegFromPool();
+    IRegInternal provideRegFromPool(IRegInternal a_hint = IReg::NOIDX);
     IRegInternal provideSpillPlaceholder();
     IRegInternal provideReturnFromPool();//Must be called last.
-    void clearSpillHolders();
+    void clearSpillPlaceholders();
     void removeFromAllBaskets(IRegInternal reg);
     void releaseRegister(IRegInternal freeReg);
     std::map<IRegInternal, std::pair<size_t, size_t> > livenessAnalysis(Syntfunc& a_processed);
@@ -43,6 +43,7 @@ private:
     size_t m_spillPlaceholdersTop;
     size_t m_epilogueSize;
     size_t m_knownRegsAmount;
+    size_t m_snippetCausedSpills;
 };
 };
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

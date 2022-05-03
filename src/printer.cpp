@@ -86,7 +86,7 @@ Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const s
                     out<<toPrint[argNum];
                 };
             if(backend)
-                argprinter = backend->argPrinter(suppfunc);
+                argprinter = backend->argPrinter(suppfunc); //TODO(ch): We shouldn't request printer at any row. It must be called once in start.
             OpPrintInfo pinfo;
             if(backend)
                 pinfo = backend->getPrintInfo(const_cast<Syntop&>(toPrint));

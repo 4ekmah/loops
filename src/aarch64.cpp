@@ -221,8 +221,7 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     }
     return result;
 }
-
-void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
+void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const
 {
     //TODO(ch): Spill also callee-saved registers.
     if(a_regSpilled)
