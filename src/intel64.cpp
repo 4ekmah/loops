@@ -141,7 +141,7 @@ namespace loops
             SFtyp(1,
                 {
                 Sb(Arg::IREG, Sl({ BDsta(0x1203EBF, 26), BDreg(3, 0, In|Out), BDreg(3, 1, In) })),
-                Sb(Arg::ISPILLED, Sl({ BDsta(0x1203EBC, 26), BDreg(3, 0, In|Out), BDreg(3, 1, In) }))
+                Sb(Arg::ISPILLED, Sl({ BDsta(0x1203EBD, 26), BDreg(3, 0, In|Out), BDsta(0x424, 11), BDspl(8, 1) }))
                 }));
 
         instrucion_set->add(INTEL64_IDIV,
@@ -163,7 +163,7 @@ namespace loops
                     Sb(Arg::ISPILLED,
                         SFtyp(1,
                         {
-                            Sb(Arg::IREG, Sl({ BDsta(0x120ED, 18), BDreg(3, 0, In), BDsta(0x424, 11), BDspl(8, 1) }, ROrd({1,0}))) //cmp rax, [rsp + offset]
+                            Sb(Arg::IREG, Sl({ BDsta(0x120ED, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) }, ROrd({1,0}))) //cmp rax, [rsp + offset]
                         })),
                     Sb(Arg::ICONST,
                         SFtyp(1,
@@ -271,7 +271,7 @@ namespace loops
         } 
     };
 
-    Intel64Backend::Intel64Backend()
+    Intel64Backend::Intel64Backend(uint64_t flags)
     {
         m_2binary = get_instrucion_set();
         m_2tararch = get_target_mnemonics();
@@ -283,10 +283,20 @@ namespace loops
         m_name = "Intel64";
         m_afterRegAllocStages.push_back(Three2Two::make());
 #if defined(_WIN32)
-        m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 }); //TODO(ch): IMPORTANT: Implement same for AARCH64!
-        m_returnRegisters = std::vector<IRegInternal>({ RAX });
-        m_callerSavedRegisters = std::vector<IRegInternal>({ R10, R11 });
-        m_calleeSavedRegisters = std::vector<IRegInternal>({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
+        if (flags & Context::CF_SPILLSTRESS)
+        {
+            m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 });
+            m_returnRegisters = std::vector<IRegInternal>({ RAX });
+            m_callerSavedRegisters = std::vector<IRegInternal>({});
+            m_calleeSavedRegisters = std::vector<IRegInternal>({ R12, R13, R14, R15 });
+        }
+        else
+        {
+            m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 }); //TODO(ch): IMPORTANT: Implement same for AARCH64!
+            m_returnRegisters = std::vector<IRegInternal>({ RAX });
+            m_callerSavedRegisters = std::vector<IRegInternal>({ R10, R11 });
+            m_calleeSavedRegisters = std::vector<IRegInternal>({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
+        }
 #else
 #error Linux is not supported
 #endif
@@ -331,6 +341,27 @@ namespace loops
         default:
             return false;
         };
+    }
+
+    std::set<size_t> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
+    {
+        std::set<size_t> result = Backend::filterStackPlaceable(a_op, toFilter);
+        switch (a_op.opcode)
+        {
+        case(OP_ADD):
+        case(OP_SUB):
+        case(OP_MUL):
+            Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
+            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && result.count(0) || result.count(1))
+            {
+                result.insert(0);
+                result.insert(1);
+            }
+            break;
+        default:
+            break;
+        }
+        return result;
     }
 
     size_t Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
@@ -384,19 +415,42 @@ namespace loops
             case (OP_ADD):
             case (OP_SUB):
             case (OP_MUL):
-            case (OP_DIV):
             {
                 Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
                 if (a_op[0].idx != a_op[1].idx && a_op[2].tag == Arg::IREG && ((~(Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) & flagmask) == 0))
                 {
                     bool in = Binatr::Detail::D_INPUT & flagmask;
                     bool out = Binatr::Detail::D_OUTPUT & flagmask;
-                    if (out&!in)
+                    if (in && out)
+                        in = out = false;
+                    if (out)
                         res.insert(0);
-                    if (in&!out)
+                    if (in)
                     {
                         res.insert(1);
                         res.insert(2);
+                    }
+                    bypass = false;
+                }
+                break;
+            }
+            case (OP_DIV):
+            {
+                Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
+                if ((~(Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) & flagmask) == 0)
+                {
+                    bool in = Binatr::Detail::D_INPUT & flagmask;
+                    bool out = Binatr::Detail::D_OUTPUT & flagmask;
+                    if (in && out)
+                        in = out = false;
+                    if (out)
+                        res.insert(0);
+                    if (in)
+                    {
+                        if(a_op[1].tag == Arg::IREG)
+                            res.insert(1);
+                        if (a_op[2].tag == Arg::IREG)
+                            res.insert(2);
                     }
                     bypass = false;
                 }
@@ -561,7 +615,7 @@ namespace loops
                 if (arg.value == 0)
                     out << "[rsp]";
                 else
-                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value << "]"; break;
+                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]"; break;
             default:
                 throw std::string("Undefined argument type.");
             };
@@ -639,7 +693,7 @@ namespace loops
                 {
                     if (!unspillRdx)
                         newProg.push_back(Syntop(OP_SPILL, { 1, argIReg(RDX) }));
-                    effectiveDivider = argISpilled(8);  //TODO(ch): IMPORTANT: Why it's 8?(See. backend:T_TRANSFORMTOSPILL)
+                    effectiveDivider = argISpilled(1);
                 }
                 if (op[1].idx != RAX)
                     newProg.push_back(Syntop(OP_MOV, { argIReg(RAX), op[1] }));

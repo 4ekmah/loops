@@ -1,39 +1,51 @@
 arithm_arrs(i0, i1, i2, i3, i4, i5)
-     0 : mov    rax, [rsp+#0x28] ; 48 8b 44 24 28              
-     1 : mov    r10, [rsp+#0x30] ; 4c 8b 54 24 30              
-     2 : sub    rsp, #0x38       ; 48 83 ec 38                 
-     3 : mov    [rsp+#0x08], rbx ; 48 89 5c 24 08              
-     4 : mov    [rsp+#0x10], rbp ; 48 89 6c 24 10              
-     5 : mov    [rsp+#0x18], rsi ; 48 89 74 24 18              
-     6 : mov    [rsp+#0x20], rdi ; 48 89 7c 24 20              
-     7 : mov    [rsp+#0x28], r12 ; 4c 89 64 24 28              
-     8 : mov    r11, #0          ; 49 c7 c3 00 00 00 00        
-     9 : mov    rbx, #0          ; 48 c7 c3 00 00 00 00        
-    10 : mov    rsi, #0x04       ; 48 c7 c6 04 00 00 00        
-    11 : mov    [rsp], #0x01     ; 48 c7 44 24 00 01 00 00 00  
-    12 : movsxd rbp, rcx, r11    ; 4a 63 2c 19                 
-    13 : movsxd r12, rdx, r11    ; 4e 63 24 1a                 
-    14 : mov    rdi, rbp         ; 48 89 ef                    
-    15 : add    rdi, r12         ; 4c 01 e7                    
-    16 : mov    [r9], edi        ; 41 89 39                    
-    17 : mov    rdi, rbp         ; 48 89 ef                    
-    18 : sub    rdi, r12         ; 4c 29 e7                    
-    19 : mov    [rax], edi       ; 89 38                       
-    20 : imul   rbp, r12         ; 49 0f af ec                 
-    21 : mov    [r10], ebp       ; 41 89 2a                    
-    22 : add    rbx, [rsp]       ; 48 03 5c 24 00              
-    23 : add    r11, rsi         ; 49 01 f3                    
-    24 : add    r9, rsi          ; 49 01 f1                    
-    25 : add    rax, rsi         ; 48 01 f0                    
-    26 : add    r10, rsi         ; 49 01 f2                    
-    27 : cmp    rbx, r8          ; 4c 39 c3                    
-    28 : jl     [12]             ; 0f 8c c6 ff ff ff           
-    29 : mov    r9, #0           ; 49 c7 c1 00 00 00 00        
-    30 : mov    rax, r9          ; 4c 89 c8                    
-    31 : mov    rbx, [rsp+#0x08] ; 48 8b 5c 24 08              
-    32 : mov    rbp, [rsp+#0x10] ; 48 8b 6c 24 10              
-    33 : mov    rsi, [rsp+#0x18] ; 48 8b 74 24 18              
-    34 : mov    rdi, [rsp+#0x20] ; 48 8b 7c 24 20              
-    35 : mov    r12, [rsp+#0x28] ; 4c 8b 64 24 28              
-    36 : add    rsp, #0x38       ; 48 83 c4 38                 
-    37 : ret                     ; c3                          
+     0 : mov    rax, [rsp+#0x28]   ; 48 8b 44 24 28              
+     1 : mov    r12, [rsp+#0x30]   ; 4c 8b 64 24 30              
+     2 : sub    rsp, #0x68         ; 48 83 ec 68                 
+     3 : mov    [rsp+#0x48], r12   ; 4c 89 64 24 48              
+     4 : mov    [rsp+#0x50], r13   ; 4c 89 6c 24 50              
+     5 : mov    [rsp+#0x58], r14   ; 4c 89 74 24 58              
+     6 : mov    [rsp], #0          ; 48 c7 44 24 00 00 00 00 00  
+     7 : mov    [rsp+#0x08], #0    ; 48 c7 44 24 08 00 00 00 00  
+     8 : mov    [rsp+#0x10], #0x04 ; 48 c7 44 24 10 04 00 00 00  
+     9 : mov    [rsp+#0x18], #0x01 ; 48 c7 44 24 18 01 00 00 00  
+    10 : mov    r13, [rsp]         ; 4c 8b 6c 24 00              
+    11 : movsxd r14, rcx, r13      ; 4e 63 34 29                 
+    12 : mov    [rsp+#0x20], r14   ; 4c 89 74 24 20              
+    13 : mov    r13, [rsp]         ; 4c 8b 6c 24 00              
+    14 : movsxd r14, rdx, r13      ; 4e 63 34 2a                 
+    15 : mov    [rsp+#0x28], r14   ; 4c 89 74 24 28              
+    16 : mov    r13, [rsp+#0x20]   ; 4c 8b 6c 24 20              
+    17 : mov    r14, [rsp+#0x28]   ; 4c 8b 74 24 28              
+    18 : mov    [rsp+#0x30], r13   ; 4c 89 6c 24 30              
+    19 : add    [rsp+#0x30], r14   ; 4c 01 74 24 30              
+    20 : mov    r13, [rsp+#0x30]   ; 4c 8b 6c 24 30              
+    21 : mov    [r9], r13d         ; 45 89 29                    
+    22 : mov    r13, [rsp+#0x20]   ; 4c 8b 6c 24 20              
+    23 : mov    r14, [rsp+#0x28]   ; 4c 8b 74 24 28              
+    24 : mov    [rsp+#0x38], r13   ; 4c 89 6c 24 38              
+    25 : sub    [rsp+#0x38], r14   ; 4c 29 74 24 38              
+    26 : mov    r13, [rsp+#0x38]   ; 4c 8b 6c 24 38              
+    27 : mov    [rax], r13d        ; 44 89 28                    
+    28 : mov    r13, [rsp+#0x20]   ; 4c 8b 6c 24 20              
+    29 : mov    r14, r13           ; 4d 89 ee                    
+    30 : imul   r14, [rsp+#0x28]   ; 4c 0f af 74 24 28           
+    31 : mov    [rsp+#0x40], r14   ; 4c 89 74 24 40              
+    32 : mov    r13, [rsp+#0x40]   ; 4c 8b 6c 24 40              
+    33 : mov    [r12], r13d        ; 45 89 2c 24                 
+    34 : mov    r13, [rsp+#0x18]   ; 4c 8b 6c 24 18              
+    35 : add    [rsp+#0x08], r13   ; 4c 01 6c 24 08              
+    36 : mov    r13, [rsp+#0x10]   ; 4c 8b 6c 24 10              
+    37 : add    [rsp], r13         ; 4c 01 6c 24 00              
+    38 : add    r9, [rsp+#0x10]    ; 4c 03 4c 24 10              
+    39 : add    rax, [rsp+#0x10]   ; 48 03 44 24 10              
+    40 : add    r12, [rsp+#0x10]   ; 4c 03 64 24 10              
+    41 : cmp    [rsp+#0x08], r8    ; 4c 39 44 24 08              
+    42 : jl     [10]               ; 0f 8c 62 ff ff ff           
+    43 : mov    r9, #0             ; 49 c7 c1 00 00 00 00        
+    44 : mov    rax, r9            ; 4c 89 c8                    
+    45 : mov    r12, [rsp+#0x48]   ; 4c 8b 64 24 48              
+    46 : mov    r13, [rsp+#0x50]   ; 4c 8b 6c 24 50              
+    47 : mov    r14, [rsp+#0x58]   ; 4c 8b 74 24 58              
+    48 : add    rsp, #0x68         ; 48 83 c4 68                 
+    49 : ret                       ; c3                          

@@ -136,6 +136,8 @@ size_t Binatr::size(const Syntop& op) const
         statn |= (op[0].idx > 7) ? 2 : 0;
         static uint64_t sadd[4] = { 0, 1, 1, 1 };
         res += sadd[statn];
+        if (op[1].idx == 12 || op[1].idx == 13)
+            res++;
         break;
     }
     default:
@@ -161,7 +163,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         reordering = m_reordering;
 
 #if defined(_WIN32)                                      //TODO(ch): IMPORTANT. Destroy it. Devastate. Annihilate. 
-    std::vector<Detail> intelRegisterTrick = m_compound;
+    std::vector<Detail> intelRegisterTrick = m_compound; //That's how we handle r8-r15 registers. Sigh...
     std::vector<Detail> m_compound = intelRegisterTrick;
     switch (m_compound[0].fieldOflags)
     {
@@ -197,13 +199,13 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
     }
     case(0x120E5):
     {
-        if (op[1].idx > 7)
+        if (op[0].idx > 7)
             m_compound[0].fieldOflags = 0x130E5;
         break;
     }
     case(0x120ED):
     {
-        if (op[0].idx > 7)
+        if (op[1].idx > 7)
             m_compound[0].fieldOflags = 0x130ED;
         break;
     }
@@ -247,12 +249,10 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         m_compound[0].fieldOflags = stats[statn];
         break;
     }
-    case(0x1203EBC):
+    case(0x1203EBD):
     {
-        size_t statn = (op[0].idx > 7) ? 1 : 0;
-        statn |= (op[1].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x1203EBC, 0x1303EBC, 0x1243EBC, 0x1343EBC };
-        m_compound[0].fieldOflags = stats[statn];
+        if (op[0].idx > 7)
+            m_compound[0].fieldOflags = 0x1303EBD;
         break;
     }
     case(0x12227):
@@ -271,14 +271,41 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         m_compound[0].fieldOflags = stats[statn];
         break;
     }
+    case(0x12005):
+    {
+        if (op[0].idx > 7)
+            m_compound[0].fieldOflags = 0x13005;
+        break;
+    }
+    case(0x1200D):
+    {
+        if (op[1].idx > 7)
+            m_compound[0].fieldOflags = 0x1300D;
+        break;
+    }
     case(0x224):
     {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
-        static uint64_t statw[4] = { 10, 18, 18, 18 };
-        m_compound[0].fieldOflags = stats[statn];
-        m_compound[0].width = statw[statn];
+        //if (op[1].idx == 13)
+        //{
+
+        //}
+        //else
+        {
+            size_t statn = (op[1].idx > 7) ? 1 : 0;
+            statn |= (op[0].idx > 7) ? 2 : 0;
+            static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
+            static uint64_t statw[4] = { 10, 18, 18, 18 };
+            m_compound[0].fieldOflags = stats[statn];
+            m_compound[0].width = statw[statn];
+            if (op[1].idx == 13)
+            {
+                if (op[0].idx > 7)
+                    m_compound[0].fieldOflags = (op[0].idx > 7) ?  0x11625 : 0x10625;
+                m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x0, 8));   //mov [r13], eax
+            }
+            else if (op[1].idx == 12)
+                m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x24, 8));  //mov [r12], eax (special case)
+        }
         break;
     }
     case(0x12225):
@@ -352,6 +379,8 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
             case (Detail::D_STACKOFFSET):
             case (Detail::D_SPILLED):
                 piece = static_cast<uint64_t>(op[reordering[argnum++]].value);
+                if (det.tag == Detail::D_SPILLED)
+                    piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
                 if (bits->getBackend()->isLittleEndianOperands())
                     piece = Bitwriter::revertDetail(piece, det.width);
                 break;

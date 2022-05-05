@@ -37,7 +37,6 @@ Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_bcknd) const
                 Assert(a_source.args[argt.srcArgnum].tag == Arg::ICONST);
                 Arg toAdd = argISpilled(a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
-                toAdd.value *= 8;//TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
                 resargs.push_back(toAdd);
                 break;
             }

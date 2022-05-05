@@ -34,7 +34,8 @@ namespace loops
     class Intel64Backend : public Backend
     {
     public:
-        Intel64Backend();
+        Intel64Backend(uint64_t flags);
+        virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const override final;
         virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
         virtual size_t spillSpaceNeeded(const Syntop& a_op) const override final;
         virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const override final;

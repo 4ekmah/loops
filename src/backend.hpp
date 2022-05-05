@@ -76,7 +76,7 @@ class Backend
 {
 public:
     bool isConstFit(const Syntop& a_op, size_t argnum) const;
-    std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
+    virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
     virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
     virtual size_t spillSpaceNeeded(const Syntop& a_op) const;
 

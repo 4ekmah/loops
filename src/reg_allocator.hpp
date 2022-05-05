@@ -41,6 +41,7 @@ private:
     std::unordered_map<IRegInternal, int> m_registersDistr;
     std::set<IRegInternal> m_usedCallee;
     size_t m_spillPlaceholdersTop;
+    size_t m_spillPlaceholdersAvailable;
     size_t m_epilogueSize;
     size_t m_knownRegsAmount;
     size_t m_snippetCausedSpills;

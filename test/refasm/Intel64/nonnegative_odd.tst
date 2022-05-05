@@ -1,48 +1,45 @@
 nonnegative_odd(i0, i1)
-     0 : sub    rsp, #0x28       ; 48 83 ec 28           
-     1 : mov    [rsp+#0x10], rbx ; 48 89 5c 24 10        
-     2 : mov    [rsp+#0x18], rsi ; 48 89 74 24 18        
-     3 : mov    r8, #0           ; 49 c7 c0 00 00 00 00  
-     4 : mov    r9, #0           ; 49 c7 c1 00 00 00 00  
-     5 : mov    rax, #0x02       ; 48 c7 c0 02 00 00 00  
-     6 : mov    r10, #0x04       ; 49 c7 c2 04 00 00 00  
-     7 : mov    r11, r8          ; 4d 89 c3              
-     8 : sub    r11, r10         ; 4d 29 d3              
-     9 : imul   rdx, r10         ; 49 0f af d2           
-    10 : cmp    r8, rdx          ; 49 39 d0              
-    11 : jge    [34]             ; 0f 8d 59 00 00 00     
-    12 : movsxd rbx, rcx, r8     ; 4a 63 1c 01           
-    13 : cmp    rbx, r9          ; 4c 39 cb              
-    14 : jge    [17]             ; 0f 8d 08 00 00 00     
-    15 : add    r8, r10          ; 4d 01 d0              
-    16 : jmp    [10]             ; e9 e2 ff ff ff        
-    17 : mov    [rsp], rax       ; 48 89 44 24 00        
-    18 : mov    [rsp+#0x08], rdx ; 48 89 54 24 08        
-    19 : mov    rax, rbx         ; 48 89 d8              
-    20 : cqo                     ; 48 99                 
-    21 : idiv   [rsp]            ; 48 f7 7c 24 00        
-    22 : mov    rsi, rax         ; 48 89 c6              
-    23 : mov    rax, [rsp]       ; 48 8b 44 24 00        
-    24 : mov    rdx, [rsp+#0x08] ; 48 8b 54 24 08        
-    25 : imul   rsi, rax         ; 48 0f af f0           
-    26 : sub    rbx, rsi         ; 48 29 f3              
-    27 : mov    rbx, rbx         ; 48 89 db              
-    28 : cmp    rbx, r9          ; 4c 39 cb              
-    29 : je     [32]             ; 0f 84 08 00 00 00     
-    30 : mov    r11, r8          ; 4d 89 c3              
-    31 : jmp    [34]             ; e9 08 00 00 00        
-    32 : add    r8, r10          ; 4d 01 d0              
-    33 : jmp    [10]             ; e9 9e ff ff ff        
-    34 : mov    [rsp], rax       ; 48 89 44 24 00        
-    35 : mov    [rsp+#0x08], rdx ; 48 89 54 24 08        
-    36 : mov    rax, r11         ; 4c 89 d8              
-    37 : cqo                     ; 48 99                 
-    38 : idiv   r10              ; 49 f7 fa              
-    39 : mov    r11, rax         ; 49 89 c3              
-    40 : mov    rax, [rsp]       ; 48 8b 44 24 00        
-    41 : mov    rdx, [rsp+#0x08] ; 48 8b 54 24 08        
-    42 : mov    rax, r11         ; 4c 89 d8              
-    43 : mov    rbx, [rsp+#0x10] ; 48 8b 5c 24 10        
-    44 : mov    rsi, [rsp+#0x18] ; 48 8b 74 24 18        
-    45 : add    rsp, #0x28       ; 48 83 c4 28           
-    46 : ret                     ; c3                    
+     0 : sub    rsp, #0x38         ; 48 83 ec 38                 
+     1 : mov    [rsp+#0x28], r12   ; 4c 89 64 24 28              
+     2 : mov    [rsp+#0x30], r13   ; 4c 89 6c 24 30              
+     3 : mov    r8, #0             ; 49 c7 c0 00 00 00 00        
+     4 : mov    r9, #0             ; 49 c7 c1 00 00 00 00        
+     5 : mov    [rsp+#0x20], #0x02 ; 48 c7 44 24 20 02 00 00 00  
+     6 : mov    [rsp+#0x18], #0x04 ; 48 c7 44 24 18 04 00 00 00  
+     7 : mov    r13, [rsp+#0x18]   ; 4c 8b 6c 24 18              
+     8 : mov    [rsp+#0x10], r8    ; 4c 89 44 24 10              
+     9 : sub    [rsp+#0x10], r13   ; 4c 29 6c 24 10              
+    10 : imul   rdx, [rsp+#0x18]   ; 48 0f af 54 24 18           
+    11 : cmp    r8, rdx            ; 49 39 d0                    
+    12 : jge    [32]               ; 0f 8d 54 00 00 00           
+    13 : movsxd r12, rcx, r8       ; 4e 63 24 01                 
+    14 : cmp    r12, r9            ; 4d 39 cc                    
+    15 : jge    [18]               ; 0f 8d 0a 00 00 00           
+    16 : add    r8, [rsp+#0x18]    ; 4c 03 44 24 18              
+    17 : jmp    [11]               ; e9 e0 ff ff ff              
+    18 : mov    [rsp+#0x08], rdx   ; 48 89 54 24 08              
+    19 : mov    rax, r12           ; 4c 89 e0                    
+    20 : cqo                       ; 48 99                       
+    21 : idiv   [rsp+#0x20]        ; 48 f7 7c 24 20              
+    22 : mov    rdx, [rsp+#0x08]   ; 48 8b 54 24 08              
+    23 : imul   rax, [rsp+#0x20]   ; 48 0f af 44 24 20           
+    24 : sub    r12, rax           ; 49 29 c4                    
+    25 : mov    rax, r12           ; 4c 89 e0                    
+    26 : cmp    rax, r9            ; 4c 39 c8                    
+    27 : je     [30]               ; 0f 84 0a 00 00 00           
+    28 : mov    [rsp+#0x10], r8    ; 4c 89 44 24 10              
+    29 : jmp    [32]               ; e9 0a 00 00 00              
+    30 : add    r8, [rsp+#0x18]    ; 4c 03 44 24 18              
+    31 : jmp    [11]               ; e9 a3 ff ff ff              
+    32 : mov    r13, [rsp+#0x10]   ; 4c 8b 6c 24 10              
+    33 : mov    [rsp], rax         ; 48 89 44 24 00              
+    34 : mov    rax, r13           ; 4c 89 e8                    
+    35 : cqo                       ; 48 99                       
+    36 : idiv   [rsp+#0x18]        ; 48 f7 7c 24 18              
+    37 : mov    rdx, rax           ; 48 89 c2                    
+    38 : mov    rax, [rsp]         ; 48 8b 44 24 00              
+    39 : mov    rax, rdx           ; 48 89 d0                    
+    40 : mov    r12, [rsp+#0x28]   ; 4c 8b 64 24 28              
+    41 : mov    r13, [rsp+#0x30]   ; 4c 8b 6c 24 30              
+    42 : add    rsp, #0x38         ; 48 83 c4 38                 
+    43 : ret                       ; c3                          

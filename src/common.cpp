@@ -145,9 +145,9 @@ namespace loops
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
-    Context::Context() : impl(nullptr)
+    Context::Context(uint64_t flags) : impl(nullptr)
     {
-        impl = new ContextImpl(this);
+        impl = new ContextImpl(this, flags);
     }
 
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
@@ -223,11 +223,11 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
+    ContextImpl::ContextImpl(Context* owner, uint64_t flags) : Context(nullptr), m_owner(owner), m_refcount(0) {
 #if defined(__APPLE__) //TODO(ch): this conditions are actually inaccurate. We have to ask system about type of compiler. 
-        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
+        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>(flags);
 #elif defined(_WIN32)
-        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
+        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>(flags);
 #endif
         m_bcknd = std::static_pointer_cast<Backend>(backend);
         m_registerAllocator = std::make_shared<RegisterAllocator>(this);

@@ -144,7 +144,7 @@ inline M2mMap& get_target_mnemonics()
     return *target_mnemonics.get();
 }
 
-Aarch64Backend::Aarch64Backend()
+Aarch64Backend::Aarch64Backend(uint64_t flags)
 {
     m_2binary = get_instrucion_set();
     m_2tararch = get_target_mnemonics();

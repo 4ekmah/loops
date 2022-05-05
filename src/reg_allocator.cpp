@@ -75,12 +75,11 @@ namespace loops
             for (auto interval = _liveparams.begin(); interval != _liveparams.end(); ++interval)
                 parActive.insert(interval->second);
         }
-
         int64_t spoffset = m_snippetCausedSpills;
         std::map<IRegInternal, int64_t> spilled;
         std::map<IRegInternal, IRegInternal> renamingMap;
-        std::vector<IRegInternal> paramsInStack;
-        paramsInStack.reserve(a_processed.params.size());
+        std::vector<IRegInternal> paramsFromStack;
+        paramsFromStack.reserve(a_processed.params.size());
         initRegisterPool();
         { // Looking spilled registers and reusing registers with renaming map.
             {//Get pseudonames for parameters.
@@ -98,7 +97,7 @@ namespace loops
                     if (attempt == IReg::NOIDX)
                         throw std::runtime_error("Register allocator : so much arguments is not supported for now.");
                     renamingMap[parreg] = attempt;
-                    paramsInStack.push_back(attempt);
+                    paramsFromStack.push_back(attempt);
                 }
             }
             std::multiset<LiveInterval, endordering> active;
@@ -179,9 +178,8 @@ namespace loops
         }
         renamingMap[Syntfunc::RETREG] = provideReturnFromPool();
 
-        std::vector<Syntop> newProg;
-        newProg.reserve(a_processed.program.size() * 3);
-        backend->writePrologue(a_processed, newProg, spilled.size() + m_snippetCausedSpills, m_usedCallee, paramsInStack);
+        std::vector<Syntop> newProgUnbracketed;
+        newProgUnbracketed.reserve(a_processed.program.size() * 3);
 
         // TODO(ch):
         // 1.) Let's consider sequence of instructions, where it's used one register. Obviously, it can be unspilled only once at start of sequence and
@@ -251,15 +249,16 @@ namespace loops
                     if (pseudoname == IReg::NOIDX)
                         throw std::string("Register allocator : not enough free registers.");
                     argRenaming[regAr] = pseudoname;
-                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(pseudoname, a_func), spilled[regAr] }));
+                    newProgUnbracketed.push_back(Syntop(OP_UNSPILL, { argIReg(pseudoname, a_func), spilled[regAr] }));
                 }
                 for (IRegInternal regAr : spilledArgs)
-                {
-                    IRegInternal pseudoname = provideSpillPlaceholder();
-                    if (pseudoname == IReg::NOIDX)
-                        throw std::string("Register allocator : not enough free registers.");
-                    argRenaming[regAr] = pseudoname;
-                }
+                    if(argRenaming.count(regAr) == 0)
+                    {
+                        IRegInternal pseudoname = provideSpillPlaceholder();
+                        if (pseudoname == IReg::NOIDX)
+                            throw std::string("Register allocator : not enough free registers.");
+                        argRenaming[regAr] = pseudoname;
+                    }
                 for (size_t arnum = 0; arnum < op.size(); arnum++)
                 {
                     Arg& ar = op[arnum];
@@ -271,11 +270,15 @@ namespace loops
                             ar.idx = (argRenaming.count(ar.idx) == 0) ? renamingMap[ar.idx] : argRenaming[ar.idx];
                     }
                 }
-                newProg.push_back(op);
+                newProgUnbracketed.push_back(op);
                 for (IRegInternal regAr : spilledArgs)
-                    newProg.push_back(Syntop(OP_SPILL, { spilled[regAr], argIReg(argRenaming[regAr], a_func) }));
+                    newProgUnbracketed.push_back(Syntop(OP_SPILL, { spilled[regAr], argIReg(argRenaming[regAr], a_func) }));
             }
         }
+        std::vector<Syntop> newProg;
+        newProg.reserve(a_processed.program.size() * 3);
+        backend->writePrologue(a_processed, newProg, spilled.size() + m_snippetCausedSpills, m_usedCallee, paramsFromStack);
+        newProg.insert(newProg.end(), newProgUnbracketed.begin(), newProgUnbracketed.end());
         m_epilogueSize = newProg.size();
         backend->writeEpilogue(a_processed, newProg, spilled.size() + m_snippetCausedSpills, m_usedCallee);
         m_epilogueSize = newProg.size() - m_epilogueSize;
@@ -290,6 +293,7 @@ namespace loops
         m_returnRegisters = backend->returnRegisters();
         m_callerSavedRegisters = backend->callerSavedRegisters();
         m_calleeSavedRegisters = backend->calleeSavedRegisters();
+        m_spillPlaceholdersAvailable = m_calleeSavedRegisters.size();
         m_usedCallee.clear();
         for (IRegInternal par : m_parameterRegisters)
             m_registersDistr[par] |= RT_PARAMETER;
@@ -377,7 +381,7 @@ namespace loops
 
     void RegisterAllocator::clearSpillPlaceholders()
     {
-        m_spillPlaceholdersTop = 0;
+        m_spillPlaceholdersTop = m_calleeSavedRegisters.size() - m_spillPlaceholdersAvailable;
     }
 
     void RegisterAllocator::removeFromAllBaskets(IRegInternal reg)
@@ -408,6 +412,7 @@ namespace loops
             std::vector<IRegInternal>::iterator rator = std::find(m_calleeSavedRegisters.begin(), m_calleeSavedRegisters.end(), reg);
             if (rator != m_calleeSavedRegisters.end())
                 m_calleeSavedRegisters.erase(rator);
+            m_spillPlaceholdersAvailable = std::min(m_spillPlaceholdersAvailable, m_calleeSavedRegisters.size());
         }
     }
 

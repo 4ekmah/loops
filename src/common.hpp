@@ -443,7 +443,7 @@ namespace loops
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context* owner);
+        ContextImpl(Context* owner, uint64_t flags);
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
         void endFunc();
         Func getFunc(const std::string& name);
