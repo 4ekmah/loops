@@ -229,6 +229,11 @@ public:
     Context& operator=(const Context& ctx);
 
     void startFunc(const std::string& name, std::initializer_list<IReg*> params);
+    void overrideFuncsRegisterSet(const std::vector<size_t>& m_parameterRegisters,// TODO(ch): this function is temporary solution for tests. Must be hidden in more developed version of library.
+                                  const std::vector<size_t>& m_returnRegisters,
+                                  const std::vector<size_t>& m_callerSavedRegisters,
+                                  const std::vector<size_t>& m_calleeSavedRegisters);
+    void overrideFuncsRegisterSet();// TODO(ch): this function is temporary solution for tests.
     void endFunc();
     void getFuncs(std::vector<Func>& funcs);
     Func getFunc(const std::string& name);

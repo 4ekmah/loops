@@ -171,6 +171,16 @@ namespace loops
     }
 
     void Context::startFunc(const std::string& name, std::initializer_list<IReg*> params) { static_cast<ContextImpl*>(impl)->startFunc(name, params);    }
+    void Context::overrideFuncsRegisterSet(const std::vector<size_t>& m_parameterRegisters,
+                              const std::vector<size_t>& m_returnRegisters,
+                              const std::vector<size_t>& m_callerSavedRegisters,
+                              const std::vector<size_t>& m_calleeSavedRegisters)
+    {
+        getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->overrideFuncsRegisterSet(m_parameterRegisters, m_returnRegisters, m_callerSavedRegisters,
+                                                                                             m_calleeSavedRegisters);
+    }
+
+
     void Context::endFunc() { static_cast<ContextImpl*>(impl)->endFunc(); }
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
 

@@ -195,7 +195,8 @@ LTESTexe(nonnegative_odd, {
     TEST_EQ(tested(0, 0), -1);
 });
 
-LTEST(arithm_arrs, { //There we are tesing stack parameter passing(obviously, it's enough 6 registers only on Intel)
+#if defined(_WIN32) //TODO(ch): It must be about target processor, not operational system
+LTEST(arithm_arrs, { //There we are testing stack parameter passing.
     IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul;
     CTX.startFunc(TESTNAME, { &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul });
     IReg offset = CTX.const_(0);
@@ -233,6 +234,31 @@ LTESTexe(arithm_arrs, {
         TEST_EQ(A[n] * B[n], mulArr[n]);
     }
 });
+#elif defined(__APPLE__)
+LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
+    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
+    CTX.startFunc(TESTNAME, {&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9});
+    CTX.overrideFuncsRegisterSet({ 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
+    IReg res = a0 * CTX.const_(1);
+    res += a1 * CTX.const_(2);
+    res += a2 * CTX.const_(3);
+    res += a3 * CTX.const_(4);
+    res += a4 * CTX.const_(5);
+    res += a5 * CTX.const_(6);
+    res += a6 * CTX.const_(7);
+    res += a7 * CTX.const_(8);
+    res += a8 * CTX.const_(3);
+    res += a9 * CTX.const_(2);
+    CTX.return_(res);
+    CTX.endFunc();
+});
+LTESTexe(ten_args_to_sum, {
+    typedef int64_t (*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
+    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
+    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
+    TEST_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+});
+#endif
 };
 
 #endif//__LOOPS_TEST_BASIC_HPP__

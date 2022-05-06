@@ -5,7 +5,7 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 #ifndef __LOOPS_INTEL64_HPP__
 #define __LOOPS_INTEL64_HPP__
-
+#if defined(_WIN32) //TODO(ch): It must be about target processor, not operational system
 #include "loops/loops.hpp"
 #include "backend.hpp"
 
@@ -64,5 +64,5 @@ namespace loops
 
 };
 
-
+#endif
 #endif //__LOOPS_INTEL64_HPP__

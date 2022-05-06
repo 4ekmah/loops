@@ -426,7 +426,7 @@ namespace loops
         template<typename T>
         inline typename SyntopIndexedArray<T>::ArgIndA SFflg(size_t argnum, uint64_t flagmask, std::initializer_list<SyntopTreeTempBranch<T> > branches)
         {
-            SyntopIndexedArray<T>::ArgIndA ret = Sf(SyntopIndexedArray<T>::ArgIndA::C_FLAGMASK, argnum, branches);
+            typename SyntopIndexedArray<T>::ArgIndA ret = Sf(SyntopIndexedArray<T>::ArgIndA::C_FLAGMASK, argnum, branches);
             ret.m_flagmask = flagmask;
             return ret;
         }

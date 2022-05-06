@@ -165,7 +165,9 @@ void FuncImpl::endfunc()
     if(m_cflowStack.size())
         throw std::string("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
     //TODO(ch): block somehow adding new instruction after this call.
+    m_context->getRegisterAllocator()->overrideFuncsRegisterSet(m_parameterRegisters, m_returnRegisters, m_callerSavedRegisters, m_calleeSavedRegisters);
     m_context->getRegisterAllocator()->process(this,m_data,m_nextIdx);
+    
     jumpificate();
     auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
     for (CompilerStagePtr araStage : afterRegAlloc)
@@ -416,6 +418,17 @@ void FuncImpl::return_()
     if (m_returnType == RT_REGISTER)
         throw std::string("Mixed return types");
     newiopNoret(OP_RET, {});
+}
+
+void FuncImpl::overrideFuncsRegisterSet(const std::vector<size_t>& a_parameterRegisters,
+                              const std::vector<size_t>& a_returnRegisters,
+                              const std::vector<size_t>& a_callerSavedRegisters,
+                              const std::vector<size_t>& a_calleeSavedRegisters)
+{
+    m_parameterRegisters=a_parameterRegisters;
+    m_returnRegisters=a_returnRegisters;
+    m_callerSavedRegisters=a_callerSavedRegisters;
+    m_calleeSavedRegisters=a_calleeSavedRegisters;
 }
 
 int FuncImpl::invertCondition(int condition) const

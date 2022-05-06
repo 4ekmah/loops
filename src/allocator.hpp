@@ -8,6 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_ALLOCATOR_HPP__
 
 #include <stdint.h>
+#include <stddef.h>
 
 namespace loops
 {

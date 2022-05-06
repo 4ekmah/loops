@@ -74,6 +74,11 @@ public:
     const Syntfunc& getData() const { return m_data; }
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
+    void overrideFuncsRegisterSet(const std::vector<size_t>& a_parameterRegisters,// TODO(ch): this function is temporary solution for tests. Must be hidden in more developed version of library.
+                                  const std::vector<size_t>& a_returnRegisters,
+                                  const std::vector<size_t>& a_callerSavedRegisters,
+                                  const std::vector<size_t>& a_calleeSavedRegisters);
+
 private:
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
@@ -89,6 +94,11 @@ private:
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
     
     void* m_compiled;
+    
+    std::vector<size_t> m_parameterRegisters;
+    std::vector<size_t> m_returnRegisters;
+    std::vector<size_t> m_callerSavedRegisters;
+    std::vector<size_t> m_calleeSavedRegisters;
 };
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)

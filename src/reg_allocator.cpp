@@ -56,7 +56,7 @@ namespace loops
     {
         Backend* backend = m_owner->getBackend();
         m_knownRegsAmount = a_knownRegsAmount;
-        if (backend->registersAmount() < a_processed.params.size())
+        if (overallRegisterAmount() < a_processed.params.size())
             throw std::string("Register allocator: not enough registers for passing function parameters.");
 
         std::multiset<LiveInterval, startordering> liveintervals;
@@ -293,6 +293,16 @@ namespace loops
         m_returnRegisters = backend->returnRegisters();
         m_callerSavedRegisters = backend->callerSavedRegisters();
         m_calleeSavedRegisters = backend->calleeSavedRegisters();
+        if( !m_parameterRegistersO.empty() ||
+            !m_returnRegistersO.empty() ||
+            !m_callerSavedRegistersO.empty() ||
+            !m_calleeSavedRegistersO.empty())
+        {
+            m_parameterRegisters=m_parameterRegistersO;
+            m_returnRegisters=m_returnRegistersO;
+            m_callerSavedRegisters=m_callerSavedRegistersO;
+            m_calleeSavedRegisters=m_calleeSavedRegistersO;
+        }
         m_spillPlaceholdersAvailable = m_calleeSavedRegisters.size();
         m_usedCallee.clear();
         for (IRegInternal par : m_parameterRegisters)
@@ -303,6 +313,27 @@ namespace loops
             m_registersDistr[par] |= RT_CALLERSAVED;
         for (IRegInternal par : m_calleeSavedRegisters)
             m_registersDistr[par] |= RT_CALLEESAVED;
+    }
+
+    size_t RegisterAllocator::overallRegisterAmount() const
+    {
+        if( !m_parameterRegistersO.empty() ||
+            !m_returnRegistersO.empty() ||
+            !m_callerSavedRegistersO.empty() ||
+            !m_calleeSavedRegistersO.empty())
+        {
+            std::set<IRegInternal> allRegisters;
+            allRegisters.insert(m_parameterRegistersO.begin(), m_parameterRegistersO.end());
+            allRegisters.insert(m_returnRegistersO.begin(), m_returnRegistersO.end());
+            allRegisters.insert(m_calleeSavedRegistersO.begin(), m_calleeSavedRegistersO.end());
+            allRegisters.insert(m_callerSavedRegistersO.begin(), m_callerSavedRegistersO.end());
+            return allRegisters.size();
+        }
+        else
+        {
+            Backend* backend = m_owner->getBackend();
+            return backend->registersAmount();
+        }
     }
 
     size_t RegisterAllocator::freeRegsAmount() const
@@ -371,7 +402,10 @@ namespace loops
     IRegInternal RegisterAllocator::provideReturnFromPool()
     {
         Backend* backend = m_owner->getBackend();
-        m_returnRegisters = backend->returnRegisters(); //TODO(ch): It will works only for one return register.
+        if(!m_returnRegistersO.empty())
+            m_returnRegisters = m_returnRegistersO;
+        else
+            m_returnRegisters = backend->returnRegisters(); //TODO(ch): It will works only for one return register.
         IRegInternal res = IReg::NOIDX;
         if (m_returnRegisters.size() != 0)
             res = m_returnRegisters[0];
@@ -905,4 +939,16 @@ namespace loops
 
         return result;
     }
+
+    void RegisterAllocator::overrideFuncsRegisterSet(const std::vector<size_t>& a_parameterRegisters,
+                              const std::vector<size_t>& a_returnRegisters,
+                              const std::vector<size_t>& a_callerSavedRegisters,
+                              const std::vector<size_t>& a_calleeSavedRegisters)
+    {
+        m_parameterRegistersO = a_parameterRegisters;
+        m_returnRegistersO=a_returnRegisters;
+        m_callerSavedRegistersO=a_callerSavedRegisters;
+        m_calleeSavedRegistersO=a_calleeSavedRegisters;
+    }
+
 };

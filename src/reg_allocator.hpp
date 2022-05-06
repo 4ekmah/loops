@@ -21,9 +21,16 @@ public:
     void process(FuncImpl* a_func, Syntfunc& a_processed, size_t a_knownRegsAmount);
     inline size_t epilogueSize() const { return m_epilogueSize; }
     inline std::set<IRegInternal> usedCallee() const { return m_usedCallee; }
+    
+    void overrideFuncsRegisterSet(const std::vector<size_t>& a_parameterRegisters,// TODO(ch): this function is temporary solution for tests. Must be hidden in more developed version of library.
+                                  const std::vector<size_t>& a_returnRegisters,
+                                  const std::vector<size_t>& a_callerSavedRegisters,
+                                  const std::vector<size_t>& a_calleeSavedRegisters);
+
 private:
     ContextImpl* m_owner;
     void initRegisterPool();
+    size_t overallRegisterAmount() const;
     size_t freeRegsAmount() const;
     bool havefreeRegs() const;
     IRegInternal provideParamFromPool(); //Must be called first.
@@ -45,6 +52,12 @@ private:
     size_t m_epilogueSize;
     size_t m_knownRegsAmount;
     size_t m_snippetCausedSpills;
+
+    std::vector<IRegInternal> m_parameterRegistersO;
+    std::vector<IRegInternal> m_returnRegistersO;
+    std::vector<IRegInternal> m_callerSavedRegistersO;
+    std::vector<IRegInternal> m_calleeSavedRegistersO;
+
 };
 };
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

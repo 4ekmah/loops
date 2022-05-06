@@ -13,6 +13,42 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
 
+enum Aarch64Reg
+{
+    R0   =  0,
+    R1   =  1,
+    R2   =  2,
+    R3   =  3,
+    R4   =  4,
+    R5   =  5,
+    R6   =  6,
+    R7   =  7,
+    XR   =  8,
+    R9   =  9,
+    R10  = 10,
+    R11  = 11,
+    R12  = 12,
+    R13  = 13,
+    R14  = 14,
+    R15  = 15,
+    IP0  = 16,
+    IP1  = 17,
+    PR   = 18,
+    R19  = 19,
+    R20  = 20,
+    R21  = 21,
+    R22  = 22,
+    R23  = 23,
+    R24  = 24,
+    R25  = 25,
+    R26  = 26,
+    R27  = 27,
+    R28  = 28,
+    FP   = 29,
+    LR   = 30, //TODO(ch): Decide if it's possible to use frame pointer as callee-saved register.
+    SP   = 31
+};
+
 static std::shared_ptr<M2bMap> instrucion_set;
 static void init_instrucion_set()
 {
@@ -155,6 +191,21 @@ Aarch64Backend::Aarch64Backend(uint64_t flags)
     m_instructionWidth = 4;
     m_registersAmount = 7;
     m_name = "AArch64";
+
+    if (flags & Context::CF_SPILLSTRESS)
+    {
+        m_parameterRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3 });
+        m_returnRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3 });
+        m_callerSavedRegisters = std::vector<IRegInternal>({});
+        m_calleeSavedRegisters = std::vector<IRegInternal>({ PR, R19, R20, R21, R22 });
+    }
+    else
+    {
+        m_parameterRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3, R4, R5, R6, R7 });
+        m_returnRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3, R4, R5, R6, R7 });
+        m_callerSavedRegisters = std::vector<IRegInternal>({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
+        m_calleeSavedRegisters = std::vector<IRegInternal>({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
+    }
 }
 
 bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const
@@ -223,25 +274,30 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 }
 void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const
 {
-    //TODO(ch): Spill also callee-saved registers.
-    if(a_regSpilled)
+    size_t spAddAligned = a_regSpilled + a_calleeSaved.size();
+    if (spAddAligned)
     {
-        size_t spAligned = (a_regSpilled + (a_regSpilled%2)) * 8;
-        Arg SP = argIReg(31);
-        Arg SPinc = argIConst(spAligned); //TODO(ch): We are assuming here, that register is already aligned into 16 bytes before decreasing, so decreasing it with on multiple of 16, that's how keeping alignment.
-        a_canvas.push_back(Syntop(OP_SUB, {SP, SP,  argIConst(spAligned)}));
+        spAddAligned = spAddAligned + (spAddAligned%2);
+        a_canvas.push_back(Syntop(OP_SUB, {argIReg(SP), argIReg(SP),  argIConst(spAddAligned * 8)}));
+        size_t savNum = a_regSpilled;
+        for (IRegInternal toSav : a_calleeSaved)
+            a_canvas.push_back(Syntop(OP_SPILL, { argIConst(savNum++), argIReg(toSav) }));
     }
+    for(size_t stackParamNum = 0; stackParamNum < a_paramsInStack.size(); stackParamNum++)
+        a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(a_paramsInStack[stackParamNum]), argIConst(stackParamNum + spAddAligned)}));
+    return;
 }
 
 void Aarch64Backend::writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
 {
-    //TODO(ch): Unspill also callee-saved registers.
-    if(a_regSpilled)
+    size_t spAddAligned = a_regSpilled + a_calleeSaved.size();
+    if (spAddAligned)
     {
-        size_t spAligned = (a_regSpilled + (a_regSpilled%2)) * 8;
-        Arg SP = argIReg(31);
-        Arg SPinc = argIConst(spAligned); //TODO(ch): We are assuming here, that register is already aligned into 16 bytes before decreasing, so decreasing it with on multiple of 16, that's how keeping alignment.
-        a_canvas.push_back(Syntop(OP_ADD, {SP, SP,  argIConst(spAligned)}));
+        spAddAligned = spAddAligned + (spAddAligned%2);
+        size_t savNum = a_regSpilled;
+        for (IRegInternal toSav : a_calleeSaved)
+            a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIConst(savNum++) }));
+        a_canvas.push_back(Syntop(OP_ADD, {argIReg(SP), argIReg(SP),  argIConst(spAddAligned * 8)}));
     }
 }
 
@@ -249,22 +305,22 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 {
     return std::unordered_map<int, std::string>({
         {AARCH64_LDRSW, "ldrsw"},
-        {AARCH64_LDR,   "ldr"},
-        {AARCH64_STR,   "str"},
-        {AARCH64_MOV,   "mov"},
-        {AARCH64_ADD,   "add"},
-        {AARCH64_SUB, "sub"},
-        {AARCH64_MUL,   "mul"},
-        {AARCH64_SDIV,  "sdiv"},
-        {AARCH64_CMP_R, "cmp"},
-        {AARCH64_B,     "b"},
-        {AARCH64_B_NE,  "b.ne"},
-        {AARCH64_B_EQ,  "b.eq"},
-        {AARCH64_B_LT,  "b.lt"},
-        {AARCH64_B_GT,  "b.gt"},
-        {AARCH64_B_GE,  "b.ge"},
-        {AARCH64_B_LE,  "b.le"},
-        {AARCH64_RET,   "ret"}});
+        {AARCH64_LDR,   "ldr"  },
+        {AARCH64_STR,   "str"  },
+        {AARCH64_MOV,   "mov"  },
+        {AARCH64_ADD,   "add"  },
+        {AARCH64_SUB,   "sub"  },
+        {AARCH64_MUL,   "mul"  },
+        {AARCH64_SDIV,  "sdiv" },
+        {AARCH64_CMP_R, "cmp"  },
+        {AARCH64_B,     "b"    },
+        {AARCH64_B_NE,  "b.ne" },
+        {AARCH64_B_EQ,  "b.eq" },
+        {AARCH64_B_LT,  "b.lt" },
+        {AARCH64_B_GT,  "b.gt" },
+        {AARCH64_B_GE,  "b.ge" },
+        {AARCH64_B_LE,  "b.le" },
+        {AARCH64_RET,   "ret"  }});
 }
 
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
