@@ -71,7 +71,7 @@ namespace loops
                                 {
                                     Sb(Arg::IREG, SFflg(1, I64AF_ADDRESS,
                                         {
-                                            Sb(0, Sl({ BDsta(0x1222D, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(8, 0) }, ROrd({1,0}))) //mov rax, [rsp + offset]
+                                            Sb(0, Sl({ BDsta(0x1222E, 18), BDreg(3, 1, In), BDsta(0x424, 11), BDspl(32, 0) }, ROrd({1,0}))) //mov rax, [rsp + offset]
                                         }))
                                 })),
                             Sb(Arg::ICONST,
@@ -496,9 +496,7 @@ namespace loops
         if(spAddAligned)
         {
             spAddAligned = spAddAligned + ((spAddAligned % 2)?0:1); //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
-            Arg SP = argIReg(RSP);
-            Arg SPinc = argIConst(spAddAligned);
-            a_canvas.push_back(Syntop(OP_SUB, { SP, SP, SPinc }));
+            a_canvas.push_back(Syntop(OP_SUB, { argIReg(RSP), argIReg(RSP), argIConst(spAddAligned * 8) }));
             size_t savNum = a_regSpilled;
             for (IRegInternal toSav : a_calleeSaved)
                 a_canvas.push_back(Syntop(OP_SPILL, { argIConst(savNum++), argIReg(toSav) }));
@@ -514,12 +512,10 @@ namespace loops
         if (spAddAligned)
         {
             spAddAligned = spAddAligned + ((spAddAligned % 2) ? 0 : 1);
-            Arg SP = argIReg(RSP);
-            Arg SPinc = argIConst(spAddAligned * 8);
             size_t savNum = a_regSpilled;
             for (IRegInternal toSav : a_calleeSaved)
                 a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIConst(savNum++)}));
-            a_canvas.push_back(Syntop(OP_ADD, { SP, SP, SPinc }));
+            a_canvas.push_back(Syntop(OP_ADD, { argIReg(RSP), argIReg(RSP), argIConst(spAddAligned * 8) }));
         }
     }
 

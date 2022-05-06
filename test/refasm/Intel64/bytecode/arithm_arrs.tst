@@ -1,10 +1,10 @@
 arithm_arrs(i0, i1, i2, i3, i4, i5)
-     0 : unspill   i0, 5           
-     1 : unspill   i12, 6          
-     2 : sub       i4, i4, 104     
-     3 : spill     9, i12          
-     4 : spill     10, i13         
-     5 : spill     11, i14         
+     0 : sub       i4, i4, 104     
+     1 : spill     9, i12          
+     2 : spill     10, i13         
+     3 : spill     11, i14         
+     4 : unspill   i0, 18          
+     5 : unspill   i12, 19         
      6 : mov       s0, 0           
      7 : mov       s1, 0           
      8 : mov       s2, 4           

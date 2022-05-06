@@ -314,10 +314,10 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
             m_compound[0].fieldOflags = 0x13225;
         break;
     }
-    case(0x1222D):
+    case(0x1222E):
     {
         if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x1322D;
+            m_compound[0].fieldOflags = 0x1322E;
         break;
     }
     case(0x91EFB):
