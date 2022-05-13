@@ -39,8 +39,8 @@ nonnegative_odd(i0, i1)
     37 : b     [16]             ; eb ff ff 17  
     38 : ldr   x20, [sp], #0x01 ; f4 07 40 f9  
     39 : ldr   x21, [sp], #0    ; f5 03 40 f9  
-    40 : sdiv  x1, x21, x20     ; a1 0e d4 9a  
-    41 : mov   x0, x1           ; e0 03 01 aa  
+    40 : sdiv  x0, x21, x20     ; a0 0e d4 9a  
+    41 : mov   x0, x0           ; e0 03 00 aa  
     42 : ldr   x18, [sp], #0x03 ; f2 0f 40 f9  
     43 : ldr   x19, [sp], #0x04 ; f3 13 40 f9  
     44 : ldr   x20, [sp], #0x05 ; f4 17 40 f9  

@@ -5,6 +5,7 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include <algorithm>
+#include <list>
 #include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
@@ -711,9 +712,6 @@ namespace loops
                 {
                     std::set<IRegInternal> inRegs = backend->getInRegisters(op);
                     std::set<IRegInternal> outRegs = backend->getOutRegisters(op);
-                    //std::set<IRegInternal> inOutRegs = backend->getUsedRegisters(op, Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT);  //TODO(ch): check on ARM, that it works fine without these commented lines.
-                     //for (IRegInternal reg : inOutRegs)
-                     //    outRegs.erase(reg);
                     for (IRegInternal inreg : inRegs)
                         use(inreg, opnum);
                     for (IRegInternal outreg : outRegs)

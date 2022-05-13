@@ -43,8 +43,8 @@ nonnegative_odd(i0, i1)
     41 : label 3:                
     42 : unspill  i20, 1         
     43 : unspill  i21, 0         
-    44 : div      i1, i21, i20   
-    45 : mov      i0, i1         
+    44 : div      i0, i21, i20   
+    45 : mov      i0, i0         
     46 : unspill  i18, 3         
     47 : unspill  i19, 4         
     48 : unspill  i20, 5         
