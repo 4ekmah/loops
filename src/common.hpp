@@ -438,6 +438,15 @@ namespace loops
             return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARGVALUE, argnum, branches);
         }
     };
+
+    inline uint64_t makeRegBasket(std::initializer_list<IRegInternal> regNumbers)
+    {
+        uint64_t res = 0;
+        for (IRegInternal bitnum : regNumbers)
+            res |= (static_cast<uint64_t>(1) << bitnum);
+        return res;
+    }
+
     class Backend;
     class RegisterAllocator;
     class ContextImpl : public Context

@@ -40,7 +40,7 @@ public:
 
     void printBytecode(std::ostream& out) const;
     void printAssembly(std::ostream& out, int columns) const;
-    std::string name() const {return m_data.name;}
+    std::string name() const {return m_subintervals.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
     inline size_t provideIdx() { return m_nextIdx++; }
@@ -71,17 +71,12 @@ public:
     void return_(const IReg& retval);
     void return_();
 
-    const Syntfunc& getData() const { return m_data; }
+    const Syntfunc& getData() const { return m_subintervals; }
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
-    void overrideFuncsRegisterSet(const std::vector<size_t>& a_parameterRegisters,// TODO(ch): this function is temporary solution for tests. Must be hidden in more developed version of library.
-                                  const std::vector<size_t>& a_returnRegisters,
-                                  const std::vector<size_t>& a_callerSavedRegisters,
-                                  const std::vector<size_t>& a_calleeSavedRegisters);
-
 private:
     std::deque<ControlFlowBracket> m_cflowStack;
-    Syntfunc m_data;
+    Syntfunc m_subintervals;
     ContextImpl* m_context;
     size_t m_nextIdx;
     size_t m_nextLabelIdx;
@@ -94,41 +89,36 @@ private:
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
     
     void* m_compiled;
-    
-    std::vector<size_t> m_parameterRegisters;
-    std::vector<size_t> m_returnRegisters;
-    std::vector<size_t> m_callerSavedRegisters;
-    std::vector<size_t> m_calleeSavedRegisters;
 };
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)
 {
     size_t retidx = provideIdx();
-    m_data.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this)}), args);
+    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this)}), args);
     return iregHid(retidx, this);
 }
 
 inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args)
 {
     size_t retidx = provideIdx();
-    m_data.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this), depth}), args);
+    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this), depth}), args);
     return iregHid(retidx, this);
 }
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg)
 {
-    m_data.program.emplace_back(opcode, std::initializer_list<Arg>({argIReg(retreg, this)}), args);
+    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({argIReg(retreg, this)}), args);
     return iregHid(retreg, this);
 }
 
 inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args)
 {
-    m_data.program.emplace_back(opcode, args);
+    m_subintervals.program.emplace_back(opcode, args);
 }
 
 inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
 {
-    m_data.program.emplace_back(opcode, std::initializer_list<Arg>({Arg(depth)}), args);
+    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({Arg(depth)}), args);
 }
 
 inline FuncImpl* getImpl(Func* wrapper)

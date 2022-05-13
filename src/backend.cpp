@@ -246,16 +246,6 @@ OpPrintInfo Backend::getPrintInfo(const Syntop& op)
     return res;
 }
 
-size_t Backend::registersAmount() const
-{ //TODO(ch): Implement more effective.
-    std::set<IRegInternal> allRegisters;
-    allRegisters.insert(m_parameterRegisters.begin(), m_parameterRegisters.end());
-    allRegisters.insert(m_returnRegisters.begin(), m_returnRegisters.end());
-    allRegisters.insert(m_calleeSavedRegisters.begin(), m_calleeSavedRegisters.end());
-    allRegisters.insert(m_callerSavedRegisters.begin(), m_callerSavedRegisters.end());
-    return allRegisters.size();
-}
-
 Backend::Backend() : m_exeAlloc(nullptr)
 , m_isLittleEndianInstructions(true)
 , m_isLittleEndianOperands(false)

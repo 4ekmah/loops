@@ -285,17 +285,17 @@ namespace loops
 #if defined(_WIN32)
         if (flags & Context::CF_SPILLSTRESS)
         {
-            m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 });
-            m_returnRegisters = std::vector<IRegInternal>({ RAX });
-            m_callerSavedRegisters = std::vector<IRegInternal>({});
-            m_calleeSavedRegisters = std::vector<IRegInternal>({ R12, R13, R14, R15 });
+            m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
+            m_returnRegisters = makeRegBasket({ RAX });
+            m_callerSavedRegisters = makeRegBasket({});
+            m_calleeSavedRegisters = makeRegBasket({ R12, R13, R14, R15 });
         }
         else
         {
-            m_parameterRegisters = std::vector<IRegInternal>({ RCX, RDX, R8, R9 });
-            m_returnRegisters = std::vector<IRegInternal>({ RAX });
-            m_callerSavedRegisters = std::vector<IRegInternal>({ R10, R11 });
-            m_calleeSavedRegisters = std::vector<IRegInternal>({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
+            m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
+            m_returnRegisters = makeRegBasket({ RAX });
+            m_callerSavedRegisters = makeRegBasket({ R10, R11 });
+            m_calleeSavedRegisters = makeRegBasket({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
         }
 #else
 #error Linux is not supported
@@ -357,6 +357,10 @@ namespace loops
                 result.insert(0);
                 result.insert(1);
             }
+            break;
+        case(OP_LOAD):  //TODO(ch): Isn't it too much of exceptions? 
+        case(OP_STORE):
+            result = std::set<size_t>();
             break;
         default:
             break;
@@ -490,33 +494,19 @@ namespace loops
         return result;
     }
 
-    void Intel64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const
+    size_t Intel64Backend::stackGrowthAlignment(size_t stackGrowth) const
     {
-        size_t spAddAligned = a_regSpilled + a_calleeSaved.size(); //TODO(ch): Align to 16 or 32 if SIMD's are used.
-        if(spAddAligned)
-        {
-            spAddAligned = spAddAligned + ((spAddAligned % 2)?0:1); //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
-            a_canvas.push_back(Syntop(OP_SUB, { argIReg(RSP), argIReg(RSP), argIConst(spAddAligned * 8) }));
-            size_t savNum = a_regSpilled;
-            for (IRegInternal toSav : a_calleeSaved)
-                a_canvas.push_back(Syntop(OP_SPILL, { argIConst(savNum++), argIReg(toSav) }));
-        }
-        for(size_t stackParamNum = 0; stackParamNum < a_paramsInStack.size(); stackParamNum++)
-            a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(a_paramsInStack[stackParamNum]), argIConst(spAddAligned + stackParamNum + 5) })); //TODO(ch): I have to understand, why it's 5??? I just got it by experiments.
+        return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
 
-    void Intel64Backend::writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
+    size_t Intel64Backend::stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const
     {
-        //TODO(ch): Do something with stack-passed variables.
-        size_t spAddAligned = a_regSpilled + a_calleeSaved.size(); //TODO(ch): Align to 16 or 32 if SIMD's are used.
-        if (spAddAligned)
-        {
-            spAddAligned = spAddAligned + ((spAddAligned % 2) ? 0 : 1);
-            size_t savNum = a_regSpilled;
-            for (IRegInternal toSav : a_calleeSaved)
-                a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIConst(savNum++)}));
-            a_canvas.push_back(Syntop(OP_ADD, { argIReg(RSP), argIReg(RSP), argIConst(spAddAligned * 8) }));
-        }
+        return stackGrowthAlignment(a_nettoSpills + a_snippetCausedSpills) + 5; //TODO(ch): I have to understand, why it's 5??? I just got it by experiments.
+    }
+
+    Arg Intel64Backend::getSParg(Func* funcimpl) const
+    {
+        return argIReg(RSP, funcimpl);
     }
 
     std::unordered_map<int, std::string> Intel64Backend::getOpStrings() const

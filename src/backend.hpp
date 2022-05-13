@@ -13,6 +13,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "printer.hpp"
 #include <vector>
 #include <set>
+#include <map>
 
 namespace loops
 {
@@ -95,8 +96,11 @@ public:
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const; //TODO(ch): most part of this function must be implemeted here. Or it must be there fully.
     const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
     void* compile(Context* a_ctx, Func* a_func) const;
-    virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const = 0;
-    virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const = 0;
+    
+    //Prologue and epilogue support
+    virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
+    virtual size_t stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const = 0;
+    virtual Arg getSParg(Func* funcimpl) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
@@ -108,11 +112,10 @@ public:
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
     inline size_t instructionWidth() const { return m_instructionWidth; };
-    size_t registersAmount() const;
-    virtual const std::vector<IRegInternal>& parameterRegisters() const { return m_parameterRegisters; }
-    virtual const std::vector<IRegInternal>& returnRegisters() const { return m_returnRegisters; }
-    virtual const std::vector<IRegInternal>& callerSavedRegisters() const { return m_callerSavedRegisters; }
-    virtual const std::vector<IRegInternal>& calleeSavedRegisters() const { return m_calleeSavedRegisters; }
+    virtual uint64_t parameterRegisters() const { return m_parameterRegisters; }
+    virtual uint64_t returnRegisters() const { return m_returnRegisters; }
+    virtual uint64_t callerSavedRegisters() const { return m_callerSavedRegisters; }
+    virtual uint64_t calleeSavedRegisters() const { return m_calleeSavedRegisters; }
     inline std::string name() const { return m_name; };
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
@@ -130,10 +133,10 @@ protected:
     bool m_isMonowidthInstruction;
     size_t m_instructionWidth;
     size_t m_registersAmount;
-    std::vector<IRegInternal> m_parameterRegisters;
-    std::vector<IRegInternal> m_returnRegisters;
-    std::vector<IRegInternal> m_callerSavedRegisters;
-    std::vector<IRegInternal> m_calleeSavedRegisters;
+    uint64_t m_parameterRegisters;
+    uint64_t m_returnRegisters;
+    uint64_t m_callerSavedRegisters;
+    uint64_t m_calleeSavedRegisters;
     std::vector<CompilerStagePtr> m_afterRegAllocStages;
     std::string m_name;
 };

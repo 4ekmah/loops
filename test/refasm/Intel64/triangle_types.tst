@@ -97,8 +97,8 @@ triangle_types(i0, i1, i2)
     95 : sub  r12, rcx         ; 49 29 cc                    
     96 : sub  rax, rdx         ; 48 29 d0                    
     97 : mov  r13, [rsp+#0x08] ; 4c 8b ac 24 08 00 00 00     
-    98 : sub  r8, r13          ; 4d 29 e8                    
-    99 : neg  r8               ; 49 f7 d8                    
+    98 : mov  rcx, r13         ; 4c 89 e9                    
+    99 : sub  rcx, r8          ; 4c 29 c1                    
    100 : cmp  r12, [rsp]       ; 4c 3b 64 24 00              
    101 : jge  [106]            ; 0f 8d 14 00 00 00           
    102 : mov  rdx, #0x05       ; 48 c7 c2 05 00 00 00        
@@ -111,13 +111,13 @@ triangle_types(i0, i1, i2)
    109 : mov  rax, rdx         ; 48 89 d0                    
    110 : jmp  [119]            ; e9 29 00 00 00              
    111 : jmp  [117]            ; e9 1a 00 00 00              
-   112 : cmp  r8, [rsp]        ; 4c 3b 44 24 00              
+   112 : cmp  rcx, [rsp]       ; 48 3b 4c 24 00              
    113 : jge  [117]            ; 0f 8d 0f 00 00 00           
-   114 : mov  r8, #0x05        ; 49 c7 c0 05 00 00 00        
-   115 : mov  rax, r8          ; 4c 89 c0                    
+   114 : mov  rcx, #0x05       ; 48 c7 c1 05 00 00 00        
+   115 : mov  rax, rcx         ; 48 89 c8                    
    116 : jmp  [119]            ; e9 0a 00 00 00              
-   117 : mov  r8, #0x04        ; 49 c7 c0 04 00 00 00        
-   118 : mov  rax, r8          ; 4c 89 c0                    
+   117 : mov  rcx, #0x04       ; 48 c7 c1 04 00 00 00        
+   118 : mov  rax, rcx         ; 48 89 c8                    
    119 : mov  r12, [rsp+#0x10] ; 4c 8b a4 24 10 00 00 00     
    120 : mov  r13, [rsp+#0x18] ; 4c 8b ac 24 18 00 00 00     
    121 : add  rsp, #0x28       ; 48 83 c4 28                 

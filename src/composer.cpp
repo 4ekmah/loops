@@ -285,26 +285,23 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
     }
     case(0x224):
     {
-        //if (op[1].idx == 13)
-        //{
-
-        //}
-        //else
+        size_t statn = (op[1].idx > 7) ? 1 : 0;
+        statn |= (op[0].idx > 7) ? 2 : 0;
+        static uint64_t statw[4] = { 10, 18, 18, 18 };
+        m_compound[0].width = statw[statn];
+        if (op[1].idx == 13)
         {
-            size_t statn = (op[1].idx > 7) ? 1 : 0;
-            statn |= (op[0].idx > 7) ? 2 : 0;
+            m_compound[0].fieldOflags = (op[0].idx > 7) ?  0x11625 : 0x10625;
+            m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x0, 8));   //mov [r13], eax
+        }
+        else if (op[1].idx == 12)
+        {
+            m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x24, 8));  //mov [r12], eax (special case)
+        }
+        else
+        {
             static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
-            static uint64_t statw[4] = { 10, 18, 18, 18 };
             m_compound[0].fieldOflags = stats[statn];
-            m_compound[0].width = statw[statn];
-            if (op[1].idx == 13)
-            {
-                if (op[0].idx > 7)
-                    m_compound[0].fieldOflags = (op[0].idx > 7) ?  0x11625 : 0x10625;
-                m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x0, 8));   //mov [r13], eax
-            }
-            else if (op[1].idx == 12)
-                m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x24, 8));  //mov [r12], eax (special case)
         }
         break;
     }

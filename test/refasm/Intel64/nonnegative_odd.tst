@@ -33,13 +33,15 @@ nonnegative_odd(i0, i1)
     31 : jmp    [11]               ; e9 a0 ff ff ff              
     32 : mov    r13, [rsp+#0x10]   ; 4c 8b ac 24 10 00 00 00     
     33 : mov    [rsp], rax         ; 48 89 44 24 00              
-    34 : mov    rax, r13           ; 4c 89 e8                    
-    35 : cqo                       ; 48 99                       
-    36 : idiv   [rsp+#0x18]        ; 48 f7 7c 24 18              
-    37 : mov    rdx, rax           ; 48 89 c2                    
-    38 : mov    rax, [rsp]         ; 48 8b 84 24 00 00 00 00     
-    39 : mov    rax, rdx           ; 48 89 d0                    
-    40 : mov    r12, [rsp+#0x28]   ; 4c 8b a4 24 28 00 00 00     
-    41 : mov    r13, [rsp+#0x30]   ; 4c 8b ac 24 30 00 00 00     
-    42 : add    rsp, #0x38         ; 48 83 c4 38                 
-    43 : ret                       ; c3                          
+    34 : mov    [rsp+#0x08], rdx   ; 48 89 54 24 08              
+    35 : mov    rax, r13           ; 4c 89 e8                    
+    36 : cqo                       ; 48 99                       
+    37 : idiv   [rsp+#0x18]        ; 48 f7 7c 24 18              
+    38 : mov    rcx, rax           ; 48 89 c1                    
+    39 : mov    rax, [rsp]         ; 48 8b 84 24 00 00 00 00     
+    40 : mov    rdx, [rsp+#0x08]   ; 48 8b 94 24 08 00 00 00     
+    41 : mov    rax, rcx           ; 48 89 c8                    
+    42 : mov    r12, [rsp+#0x28]   ; 4c 8b a4 24 28 00 00 00     
+    43 : mov    r13, [rsp+#0x30]   ; 4c 8b ac 24 30 00 00 00     
+    44 : add    rsp, #0x38         ; 48 83 c4 38                 
+    45 : ret                       ; c3                          

@@ -37,13 +37,15 @@ nonnegative_odd(i0, i1)
     35 : label 3:                
     36 : unspill  i13, 2         
     37 : spill    0, i0          
-    38 : mov      i0, i13        
-    39 : cqo                     
-    40 : div      i0, i0, s3     
-    41 : mov      i2, i0         
-    42 : unspill  i0, 0          
-    43 : mov      i0, i2         
-    44 : unspill  i12, 5         
-    45 : unspill  i13, 6         
-    46 : add      i4, i4, 56     
-    47 : ret                     
+    38 : spill    1, i2          
+    39 : mov      i0, i13        
+    40 : cqo                     
+    41 : div      i0, i0, s3     
+    42 : mov      i1, i0         
+    43 : unspill  i0, 0          
+    44 : unspill  i2, 1          
+    45 : mov      i0, i1         
+    46 : unspill  i12, 5         
+    47 : unspill  i13, 6         
+    48 : add      i4, i4, 56     
+    49 : ret                     

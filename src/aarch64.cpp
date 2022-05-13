@@ -194,17 +194,17 @@ Aarch64Backend::Aarch64Backend(uint64_t flags)
 
     if (flags & Context::CF_SPILLSTRESS)
     {
-        m_parameterRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3 });
-        m_returnRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3 });
-        m_callerSavedRegisters = std::vector<IRegInternal>({});
-        m_calleeSavedRegisters = std::vector<IRegInternal>({ PR, R19, R20, R21, R22 });
+        m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3 });
+        m_returnRegisters = makeRegBasket({ R0, R1, R2, R3 });
+        m_callerSavedRegisters = makeRegBasket({});
+        m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22 });
     }
     else
     {
-        m_parameterRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3, R4, R5, R6, R7 });
-        m_returnRegisters = std::vector<IRegInternal>({ R0, R1, R2, R3, R4, R5, R6, R7 });
-        m_callerSavedRegisters = std::vector<IRegInternal>({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
-        m_calleeSavedRegisters = std::vector<IRegInternal>({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
+        m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
+        m_returnRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
+        m_callerSavedRegisters = makeRegBasket({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
+        m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
     }
 }
 
@@ -272,33 +272,20 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     }
     return result;
 }
-void Aarch64Backend::writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const
+
+size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
 {
-    size_t spAddAligned = a_regSpilled + a_calleeSaved.size();
-    if (spAddAligned)
-    {
-        spAddAligned = spAddAligned + (spAddAligned%2);
-        a_canvas.push_back(Syntop(OP_SUB, {argIReg(SP), argIReg(SP),  argIConst(spAddAligned * 8)}));
-        size_t savNum = a_regSpilled;
-        for (IRegInternal toSav : a_calleeSaved)
-            a_canvas.push_back(Syntop(OP_SPILL, { argIConst(savNum++), argIReg(toSav) }));
-    }
-    for(size_t stackParamNum = 0; stackParamNum < a_paramsInStack.size(); stackParamNum++)
-        a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(a_paramsInStack[stackParamNum]), argIConst(stackParamNum + spAddAligned)}));
-    return;
+    return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
 }
 
-void Aarch64Backend::writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const
+size_t Aarch64Backend::stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const
 {
-    size_t spAddAligned = a_regSpilled + a_calleeSaved.size();
-    if (spAddAligned)
-    {
-        spAddAligned = spAddAligned + (spAddAligned%2);
-        size_t savNum = a_regSpilled;
-        for (IRegInternal toSav : a_calleeSaved)
-            a_canvas.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIConst(savNum++) }));
-        a_canvas.push_back(Syntop(OP_ADD, {argIReg(SP), argIReg(SP),  argIConst(spAddAligned * 8)}));
-    }
+    return stackGrowthAlignment(a_nettoSpills + a_snippetCausedSpills);
+}
+
+Arg Aarch64Backend::getSParg(Func* funcimpl) const
+{
+    return argIReg(SP, funcimpl);
 }
 
 std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const

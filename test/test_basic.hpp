@@ -7,6 +7,12 @@ See https://github.com/vpisarev/loops/LICENSE
 #ifndef __LOOPS_TEST_BASIC_HPP__
 #define __LOOPS_TEST_BASIC_HPP__
 
+#include "loops/loops.hpp"
+#include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
+#include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
+#include "tests.hpp"
+#include <iostream>
+
 namespace loops
 {
 LTEST(min_max_scalar, {
@@ -238,7 +244,6 @@ LTESTexe(arithm_arrs, {
 LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
     IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
     CTX.startFunc(TESTNAME, {&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9});
-    CTX.overrideFuncsRegisterSet({ 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
     IReg res = a0 * CTX.const_(1);
     res += a1 * CTX.const_(2);
     res += a2 * CTX.const_(3);
@@ -250,8 +255,10 @@ LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
     res += a8 * CTX.const_(3);
     res += a9 * CTX.const_(2);
     CTX.return_(res);
+    getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeRegBasket({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeRegBasket({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeRegBasket({}), makeRegBasket({ 18, 19, 20, 21, 22 }));
     CTX.endFunc();
-});
+    getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
+    });
 LTESTexe(ten_args_to_sum, {
     typedef int64_t (*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
     ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);

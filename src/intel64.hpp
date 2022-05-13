@@ -40,8 +40,9 @@ namespace loops
         virtual size_t spillSpaceNeeded(const Syntop& a_op) const override final;
         virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const override final;
         virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
-        virtual void writePrologue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved, const std::vector<IRegInternal>& a_paramsInStack) const override final;
-        virtual void writeEpilogue(const Syntfunc& a_srcFunc, std::vector<Syntop>& a_canvas, size_t a_regSpilled, const std::set<IRegInternal>& a_calleeSaved) const override final;
+        virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
+        virtual size_t stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const override final;
+        virtual Arg getSParg(Func* funcimpl) const override final;
         virtual std::unordered_map<int, std::string> getOpStrings() const override final;
         virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
         virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;

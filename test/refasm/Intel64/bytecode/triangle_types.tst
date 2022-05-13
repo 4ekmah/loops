@@ -115,8 +115,8 @@ triangle_types(i0, i1, i2)
    113 : sub       i12, i12, i1 
    114 : sub       i0, i0, i2   
    115 : unspill   i13, 1       
-   116 : sub       i8, i8, i13  
-   117 : neg       i8           
+   116 : mov       i1, i13      
+   117 : sub       i1, i1, i8   
    118 : cmp       i12, s0      
    119 : jmp_ge    18           
    120 : mov       i2, 5        
@@ -131,10 +131,10 @@ triangle_types(i0, i1, i2)
    129 : jmp       29           
    130 : jmp       21           
    131 : label 19:              
-   132 : cmp       i8, s0       
+   132 : cmp       i1, s0       
    133 : jmp_ge    20           
-   134 : mov       i8, 5        
-   135 : mov       i0, i8       
+   134 : mov       i1, 5        
+   135 : mov       i0, i1       
    136 : jmp       29           
    137 : label 20:              
    138 : label 21:              
@@ -145,8 +145,8 @@ triangle_types(i0, i1, i2)
    143 : label 26:              
    144 : label 27:              
    145 : label 28:              
-   146 : mov       i8, 4        
-   147 : mov       i0, i8       
+   146 : mov       i1, 4        
+   147 : mov       i0, i1       
    148 : label 29:              
    149 : unspill   i12, 2       
    150 : unspill   i13, 3       
