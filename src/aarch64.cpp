@@ -49,141 +49,138 @@ enum Aarch64Reg
     SP   = 31
 };
 
-static std::shared_ptr<M2bMap> instrucion_set;
-static void init_instrucion_set()
+Binatr a64binatrLookup(const Syntop& index, bool& scs)
 {
-    instrucion_set = std::make_shared<M2bMap>();
     using namespace BinatrTableConstructor;
-    //TODO(ch): Ldrsw also have many options to be added here. Literal loading, register shift or post/pre-indexing. Format isn't full now and hardcoded.
-
-    instrucion_set->add(AARCH64_LDRSW,
-        SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x5C5,11), BDreg(5, 2, In), BDsta(0x1A,6), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x5C4,11), BDcon(9, 2), BDsta(0x1,2), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)}))
-        }));
-
-    //TODO(ch): It's LDR's specialization: immediate offset.
-    instrucion_set->add(AARCH64_LDR,
-        SFtyp(1, {
-            Sb(Arg::ICONST, Sl({BDsta(0x1, 1), BDcon(1), BDsta(0xE5, 8), BDcon(12, 2), BDreg(5, 1, In|PAdr), BDreg(5, 0, Out)}))
-        }));
-
-    //TODO(ch): It's STR's specialization: immediate offset)
-    instrucion_set->add(AARCH64_STR,
-        SFtyp(1, {
-            Sb(Arg::ICONST, Sl({BDsta(0x1,  1), BDcon(1), BDsta(0xE4, 8), BDcon(12, 2), BDreg(5, 1, In|PAdr), BDreg(5, 0, In|A32D)}))
-        }));
-
-    //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
-    instrucion_set->add(AARCH64_MOV,
-        SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x550,11), BDreg(5, 1, In), BDsta(0x1F ,11), BDreg(5, 0, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x694,11), BDcon(16, 1), BDreg(5, 0, Out)}))
-        }));
-
-    //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
-    instrucion_set->add(AARCH64_ADD,
-        SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x458, 11), BDreg(5, 2, In), BDsta(0x0, 6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x244, 10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}))
-        }));
-
-    //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
-    instrucion_set->add(AARCH64_SUB,
-        SFtyp(0, {
-            Sb(Arg::IREG, Sl({BDsta(0x658,11), BDreg(5, 2, In), BDsta(0x0,6), BDreg(5, 1, In), BDreg(5, 0, Out)})),
-            Sb(Arg::ICONST, Sl({BDsta(0x344,10), BDcon(12, 2), BDreg(5, 1, In), BDreg(5, 0, Out)}))
-        }));
-
-    //TODO(ch): Specialization: 64 registers.
-    instrucion_set->add(AARCH64_MUL, Sl({BDsta(0x4D8,11), BDreg(5, 2, In), BDsta(0x1F, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
-    //TODO(ch): Specialization: 64 registers.
-    instrucion_set->add(AARCH64_SDIV, Sl({BDsta(0x4D6,11), BDreg(5, 2, In), BDsta(0x3, 6), BDreg(5, 1, In), BDreg(5, 0, Out)}));
-    //TODO(ch): there is no CMP_R instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
-    instrucion_set->add(AARCH64_CMP_R, Sl({BDsta(0x758,11), BDreg(5, 1, In), BDsta(0x0,6), BDreg(5, 0, In), BDsta(0x1F,5)}));
-    instrucion_set->add(AARCH64_B, Sl({BDsta(0x5,6), BDoff(26, 0)}));
-    //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
-    instrucion_set->add(AARCH64_B_NE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0x1,5)}));
-    instrucion_set->add(AARCH64_B_EQ, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0x0,5)}));
-    instrucion_set->add(AARCH64_B_LT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xB,5)}));
-    instrucion_set->add(AARCH64_B_LE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xD,5)}));
-    instrucion_set->add(AARCH64_B_GT, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xC,5)}));
-    instrucion_set->add(AARCH64_B_GE, Sl({BDsta(0x54,8), BDoff(19, 0), BDsta(0xA,5)}));
-    instrucion_set->add(AARCH64_RET, Sl({BDsta(0x3597C0, 22), BDreg(5, OpPrintInfo::PI_NOTASSIGNED, In), BDsta(0x0,5)}));
-};
-
-inline M2bMap& get_instrucion_set()
-{
-    if(instrucion_set.get() == nullptr)
-        init_instrucion_set();
-    return *instrucion_set.get();
+    scs = true;
+    switch (index.opcode)
+    {
+        //TODO(ch): Ldrsw also have many options to be added here. Literal loading, register shift or post/pre-indexing. Format isn't full now and hardcoded.
+    case (AARCH64_LDRSW):
+        Assert(index.size() == 3);
+        if (index[2].tag == Arg::IREG)
+            return BiT({ BDsta(0x5C5,11), BDreg(2, 5, In), BDsta(0x1A,6), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::ICONST)
+            return BiT({ BDsta(0x5C4,11), BDcon(2, 9), BDsta(0x1,2), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        break;
+        //TODO(ch): It's LDR's specialization: immediate offset.
+    case (AARCH64_LDR):
+        Assert(index.size() == 4);
+        if (index[3].tag == Arg::ICONST)
+            return BiT({ BDsta(0x1, 1), BDcon(0, 1), BDsta(0xE5, 8), BDcon(3, 12), BDreg(2, 5, In), BDreg(1, 5, Out) });
+        break;
+        //TODO(ch): It's STR's specialization: immediate offset)
+    case (AARCH64_STR):
+        Assert(index.size() == 4);
+        if (index[3].tag == Arg::ICONST)
+            return BiT({ BDsta(0x1,  1), BDcon(0, 1), BDsta(0xE4, 8), BDcon(3, 12), BDreg(2, 5, In), BDreg(1, 5, In) });
+        break;
+        //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
+    case (AARCH64_MOV):
+        Assert(index.size() == 2);
+        if (index[1].tag == Arg::IREG)
+            return BiT({ BDsta(0x550,11), BDreg(1, 5, In), BDsta(0x1F ,11), BDreg(0, 5, Out) });
+        else if (index[1].tag == Arg::ICONST)
+            return BiT({ BDsta(0x694,11), BDcon(1, 16), BDreg(0, 5, Out) });
+        break;
+        //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
+    case (AARCH64_ADD):
+        Assert(index.size() == 3);
+        if (index[2].tag == Arg::IREG)
+            return BiT({ BDsta(0x458, 11), BDreg(2, 5, In), BDsta(0x0, 6), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::ICONST)
+            return BiT({ BDsta(0x244, 10), BDcon(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        break;
+        //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
+    case (AARCH64_SUB):
+        Assert(index.size() == 3);
+        if (index[2].tag == Arg::IREG)
+            return BiT({ BDsta(0x658,11), BDreg(2, 5, In), BDsta(0x0,6), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::ICONST)
+            return BiT({ BDsta(0x344,10), BDcon(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        break;
+        //TODO(ch): Specialization: 64 registers.
+    case (AARCH64_MUL): return BiT({ BDsta(0x4D8,11), BDreg(2, 5, In), BDsta(0x1F, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
+        //TODO(ch): Specialization: 64 registers.
+    case (AARCH64_SDIV): return BiT({ BDsta(0x4D6,11), BDreg(2, 5, In), BDsta(0x3, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
+        //TODO(ch): there is no CMP_R instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
+    case (AARCH64_CMP_R): return BiT({ BDsta(0x758,11), BDreg(1, 5, In), BDsta(0x0,6), BDreg(0, 5, In), BDsta(0x1F, 5) });
+    case (AARCH64_B): return BiT({ BDsta(0x5, 6), BDoff(0, 26) });
+        //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
+    case (AARCH64_B_NE): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0x1, 5) });
+    case (AARCH64_B_EQ): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0x0, 5) });
+    case (AARCH64_B_LT): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0xB, 5) });
+    case (AARCH64_B_LE): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0xD, 5) });
+    case (AARCH64_B_GT): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0xC, 5) });
+    case (AARCH64_B_GE): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0xA, 5) });
+    case (AARCH64_RET): return BiT({ BDsta(0x3597C0, 22), BDreg(0, 5, In), BDsta(0x0,5) });
+    default:
+        break;
+    }
+    scs = false;
+    return Binatr();
 }
 
-static std::shared_ptr<M2mMap> target_mnemonics;
-static void init_target_mnemonics()
+Mnemotr a64mnemotrLookup(const Syntop& index, bool& scs)
 {
-    target_mnemonics = std::make_shared<M2mMap>();
     using namespace MnemotrTableConstructor;
-    const IRegInternal SP = 31; //Stack pointer
-    const IRegInternal RetReg = 30; //Standart filler for return. Return values must be located in I0-I7
-    target_mnemonics->add(OP_LOAD,
-        SFval(1,
+    scs = true;
+    switch (index.opcode)
+    {
+    case (OP_LOAD):
+        Assert(index.size() >= 3);
+        if (index[1].value == TYPE_I32)
         {
-            Sb(TYPE_I32, SFsiz(
-            {
-                Sb(3, Sl(AARCH64_LDRSW, {MAcon(0), MAcop(2), MAcop(0)})),
-                Sb(4, Sl(AARCH64_LDRSW, {MAcop(3), MAcop(2), MAcop(0)}))
-            })),
-            Sb(TYPE_U32, SFtyp(3,
-            {
-                Sb(Arg::ICONST, Sl(AARCH64_LDR, {MAcon(0), MAcop(3), MAcop(2), MAcop(0)}))
-            })),
-            Sb(TYPE_U64, SFtyp(3,
-            {
-                Sb(Arg::ICONST, Sl(AARCH64_LDR, {MAcon(1), MAcop(3), MAcop(2), MAcop(0)}))
-            }))
-        }));
-    target_mnemonics->add(OP_STORE,
-        SFsiz(
+            if (index.size() == 3)
+                return MnT(AARCH64_LDRSW, { MAcop(0), MAcop(2, AF_ADDRESS), MAcon(0) });
+            else if (index.size() == 4)
+                return MnT(AARCH64_LDRSW, { MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
+        }
+        else
         {
-            Sb(3, SFval(0,
-            {
-                Sb(TYPE_I32, Sl(AARCH64_STR, {MAcon(0), MAcon(0), MAcop(1), MAcop(2)})),
-                Sb(TYPE_U32, Sl(AARCH64_STR, {MAcon(0), MAcon(0), MAcop(1), MAcop(2)})),
-                Sb(TYPE_I64, Sl(AARCH64_STR, {MAcon(1), MAcon(0), MAcop(1), MAcop(2)})),
-                Sb(TYPE_U64, Sl(AARCH64_STR, {MAcon(1), MAcon(0), MAcop(1), MAcop(2)}))
-            })),
-            Sb(4, SFval(0,
-            {
-                Sb(TYPE_I32, Sl(AARCH64_STR, {MAcon(0), MAcop(2), MAcop(1), MAcop(3)})),
-                Sb(TYPE_U32, Sl(AARCH64_STR, {MAcon(0), MAcop(2), MAcop(1), MAcop(3)})),
-                Sb(TYPE_I64, Sl(AARCH64_STR, {MAcon(1), MAcop(2), MAcop(1), MAcop(3)})),
-                Sb(TYPE_U64, Sl(AARCH64_STR, {MAcon(1), MAcop(2), MAcop(1), MAcop(3)}))
-            }))
-        }));
-    target_mnemonics->add(OP_MOV,     Sl(AARCH64_MOV,   {MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_ADD,     Sl(AARCH64_ADD,   {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_SUB,     Sl(AARCH64_SUB, {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_MUL,     Sl(AARCH64_MUL,   {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_DIV,     Sl(AARCH64_SDIV,  {MAcop(2), MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_CMP,     Sl(AARCH64_CMP_R, {MAcop(1), MAcop(0)}));
-    target_mnemonics->add(OP_UNSPILL, Sl(AARCH64_LDR,   {MAcon(1), MAcop(1), MAreg(SP), MAcop(0)}));
-    target_mnemonics->add(OP_SPILL,   Sl(AARCH64_STR,   {MAcon(1), MAcop(0), MAreg(SP), MAcop(1)}));
-    target_mnemonics->add(OP_RET,     Sl(AARCH64_RET,   {MAreg(RetReg)}));
-
-};
-
-inline M2mMap& get_target_mnemonics()
-{
-    if(target_mnemonics.get() == nullptr)
-        init_target_mnemonics();
-    return *target_mnemonics.get();
+            Assert(index.size() == 4 && index[3].tag == Arg::ICONST);
+            if (index[1].value == TYPE_U32)
+                return MnT(AARCH64_LDR, { MAcon(0, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
+            else if (index[1].value == TYPE_U64)
+                return MnT(AARCH64_LDR, { MAcon(1, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
+        }
+        break;
+    case (OP_STORE):
+        if (index.size() == 3)
+        {
+            if (index[0].value == TYPE_I32 || index[1].value == TYPE_U32)
+                return MnT(AARCH64_STR, { MAcon(0, AF_NOPRINT), MAcop(2, AF_LOWER32), MAcop(1, AF_ADDRESS), MAcon(0) });
+            else if (index[0].value == TYPE_I64 || index[1].value == TYPE_U64)
+                return MnT(AARCH64_STR, { MAcon(1, AF_NOPRINT), MAcop(2), MAcop(1, AF_ADDRESS), MAcon(0) });
+        }
+        else if (index.size() == 4)
+        {
+            if (index[0].value == TYPE_I32 || index[1].value == TYPE_U32)
+                return MnT(AARCH64_STR, { MAcon(0), MAcop(3, AF_LOWER32), MAcop(1), MAcop(2) });
+            else if (index[0].value == TYPE_I64 || index[1].value == TYPE_U64)
+                return MnT(AARCH64_STR, { MAcon(1), MAcop(3), MAcop(1), MAcop(2) });
+        }
+        break;
+    case (OP_MOV):    return MnT(AARCH64_MOV, { MAcop(0), MAcop(1) });
+    case (OP_ADD):    return MnT(AARCH64_ADD, { MAcop(0), MAcop(1), MAcop(2) });
+    case (OP_SUB):    return MnT(AARCH64_SUB, { MAcop(0), MAcop(1), MAcop(2) });
+    case (OP_MUL):    return MnT(AARCH64_MUL, { MAcop(0), MAcop(1), MAcop(2) });
+    case (OP_DIV):    return MnT(AARCH64_SDIV, { MAcop(0), MAcop(1), MAcop(2) });
+    case (OP_CMP):    return MnT(AARCH64_CMP_R, { MAcop(0), MAcop(1) });
+    case (OP_UNSPILL):return MnT(AARCH64_LDR, { MAcon(1, AF_NOPRINT), MAcop(0), MAreg(SP, AF_ADDRESS), MAcop(1) });
+    case (OP_SPILL):  return MnT(AARCH64_STR, { MAcon(1, AF_NOPRINT), MAcop(1), MAreg(SP, AF_ADDRESS), MAcop(0) });
+    case (OP_RET):    return MnT(AARCH64_RET, { MAreg(LR) });
+    default:
+        break;
+    };
+    scs = false;
+    return Mnemotr();
 }
 
 Aarch64Backend::Aarch64Backend(uint64_t flags)
 {
-    m_2binary = get_instrucion_set();
-    m_2tararch = get_target_mnemonics();
+    m_m2blookup = a64binatrLookup;
+    m_m2mlookup = a64mnemotrLookup;
     m_exeAlloc = Allocator::getInstance();
     m_isLittleEndianInstructions = true;
     m_isLittleEndianOperands = false;
@@ -230,7 +227,9 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
                            (a_btop.opcode == OP_JMP_GE) ? AARCH64_B_GE : (
                            (a_btop.opcode == OP_JMP_LE) ? AARCH64_B_LE :
                                                             AARCH64_B )))));
-            a_formingtarget.program.emplace_back(targetop, std::initializer_list<Arg>({getM2mCurrentOffset()}));
+            Arg jtar = getM2mCurrentOffset();
+            jtar.flags = AF_PRINTOFFSET;
+            a_formingtarget.program.emplace_back(targetop, std::initializer_list<Arg>({jtar}));
             return true;
         }
         case (OP_LABEL):
@@ -323,13 +322,10 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 
 Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum, const OpPrintInfo& pinfo)
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
     {
-        OpPrintInfo::operand ainfo;
-        if(pinfo.size() != 0)
-            ainfo = pinfo[argNum];
-        Arg arg = (ainfo.argnum == OpPrintInfo::PI_NOTASSIGNED) ? toPrint[argNum] : toPrint[ainfo.argnum];
-        if((ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_OFFSET)
+        Arg arg = toPrint[argNum];
+        if (arg.flags & AF_PRINTOFFSET)
         {
             if (arg.tag != Arg::ICONST)
                 throw std::string("Printer: register offsets are not supported.");
@@ -337,8 +333,8 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
             out << "["<< targetline<< "]";
             return;
         }
-        bool w32 = (ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_REG32;
-        bool address = (ainfo.argnum != OpPrintInfo::PI_NOTASSIGNED) && ainfo.flags & OpPrintInfo::PI_ADDRESS;
+        bool w32 = arg.flags & AF_LOWER32;
+        bool address = arg.flags & AF_ADDRESS;
         if (address)
             out<<"[";
         switch (arg.tag)

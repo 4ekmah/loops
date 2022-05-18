@@ -7,6 +7,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_COMMON_HPP__
 
 #include "loops/loops.hpp"
+#include <functional>
 #include <set>
 #include <stack>
 #include <unordered_map>
@@ -48,6 +49,15 @@ namespace loops
         return res;
     }
 
+    inline Arg argIConst(int64_t val, Func* impl = nullptr)
+    {
+        Arg res;
+        res.tag = Arg::ICONST;
+        res.value = val;
+        res.func = impl;
+        return res;
+    }
+
     inline bool regOrSpi(const Arg& toCheck)
     {
         return toCheck.tag == Arg::IREG || toCheck.tag == Arg::ISPILLED;
@@ -65,14 +75,13 @@ namespace loops
         return false;
     }
 
-    inline Arg argIConst(int64_t val, Func* impl = nullptr)
+    enum ArgFlags
     {
-        Arg res;
-        res.tag = Arg::ICONST;
-        res.value = val;
-        res.func = impl;
-        return res;
-    }
+        AF_ADDRESS = 1,
+        AF_LOWER32 = 2,
+        AF_NOPRINT = 4,
+        AF_PRINTOFFSET = 8,
+    };
 
     struct ExpandableClass
     {
@@ -231,213 +240,6 @@ namespace loops
         virtual ~CompilerStage() {}
     };
     typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
-
-    template<typename T>
-    struct SyntopIndexedArray
-    {
-        struct ArgIndA
-        {
-            enum {C_ARRSIZE, C_ARGTYPE, C_ARGVALUE, C_LEAF, C_FLAGMASK};
-            int m_condition;
-            size_t m_argnum;
-            uint64_t m_flagmask;
-            T m_leaf;
-            std::unordered_map<int64_t, ArgIndA> m_branches;
-            ArgIndA(): m_condition(C_LEAF), m_argnum(-1), m_flagmask(0) {}
-            ArgIndA(const T& a_leaf): m_condition(C_LEAF), m_leaf(a_leaf), m_argnum(-1), m_flagmask(0) {}
-        };
-
-        std::unordered_map<int, ArgIndA > containment;
-        void add(int opcode, const ArgIndA& toAdd) {containment[opcode] = toAdd;};
-        const T& operator[](const Syntop& index) const;
-        std::set<size_t> filterStackPlaceable(const Syntop& index, const std::set<size_t>& toFilter) const;
-        inline bool empty() const { return containment.empty();}
-        inline bool has(int opcode) const { return containment.count(opcode) != 0;} //Check only existence of command. For checking existance of variant correspondent to given arguments use has(Syntop& index)
-    private:
-        static std::set<size_t> filterStackPlaceable_(const Syntop& index, const std::set<size_t>& toFilter, const ArgIndA& argind, bool& exists)
-        {
-            if (argind.m_condition == ArgIndA::C_LEAF)
-            {
-                exists = true;
-                return std::set<size_t>();
-            }
-            int64_t condition_val;
-            switch (argind.m_condition)
-            {
-            case(ArgIndA::C_ARRSIZE):
-            {
-                condition_val = index.size();
-                break;
-            }
-            case(ArgIndA::C_ARGTYPE):
-            {
-                Assert(argind.m_argnum < index.size());
-                condition_val = index[argind.m_argnum].tag;
-                if (condition_val == Arg::IREG && toFilter.count(argind.m_argnum) && argind.m_branches.count(Arg::ISPILLED))
-                {
-                    Assert(argind.m_branches.count(Arg::IREG));
-                    bool exNsp;
-                    std::set<size_t> resNsp = filterStackPlaceable_(index, toFilter, argind.m_branches.at(Arg::IREG), exNsp);
-                    std::set<size_t> toFilter2 = toFilter;
-                    toFilter2.erase(argind.m_argnum);
-                    bool exSp;
-                    std::set<size_t> resSp = filterStackPlaceable_(index, toFilter2, argind.m_branches.at(Arg::ISPILLED), exSp);
-                    resSp.insert(argind.m_argnum);
-                    exists = (exSp || exNsp);
-                    if ((exSp && exNsp && resSp.size() > resNsp.size()) || (exSp && !exNsp))
-                        return resSp;
-                    else if (exNsp)
-                        return resNsp;
-                    else
-                        return std::set<size_t>();
-                }
-                break;
-            }
-            case(ArgIndA::C_ARGVALUE):
-            {
-                Assert(argind.m_argnum < index.size());
-                condition_val = index[argind.m_argnum].value;
-                break;
-            }
-            case(ArgIndA::C_FLAGMASK):
-            {
-                Assert(argind.m_argnum < index.size());
-                condition_val = argind.m_flagmask & index[argind.m_argnum].flags;
-                break;
-            }
-            default:
-                throw std::string("Argument-indexed Array: Unknown condition type.");
-            }
-            if (argind.m_branches.count(condition_val) == 0)
-            {
-                exists = false;
-                return std::set<size_t>();
-            }
-            return filterStackPlaceable_(index, toFilter, argind.m_branches.at(condition_val), exists);
-        }
-    };
-
-    template<typename T>
-    const T& SyntopIndexedArray<T>::operator[](const Syntop& index) const
-    {
-        auto opcoderator = containment.find(index.opcode);
-        if (opcoderator == containment.end())
-            throw std::string("Index error: nothing is registered with given opcode.");
-        const ArgIndA* branch = &(opcoderator->second);
-        while (branch->m_condition != ArgIndA::C_LEAF)
-        {
-            int64_t condition_val;
-            switch (branch->m_condition)
-            {
-            case(ArgIndA::C_ARRSIZE):
-            {
-                condition_val = index.size();
-                break;
-            }
-            case(ArgIndA::C_ARGTYPE):
-            {
-                if (branch->m_argnum >= index.size())
-                    throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
-                condition_val = index[branch->m_argnum].tag;
-                break;
-            }
-            case(ArgIndA::C_ARGVALUE):
-            {
-                if (branch->m_argnum >= index.size())
-                    throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
-                condition_val = index[branch->m_argnum].value;
-                break;
-            }
-            case(ArgIndA::C_FLAGMASK):
-            {
-                Assert(branch->m_argnum < index.size());
-                condition_val = branch->m_flagmask & index[branch->m_argnum].flags;
-                break;
-            }
-            default:
-                throw std::string("Argument-indexed Array: Unknown condition type.");
-            }
-            if (branch->m_branches.count(condition_val) == 0)
-                throw std::string("Argument-indexed Array: don't have such an element.");
-            branch = &(branch->m_branches.at(condition_val));
-        }
-        return branch->m_leaf;
-    }
-
-    template<typename T>
-    std::set<size_t> SyntopIndexedArray<T>::filterStackPlaceable(const Syntop& index, const std::set<size_t>& toFilter) const
-    {
-        auto opcoderator = containment.find(index.opcode);
-        Assert(opcoderator != containment.end());
-        bool exists;
-        return filterStackPlaceable_(index, toFilter, *(&(opcoderator->second)), exists);
-    }
-
-    namespace BackendTableConstructor
-    {
-        //Sl is for "SyntopIndexedArray leaf"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA Sl(const T& towrap) { return typename SyntopIndexedArray<T>::ArgIndA(towrap); }
-        
-        template<typename T>
-        struct SyntopTreeTempBranch
-        {
-            int condval;
-            typename SyntopIndexedArray<T>::ArgIndA val;
-            SyntopTreeTempBranch() : condval(-1) {}
-        };
-    
-        //Sb is for "SyntopIndexedArray branch"
-        template<typename T>
-        inline SyntopTreeTempBranch<T> _Sb(int cval, const typename SyntopIndexedArray<T>::ArgIndA& val)
-        {
-            SyntopTreeTempBranch<T> result;
-            result.condval = cval;
-            result.val = val;
-            return result;
-        }
-    
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA Sf(int condtype, size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            typename SyntopIndexedArray<T>::ArgIndA result;
-            result.m_condition = condtype;
-            result.m_argnum = argnum;
-            for(const SyntopTreeTempBranch<T>& branch : branches)
-                result.m_branches[branch.condval] = branch.val;
-            return result;
-        }
-
-        //SFsiz is for "SyntopIndexedArray fork by array size"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFsiz(std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARRSIZE, 0, branches);
-        }
-
-        //SFtyp is for "SyntopIndexedArray fork by argument type"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFtyp(size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARGTYPE, argnum, branches);
-        }
-
-        //SFtyp is for "SyntopIndexedArray fork by argument type"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFflg(size_t argnum, uint64_t flagmask, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            typename SyntopIndexedArray<T>::ArgIndA ret = Sf(SyntopIndexedArray<T>::ArgIndA::C_FLAGMASK, argnum, branches);
-            ret.m_flagmask = flagmask;
-            return ret;
-        }
-
-        //SFval is for "SyntopIndexedArray fork by argument value"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFval(size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARGVALUE, argnum, branches);
-        }
-    };
 
     inline uint64_t makeRegBasket(std::initializer_list<IRegInternal> regNumbers)
     {

@@ -71,7 +71,6 @@ public:
     inline size_t epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
-    std::map<IRegInternal, std::pair<size_t, size_t> > livenessAnalysis(Syntfunc& a_processed);
     ContextImpl* m_owner;
     RegisterPool m_pool;
     size_t m_epilogueSize;

@@ -55,86 +55,64 @@ namespace loops
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET, D_SPILLED};
-            enum {D_INPUT = 1, D_OUTPUT = 2, D_PRINTADDRESS = 4, D_32Dep = 8}; //TODO(ch): D_32Dep is 32 if args[0] is equal to 0. Do something with this semihardcode.
+            enum {D_INPUT = 1, D_OUTPUT = 2};
             Detail(int tag, size_t fieldsize);
             Detail(int tag, uint64_t val, size_t fieldsize);
             int tag;
             size_t width; //in bits //TODO(ch): unsigned char?
             uint64_t fieldOflags;
             inline uint64_t flags() { return fieldOflags;}
-            size_t printNum;
+            size_t arVecNum;
         };
         std::vector<Detail> m_compound;
-        std::vector<size_t> m_reordering;
         size_t m_bytewidth;
         Binatr(): m_bytewidth(0) {}
         Binatr(std::initializer_list<Detail> lst);
-        size_t size(const Syntop& op) const;
+        size_t size() const { return m_bytewidth; }
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
-        OpPrintInfo getPrintInfo(const Syntop& op) const;
     };
 
     namespace BinatrTableConstructor
     {
-        using BackendTableConstructor::SFsiz;
-        using BackendTableConstructor::SFtyp;
-        using BackendTableConstructor::SFflg;
-        using BackendTableConstructor::SFtyp;
-
-        inline std::vector<size_t> ROrd(std::initializer_list<size_t> reordering)
+        inline Binatr BiT(std::initializer_list<Binatr::Detail> details)
         {
-            uint64_t bitmask = ((uint64_t)(1) << reordering.size()) - 1;
-            for (size_t rdr : reordering)
-                bitmask ^= (uint64_t)(1) << rdr;
-            Assert(bitmask == 0);
-            return std::vector<size_t>(reordering);
-        }
-
-        inline BackendTableConstructor::SyntopTreeTempBranch<Binatr> Sb(int cval, const typename SyntopIndexedArray<Binatr>::ArgIndA& val)
-        {
-            using namespace BackendTableConstructor;
-            return _Sb<Binatr>(cval, val);
-        }
-
-        inline SyntopIndexedArray<Binatr>::ArgIndA Sl(std::initializer_list<Binatr::Detail> details, const std::vector<size_t>& reordering = std::vector<size_t>())
-        {
-            auto res = Binatr(details);
-            res.m_reordering = reordering;
-            return BackendTableConstructor::Sl(res);
+            return Binatr(details);
         }
 
         inline Binatr::Detail BDsta(uint64_t field, size_t width) {return Binatr::Detail(Binatr::Detail::D_STATIC, field, width); }
-        inline Binatr::Detail BDreg(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT)
+
+        inline Binatr::Detail BDreg(size_t arVecNum, size_t width, uint64_t regflag = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT)
         {
             Binatr::Detail res(Binatr::Detail::D_REG, width);
             res.fieldOflags = regflag;
-            res.printNum = prnum;
+            res.arVecNum = arVecNum;
             return res;
         }
 
-        inline Binatr::Detail BDspl(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)
+        inline Binatr::Detail BDspl(size_t arVecNum, size_t width)
         {
             Binatr::Detail res(Binatr::Detail::D_SPILLED, width);
-            res.printNum = prnum;
+            res.arVecNum = arVecNum;
             return res;
         }
 
-        inline Binatr::Detail BDcon(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)//TODO(ch): Rename const -> immediate, BDcon->BDimm
+        inline Binatr::Detail BDcon(size_t arVecNum, size_t width, uint64_t flags = 0)//TODO(ch): Rename const -> immediate, BDcon->BDimm
         {
             Binatr::Detail res(Binatr::Detail::D_CONST, width);
-            res.printNum = prnum;
+            res.arVecNum = arVecNum;
+            res.fieldOflags = flags;
             return res;
         }
-        inline Binatr::Detail BDoff(size_t width, size_t prnum = OpPrintInfo::PI_NOTASSIGNED)
+
+        inline Binatr::Detail BDoff(size_t arVecNum, size_t width)
         {
             Binatr::Detail res(Binatr::Detail::D_OFFSET, width);
-            res.printNum = prnum;
+            res.arVecNum = arVecNum;
             return res;
         }
-        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT, IO = Binatr::Detail::D_OUTPUT, A32D = Binatr::Detail::D_32Dep, PAdr = Binatr::Detail::D_PRINTADDRESS};
-    };
 
-    typedef SyntopIndexedArray<Binatr> M2bMap;//m2b is for "mnemonic to binary"
+        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT, IO = Binatr::Detail::D_OUTPUT};
+    };
 };
 
 #endif //__LOOPS_COMPOSER_HPP__

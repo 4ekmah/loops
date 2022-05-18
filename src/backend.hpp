@@ -39,29 +39,27 @@ struct Mnemotr //is for "mnemonic translation"
     enum {ARG_NOT_USED = -1}; //TODO(ch) : Probably, it's better to replace it with NOIDX?
 };
 
-typedef SyntopIndexedArray<Mnemotr> M2mMap;//m2m is for "mnemonic to mnemonic"
-
 namespace MnemotrTableConstructor
 {
-    using BackendTableConstructor::SFsiz;
-    using BackendTableConstructor::SFtyp;
-    using BackendTableConstructor::SFval;
-
-    inline BackendTableConstructor::SyntopTreeTempBranch<Mnemotr> Sb(int cval, const typename SyntopIndexedArray<Mnemotr>::ArgIndA& val)
+    inline Mnemotr MnT(int taropcode, std::initializer_list<Mnemotr::Argutr> translations)
     {
-        using namespace BackendTableConstructor;
-        return _Sb<Mnemotr>(cval, val);
-    }
-
-    inline SyntopIndexedArray<Mnemotr>::ArgIndA Sl(int taropcode, std::initializer_list<Mnemotr::Argutr> translations)
-    {
-        return BackendTableConstructor::Sl(Mnemotr(taropcode, translations));
+        return Mnemotr(taropcode, translations);
     }
 
     //MAreg is for Mnemotr::Argutr fixed reigster
-    inline Mnemotr::Argutr MAreg(IRegInternal idx) { return Mnemotr::Argutr(argIReg(idx)); }
+    inline Mnemotr::Argutr MAreg(IRegInternal idx, uint64_t flags = 0)
+    {
+        Arg resArg = argIReg(idx);
+        resArg.flags = flags;
+        return Mnemotr::Argutr(resArg);
+    }
     //MAcon is for Mnemotr::Argutr fixed value
-    inline Mnemotr::Argutr MAcon(int64_t val) { return Mnemotr::Argutr(argIConst(val)); }
+    inline Mnemotr::Argutr MAcon(int64_t val, uint64_t flags = 0)
+{
+        Arg resArg = argIConst(val);
+        resArg.flags = flags;
+        return Mnemotr::Argutr(resArg);
+    }
     //MAcop is for Mnemotr::Argutr to be copied from source
     inline Mnemotr::Argutr MAcop(size_t argnum, uint64_t flags = 0) { return Mnemotr::Argutr(argnum, flags); }
     //MAcop is for Mnemotr::Argutr to be copied and transformed to spill.
@@ -105,7 +103,6 @@ public:
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
-    OpPrintInfo getPrintInfo(const Syntop& op);
 
     Allocator* getAllocator() { return m_exeAlloc; }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
@@ -125,8 +122,24 @@ protected:
     Backend();
     size_t getM2mCurrentOffset() const {return m_m2mCurrentOffset;}
     virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const = 0;
-    M2mMap m_2tararch;
-    M2bMap m_2binary;
+
+    Binatr(*m_m2blookup)(const Syntop&, bool&);
+    Mnemotr(*m_m2mlookup)(const Syntop&, bool&);
+    inline Binatr lookM2b(const Syntop& index) const
+    {
+        bool NOTSUPPORTED;
+        Binatr ret = m_m2blookup(index, NOTSUPPORTED);
+        Assert(NOTSUPPORTED);
+        return ret;
+    }
+    inline Mnemotr lookM2m(const Syntop& index) const
+    {
+        bool NOTSUPPORTED;
+        Mnemotr ret = m_m2mlookup(index, NOTSUPPORTED);
+        Assert(NOTSUPPORTED);
+        return ret;
+    }
+
     Allocator* m_exeAlloc;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;

@@ -116,7 +116,7 @@ bool Test::checkListingEquality(const std::string& curL, const std::string& refL
     const size_t refSiz = refL.size();
     bool result = true;
     std::string mainErrorMes = "    " + errMes +": ";
-    while(true)
+    while(true)   //TODO(ch): Line vs line comparing and avoid spaces duplicates.
     {
         if(curPos == curSiz && refSiz!=curSiz)
         {

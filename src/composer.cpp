@@ -99,10 +99,9 @@ uint64_t Bitwriter::revertDetail(uint64_t a_det, size_t dwidth)
     return a_det;
 }
 
-Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag)
+Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,width(fieldsize)
    ,fieldOflags(0)
-   ,printNum(-1)
 {
     if(tag != D_REG && tag != D_CONST && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET && tag != D_SPILLED)
         throw std::string("Binary translator: wrong detail constructor.");
@@ -111,7 +110,7 @@ Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag)
 Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize):tag(tag)
    ,width(fieldsize)
    ,fieldOflags(val)
-   ,printNum(-1)
+   ,arVecNum(-1)
 {
     if(tag != D_STATIC)
         throw std::string("Binary translator: wrong detail constructor.");
@@ -124,293 +123,73 @@ Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_bytewidth
     m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
 }
 
-size_t Binatr::size(const Syntop& op) const 
-{
-    size_t res = m_bytewidth;
-#if defined(_WIN32)                                      //TODO(ch): IMPORTANT. Destroy it. Devastate. Annihilate. 
-    switch (m_compound[0].fieldOflags)
-    {
-    case(0x224):
-    {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t sadd[4] = { 0, 1, 1, 1 };
-        res += sadd[statn];
-        if (op[1].idx == 12 || op[1].idx == 13)
-            res++;
-        break;
-    }
-    default:
-        break;
-    }
-#endif
-    return res; 
-}
-
 void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
-       throw std::string("Binary translator: null writer pointer.");
-    bits->startInstruction();
-    size_t argnum = 0;
-    std::vector<size_t> reordering;
-    if (!m_reordering.size())
+        throw std::string("Binary translator: null writer pointer.");
+            bits->startInstruction();
+            uint64_t argmask = (uint64_t(1) << op.size()) - 1;
+    for (const Detail& det : m_compound)
     {
-        reordering.reserve(op.size());
-        for (size_t rodr = 0; rodr < op.size(); rodr++) reordering.push_back(rodr);
-    }
-    else
-        reordering = m_reordering;
+        uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
 
-#if defined(_WIN32)                                      //TODO(ch): IMPORTANT. Destroy it. Devastate. Annihilate. 
-    std::vector<Detail> intelRegisterTrick = m_compound; //That's how we handle r8-r15 registers. Sigh...
-    std::vector<Detail> m_compound = intelRegisterTrick;
-    switch (m_compound[0].fieldOflags)
-    {
-    case(0x918F8):
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x938F8;
-        break;
-    case(0x1218C):
-    {
-        if (op.size() == 2)
-        {
-            size_t statn = (op[0].idx > 7) ? 1 : 0;
-            statn |= (op[1].idx > 7) ? 2 : 0;
-            static uint64_t stats[4] = { 0x1218C , 0x1318C, 0x1258C, 0x1358C };
-            m_compound[0].fieldOflags = stats[statn];
-        } else if (op.size() == 3)
-        {
-            size_t statn = (op[0].idx > 7) ? 1 : 0;
-            statn |= (op[2].idx > 7) ? 2 : 0;
-            statn |= (op[1].idx > 7) ? 4 : 0;
-            static uint64_t stats[8] = { 0x1218C, 0x1318C, 0x1258C, 0x1358C, 0x1298C, 0x1398C, 0x12D8C, 0x13D8C };
-            m_compound[0].fieldOflags = stats[statn];
-        }
-        break;
-    }
-    case(0x120E7):
-    {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x120E7, 0x124E7, 0x130E7, 0x134E7 };
-        m_compound[0].fieldOflags = stats[statn];
-        break;
-    }
-    case(0x120E5):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x130E5;
-        break;
-    }
-    case(0x120ED):
-    {
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x130ED;
-        break;
-    }
-    case(0x120A7):
-    {
-        size_t statn = (op[0].idx > 7) ? 1 : 0;
-        statn |= (op[1].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x120A7, 0x130A7, 0x124A7, 0x134A7 };
-        m_compound[0].fieldOflags = stats[statn];
-        break;
-    }
-    case(0x120A5):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x130A5;
-        break;
-    }
-    case(0x120AD):
-    {
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x130AD;
-        break;
-    }
-    case(0x9107D):
-    {
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x9307D;
-        break;
-    }
-    case(0x91EFF):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x93EFF;
-        break;
-    }
-    case(0x1203EBF):
-    {
-        size_t statn = (op[0].idx > 7) ? 1 : 0;
-        statn |= (op[1].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x1203EBF, 0x1303EBF, 0x1243EBF, 0x1343EBF };
-        m_compound[0].fieldOflags = stats[statn];
-        break;
-    }
-    case(0x1203EBD):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x1303EBD;
-        break;
-    }
-    case(0x12227):
-    {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x12227, 0x12627, 0x13227, 0x13627 };
-        m_compound[0].fieldOflags = stats[statn];
-        break;
-    }
-    case(0x12007):
-    {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t stats[4] = { 0x12007, 0x12407,  0x13007, 0x13407 };
-        m_compound[0].fieldOflags = stats[statn];
-        break;
-    }
-    case(0x12005):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x13005;
-        break;
-    }
-    case(0x1200D):
-    {
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x1300D;
-        break;
-    }
-    case(0x224):
-    {
-        size_t statn = (op[1].idx > 7) ? 1 : 0;
-        statn |= (op[0].idx > 7) ? 2 : 0;
-        static uint64_t statw[4] = { 10, 18, 18, 18 };
-        m_compound[0].width = statw[statn];
-        if (op[1].idx == 13)
-        {
-            m_compound[0].fieldOflags = (op[0].idx > 7) ?  0x11625 : 0x10625;
-            m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x0, 8));   //mov [r13], eax
-        }
-        else if (op[1].idx == 12)
-        {
-            m_compound.push_back(Binatr::Detail(Binatr::Detail::D_STATIC, 0x24, 8));  //mov [r12], eax (special case)
-        }
-        else
-        {
-            static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
-            m_compound[0].fieldOflags = stats[statn];
-        }
-        break;
-    }
-    case(0x12225):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x13225;
-        break;
-    }
-    case(0x1222E):
-    {
-        if (op[1].idx > 7)
-            m_compound[0].fieldOflags = 0x1322E;
-        break;
-    }
-    case(0x91EFB):
-    {
-        if (op[0].idx > 7)
-            m_compound[0].fieldOflags = 0x93EFB;
-        break;
-    }
-    default:
-        break;
-    }
-#endif
-
-    for(const Detail& det : m_compound)
         switch (det.tag)
         {
-            case (Detail::D_REG):
-                if(op.args[reordering[argnum]].tag != Arg::IREG)
-                    throw std::string("Binary translator: syntop bring const instead of register.");
-                ++argnum;
-                break;
-            case (Detail::D_SPILLED):
-                if (op.args[reordering[argnum]].tag != Arg::ISPILLED)
-                    throw std::string("Binary translator: syntop bring active register instead of spilled.");
-                ++argnum;
-                break;
-            case (Detail::D_CONST):
-            case (Detail::D_ADDRESS):
-            case (Detail::D_OFFSET):
-            case (Detail::D_STACKOFFSET):
-                if(op.args[reordering[argnum]].tag != Arg::ICONST)
-                    throw std::string("Binary translator: syntop bring register instead of const.");
-                ++argnum;
-                break;
-            case (Detail::D_STATIC): break;
-            default:
-                throw std::string("Binary translator: unknown detail type.");
+        case (Detail::D_REG):
+            if (op.args[det.arVecNum].tag != Arg::IREG)
+                throw std::string("Binary translator: syntop bring const instead of register.");
+            argmask = (argmask | pos) ^ pos;
+            break;
+        case (Detail::D_SPILLED):
+            if (op.args[det.arVecNum].tag != Arg::ISPILLED)
+                throw std::string("Binary translator: syntop bring active register or const instead of spilled.");
+            argmask = (argmask | pos) ^ pos;
+            break;
+        case (Detail::D_CONST):
+        case (Detail::D_ADDRESS):
+        case (Detail::D_OFFSET):
+        case (Detail::D_STACKOFFSET):
+            if (op.args[det.arVecNum].tag != Arg::ICONST)
+                throw std::string("Binary translator: syntop bring register instead of const.");
+            argmask = (argmask | pos) ^ pos;
+            break;
+        case (Detail::D_STATIC): break;
+        default:
+            throw std::string("Binary translator: unknown detail type.");
         };
-    if(argnum != op.size())
-        throw std::string("Amounts of arguments and placeholder are not equal.");
-    argnum = 0;
-    for(const Detail& det : m_compound)
+    }
+    Assert(argmask == 0);
+    for (const Detail& det : m_compound)
     {
         uint64_t piece = 0;
         switch (det.tag)
         {
-            case (Detail::D_STATIC):
-                piece = det.fieldOflags;
-                break;
-            case (Detail::D_REG):
-                piece = op[reordering[argnum++]].idx;
-                break;
-            case (Detail::D_ADDRESS):
-            {
-//                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
-            }
-            case (Detail::D_CONST):
-            case (Detail::D_OFFSET):
-            case (Detail::D_STACKOFFSET):
-            case (Detail::D_SPILLED):
-                piece = static_cast<uint64_t>(op[reordering[argnum++]].value);
-                if (det.tag == Detail::D_SPILLED)
-                    piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
-                if (bits->getBackend()->isLittleEndianOperands())
-                    piece = Bitwriter::revertDetail(piece, det.width);
-                break;
-            default:
-                throw std::string("Binary translator: unknown detail type.");
+        case (Detail::D_STATIC):
+            piece = det.fieldOflags;
+            break;
+        case (Detail::D_REG):
+            piece = op.args[det.arVecNum].idx;
+            break;
+        case (Detail::D_ADDRESS):
+        {
+            //                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
+        }
+        case (Detail::D_CONST):
+        case (Detail::D_OFFSET):
+        case (Detail::D_STACKOFFSET):
+        case (Detail::D_SPILLED):
+            piece = static_cast<uint64_t>(op.args[det.arVecNum].value);
+            if (det.tag == Detail::D_SPILLED)
+                piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
+            if (bits->getBackend()->isLittleEndianOperands())
+                piece = Bitwriter::revertDetail(piece, det.width);
+            break;
+        default:
+            throw std::string("Binary translator: unknown detail type.");
         };
         bits->writeDetail(piece, det.width);
     }
     bits->endInstruction();
-}
-
-OpPrintInfo Binatr::getPrintInfo(const Syntop& op) const
-{
-    OpPrintInfo printInfo;
-    size_t argNum = 0;
-    for(const Detail& det : m_compound)
-        if(det.tag != Detail::D_STATIC)
-        {
-            if(det.printNum != OpPrintInfo::PI_NOTASSIGNED)
-            {
-
-                OpPrintInfo::operand oprnd;
-                oprnd.argnum = argNum;
-                oprnd.flags |= (det.tag == Detail::D_OFFSET) ? OpPrintInfo::PI_OFFSET : 0;
-                oprnd.flags |= ((det.fieldOflags&Detail::D_PRINTADDRESS) != 0) ? OpPrintInfo::PI_ADDRESS : 0;
-                oprnd.flags |= ((((det.fieldOflags&Detail::D_32Dep) != 0) && (op.args[0].value == 0)) ? OpPrintInfo::PI_REG32 : 0); // TODO(ch):op.args[0].value == 0 is unsafe
-                printInfo[det.printNum] = oprnd;
-            }
-            argNum++;
-        }
-    for(const OpPrintInfo::operand& oprnd: printInfo)
-        if(oprnd.argnum == OpPrintInfo::PI_NOTASSIGNED)
-            throw std::string("Binary translator: argument printing numbers are given with gap.");
-    return printInfo;
+    return;
 }
 };

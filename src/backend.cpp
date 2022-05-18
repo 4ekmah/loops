@@ -59,12 +59,12 @@ size_t Mnemotr::targetArgNum(size_t a_srcnum) const
 
 bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
 {
-    const Mnemotr& m2m = m_2tararch[a_op];
+    const Mnemotr& m2m = lookM2m(a_op);
     argnum = m2m.targetArgNum(argnum);
     if(argnum == Mnemotr::ARG_NOT_USED)
         return true;
     Syntop tar_op = m2m.apply(a_op);
-    const Binatr& instemp = m_2binary[tar_op];
+    const Binatr& instemp = lookM2b(tar_op);
     if(argnum >= a_op.size())
         throw std::string("Binary translator: non-existent argument is requested.");
     if(a_op.args[argnum].tag != Arg::ICONST)
@@ -91,26 +91,7 @@ bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
 
 std::set<size_t> Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
 {
-    std::set<size_t> result;
-    if (!m_2tararch.has(a_op.opcode))
-        return result;
-    std::map<size_t, size_t> backArgMap;
-    std::set<size_t> tarTFilter;
-    const Mnemotr& m2m = m_2tararch[a_op];
-    Syntop tar_op = m2m.apply(a_op);
-    for (size_t tF : toFilter)
-    {
-        Assert(tF < a_op.size() && a_op[tF].tag == Arg::IREG);
-        size_t tArgnum = m2m.targetArgNum(tF);
-        if (tArgnum == Mnemotr::ARG_NOT_USED)
-            continue;
-        tarTFilter.insert(tArgnum);
-        backArgMap[tArgnum] = tF;
-    }
-    tarTFilter = m_2binary.filterStackPlaceable(tar_op, tarTFilter);
-    for (size_t tR : tarTFilter)
-        result.insert(backArgMap[tR]);
-    return result;
+    return std::set<size_t>();
 }
 
 size_t Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
@@ -125,26 +106,20 @@ size_t Backend::spillSpaceNeeded(const Syntop& a_op) const
 
 std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
 {
+    bool foundMnemotr;
+    Mnemotr ret = m_m2mlookup(a_op, foundMnemotr);
     std::set<size_t> result;
-    if (!m_2tararch.has(a_op.opcode))
+    if (!foundMnemotr)
         return result;
-    const Mnemotr& m2m = m_2tararch[a_op];
+    const Mnemotr& m2m = lookM2m(a_op);
     Syntop tarop = m2m.apply(a_op);
-    const Binatr& m2b = m_2binary[tarop];
+    const Binatr& m2b = lookM2b(tarop);
     size_t bpiecenum = 0;
-    std::vector<size_t> rodr = m2b.m_reordering;
-    if (rodr.empty())
-    {
-        rodr.reserve(tarop.size());
-        for (size_t n = 0; n < tarop.size(); n++) 
-            rodr.push_back(n);
-    }
-
     for (size_t argnum = 0; argnum < m2m.m_argsList.size(); ++argnum)
     {
-        while (bpiecenum < m2b.size(a_op) && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
-        const Mnemotr::Argutr& ar = m2m.m_argsList[rodr[argnum]];
-        if(ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
+        while (bpiecenum < m2b.size() && m2b.m_compound[bpiecenum].tag == Binatr::Detail::D_STATIC) ++bpiecenum;  //Drop all binatr statics
+        const Mnemotr::Argutr& ar = m2m.m_argsList[m2b.m_compound[bpiecenum].arVecNum];
+        if (ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::string("Binary translator: non-existent argument is requested.");
@@ -203,13 +178,12 @@ Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
         size_t curr_tar_op = result.program.size();
         if(!this->handleBytecodeOp(op, result)) //Philosophically, we have to ask map BEFORE overrules, not after.
         {
-            OpPrintInfo pinfo;
-            result.program.emplace_back(m_2tararch[op].apply(op, this));
+            result.program.emplace_back(lookM2m(op).apply(op, this));
         }
         for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
         {
             const Syntop& lastop = result.program[addedop];
-            m_m2mCurrentOffset += m_2binary[lastop].size(lastop);
+            m_m2mCurrentOffset += lookM2b(lastop).size();
         }
     }
     return result;
@@ -219,7 +193,7 @@ const FuncBodyBuf Backend::target2Hex(const Syntfunc& a_bcfunc) const
 {
     Bitwriter bitstream(this);
     for (const Syntop& op : a_bcfunc.program)
-        m_2binary[op].applyNAppend(op, &bitstream);
+        lookM2b(op).applyNAppend(op, &bitstream);
     return bitstream.buffer();
 }
 
@@ -238,12 +212,14 @@ void* Backend::compile(Context* a_ctx, Func* a_func) const
     return exebuf;
 }
 
-OpPrintInfo Backend::getPrintInfo(const Syntop& op)
+Binatr binatrLookup(const Syntop&, bool&)
 {
-    OpPrintInfo res;
-    if(m_2binary.has(op.opcode))
-        res = m_2binary[op].getPrintInfo(op);
-    return res;
+    throw std::runtime_error("Binatr table is not implemented.");
+}
+
+Mnemotr mnemotrLookup(const Syntop&, bool&)
+{
+    throw std::runtime_error("Mnemotr table is not implemented.");
 }
 
 Backend::Backend() : m_exeAlloc(nullptr)
@@ -253,5 +229,7 @@ Backend::Backend() : m_exeAlloc(nullptr)
 , m_instructionWidth(0)
 , m_registersAmount(8)
 , m_m2mCurrentOffset(0)
+, m_m2blookup(binatrLookup)
+, m_m2mlookup(mnemotrLookup)
     {}
 };
