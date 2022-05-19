@@ -84,7 +84,7 @@ private:
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
 
-    void jumpificate();
+    void controlBlocks2Jumps();
     int invertCondition(int condition) const;
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
     
@@ -124,7 +124,7 @@ inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<A
 inline FuncImpl* getImpl(Func* wrapper)
 {
     if (!wrapper)
-        throw std::string("Null context pointer.");
+        throw std::runtime_error("Null context pointer.");
     return static_cast<FuncImpl*>(_getImpl(wrapper));
 }
 

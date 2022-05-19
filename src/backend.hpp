@@ -34,7 +34,7 @@ struct Mnemotr //is for "mnemonic translation"
     std::vector<Argutr> m_argsList;
     Mnemotr(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
     Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args);
-    Syntop apply(const Syntop& a_source, const Backend* a_bcknd = nullptr) const;
+    Syntop apply(const Syntop& a_source, const Backend* a_backend = nullptr) const;
     size_t targetArgNum(size_t a_srcnum) const;
     enum {ARG_NOT_USED = -1}; //TODO(ch) : Probably, it's better to replace it with NOIDX?
 };
@@ -114,6 +114,7 @@ public:
     virtual uint64_t callerSavedRegisters() const { return m_callerSavedRegisters; }
     virtual uint64_t calleeSavedRegisters() const { return m_calleeSavedRegisters; }
     inline std::string name() const { return m_name; };
+    virtual void switchOnSpillStressMode() = 0;
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
 private:

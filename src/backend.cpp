@@ -13,7 +13,7 @@ Mnemotr::Argutr::Argutr(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcA
 Mnemotr::Argutr::Argutr(size_t a_src_arnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum), transitFlags(flags) {}
 Mnemotr::Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
-Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_bcknd) const
+Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_backend) const
 {
     std::vector<Arg> resargs;
     resargs.reserve(m_argsList.size());
@@ -25,7 +25,7 @@ Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_bcknd) const
             case Argutr::T_FROMSOURCE:
             {
                 if(argt.srcArgnum >= a_source.size())
-                    throw std::string("Mnemonic translator: non-existent argument is requested.");
+                    throw std::runtime_error("Mnemonic translator: non-existent argument is requested.");
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
@@ -41,7 +41,7 @@ Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_bcknd) const
                 break;
             }
             default:
-                throw std::string("Mnemonic translator: unknown type of argument translation.");
+                throw std::runtime_error("Mnemonic translator: unknown type of argument translation.");
         }
     return Syntop(m_tarop, resargs);
 }
@@ -66,9 +66,9 @@ bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
     Syntop tar_op = m2m.apply(a_op);
     const Binatr& instemp = lookM2b(tar_op);
     if(argnum >= a_op.size())
-        throw std::string("Binary translator: non-existent argument is requested.");
+        throw std::runtime_error("Binary translator: non-existent argument is requested.");
     if(a_op.args[argnum].tag != Arg::ICONST)
-        throw std::string("Binary translator: requested register instead of const.");
+        throw std::runtime_error("Binary translator: requested register instead of const.");
 
     uint64_t val2BeFit = a_op.args[argnum].value;
     for(const Binatr::Detail& det : instemp. m_compound)
@@ -77,7 +77,7 @@ bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
             if(argnum == 0)
             {
                 if(det.tag == Binatr::Detail::D_REG)
-                    throw std::string("Binary translator: register instead of const.");
+                    throw std::runtime_error("Binary translator: register instead of const.");
                 size_t bitwneeded = 0;
                 for (;bitwneeded < 63; bitwneeded++) //TODO(ch): what a shame! Give normal implementation! AND!!! Use info about type(SIGNED/UNSIGNED offsets, adresses, etc.)
                     if(val2BeFit <= (((uint64_t)(1))<<bitwneeded))
@@ -86,7 +86,7 @@ bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
             }
             argnum--;
         }
-    throw std::string("Binary translator: non-existent argument is requested.");
+    throw std::runtime_error("Binary translator: non-existent argument is requested.");
 }
 
 std::set<size_t> Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
@@ -122,7 +122,7 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64
         if (ar.tag == Mnemotr::Argutr::T_FROMSOURCE)
         {
             if (ar.srcArgnum >= a_op.size())
-                throw std::string("Binary translator: non-existent argument is requested.");
+                throw std::runtime_error("Binary translator: non-existent argument is requested.");
             if (a_op[ar.srcArgnum].tag == Arg::IREG && ((m2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
@@ -148,9 +148,9 @@ std::set<IRegInternal> Backend::getUsedRegisters(const Syntop& a_op, uint64_t fl
     for(size_t arnum: preres)
     {
         if(arnum >= a_op.size())
-            throw std::string("Compile error: non-existent argument is requested.");
+            throw std::runtime_error("Compile error: non-existent argument is requested.");
         if(a_op[arnum].tag != Arg::IREG)
-            throw std::string("Compile error: constant is requested instead of register.");
+            throw std::runtime_error("Compile error: constant is requested instead of register.");
         result.insert(a_op[arnum].idx);
     }
     return result;

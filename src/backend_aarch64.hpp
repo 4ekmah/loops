@@ -4,8 +4,8 @@ Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
 
-#ifndef __LOOPS_AARCH64_HPP__
-#define __LOOPS_AARCH64_HPP__
+#ifndef __LOOPS_BACKEND_AARCH64_HPP__
+#define __LOOPS_BACKEND_AARCH64_HPP__
 
 #include "composer.hpp"
 #include "backend.hpp"
@@ -38,7 +38,7 @@ enum {
 class Aarch64Backend : public Backend
 {
 public:
-    Aarch64Backend(uint64_t flags);
+    Aarch64Backend();
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
     virtual size_t stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const override final;
@@ -46,6 +46,7 @@ public:
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
+    virtual void switchOnSpillStressMode() override final;
 private:
     struct label_ref_info
     {
@@ -64,4 +65,4 @@ private:
 };
 
 };
-#endif //__LOOPS_AARCH64_HPP__
+#endif //__LOOPS_BACKEND_AARCH64_HPP__

@@ -24,7 +24,7 @@ inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
         case Arg::ISPILLED: {str << "s" << arg.value; } break; //TODO(ch): Can we avoid spilled registers in bytecode?
         case Arg::ICONST: str << arg.value; break;
         default:
-            throw std::string("Undefined argument type.");
+            throw std::runtime_error("Undefined argument type.");
     };
     return str;
 }

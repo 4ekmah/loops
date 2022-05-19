@@ -83,91 +83,7 @@ namespace loops
         AF_PRINTOFFSET = 8,
     };
 
-    struct ExpandableClass
-    {
-    public:
-        template<typename T>
-        void addExtension(const T& toAdd)
-        {
-            if(m_dictionary.get() == nullptr)
-                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) != 0)
-                throw std::string("Internal error: trying to add extension already defined.");
-            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >(toAdd);
-            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
-            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
-            dictionary.insert(partoadd);
-        }
-
-        template<typename T>
-        void addExtension()
-        {
-            if(m_dictionary.get() == nullptr)
-                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) != 0)
-                throw std::string("Internal error: trying to add extension already defined.");
-            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >();
-            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
-            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
-            dictionary.insert(partoadd);
-        }
-
-        template<typename T>
-        T& getExtension()
-        {
-            if(m_dictionary.get() == nullptr)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
-            return extptr->get();
-        }
-
-        template<typename T>
-        const T& getExtension() const
-        {
-            if(m_dictionary.get() == nullptr)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
-            return extptr->get();
-        }
-        
-        template<typename T>
-        bool haveExtension() const
-        {
-            if(m_dictionary.get() == nullptr)
-                return false;
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                return false;
-            return true;
-        }
-    private:
-        struct voidshrd
-        {
-            public:
-            virtual ~voidshrd() {}
-        };
-        template <typename T>
-        struct shrd : public voidshrd
-        {
-            std::shared_ptr<T> content;
-            inline shrd() : content(std::make_shared<T>()) {}
-            inline shrd(const T& cp) : content(std::make_shared<T>(cp)) {}
-            virtual ~shrd() {}
-            inline T& get() { return *content; }
-            inline const T& get() const { return *content; }
-        };
-        std::shared_ptr< std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > > m_dictionary;
-    };
-
-    struct Syntop: public ExpandableClass
+    struct Syntop
     {
     private:
         enum {SYNTOP_ARGS_MAX = 10};
@@ -184,14 +100,14 @@ namespace loops
         inline Arg* end()
         {
             if(args_size > SYNTOP_ARGS_MAX)
-                throw std::string("Syntaxic operation: too much args!");
+                throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
         inline const Arg* begin() const { return args; }
         inline const Arg* end() const
         {
             if(args_size > SYNTOP_ARGS_MAX)
-                throw std::string("Syntaxic operation: too much args!");
+                throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
 
@@ -200,26 +116,26 @@ namespace loops
         inline Arg& operator[](size_t anum)
         {
             if(anum >= args_size)
-                throw std::string("Syntaxic operation: too big argument index!");
+                throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
         inline const Arg& operator[](size_t anum) const
         {
             if(anum >= args_size)
-                throw std::string("Syntaxic operation: too big argument index!");
+                throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
 
         inline Arg& back()
         {
             if(args_size == 0)
-                throw std::string("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
         inline const Arg& back() const
         {
             if(args_size == 0)
-                throw std::string("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
     };
@@ -254,7 +170,7 @@ namespace loops
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context* owner, uint64_t flags);
+        ContextImpl(Context* owner);
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
         void endFunc();
         Func getFunc(const std::string& name);
@@ -263,14 +179,14 @@ namespace loops
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
-        inline Backend* getBackend() { return m_bcknd.get(); }
+        inline Backend* getBackend() { return m_backend.get(); }
         inline RegisterAllocator* getRegisterAllocator() { return m_registerAllocator.get(); }
         inline Context* getOwner() const { return m_owner; }
     private:
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
         Context* m_owner;
-        std::shared_ptr<Backend> m_bcknd;
+        std::shared_ptr<Backend> m_backend;
         std::shared_ptr<RegisterAllocator> m_registerAllocator;
     };
 
@@ -278,8 +194,7 @@ namespace loops
     inline Context* _getImpl(Context* wrapper) { return wrapper->impl; };
     inline ContextImpl* getImpl(Context* wrapper)
     {
-        if(!wrapper)
-            throw std::string("Null context pointer.");
+        Assert(wrapper);
         return static_cast<ContextImpl*>(_getImpl(wrapper));
     }
 };

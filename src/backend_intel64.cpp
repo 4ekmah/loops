@@ -3,7 +3,7 @@ This is a part of Loops project.
 Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
-#include "intel64.hpp"
+#include "backend_intel64.hpp"
 #if defined(_M_AMD64) //TODO(ch): It must be about target processor, not operational system
 #include <iomanip>
 namespace loops
@@ -276,7 +276,7 @@ namespace loops
         } 
     };
 
-    Intel64Backend::Intel64Backend(uint64_t flags)
+    Intel64Backend::Intel64Backend()
     {
         m_m2blookup = i64binatrLookup;
         m_m2mlookup = i64mnemotrLookup;
@@ -288,20 +288,10 @@ namespace loops
         m_name = "Intel64";
         m_afterRegAllocStages.push_back(Three2Two::make());
 #if defined(_WIN32)
-        if (flags & Context::CF_SPILLSTRESS)
-        {
-            m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
-            m_returnRegisters = makeRegBasket({ RAX });
-            m_callerSavedRegisters = makeRegBasket({});
-            m_calleeSavedRegisters = makeRegBasket({ R12, R13, R14, R15 });
-        }
-        else
-        {
-            m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
-            m_returnRegisters = makeRegBasket({ RAX });
-            m_callerSavedRegisters = makeRegBasket({ R10, R11 });
-            m_calleeSavedRegisters = makeRegBasket({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
-        }
+        m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
+        m_returnRegisters = makeRegBasket({ RAX });
+        m_callerSavedRegisters = makeRegBasket({ R10, R11 });
+        m_calleeSavedRegisters = makeRegBasket({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
 #else
 #error Linux is not supported
 #endif
@@ -320,7 +310,7 @@ namespace loops
         case (OP_JMP):
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
-                throw std::string("Wrong JMP format.");
+                throw std::runtime_error("Wrong JMP format.");
             m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
             int targetop = (a_btop.opcode == OP_JMP_NE) ? INTEL64_JNE : (
                 (a_btop.opcode == OP_JMP_EQ) ? INTEL64_JE : (
@@ -339,9 +329,9 @@ namespace loops
         case (OP_LABEL):
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
-                throw std::string("Wrong LABEL format.");
+                throw std::runtime_error("Wrong LABEL format.");
             if (m_labelMap.count(a_btop.args[0].value) != 0)
-                throw std::string("Label redefinition");
+                throw std::runtime_error("Label redefinition");
             m_labelMap[a_btop.args[0].value] = getM2mCurrentOffset();
             return true;
         }
@@ -491,16 +481,16 @@ namespace loops
         for (auto label : m_labelRefMap)
         {
             if (m_labelMap.count(label.first) == 0)
-                throw std::string("Reference to unknown label");
+                throw std::runtime_error("Reference to unknown label");
             const int64_t loff = static_cast<int64_t>(m_labelMap[label.first]);
             for (LabelRefInfo& lref : label.second)
             {
                 if (lref.opnum >= result.program.size())
-                    throw std::string("Internal error: operation number is too big");
+                    throw std::runtime_error("Internal error: operation number is too big");
                 if (lref.argnum >= result.program[lref.opnum].size())
-                    throw std::string("Internal error: operation don't have so much arguments");
+                    throw std::runtime_error("Internal error: operation don't have so much arguments");
                 if (result.program[lref.opnum].args[lref.argnum].tag != Arg::ICONST)
-                    throw std::string("Internal error: operation don't have so much arguments");
+                    throw std::runtime_error("Internal error: operation don't have so much arguments");
                 int64_t& opoff = result.program[lref.opnum].args[lref.argnum].value;
                 opoff = (loff - opoff);
             }
@@ -584,7 +574,7 @@ namespace loops
             if (arg.flags & AF_PRINTOFFSET)
             {
                 if (arg.tag != Arg::ICONST)
-                    throw std::string("Printer: register offsets are not supported.");
+                    throw std::runtime_error("Printer: register offsets are not supported.");
                 int64_t targetline = numbersAtPositions.at(positions[rowNum+1] + arg.value);
                 out << "[" << targetline << "]";
                 return;
@@ -616,7 +606,7 @@ namespace loops
                 else
                     out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]"; break;
             default:
-                throw std::string("Undefined argument type.");
+                throw std::runtime_error("Undefined argument type.");
             };
             if (address)
                 out << "]";
@@ -713,5 +703,14 @@ namespace loops
             }
         a_processed.program = newProg;
     }
+    
+    void Intel64Backend::switchOnSpillStressMode()
+    {
+        m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
+        m_returnRegisters = makeRegBasket({ RAX });
+        m_callerSavedRegisters = makeRegBasket({});
+        m_calleeSavedRegisters = makeRegBasket({ R12, R13, R14, R15 });
+    }
+
 };
 #endif

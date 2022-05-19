@@ -3,8 +3,8 @@ This is a part of Loops project.
 Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
-#ifndef __LOOPS_INTEL64_HPP__
-#define __LOOPS_INTEL64_HPP__
+#ifndef __LOOPS_BACKEND_INTEL64_HPP__
+#define __LOOPS_BACKEND_INTEL64_HPP__
 #if defined(_WIN32) //TODO(ch): It must be about target processor, not operational system
 #include "loops/loops.hpp"
 #include "backend.hpp"
@@ -34,7 +34,7 @@ namespace loops
     class Intel64Backend : public Backend
     {
     public:
-        Intel64Backend(uint64_t flags);
+        Intel64Backend();
         virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const override final;
         virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
         virtual size_t spillSpaceNeeded(const Syntop& a_op) const override final;
@@ -46,6 +46,7 @@ namespace loops
         virtual std::unordered_map<int, std::string> getOpStrings() const override final;
         virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
         virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
+        virtual void switchOnSpillStressMode() override final;
     private:
         struct LabelRefInfo //TODO(ch): we have this implementation in both: in aarhc64 and in intel64.
         {
@@ -66,4 +67,4 @@ namespace loops
 };
 
 #endif
-#endif //__LOOPS_INTEL64_HPP__
+#endif //__LOOPS_BACKEND_INTEL64_HPP__

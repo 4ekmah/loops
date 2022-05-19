@@ -222,8 +222,7 @@ class Context
 {
     friend Context* _getImpl(Context* wrapper);
 public:
-    enum {CF_SPILLSTRESS = 1};
-    Context(uint64_t flags = 0);
+    Context();
     Context(const Context& ctx);
     virtual ~Context();
     Context& operator=(const Context& ctx);

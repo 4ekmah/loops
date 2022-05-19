@@ -54,7 +54,7 @@ private:
     std::list<std::shared_ptr<Test> > m_testList;
     Context CTX;
     std::ostream* m_out;
-    TestSuite(std::ostream& a_out = std::cout) : m_out(&a_out), CTX(Context::CF_SPILLSTRESS) {}
+    TestSuite(std::ostream& a_out = std::cout);
 };
 };
 

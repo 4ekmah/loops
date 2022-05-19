@@ -18,7 +18,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
 {
     lastop = (lastop == -1) ? toPrint.program.size() : lastop;
     if(lastop > toPrint.program.size())
-        throw std::string("Printer error: too far last operation.");
+        throw std::runtime_error("Printer error: too far last operation.");
     if (printheader)
         printHeader(out, toPrint);
     std::vector<std::string> pdetails;
@@ -67,7 +67,7 @@ Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std:
         if(p_overrules.count(toPrint.opcode) == 0)
         {
             if (opstrings.count(toPrint.opcode) == 0)
-                throw std::string("Printer: unprintable operation");
+                throw std::runtime_error("Printer: unprintable operation");
             out<<opstrings.at(toPrint.opcode);
         }
         else

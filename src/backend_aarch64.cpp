@@ -4,7 +4,7 @@ Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
 
-#include "aarch64.hpp"
+#include "backend_aarch64.hpp"
 #include "composer.hpp"
 #include "func_impl.hpp"
 #include <unordered_map>
@@ -177,7 +177,7 @@ Mnemotr a64mnemotrLookup(const Syntop& index, bool& scs)
     return Mnemotr();
 }
 
-Aarch64Backend::Aarch64Backend(uint64_t flags)
+Aarch64Backend::Aarch64Backend()
 {
     m_m2blookup = a64binatrLookup;
     m_m2mlookup = a64mnemotrLookup;
@@ -188,21 +188,10 @@ Aarch64Backend::Aarch64Backend(uint64_t flags)
     m_instructionWidth = 4;
     m_registersAmount = 7;
     m_name = "AArch64";
-
-    if (flags & Context::CF_SPILLSTRESS)
-    {
-        m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3 });
-        m_returnRegisters = makeRegBasket({ R0, R1, R2, R3 });
-        m_callerSavedRegisters = makeRegBasket({});
-        m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22 });
-    }
-    else
-    {
-        m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
-        m_returnRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
-        m_callerSavedRegisters = makeRegBasket({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
-        m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
-    }
+    m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
+    m_returnRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
+    m_callerSavedRegisters = makeRegBasket({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
+    m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
 }
 
 bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const
@@ -218,7 +207,7 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         case (OP_JMP):
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
-                throw std::string("Wrong JMP format.");
+                throw std::runtime_error("Wrong JMP format.");
             m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
             int targetop = (a_btop.opcode == OP_JMP_NE) ? AARCH64_B_NE : (
                            (a_btop.opcode == OP_JMP_EQ) ? AARCH64_B_EQ : (
@@ -235,9 +224,9 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         case (OP_LABEL):
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
-                throw std::string("Wrong LABEL format.");
+                throw std::runtime_error("Wrong LABEL format.");
             if(m_labelMap.count(a_btop.args[0].value) != 0)
-                throw std::string("Label redefinition");
+                throw std::runtime_error("Label redefinition");
             m_labelMap[a_btop.args[0].value] = getM2mCurrentOffset();
             return true;
         }
@@ -255,16 +244,16 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     for(auto label: m_labelRefMap)
     {
         if(m_labelMap.count(label.first) == 0)
-            throw std::string("Reference to unknown label");
+            throw std::runtime_error("Reference to unknown label");
         const int64_t loff = static_cast<int64_t>(m_labelMap[label.first]);
         for(label_ref_info& lref : label.second)
         {
             if (lref.opnum >= result.program.size())
-                throw std::string("Internal error: operation number is too big");
+                throw std::runtime_error("Internal error: operation number is too big");
             if (lref.argnum >= result.program[lref.opnum].size())
-                throw std::string("Internal error: operation don't have so much arguments");
+                throw std::runtime_error("Internal error: operation don't have so much arguments");
             if (result.program[lref.opnum].args[lref.argnum].tag != Arg::ICONST)
-                throw std::string("Internal error: operation don't have so much arguments");
+                throw std::runtime_error("Internal error: operation don't have so much arguments");
             int64_t& opoff = result.program[lref.opnum].args[lref.argnum].value;
             opoff = (loff - opoff) / 4; //AArch64 supports only multiply-4 offsets, so, for compactification, they are divided by 4. //TODO(ch): shift?
         }
@@ -328,7 +317,7 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
         if (arg.flags & AF_PRINTOFFSET)
         {
             if (arg.tag != Arg::ICONST)
-                throw std::string("Printer: register offsets are not supported.");
+                throw std::runtime_error("Printer: register offsets are not supported.");
             int64_t targetline = rowNum + arg.value;
             out << "["<< targetline<< "]";
             return;
@@ -353,10 +342,19 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
                 else
                     out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value; break;
             default:
-                throw std::string("Undefined argument type.");
+                throw std::runtime_error("Undefined argument type.");
         };
         if (address)
             out<<"]";
     };
 }
+
+void Aarch64Backend::switchOnSpillStressMode()
+{
+    m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3 });
+    m_returnRegisters = makeRegBasket({ R0, R1, R2, R3 });
+    m_callerSavedRegisters = makeRegBasket({});
+    m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22 });
+}
+
 };

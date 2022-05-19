@@ -1,4 +1,5 @@
 #include "loops/loops.hpp"
+#include <algorithm>
 #include <vector>
 #include <iostream>
 
@@ -44,7 +45,9 @@ int main(int argc, char** argv)
         loops::Func lfunc = gencode(ctx);
         std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
         lfunc.printBytecode(std::cout);
-        std::cout << "======--AARCH64--LISTING--=======" << std::endl;
+        std::string platform = ctx.getPlatformName();
+        std::transform(platform.begin(), platform.end(), platform.begin(), ::toupper);
+        std::cout << "======--"<< platform <<"--LISTING--====== = " << std::endl;
         lfunc.printAssembly(std::cout);
         std::cout << "======---FUNCTION-USAGE---=======" << std::endl;
         justcompiled_t f = reinterpret_cast<justcompiled_t>(lfunc.ptr());

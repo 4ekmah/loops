@@ -21,16 +21,16 @@ Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::v
 void Bitwriter::startInstruction()
 {
     if (m_startsize != NOTRANSACTION)
-        throw std::string("Bitwriter: instruction is already started");
+        throw std::runtime_error("Bitwriter: instruction is already started");
     m_startsize = m_size;
 }
 
 void Bitwriter::writeDetail(uint64_t a_detail, size_t a_fieldwidth)
 {
     if (a_fieldwidth > 64)
-        throw std::string("Bitwriter: too big bitfield");
+        throw std::runtime_error("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
-        throw std::string("Bitwriter: writing detail out of instruction");
+        throw std::runtime_error("Bitwriter: writing detail out of instruction");
     if(m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
     uint8_t* buffer = &m_buffer->operator[](0);
@@ -65,15 +65,15 @@ void Bitwriter::writeDetail(uint64_t a_detail, size_t a_fieldwidth)
 void Bitwriter::endInstruction()
 {
     if (m_bitpos != 0)
-        throw std::string("Bitwriter: instructions with width, not multiple of 8 bits are not supported.");
+        throw std::runtime_error("Bitwriter: instructions with width, not multiple of 8 bits are not supported.");
     if (m_startsize == NOTRANSACTION)
-        throw std::string("Bitwriter: finishing instruction wasn't start.");
+        throw std::runtime_error("Bitwriter: finishing instruction wasn't start.");
 
     if(m_backend->isMonowidthInstruction())
     {
         const size_t instrsize = m_backend->instructionWidth();
         if (m_size - m_startsize != instrsize)
-            throw std::string("Bitwriter: non-standard instruction width.");
+            throw std::runtime_error("Bitwriter: non-standard instruction width.");
     }
     if(m_backend->isLittleEndianInstructions())
     {
@@ -104,7 +104,7 @@ Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,fieldOflags(0)
 {
     if(tag != D_REG && tag != D_CONST && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET && tag != D_SPILLED)
-        throw std::string("Binary translator: wrong detail constructor.");
+        throw std::runtime_error("Binary translator: wrong detail constructor.");
 }
 
 Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize):tag(tag)
@@ -113,7 +113,7 @@ Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize):tag(tag)
    ,arVecNum(-1)
 {
     if(tag != D_STATIC)
-        throw std::string("Binary translator: wrong detail constructor.");
+        throw std::runtime_error("Binary translator: wrong detail constructor.");
 }
 
 Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_bytewidth(0)
@@ -126,7 +126,7 @@ Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_bytewidth
 void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
-        throw std::string("Binary translator: null writer pointer.");
+        throw std::runtime_error("Binary translator: null writer pointer.");
             bits->startInstruction();
             uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Detail& det : m_compound)
@@ -137,12 +137,12 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         {
         case (Detail::D_REG):
             if (op.args[det.arVecNum].tag != Arg::IREG)
-                throw std::string("Binary translator: syntop bring const instead of register.");
+                throw std::runtime_error("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Detail::D_SPILLED):
             if (op.args[det.arVecNum].tag != Arg::ISPILLED)
-                throw std::string("Binary translator: syntop bring active register or const instead of spilled.");
+                throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Detail::D_CONST):
@@ -150,12 +150,12 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Detail::D_OFFSET):
         case (Detail::D_STACKOFFSET):
             if (op.args[det.arVecNum].tag != Arg::ICONST)
-                throw std::string("Binary translator: syntop bring register instead of const.");
+                throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Detail::D_STATIC): break;
         default:
-            throw std::string("Binary translator: unknown detail type.");
+            throw std::runtime_error("Binary translator: unknown detail type.");
         };
     }
     Assert(argmask == 0);
@@ -185,7 +185,7 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 piece = Bitwriter::revertDetail(piece, det.width);
             break;
         default:
-            throw std::string("Binary translator: unknown detail type.");
+            throw std::runtime_error("Binary translator: unknown detail type.");
         };
         bits->writeDetail(piece, det.width);
     }

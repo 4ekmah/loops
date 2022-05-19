@@ -5,8 +5,8 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
-#include "aarch64.hpp"
-#include "intel64.hpp"
+#include "backend_aarch64.hpp"
+#include "backend_intel64.hpp"
 #include "backend.hpp"
 #include "reg_allocator.hpp"
 #include "common.hpp"
@@ -32,7 +32,7 @@ namespace loops
     IReg& IReg::operator=(const IReg& r)
     {
         if (r.func == nullptr)
-            throw std::string("Cannot find motherfunction in registers.");
+            throw std::runtime_error("Cannot find motherfunction in registers.");
         FuncImpl* funcimpl = static_cast<FuncImpl*>(func);
         funcimpl->newiop(OP_MOV, { r }, idx);
         return (*this);
@@ -145,9 +145,9 @@ namespace loops
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
-    Context::Context(uint64_t flags) : impl(nullptr)
+    Context::Context() : impl(nullptr)
     {
-        impl = new ContextImpl(this, flags);
+        impl = new ContextImpl(this);
     }
 
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
@@ -194,49 +194,49 @@ namespace loops
 
 
     Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
-    Syntop::Syntop(const Syntop& fwho) : ExpandableClass(fwho), opcode(fwho.opcode), args_size(fwho.args_size)
+    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size)
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
     Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
     Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
     Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_prefix.begin(), a_prefix.end(), args);
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner, uint64_t flags) : Context(nullptr), m_owner(owner), m_refcount(0) {
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
 #if defined(__APPLE__) //TODO(ch): this conditions are actually inaccurate. We have to ask system about type of compiler. 
-        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>(flags);
+        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif defined(_WIN32)
-        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>(flags);
+        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
 #endif
-        m_bcknd = std::static_pointer_cast<Backend>(backend);
+        m_backend = std::static_pointer_cast<Backend>(backend);
         m_registerAllocator = std::make_shared<RegisterAllocator>(this);
     }
 
     void ContextImpl::startFunc(const std::string& name, std::initializer_list<IReg*> params)
     {
         if(m_functionsStorage.find(name) != m_functionsStorage.end())
-            throw std::string("Function is already registered.");  //TODO(ch): We need good exception class.
+            throw std::runtime_error("Function is already registered.");  //TODO(ch): We need good exception class.
         m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
     }
 
@@ -251,13 +251,13 @@ namespace loops
     {
         auto found = m_functionsStorage.find(name);
         if(found == m_functionsStorage.end()) 
-            throw std::string("Cannot find function.");
+            throw std::runtime_error("Cannot find function.");
         return found->second;
     }
     
     std::string ContextImpl::getPlatformName() const
     {
-        return m_bcknd->name();
+        return m_backend->name();
     }
 
     void ContextImpl::compileAll()
@@ -269,13 +269,13 @@ namespace loops
         for(auto par:m_functionsStorage)
         {
             FuncImpl* func = getImpl(&par.second);
-            FuncBodyBuf body = m_bcknd->target2Hex(m_bcknd->bytecode2Target(func->getData()));
+            FuncBodyBuf body = m_backend->target2Hex(m_backend->bytecode2Target(func->getData()));
             size_t bsize = body->size();
             bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?
             totalSize += bsize;
             bodies.push_back(body);
         }
-        Allocator* alloc= m_bcknd->getAllocator();
+        Allocator* alloc= m_backend->getAllocator();
         uint8_t* exebuf = alloc->allocate(totalSize);
         uint8_t* exeptr = exebuf;
         auto curBody = bodies.begin();

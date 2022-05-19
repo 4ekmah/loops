@@ -274,7 +274,7 @@ namespace loops
     {
     public:
         LivenessAnalysisAlgo(size_t virtualRegsAmount, ContextImpl* a_owner);
-        std::set<LiveInterval, idxordering> process(Syntfunc& a_processed);
+        std::vector<LiveInterval> process(Syntfunc& a_processed);
         size_t getSnippetCausedSpills() const { return m_snippetCausedSpills; }
     private:
         struct LAEvent //Liveness Analysis Event
@@ -326,17 +326,18 @@ namespace loops
         std::multiset<LiveInterval, endordering> active;
         {
             LivenessAnalysisAlgo LAalgo(a_virtualRegsAmount, m_owner);
-            std::set<LiveInterval, idxordering> analysisResult = LAalgo.process(a_processed);
+            std::vector<LiveInterval> analysisResult = LAalgo.process(a_processed);
             a_virtualRegsAmount = analysisResult.size();
-            auto interval = analysisResult.begin();
-
             //After liveness analysis we are sorting given liveintervals into two heaps: 
             //parameters, which are immediately marked as active and other intervals,
             //which are reordered by start positions to work with Linear scan algorithm. 
-            for (; interval != analysisResult.end() && interval->idx < a_processed.params.size(); ++interval)
-                active.insert(*interval);
-            for (; interval != analysisResult.end(); ++interval)
-                liveintervals.insert(*interval);
+            size_t idx = 0;
+            size_t idxParMax = std::min(analysisResult.size(), a_processed.params.size());
+            for (; idx < idxParMax; ++idx)
+                active.insert(analysisResult[idx]);
+            idxParMax = analysisResult.size();
+            for (; idx < idxParMax; ++idx)
+                liveintervals.insert(analysisResult[idx]);
             snippetCausedSpills = LAalgo.getSnippetCausedSpills();
         }
 
@@ -524,7 +525,7 @@ namespace loops
                 {
                     IRegInternal pseudoname = m_pool.provideSpillPlaceholder();
                     if (pseudoname == IReg::NOIDX)
-                        throw std::string("Register allocator : not enough free registers.");
+                        throw std::runtime_error("Register allocator : not enough free registers.");
                     argRenaming[regAr] = pseudoname;
                     newProgUnbracketed.push_back(Syntop(OP_UNSPILL, { argIReg(pseudoname, a_func), getReassigned(regAr).value }));
                     if (stackParametersIndex.count(regAr))
@@ -535,7 +536,7 @@ namespace loops
                     {
                         IRegInternal pseudoname = m_pool.provideSpillPlaceholder();
                         if (pseudoname == IReg::NOIDX)
-                            throw std::string("Register allocator : not enough free registers.");
+                            throw std::runtime_error("Register allocator : not enough free registers.");
                         argRenaming[regAr] = pseudoname;
                     }
                 for (size_t arnum = 0; arnum < op.size(); arnum++)
@@ -612,7 +613,7 @@ namespace loops
         a_processed.program = newProg;
     }
 
-    std::set<LiveInterval, idxordering> LivenessAnalysisAlgo::process(Syntfunc& a_processed)
+    std::vector<LiveInterval> LivenessAnalysisAlgo::process(Syntfunc& a_processed)
     {
         //This function accomplishes four goals:
         //1.) Separates all register live intervals to small def-use subintervals. There can be a lot of usages in one subinterval, but only one definition.
@@ -692,7 +693,7 @@ namespace loops
                 {
                     Assert(op.size() == 3 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST && op.args[2].tag == Arg::ICONST);
                     if (opnum < 2)
-                        throw std::string("Temporary condition solution needs one instruction before DOIF cycle.");
+                        throw std::runtime_error("Temporary condition solution needs one instruction before DOIF cycle.");
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, opnum - 2));
                     loopQueue.insert(std::make_pair(opnum - 2, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 2) mean that condition can be one-instruction only.
                     continue;
@@ -787,7 +788,7 @@ namespace loops
                     break;
                 }
                 default:
-                    throw std::string("Internal error: unexpected event in loop queue.");
+                    throw std::runtime_error("Internal error: unexpected event in loop queue.");
                 }
             }
         }
@@ -946,11 +947,12 @@ namespace loops
                     break;
                 }
                 default:
-                    throw std::string("Internal error: unexpected event in branch queue.");
+                    throw std::runtime_error("Internal error: unexpected event in branch queue.");
                 }
             }
         }
 
+        size_t resSize = 0;
         { //4.) Renaming splitted registers.
             size_t pseudIdx = a_processed.params.size();
             for (IRegInternal idx = 0; idx < a_processed.params.size(); idx++)
@@ -986,13 +988,13 @@ namespace loops
                     }
                 }
             }
+            resSize = pseudIdx;
         }
 
-        std::set<LiveInterval, idxordering> result;
+        std::vector<LiveInterval> result(resSize, LiveInterval(0,0));
         for (auto res : m_subintervals)
             for (auto pseud : res)
-                result.insert(pseud);
-
+                result[pseud.idx] = pseud;
         return result;
     }
 
@@ -1022,7 +1024,7 @@ namespace loops
         if (regNum != Syntfunc::RETREG) //TODO(ch): At some day we will need to work with different types of return.
         {
             if (!defined(regNum)) //TODO(ch): Isn't it too strict?
-                throw std::string("Compile error: using uninitialized register");
+                throw std::runtime_error("Compile error: using uninitialized register");
             m_subintervals[regNum].back().end = opnum;
         }
     }
