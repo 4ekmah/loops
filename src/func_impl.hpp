@@ -40,18 +40,18 @@ public:
 
     void printBytecode(std::ostream& out) const;
     void printAssembly(std::ostream& out, int columns) const;
-    std::string name() const {return m_subintervals.name;}
+    std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
     inline size_t provideIdx() { return m_nextIdx++; }
     size_t provideLabel();
     enum {NOLABEL = -1};
 
-    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args);
-    inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args);
-    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg);
-    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args);
-    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args);
+    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+    inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, uint64_t tryImmMask = 0);
+    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
 
     void endfunc();
@@ -68,15 +68,17 @@ public:
     void elif_(const IReg& r);
     void else_();
     void endif_();
-    void return_(const IReg& retval);
     void return_();
+    void return_(int64_t retval);
+    void return_(const IReg& retval);
 
-    const Syntfunc& getData() const { return m_subintervals; }
+
+    const Syntfunc& getData() const { return m_data; }
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
 private:
     std::deque<ControlFlowBracket> m_cflowStack;
-    Syntfunc m_subintervals;
+    Syntfunc m_data;
     ContextImpl* m_context;
     size_t m_nextIdx;
     size_t m_nextLabelIdx;
@@ -87,38 +89,50 @@ private:
     void controlBlocks2Jumps();
     int invertCondition(int condition) const;
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
+
+    void immediateImplantationAttempt(Syntop& op, uint64_t tryImmMask, size_t anumAdd);
     
     void* m_compiled;
 };
 
-inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args)
+inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
     size_t retidx = provideIdx();
-    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this)}), args);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this) }), args);
+    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    m_data.program.emplace_back(toAdd);
     return iregHid(retidx, this);
 }
 
-inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args)
+inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
     size_t retidx = provideIdx();
-    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({iregHid(retidx, this), depth}), args);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this), depth }), args);
+    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 2);
+    m_data.program.emplace_back(toAdd);
     return iregHid(retidx, this);
 }
 
-inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg)
+inline IReg FuncImpl::newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, uint64_t tryImmMask)
 {
-    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({argIReg(retreg, this)}), args);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ argIReg(retreg, this) }), args);
+    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    m_data.program.emplace_back(toAdd);
     return iregHid(retreg, this);
 }
 
-inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args)
+inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
-    m_subintervals.program.emplace_back(opcode, args);
+    Syntop toAdd(opcode, args);
+    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 0);
+    m_data.program.emplace_back(toAdd);
 }
 
-inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
+inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
-    m_subintervals.program.emplace_back(opcode, std::initializer_list<Arg>({Arg(depth)}), args);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ Arg(depth) }), args);
+    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    m_data.program.emplace_back(toAdd);
 }
 
 inline FuncImpl* getImpl(Func* wrapper)

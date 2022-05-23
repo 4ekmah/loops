@@ -49,10 +49,10 @@ namespace loops
         return res;
     }
 
-    inline Arg argIConst(int64_t val, Func* impl = nullptr)
+    inline Arg argIImm(int64_t val, Func* impl = nullptr)
     {
         Arg res;
-        res.tag = Arg::ICONST;
+        res.tag = Arg::IIMMEDIATE;
         res.value = val;
         res.func = impl;
         return res;
@@ -82,6 +82,79 @@ namespace loops
         AF_NOPRINT = 4,
         AF_PRINTOFFSET = 8,
     };
+
+    inline size_t onlyBitPos64(uint64_t bigNum)
+    {
+        static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+        static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            8 };
+        uint32_t first32 = (uint32_t)(bigNum & 0xFFFFFFFF);
+        uint32_t second32 = (uint32_t)(bigNum >> 32);
+        uint8_t bytenum = (second32 != 0) << 2;
+        uint32_t bnHalf = first32 + ((~(uint32_t)(second32 == 0)) & second32);
+
+        uint16_t first16 = (uint16_t)(bnHalf & 0xFFFF);
+        uint16_t second16 = (uint16_t)(bnHalf >> 16);
+        bytenum += (second16 != 0) << 1;
+        uint16_t bnHalfHalf = first16 + ((~(uint32_t)(second16 == 0)) & second16);
+
+        uint8_t first8 = (uint8_t)(bnHalfHalf & 0xFF);
+        uint8_t second8 = (uint8_t)(bnHalfHalf >> 8);
+        bytenum += (second8 != 0);
+        uint8_t bytecontent = first8 + ((~(uint32_t)(second8 == 0)) & second8);
+
+        return static_cast<size_t>(bnBase[bytenum]) + static_cast<size_t>(bnAdd[bytecontent]) - 1;
+    }
+
+
+    inline size_t lsb64(uint64_t bigNum)
+    {
+        uint64_t firstReg = (bigNum & ~(bigNum - 1));
+        return onlyBitPos64(firstReg);
+    }
+
+    inline size_t msb64(uint64_t bigNum)
+    {
+        bigNum |= bigNum >> 1;
+        bigNum |= bigNum >> 2;
+        bigNum |= bigNum >> 4;
+        bigNum |= bigNum >> 8;
+        bigNum |= bigNum >> 16;
+        bigNum |= bigNum >> 32;
+        if (bigNum == 0xFFFFFFFFFFFFFFFF)
+            return 63;
+        bigNum += 1;
+        return onlyBitPos64(bigNum) - 1;
+    }
+
+    inline size_t amountOfBits64(uint64_t bigNum)
+    {
+        size_t res = 0;
+        static const uint8_t amountInByte[256] =
+        { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+          2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8 };
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        return res;
+    }
 
     struct Syntop
     {
@@ -156,14 +229,6 @@ namespace loops
         virtual ~CompilerStage() {}
     };
     typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
-
-    inline uint64_t makeRegBasket(std::initializer_list<IRegInternal> regNumbers)
-    {
-        uint64_t res = 0;
-        for (IRegInternal bitnum : regNumbers)
-            res |= (static_cast<uint64_t>(1) << bitnum);
-        return res;
-    }
 
     class Backend;
     class RegisterAllocator;

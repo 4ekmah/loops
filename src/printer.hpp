@@ -22,7 +22,7 @@ inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
     {
         case Arg::IREG: if(arg.idx == Syntfunc::RETREG) {str << "iR";} else {str << "i" << arg.idx;} break;
         case Arg::ISPILLED: {str << "s" << arg.value; } break; //TODO(ch): Can we avoid spilled registers in bytecode?
-        case Arg::ICONST: str << arg.value; break;
+        case Arg::IIMMEDIATE: str << arg.value; break;
         default:
             throw std::runtime_error("Undefined argument type.");
     };

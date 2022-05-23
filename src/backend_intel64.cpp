@@ -28,6 +28,11 @@ namespace loops
         R15 = 15
     };
 
+    static inline Binatr::Detail nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
+    {
+        uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
+        return Binatr::Detail(Binatr::Detail::D_STATIC, field, n*8+k);
+    }
 
     Binatr i64binatrLookup(const Syntop& index, bool& scs)
     {
@@ -87,16 +92,16 @@ namespace loops
                 }
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ BDsta(index[0].idx < 8 ? 0x1222E : 0x1322E, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 32) }); //mov rax, [rsp + offset]
-                else if (index[1].tag == Arg::ICONST)
-                    return  BiT({ BDsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BDreg(0, 3, Out), BDcon(1, 32) });//mov rax, <imm>
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return  BiT({ BDsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BDreg(0, 3, Out), BDimm(1, 32) });//mov rax, <imm>
 
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BDsta(index[1].idx < 8 ? 0x12225 : 0x13225, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //mov [rsp + offset], rbx
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(0x48c74424, 32), BDspl(0, 8), BDcon(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(0x48c74424, 32), BDspl(0, 8), BDimm(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_ADD):
@@ -111,15 +116,15 @@ namespace loops
                 }
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ BDsta(index[0].idx < 8 ? 0x1200D : 0x1300D, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) }); //add rax, [rsp + offset]
-                else if (index[1].tag == Arg::ICONST)
-                    return  BiT({ BDsta(0x91078, 21), BDreg(0, 3, Out), BDcon(1, 8) });//add rax, <imm>  
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BDreg(0, 3, In | Out), BDimm(1, 8) });
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BDsta(index[1].idx < 8 ? 0x12005 : 0x13005, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //add [rsp + offset], rbx
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(0x48814424, 32), BDspl(0, 8), BDcon(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(0x48834424, 32), BDspl(0, 8), BDimm(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_SUB):
@@ -134,33 +139,37 @@ namespace loops
                 }
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ BDsta(index[0].idx < 8 ? 0x120AD : 0x130AD, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) }); //sub rax, [rsp + offset]
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(index[0].idx < 8 ? 0x9107D : 0x9307D, 21), BDreg(0, 3, Out), BDcon(1, 8) });//sub rax, <imm>
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(index[0].idx < 8 ? 0x9107D : 0x9307D, 21), BDreg(0, 3, Out), BDimm(1, 8) });//sub rax, <imm>
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BDsta(index[1].idx < 8 ? 0x120A5 : 0x130A5, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //sub [rsp + offset], rbx
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(0x48836c24, 32), BDspl(0, 8), BDcon(1, 8) });  //sub QWORD PTR [rsp + offset], <imm>
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(0x48836c24, 32), BDspl(0, 8), BDimm(1, 8) });  //sub QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_IMUL):
-            Assert(index.size() == 2 && index[0].tag == Arg::IREG && (index[1].tag == Arg::IREG || index[1].tag == Arg::ISPILLED));
+            Assert(index.size() == 2 && index[0].tag == Arg::IREG);
             if (index[1].tag == Arg::IREG)
             {
                 static uint64_t stats[4] = { 0x1203EBF, 0x1303EBF, 0x1243EBF, 0x1343EBF };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                 return BiT({ BDsta(stats[statn], 26), BDreg(0, 3, In | Out), BDreg(1, 3, In) });
             }
-            else //if(index[1].tag == Arg::ISPILLED)
+            else if(index[1].tag == Arg::ISPILLED)
                 return BiT({ BDsta(index[0].idx < 8 ? 0x1203EBD : 0x1303EBD, 26), BDreg(0, 3, In | Out), BDsta(0x424, 11), BDspl(1, 8) });
+            else if (index[1].tag == Arg::IIMMEDIATE)
+                return BiT({ index[0].idx < 8 ? nBkb(2, 0x486b, 2, 0b11) : nBkb(2, 0x4d6b, 2, 0b11), BDreg(0, 3, In | Out) , BDreg(0, 3, In | Out), BDimm(1, 8) });
+            break;
         case (INTEL64_IDIV):
-            Assert(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED));
+            Assert(index.size() == 1);
             if (index[0].tag == Arg::IREG)
                 return BiT({ BDsta(index[0].idx < 8 ? 0x91EFF : 0x93EFF, 21), BDreg(0, 3, In) });
-            else //if(index[0].tag == Arg::ISPILLED)
+            else if(index[0].tag == Arg::ISPILLED)
                 return BiT({ BDsta(0x48f77c24, 32), BDspl(0, 8) });
+            break;
         case (INTEL64_CMP):
             Assert(index.size() == 2);
             if (index[0].tag == Arg::IREG)
@@ -173,16 +182,16 @@ namespace loops
                 }
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ BDsta((index[0].idx < 8) ? 0x120ED : 0x130ED, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) });
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(0x9107F, 21), BDreg(0, 3, Out), BDcon(1, 8) });
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(0x9107F, 21), BDreg(0, 3, Out), BDimm(1, 8) });
 
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BDsta(index[1].idx < 8 ? 0x120E5 : 0x130E5, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });
-                else if (index[1].tag == Arg::ICONST)
-                    return BiT({ BDsta(0x48817c24, 32), BDspl(0, 8), BDcon(1, 32) });
+                else if (index[1].tag == Arg::IIMMEDIATE)
+                    return BiT({ BDsta(0x48817c24, 32), BDspl(0, 8), BDimm(1, 32) });
             }
             break;
         case (INTEL64_NEG):
@@ -288,10 +297,10 @@ namespace loops
         m_name = "Intel64";
         m_afterRegAllocStages.push_back(Three2Two::make());
 #if defined(_WIN32)
-        m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
-        m_returnRegisters = makeRegBasket({ RAX });
-        m_callerSavedRegisters = makeRegBasket({ R10, R11 });
-        m_calleeSavedRegisters = makeRegBasket({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
+        m_parameterRegisters = makeBitmask64({ RCX, RDX, R8, R9 });
+        m_returnRegisters = makeBitmask64({ RAX });
+        m_callerSavedRegisters = makeBitmask64({ R10, R11 });
+        m_calleeSavedRegisters = makeBitmask64({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
 #else
 #error Linux is not supported
 #endif
@@ -309,7 +318,7 @@ namespace loops
         case (OP_JMP_GE):
         case (OP_JMP):
         {
-            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
+            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong JMP format.");
             m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
             int targetop = (a_btop.opcode == OP_JMP_NE) ? INTEL64_JNE : (
@@ -328,7 +337,7 @@ namespace loops
         }
         case (OP_LABEL):
         {
-            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
+            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong LABEL format.");
             if (m_labelMap.count(a_btop.args[0].value) != 0)
                 throw std::runtime_error("Label redefinition");
@@ -489,7 +498,7 @@ namespace loops
                     throw std::runtime_error("Internal error: operation number is too big");
                 if (lref.argnum >= result.program[lref.opnum].size())
                     throw std::runtime_error("Internal error: operation don't have so much arguments");
-                if (result.program[lref.opnum].args[lref.argnum].tag != Arg::ICONST)
+                if (result.program[lref.opnum].args[lref.argnum].tag != Arg::IIMMEDIATE)
                     throw std::runtime_error("Internal error: operation don't have so much arguments");
                 int64_t& opoff = result.program[lref.opnum].args[lref.argnum].value;
                 opoff = (loff - opoff);
@@ -573,7 +582,7 @@ namespace loops
             Arg arg = toPrint[argNum];
             if (arg.flags & AF_PRINTOFFSET)
             {
-                if (arg.tag != Arg::ICONST)
+                if (arg.tag != Arg::IIMMEDIATE)
                     throw std::runtime_error("Printer: register offsets are not supported.");
                 int64_t targetline = numbersAtPositions.at(positions[rowNum+1] + arg.value);
                 out << "[" << targetline << "]";
@@ -595,7 +604,7 @@ namespace loops
                 out << prefix << rnames[arg.idx] << postfix;
                 break;
             }
-            case Arg::ICONST:
+            case Arg::IIMMEDIATE:
                 if (arg.value == 0)
                     out << "#0";
                 else
@@ -624,7 +633,7 @@ namespace loops
             case OP_MUL:
             {
                 Assert(op.size() == 3 && regOrSpi(op[0]));
-                if (op[1].tag == Arg::ICONST)
+                if (op[1].tag == Arg::IIMMEDIATE)
                     std::swap(op[1], op[2]);
                 Assert(regOrSpi(op[1]));
                 if (regOrSpi(op[2]) && regOrSpiEq(op[0], op[2]) && !regOrSpiEq(op[0], op[1]))
@@ -706,10 +715,10 @@ namespace loops
     
     void Intel64Backend::switchOnSpillStressMode()
     {
-        m_parameterRegisters = makeRegBasket({ RCX, RDX, R8, R9 });
-        m_returnRegisters = makeRegBasket({ RAX });
-        m_callerSavedRegisters = makeRegBasket({});
-        m_calleeSavedRegisters = makeRegBasket({ R12, R13, R14, R15 });
+        m_parameterRegisters = makeBitmask64({ RCX, RDX, R8, R9 });
+        m_returnRegisters = makeBitmask64({ RAX });
+        m_callerSavedRegisters = makeBitmask64({});
+        m_calleeSavedRegisters = makeBitmask64({ R12, R13, R14, R15 });
     }
 
 };

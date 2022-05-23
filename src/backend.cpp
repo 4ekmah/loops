@@ -34,7 +34,7 @@ Syntop Mnemotr::apply(const Syntop& a_source, const Backend* a_backend) const
             case Argutr::T_TRANSFORMTOSPILL:
             {
                 Assert(argt.srcArgnum < a_source.size());
-                Assert(a_source.args[argt.srcArgnum].tag == Arg::ICONST);
+                Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = argISpilled(a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
@@ -57,34 +57,27 @@ size_t Mnemotr::targetArgNum(size_t a_srcnum) const
     return res;
 }
 
-bool Backend::isConstFit(const Syntop& a_op, size_t argnum) const
+bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
 {
     const Mnemotr& m2m = lookM2m(a_op);
     argnum = m2m.targetArgNum(argnum);
     if(argnum == Mnemotr::ARG_NOT_USED)
         return true;
     Syntop tar_op = m2m.apply(a_op);
-    const Binatr& instemp = lookM2b(tar_op);
-    if(argnum >= a_op.size())
-        throw std::runtime_error("Binary translator: non-existent argument is requested.");
-    if(a_op.args[argnum].tag != Arg::ICONST)
-        throw std::runtime_error("Binary translator: requested register instead of const.");
-
-    uint64_t val2BeFit = a_op.args[argnum].value;
-    for(const Binatr::Detail& det : instemp. m_compound)
-        if(det.tag != Binatr::Detail::D_STATIC)
+    bool found;
+    Binatr instemp = m_m2blookup(tar_op, found);
+    if (!found)
+        return false;
+    Assert(argnum < tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
+    bool neg = tar_op.args[argnum].value < 0;
+    uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
+    for(const Binatr::Detail& det : instemp.m_compound)
+        if (det.tag != Binatr::Detail::D_STATIC && det.arVecNum == argnum)
         {
-            if(argnum == 0)
-            {
-                if(det.tag == Binatr::Detail::D_REG)
-                    throw std::runtime_error("Binary translator: register instead of const.");
-                size_t bitwneeded = 0;
-                for (;bitwneeded < 63; bitwneeded++) //TODO(ch): what a shame! Give normal implementation! AND!!! Use info about type(SIGNED/UNSIGNED offsets, adresses, etc.)
-                    if(val2BeFit <= (((uint64_t)(1))<<bitwneeded))
-                        break;
-                return (bitwneeded <= det.width);
-            }
-            argnum--;
+            Assert(det.tag != Binatr::Detail::D_REG);
+            size_t bitwneeded = msb64(val2BeFit);
+            bitwneeded += neg ? 1 : 0;
+            return (bitwneeded < det.width);
         }
     throw std::runtime_error("Binary translator: non-existent argument is requested.");
 }

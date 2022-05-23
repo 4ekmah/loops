@@ -24,7 +24,7 @@ enum {
     AARCH64_SUB,
     AARCH64_MUL,
     AARCH64_SDIV,
-    AARCH64_CMP_R,
+    AARCH64_CMP,
     AARCH64_B,
     AARCH64_B_NE,
     AARCH64_B_EQ,

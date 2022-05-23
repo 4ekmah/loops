@@ -181,7 +181,7 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    enum { EMPTY = 0, IREG = 1, ICONST = 2, ISPILLED = 3};//, VREG = 3, VCONST = 4 //TODO(ch): Uncomment.
+    enum { EMPTY = 0, IREG = 1, IIMMEDIATE = 2, ISPILLED = 3};//, VREG = 3, VIMMEDIATE = 4 //TODO(ch): Uncomment.
 
     Arg();
     Arg(const IReg& r);
@@ -248,8 +248,9 @@ public:
     void elif_(const IReg& r);
     void else_();
     void endif_();
-    void return_(const IReg& retval);
     void return_();
+    void return_(int64_t retval);
+    void return_(const IReg& retval);
     // direct call
     IReg call_(const IReg& addr, std::initializer_list<IReg> args);
     // indirect call
@@ -262,11 +263,13 @@ protected:
     Context* impl;
 };
 
-IReg newiop(int opcode, ::std::initializer_list<Arg> args);
-IReg newiop(int opcode, int depth, std::initializer_list<Arg> args);
-void newiopNoret(int opcode, ::std::initializer_list<Arg> args);
-void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args);
-void newiopAug(int opcode, ::std::initializer_list<Arg> args);
+static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers);
+
+IReg newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+void newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+void newiopAug(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -305,34 +308,87 @@ void store_(const IReg& base, const IReg& offset, const IReg& r)
 
 static inline IReg operator + (const IReg& a, const IReg& b)
 { return newiop(OP_ADD, {a, b}); }
+static inline IReg operator + (const IReg& a, int64_t b)
+{ return newiop(OP_ADD, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator + (int64_t a, const IReg& b)
+{ return newiop(OP_ADD, {b, Arg(a)}, makeBitmask64({1})); }
 static inline IReg operator - (const IReg& a, const IReg& b)
 { return newiop(OP_SUB, {a, b}); }
+static inline IReg operator - (const IReg& a, int64_t b)
+{ return newiop(OP_SUB, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator - (int64_t a, const IReg& b)
+{ return newiop(OP_SUB, {Arg(a), b}, makeBitmask64({0})); }
 static inline IReg operator * (const IReg& a, const IReg& b)
 { return newiop(OP_MUL, {a, b}); }
+static inline IReg operator * (const IReg& a, int64_t b)
+{ return newiop(OP_MUL, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator * (int64_t a, const IReg& b)
+{ return newiop(OP_MUL, {b, Arg(a)}, makeBitmask64({1})); }
 static inline IReg operator / (const IReg& a, const IReg& b)
 { return newiop(OP_DIV, {a, b}); }
+static inline IReg operator / (const IReg& a, int64_t b)
+{ return newiop(OP_DIV, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator / (int64_t a, const IReg& b)
+{ return newiop(OP_DIV, {Arg(a), b}, makeBitmask64({0})); }
 static inline IReg operator % (const IReg& a, const IReg& b)
 { return newiop(OP_MOD, {a, b}); }
+static inline IReg operator % (const IReg& a, int64_t b)
+{ return newiop(OP_MOD, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator % (int64_t a, const IReg& b)
+{ return newiop(OP_MOD, {Arg(a), b}, makeBitmask64({0})); }
 static inline IReg operator >> (const IReg& a, const IReg& b)
 { return newiop(OP_SHR, {a, b}); }
+static inline IReg operator >> (const IReg& a, int64_t b)
+{ return newiop(OP_SHR, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator >> (int64_t a, const IReg& b)
+{ return newiop(OP_SHR, {Arg(a), b}, makeBitmask64({0})); }
 static inline IReg operator << (const IReg& a, const IReg& b)
 { return newiop(OP_SHL, {a, b}); }
+static inline IReg operator << (const IReg& a, int64_t b)
+{ return newiop(OP_SHL, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator << (int64_t a, const IReg& b)
+{ return newiop(OP_SHL, {Arg(a), b}, makeBitmask64({0})); }
 static inline IReg operator & (const IReg& a, const IReg& b)
 { return newiop(OP_AND, {a, b}); }
+static inline IReg operator & (const IReg& a, int64_t b)
+{ return newiop(OP_AND, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator & (int64_t a, const IReg& b)
+{ return newiop(OP_AND, {b, Arg(a)}, makeBitmask64({1})); }
 static inline IReg operator | (const IReg& a, const IReg& b)
 { return newiop(OP_OR, {a, b}); }
+static inline IReg operator | (const IReg& a, int64_t b)
+{ return newiop(OP_OR, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator | (int64_t a, const IReg& b)
+{ return newiop(OP_OR, {b, Arg(a)}, makeBitmask64({1})); }
 static inline IReg operator ^ (const IReg& a, const IReg& b)
 { return newiop(OP_XOR, {a, b}); }
+static inline IReg operator ^ (const IReg& a, int64_t b)
+{ return newiop(OP_XOR, {a, Arg(b)}, makeBitmask64({1})); }
+static inline IReg operator ^ (int64_t a, const IReg& b)
+{ return newiop(OP_XOR, {b, Arg(a)}, makeBitmask64({1})); }
+
 static inline IReg operator ~ (const IReg& a)
 { return newiop(OP_NOT, {a}); }
 static inline IReg operator - (const IReg& a)
 { return newiop(OP_NEG, {a}); }
 IReg operator == (const IReg& a, const IReg& b);
+IReg operator == (const IReg& a, int64_t b);
+static inline IReg operator == (int64_t a, const IReg& b) { return b == a; }
 IReg operator != (const IReg& a, const IReg& b);
+IReg operator != (const IReg& a, int64_t b);
+static inline IReg operator != (int64_t a, const IReg& b) { return b != a; }
 IReg operator <= (const IReg& a, const IReg& b);
+IReg operator <= (const IReg& a, int64_t b);
 IReg operator >= (const IReg& a, const IReg& b);
+IReg operator >= (const IReg& a, int64_t b);
 IReg operator > (const IReg& a, const IReg& b);
+IReg operator > (const IReg& a, int64_t b);
 IReg operator < (const IReg& a, const IReg& b);
+IReg operator < (const IReg& a, int64_t b);
+static inline IReg operator <= (int64_t a, const IReg& b) { return b >= a; }
+static inline IReg operator >= (int64_t a, const IReg& b) { return b <= a; }
+static inline IReg operator > (int64_t a, const IReg& b) { return b < a; }
+static inline IReg operator < (int64_t a, const IReg& b) { return b > a; }
 static inline IReg select(const IReg& flag, const IReg& iftrue, const IReg& iffalse)
 { return newiop(OP_SELECT, {flag, iftrue, iffalse}); }
 static inline IReg max(const IReg& a, const IReg& b)
@@ -346,24 +402,44 @@ static inline IReg sign(const IReg& a)
 
 static inline IReg& operator += (IReg& a, const IReg& b)
 { newiopAug(OP_ADD, {a, a, b}); return a; }
+static inline IReg& operator += (IReg& a, int64_t b)
+{ newiopAug(OP_ADD, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator -= (IReg& a, const IReg& b)
 { newiopAug(OP_SUB, {a, a, b}); return a; }
+static inline IReg& operator -= (IReg& a, int64_t b)
+{ newiopAug(OP_SUB, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator *= (IReg& a, const IReg& b)
 { newiopAug(OP_MUL, {a, a, b}); return a; }
+static inline IReg& operator *= (IReg& a, int64_t b)
+{ newiopAug(OP_MUL, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator /= (IReg& a, const IReg& b)
 { newiopAug(OP_DIV, {a, a, b}); return a; }
+static inline IReg& operator /= (IReg& a, int64_t b)
+{ newiopAug(OP_DIV, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator %= (IReg& a, const IReg& b)
 { newiopAug(OP_MOD, {a, a, b}); return a; }
+static inline IReg& operator %= (IReg& a, int64_t b)
+{ newiopAug(OP_MOD, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator >>= (IReg& a, const IReg& b)
 { newiopAug(OP_SHR, {a, a, b}); return a; }
+static inline IReg& operator >>= (IReg& a, int64_t b)
+{ newiopAug(OP_SHR, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator <<= (IReg& a, const IReg& b)
 { newiopAug(OP_SHL, {a, a, b}); return a; }
+static inline IReg& operator <<= (IReg& a, int64_t b)
+{ newiopAug(OP_SHL, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator &= (IReg& a, const IReg& b)
 { newiopAug(OP_AND, {a, a, b}); return a; }
+static inline IReg& operator &= (IReg& a, int64_t b)
+{ newiopAug(OP_AND, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator |= (IReg& a, const IReg& b)
 { newiopAug(OP_OR, {a, a, b}); return a; }
+static inline IReg& operator |= (IReg& a, int64_t b)
+{ newiopAug(OP_OR, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 static inline IReg& operator ^= (IReg& a, const IReg& b)
 { newiopAug(OP_XOR, {a, a, b}); return a; }
+static inline IReg& operator ^= (IReg& a, int64_t b)
+{ newiopAug(OP_XOR, {a, a, Arg(b)}, makeBitmask64({2})); return a; }
 
 ///////////////////////////// vector operations ///////////////////////
 
@@ -422,6 +498,14 @@ static inline IReg& operator ^= (IReg& a, const IReg& b)
 //template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
+
+inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
+{
+    uint64_t res = 0;
+    for (size_t bitnum : regNumbers)
+        res |= (static_cast<uint64_t>(1) << bitnum);
+    return res;
+}
 
 }
 

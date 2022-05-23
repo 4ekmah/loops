@@ -54,9 +54,9 @@ namespace MnemotrTableConstructor
         return Mnemotr::Argutr(resArg);
     }
     //MAcon is for Mnemotr::Argutr fixed value
-    inline Mnemotr::Argutr MAcon(int64_t val, uint64_t flags = 0)
+    inline Mnemotr::Argutr MAimm(int64_t val, uint64_t flags = 0)
 {
-        Arg resArg = argIConst(val);
+        Arg resArg = argIImm(val);
         resArg.flags = flags;
         return Mnemotr::Argutr(resArg);
     }
@@ -74,7 +74,7 @@ namespace MnemotrTableConstructor
 class Backend
 {
 public:
-    bool isConstFit(const Syntop& a_op, size_t argnum) const;
+    bool isImmediateFit(const Syntop& a_op, size_t argnum) const;
     virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
     virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
     virtual size_t spillSpaceNeeded(const Syntop& a_op) const;

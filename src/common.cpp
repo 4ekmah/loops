@@ -34,13 +34,13 @@ namespace loops
         if (r.func == nullptr)
             throw std::runtime_error("Cannot find motherfunction in registers.");
         FuncImpl* funcimpl = static_cast<FuncImpl*>(func);
-        funcimpl->newiop(OP_MOV, { r }, idx);
+        funcimpl->newiopPreret(OP_MOV, { r }, idx);
         return (*this);
     }
 
     Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0) {}
     Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
-    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), func(nullptr), tag(Arg::ICONST), value(a_value), flags(0) {}
+    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0) {}
 
     Func::Func() : impl(nullptr) {}
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->m_refcount++; }
@@ -77,29 +77,29 @@ namespace loops
         return ret;
     }
     
-    IReg newiop(int opcode, std::initializer_list<Arg> args)
+    IReg newiop(int opcode, std::initializer_list<Arg> args, uint64_t tryImmMask)
     {
-        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args));
+        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args, tryImmMask));
     }
 
-    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args)
+    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
     {
-        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args);
+        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args, tryImmMask);
     }
 
-    void newiopNoret(int opcode, ::std::initializer_list<Arg> args)
+    void newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args, tryImmMask);
     }
 
-    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
+    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args, tryImmMask);
     }
     
-    void newiopAug(int opcode, ::std::initializer_list<Arg> args)
+    void newiopAug(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
     {
-        return newiopNoret(opcode, args);
+        return newiopNoret(opcode, args, tryImmMask);
     }
 
     IReg operator == (const IReg& a, const IReg& b)
@@ -109,11 +109,25 @@ namespace loops
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
+    IReg operator == (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_EQ;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
     IReg operator != (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_NE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator != (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_NE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, const IReg& b)
@@ -123,11 +137,25 @@ namespace loops
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
+    IReg operator <= (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_LE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
     IReg operator >= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_GE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator >= (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_GE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, const IReg& b)
@@ -137,11 +165,25 @@ namespace loops
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
+    IReg operator > (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_GT;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
     IReg operator < (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
         fnc->m_cmpopcode = OP_JMP_LT;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator < (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = OP_JMP_LT;
+        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
@@ -187,8 +229,9 @@ namespace loops
     void Context::else_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->else_(); };
     void Context::endif_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endif_(); }
 
-    void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(); }
+    void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
+    void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 

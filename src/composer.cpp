@@ -103,7 +103,7 @@ Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
-    if(tag != D_REG && tag != D_CONST && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET && tag != D_SPILLED)
+    if(tag != D_REG && tag != D_IMMEDIATE && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET && tag != D_SPILLED)
         throw std::runtime_error("Binary translator: wrong detail constructor.");
 }
 
@@ -145,11 +145,11 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
-        case (Detail::D_CONST):
+        case (Detail::D_IMMEDIATE):
         case (Detail::D_ADDRESS):
         case (Detail::D_OFFSET):
         case (Detail::D_STACKOFFSET):
-            if (op.args[det.arVecNum].tag != Arg::ICONST)
+            if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
@@ -174,11 +174,13 @@ void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
         {
             //                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
         }
-        case (Detail::D_CONST):
+        case (Detail::D_IMMEDIATE):
         case (Detail::D_OFFSET):
         case (Detail::D_STACKOFFSET):
         case (Detail::D_SPILLED):
             piece = static_cast<uint64_t>(op.args[det.arVecNum].value);
+            if(det.fieldOflags & Detail::D_INVERT_IMM)
+                piece = ~piece;
             if (det.tag == Detail::D_SPILLED)
                 piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
             if (bits->getBackend()->isLittleEndianOperands())

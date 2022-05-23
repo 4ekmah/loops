@@ -60,51 +60,70 @@ Binatr a64binatrLookup(const Syntop& index, bool& scs)
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
             return BiT({ BDsta(0x5C5,11), BDreg(2, 5, In), BDsta(0x1A,6), BDreg(1, 5, In), BDreg(0, 5, Out) });
-        else if (index[2].tag == Arg::ICONST)
-            return BiT({ BDsta(0x5C4,11), BDcon(2, 9), BDsta(0x1,2), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::IIMMEDIATE)
+            return BiT({ BDsta(0x5C4,11), BDimm(2, 9), BDsta(0x1,2), BDreg(1, 5, In), BDreg(0, 5, Out) });
         break;
         //TODO(ch): It's LDR's specialization: immediate offset.
     case (AARCH64_LDR):
         Assert(index.size() == 4);
-        if (index[3].tag == Arg::ICONST)
-            return BiT({ BDsta(0x1, 1), BDcon(0, 1), BDsta(0xE5, 8), BDcon(3, 12), BDreg(2, 5, In), BDreg(1, 5, Out) });
+        if (index[3].tag == Arg::IIMMEDIATE)
+            return BiT({ BDsta(0x1, 1), BDimm(0, 1), BDsta(0xE5, 8), BDimm(3, 12), BDreg(2, 5, In), BDreg(1, 5, Out) });
         break;
         //TODO(ch): It's STR's specialization: immediate offset)
     case (AARCH64_STR):
         Assert(index.size() == 4);
-        if (index[3].tag == Arg::ICONST)
-            return BiT({ BDsta(0x1,  1), BDcon(0, 1), BDsta(0xE4, 8), BDcon(3, 12), BDreg(2, 5, In), BDreg(1, 5, In) });
+        if (index[3].tag == Arg::IIMMEDIATE)
+            return BiT({ BDsta(0x1,  1), BDimm(0, 1), BDsta(0xE4, 8), BDimm(3, 12), BDreg(2, 5, In), BDreg(1, 5, In) });
         break;
         //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
     case (AARCH64_MOV):
         Assert(index.size() == 2);
         if (index[1].tag == Arg::IREG)
             return BiT({ BDsta(0x550,11), BDreg(1, 5, In), BDsta(0x1F ,11), BDreg(0, 5, Out) });
-        else if (index[1].tag == Arg::ICONST)
-            return BiT({ BDsta(0x694,11), BDcon(1, 16), BDreg(0, 5, Out) });
+        else if (index[1].tag == Arg::IIMMEDIATE)
+        {
+            if(index[1].value >= 0)
+                return BiT({ BDsta(0x694,11), BDimm(1, 16), BDreg(0, 5, Out) });
+            else// if(index[1].value < 0)
+                return BiT({ BDsta(0b10010010100, 11), BDimm(1, 16, InvIm), BDreg(0, 5, Out) });
+        }
         break;
         //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
     case (AARCH64_ADD):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
             return BiT({ BDsta(0x458, 11), BDreg(2, 5, In), BDsta(0x0, 6), BDreg(1, 5, In), BDreg(0, 5, Out) });
-        else if (index[2].tag == Arg::ICONST)
-            return BiT({ BDsta(0x244, 10), BDcon(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::IIMMEDIATE)
+            return BiT({ BDsta(0x244, 10), BDimm(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
         break;
         //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
     case (AARCH64_SUB):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
             return BiT({ BDsta(0x658,11), BDreg(2, 5, In), BDsta(0x0,6), BDreg(1, 5, In), BDreg(0, 5, Out) });
-        else if (index[2].tag == Arg::ICONST)
-            return BiT({ BDsta(0x344,10), BDcon(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
+        else if (index[2].tag == Arg::IIMMEDIATE)
+            return BiT({ BDsta(0x344,10), BDimm(2, 12), BDreg(1, 5, In), BDreg(0, 5, Out) });
         break;
         //TODO(ch): Specialization: 64 registers.
-    case (AARCH64_MUL): return BiT({ BDsta(0x4D8,11), BDreg(2, 5, In), BDsta(0x1F, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
+    case (AARCH64_MUL):
+            Assert(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
+            if(index[2].tag == Arg::IREG)
+                return BiT({ BDsta(0x4D8,11), BDreg(2, 5, In), BDsta(0x1F, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
+            break;
         //TODO(ch): Specialization: 64 registers.
-    case (AARCH64_SDIV): return BiT({ BDsta(0x4D6,11), BDreg(2, 5, In), BDsta(0x3, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
-        //TODO(ch): there is no CMP_R instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
-    case (AARCH64_CMP_R): return BiT({ BDsta(0x758,11), BDreg(1, 5, In), BDsta(0x0,6), BDreg(0, 5, In), BDsta(0x1F, 5) });
+    case (AARCH64_SDIV):
+            Assert(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
+            if(index[2].tag == Arg::IREG)
+                return BiT({ BDsta(0x4D6,11), BDreg(2, 5, In), BDsta(0x3, 6), BDreg(1, 5, In), BDreg(0,5,Out) });
+            break;
+        //TODO(ch): there is no CMP instruction in ARM processors, it's prespecialized version of CMP(shifted register). We must make switchers much more flexible and functional to support real CMP. Specialization is: 64 register, zero shift.
+    case (AARCH64_CMP):
+            Assert(index.size() == 2 && index[0].tag == Arg::IREG);
+            if(index[1].tag == Arg::IREG)
+                return BiT({ BDsta(0x758,11), BDreg(1, 5, In), BDsta(0x0,6), BDreg(0, 5, In), BDsta(0x1F, 5) });
+            if(index[1].tag == Arg::IIMMEDIATE)
+                return BiT({ BDsta(0b1111000100, 10), BDimm(1, 12),  BDreg(0, 5, In), BDsta(0b11111,5)});
+            break;
     case (AARCH64_B): return BiT({ BDsta(0x5, 6), BDoff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BDsta(0x54,8), BDoff(0, 19), BDsta(0x1, 5) });
@@ -132,33 +151,33 @@ Mnemotr a64mnemotrLookup(const Syntop& index, bool& scs)
         if (index[1].value == TYPE_I32)
         {
             if (index.size() == 3)
-                return MnT(AARCH64_LDRSW, { MAcop(0), MAcop(2, AF_ADDRESS), MAcon(0) });
+                return MnT(AARCH64_LDRSW, { MAcop(0), MAcop(2, AF_ADDRESS), MAimm(0) });
             else if (index.size() == 4)
                 return MnT(AARCH64_LDRSW, { MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
         }
         else
         {
-            Assert(index.size() == 4 && index[3].tag == Arg::ICONST);
+            Assert(index.size() == 4 && index[3].tag == Arg::IIMMEDIATE);
             if (index[1].value == TYPE_U32)
-                return MnT(AARCH64_LDR, { MAcon(0, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
+                return MnT(AARCH64_LDR, { MAimm(0, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
             else if (index[1].value == TYPE_U64)
-                return MnT(AARCH64_LDR, { MAcon(1, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
+                return MnT(AARCH64_LDR, { MAimm(1, AF_NOPRINT), MAcop(0), MAcop(2, AF_ADDRESS), MAcop(3) });
         }
         break;
     case (OP_STORE):
         if (index.size() == 3)
         {
             if (index[0].value == TYPE_I32 || index[1].value == TYPE_U32)
-                return MnT(AARCH64_STR, { MAcon(0, AF_NOPRINT), MAcop(2, AF_LOWER32), MAcop(1, AF_ADDRESS), MAcon(0) });
+                return MnT(AARCH64_STR, { MAimm(0, AF_NOPRINT), MAcop(2, AF_LOWER32), MAcop(1, AF_ADDRESS), MAimm(0) });
             else if (index[0].value == TYPE_I64 || index[1].value == TYPE_U64)
-                return MnT(AARCH64_STR, { MAcon(1, AF_NOPRINT), MAcop(2), MAcop(1, AF_ADDRESS), MAcon(0) });
+                return MnT(AARCH64_STR, { MAimm(1, AF_NOPRINT), MAcop(2), MAcop(1, AF_ADDRESS), MAimm(0) });
         }
         else if (index.size() == 4)
         {
             if (index[0].value == TYPE_I32 || index[1].value == TYPE_U32)
-                return MnT(AARCH64_STR, { MAcon(0), MAcop(3, AF_LOWER32), MAcop(1), MAcop(2) });
+                return MnT(AARCH64_STR, { MAimm(0), MAcop(3, AF_LOWER32), MAcop(1), MAcop(2) });
             else if (index[0].value == TYPE_I64 || index[1].value == TYPE_U64)
-                return MnT(AARCH64_STR, { MAcon(1), MAcop(3), MAcop(1), MAcop(2) });
+                return MnT(AARCH64_STR, { MAimm(1), MAcop(3), MAcop(1), MAcop(2) });
         }
         break;
     case (OP_MOV):    return MnT(AARCH64_MOV, { MAcop(0), MAcop(1) });
@@ -166,9 +185,9 @@ Mnemotr a64mnemotrLookup(const Syntop& index, bool& scs)
     case (OP_SUB):    return MnT(AARCH64_SUB, { MAcop(0), MAcop(1), MAcop(2) });
     case (OP_MUL):    return MnT(AARCH64_MUL, { MAcop(0), MAcop(1), MAcop(2) });
     case (OP_DIV):    return MnT(AARCH64_SDIV, { MAcop(0), MAcop(1), MAcop(2) });
-    case (OP_CMP):    return MnT(AARCH64_CMP_R, { MAcop(0), MAcop(1) });
-    case (OP_UNSPILL):return MnT(AARCH64_LDR, { MAcon(1, AF_NOPRINT), MAcop(0), MAreg(SP, AF_ADDRESS), MAcop(1) });
-    case (OP_SPILL):  return MnT(AARCH64_STR, { MAcon(1, AF_NOPRINT), MAcop(1), MAreg(SP, AF_ADDRESS), MAcop(0) });
+    case (OP_CMP):    return MnT(AARCH64_CMP, { MAcop(0), MAcop(1) });
+    case (OP_UNSPILL):return MnT(AARCH64_LDR, { MAimm(1, AF_NOPRINT), MAcop(0), MAreg(SP, AF_ADDRESS), MAcop(1) });
+    case (OP_SPILL):  return MnT(AARCH64_STR, { MAimm(1, AF_NOPRINT), MAcop(1), MAreg(SP, AF_ADDRESS), MAcop(0) });
     case (OP_RET):    return MnT(AARCH64_RET, { MAreg(LR) });
     default:
         break;
@@ -188,10 +207,10 @@ Aarch64Backend::Aarch64Backend()
     m_instructionWidth = 4;
     m_registersAmount = 7;
     m_name = "AArch64";
-    m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
-    m_returnRegisters = makeRegBasket({ R0, R1, R2, R3, R4, R5, R6, R7 });
-    m_callerSavedRegisters = makeRegBasket({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
-    m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
+    m_parameterRegisters = makeBitmask64({ R0, R1, R2, R3, R4, R5, R6, R7 });
+    m_returnRegisters = makeBitmask64({ R0, R1, R2, R3, R4, R5, R6, R7 });
+    m_callerSavedRegisters = makeBitmask64({ XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 });
+    m_calleeSavedRegisters = makeBitmask64({ PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 });
 }
 
 bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const
@@ -206,7 +225,7 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         case (OP_JMP_GE):
         case (OP_JMP):
         {
-            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
+            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong JMP format.");
             m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
             int targetop = (a_btop.opcode == OP_JMP_NE) ? AARCH64_B_NE : (
@@ -223,7 +242,7 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         }
         case (OP_LABEL):
         {
-            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::ICONST)
+            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong LABEL format.");
             if(m_labelMap.count(a_btop.args[0].value) != 0)
                 throw std::runtime_error("Label redefinition");
@@ -252,7 +271,7 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
                 throw std::runtime_error("Internal error: operation number is too big");
             if (lref.argnum >= result.program[lref.opnum].size())
                 throw std::runtime_error("Internal error: operation don't have so much arguments");
-            if (result.program[lref.opnum].args[lref.argnum].tag != Arg::ICONST)
+            if (result.program[lref.opnum].args[lref.argnum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Internal error: operation don't have so much arguments");
             int64_t& opoff = result.program[lref.opnum].args[lref.argnum].value;
             opoff = (loff - opoff) / 4; //AArch64 supports only multiply-4 offsets, so, for compactification, they are divided by 4. //TODO(ch): shift?
@@ -287,7 +306,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SUB,   "sub"  },
         {AARCH64_MUL,   "mul"  },
         {AARCH64_SDIV,  "sdiv" },
-        {AARCH64_CMP_R, "cmp"  },
+        {AARCH64_CMP, "cmp"  },
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },
@@ -316,7 +335,7 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
         Arg arg = toPrint[argNum];
         if (arg.flags & AF_PRINTOFFSET)
         {
-            if (arg.tag != Arg::ICONST)
+            if (arg.tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Printer: register offsets are not supported.");
             int64_t targetline = rowNum + arg.value;
             out << "["<< targetline<< "]";
@@ -336,7 +355,7 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
                 else
                     out << (w32 ? "w" : "x") << arg.idx;
                 break;
-            case Arg::ICONST:
+            case Arg::IIMMEDIATE:
                 if(arg.value == 0)
                     out << "#0";
                 else
@@ -351,10 +370,10 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
 
 void Aarch64Backend::switchOnSpillStressMode()
 {
-    m_parameterRegisters = makeRegBasket({ R0, R1, R2, R3 });
-    m_returnRegisters = makeRegBasket({ R0, R1, R2, R3 });
-    m_callerSavedRegisters = makeRegBasket({});
-    m_calleeSavedRegisters = makeRegBasket({ PR, R19, R20, R21, R22 });
+    m_parameterRegisters = makeBitmask64({ R0, R1, R2, R3 });
+    m_returnRegisters = makeBitmask64({ R0, R1, R2, R3 });
+    m_callerSavedRegisters = makeBitmask64({});
+    m_calleeSavedRegisters = makeBitmask64({ PR, R19, R20, R21, R22 });
 }
 
 };

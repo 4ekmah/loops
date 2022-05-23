@@ -12,65 +12,12 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    inline size_t firstOneBit64(uint64_t bigNum)
-    {
-        uint64_t firstReg = (bigNum & ~(bigNum - 1));
-        static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
-        static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            8 };
-        uint32_t first32 = (uint32_t)(firstReg & 0xFFFFFFFF);
-        uint32_t second32 = (uint32_t)(firstReg >> 32);
-        uint8_t bytenum = (second32 != 0) << 2;
-        uint32_t bnHalf = first32 + ((~(uint32_t)(second32 == 0)) & second32);
-
-        uint16_t first16 = (uint16_t)(bnHalf & 0xFFFF);
-        uint16_t second16 = (uint16_t)(bnHalf >> 16);
-        bytenum += (second16 != 0) << 1;
-        uint16_t bnHalfHalf = first16 + ((~(uint32_t)(second16 == 0)) & second16);
-
-        uint8_t first8 = (uint8_t)(bnHalfHalf & 0xFF);
-        uint8_t second8 = (uint8_t)(bnHalfHalf >> 8);
-        bytenum += (second8!= 0);
-        uint8_t bytecontent = first8 + ((~(uint32_t)(second8 == 0)) & second8);
-
-        return static_cast<size_t>(bnBase[bytenum]) + static_cast<size_t>(bnAdd[bytecontent]) - 1;
-    }
-
     inline size_t pickFirstBit64(uint64_t& bigNum)
     {
         Assert(bigNum != 0);
-        size_t ret = firstOneBit64(bigNum);
+        size_t ret = lsb64(bigNum);
         bigNum = (bigNum | (uint64_t(1) << ret)) ^ (uint64_t(1) << ret);
         return ret;
-    }
-
-    inline size_t amountOfBits64(uint64_t bigNum)
-    {
-        size_t res = 0;
-        static const uint8_t amountInByte[256] = 
-            { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-              1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-              1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-              2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8 };
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        bigNum >>= 8;
-        res += amountInByte[bigNum & 0xFF];
-        return res;
     }
 
     const size_t RegisterPool::m_maximumSpills = 3;    //TODO(ch):need more detailed scheme
@@ -165,7 +112,7 @@ namespace loops
 
     IRegInternal RegisterPool::provideParamFromPool()
     {
-        IRegInternal res = firstOneBit64(m_parameterRegisters & m_pool);
+        IRegInternal res = lsb64(m_parameterRegisters & m_pool);
         if (res == size_t(NOREGISTER))
             return IReg::NOIDX;
         removeFromAllBaskets(res);
@@ -185,7 +132,7 @@ namespace loops
         }
         else if (havefreeRegs())
         {
-            res = firstOneBit64(m_pool);
+            res = lsb64(m_pool);
             if (((uint64_t(1)) << res) & m_calleeSavedRegisters)
                 m_usedCallee.insert(m_regOrder[res]);
         }
@@ -196,7 +143,7 @@ namespace loops
 
     IRegInternal RegisterPool::provideReturnFromPool()
     {
-        IRegInternal res = firstOneBit64(m_returnRegisters); //TODO(ch): It will works only for one return register.
+        IRegInternal res = lsb64(m_returnRegisters); //TODO(ch): It will works only for one return register.
         Assert(res != NOREGISTER);
         removeFromAllBaskets(res);
         res = m_regOrder[res];
@@ -214,7 +161,7 @@ namespace loops
     {
         if (m_spillPlaceholders == 0)
             return IReg::NOIDX;
-        size_t res = firstOneBit64(m_spillPlaceholders);
+        size_t res = lsb64(m_spillPlaceholders);
         uint64_t pos = 1;
         pos <<= res;
         m_spillPlaceholders = (m_spillPlaceholders | pos) ^ (pos);
@@ -244,7 +191,7 @@ namespace loops
         uint64_t pos = 1;
         pos <<= reg;
         m_pool = (m_pool | pos) ^ (pos);
-        if (firstOneBit64(m_pool) > firstOneBit64(m_spillPlaceholdersAvailable))
+        if (lsb64(m_pool) > lsb64(m_spillPlaceholdersAvailable))
             m_spillPlaceholdersAvailable = m_pool;
     }
 
@@ -263,11 +210,6 @@ namespace loops
     struct endordering
     {
         bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
-    };
-
-    struct idxordering
-    {
-        bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.idx < b.idx; }
     };
 
     class LivenessAnalysisAlgo
@@ -583,19 +525,19 @@ namespace loops
         { //Write prologue
             if (spAddAligned)
             {
-                newProg.push_back(Syntop(OP_SUB, { backend->getSParg(a_func), backend->getSParg(a_func), argIConst(spAddAligned * 8) }));
+                newProg.push_back(Syntop(OP_SUB, { backend->getSParg(a_func), backend->getSParg(a_func), argIImm(spAddAligned * 8) }));
                 for (IRegInternal par : a_processed.params)
                     if (regReassignment[par].tag == Arg::ISPILLED && (std::find(paramsFromStack.begin(), paramsFromStack.end(), par) == paramsFromStack.end()))
-                        newProg.push_back(Syntop(OP_SPILL, { argIConst(regReassignment[par].value), argIReg(regReassignment[par].idx) }));
+                        newProg.push_back(Syntop(OP_SPILL, { argIImm(regReassignment[par].value), argIReg(regReassignment[par].idx) }));
                 size_t savNum = nettoSpills + snippetCausedSpills - m_pool.usedCallee().size();
                 for (IRegInternal toSav : m_pool.usedCallee())
-                    newProg.push_back(Syntop(OP_SPILL, { argIConst(savNum++), argIReg(toSav) }));
+                    newProg.push_back(Syntop(OP_SPILL, { argIImm(savNum++), argIReg(toSav) }));
             }
             for (size_t stackParamNum = 0; stackParamNum < paramsFromStack.size(); stackParamNum++)
             {
                 IRegInternal idx = paramsFromStack[stackParamNum];
                 if (regReassignment[idx].tag == Arg::IREG)
-                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(regReassignment[idx].idx), argIConst(backend->stackParamOffset(nettoSpills, snippetCausedSpills) + stackParamNum) }));
+                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(regReassignment[idx].idx), argIImm(backend->stackParamOffset(nettoSpills, snippetCausedSpills) + stackParamNum) }));
             }
         }
         newProg.insert(newProg.end(), newProgUnbracketed.begin(), newProgUnbracketed.end());
@@ -605,8 +547,8 @@ namespace loops
             {
                 size_t savNum = nettoSpills + snippetCausedSpills - m_pool.usedCallee().size();
                 for (IRegInternal toSav : m_pool.usedCallee())
-                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIConst(savNum++) }));
-                newProg.push_back(Syntop(OP_ADD, { backend->getSParg(a_func), backend->getSParg(a_func), argIConst(spAddAligned * 8) }));
+                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(toSav), argIImm(savNum++) }));
+                newProg.push_back(Syntop(OP_ADD, { backend->getSParg(a_func), backend->getSParg(a_func), argIImm(spAddAligned * 8) }));
             }
         }
         m_epilogueSize = newProg.size() - m_epilogueSize;
@@ -638,21 +580,21 @@ namespace loops
                 {
                 case (OP_IF):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST);
+                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
                     branchQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
                     continue;
                 }
                 case (OP_ELSE):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST);
+                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::IF);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, opnum));
                     continue;
                 }
                 case (OP_ENDIF):
                 {
-                    Assert(op.size() == 1 && op.args[0].tag == Arg::ICONST);
+                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                     Assert(flowstack.size());
                     ControlFlowBracket bracket = flowstack.back();
                     flowstack.pop_back();
@@ -673,14 +615,14 @@ namespace loops
                 }
                 case (OP_DO):
                 {
-                    Assert(op.size() == 1 && op.args[0].tag == Arg::ICONST);
+                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DO, opnum));
                     loopQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
                     continue;
                 }
                 case (OP_WHILE):
                 {
-                    Assert(op.size() == 4 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST && op.args[2].tag == Arg::ICONST && op.args[3].tag == Arg::ICONST);
+                    Assert(op.size() == 4 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE && op.args[3].tag == Arg::IIMMEDIATE);
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::DO);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
@@ -691,7 +633,7 @@ namespace loops
                 }
                 case (OP_DOIF):
                 {
-                    Assert(op.size() == 3 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST && op.args[2].tag == Arg::ICONST);
+                    Assert(op.size() == 3 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE);
                     if (opnum < 2)
                         throw std::runtime_error("Temporary condition solution needs one instruction before DOIF cycle.");
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, opnum - 2));
@@ -700,7 +642,7 @@ namespace loops
                 }
                 case (OP_ENDDO):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::ICONST && op.args[1].tag == Arg::ICONST);
+                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::DOIF);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();

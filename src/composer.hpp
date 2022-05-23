@@ -54,8 +54,8 @@ namespace loops
         struct Detail
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
-            enum {D_STATIC, D_REG, D_CONST, D_ADDRESS, D_OFFSET, D_STACKOFFSET, D_SPILLED};
-            enum {D_INPUT = 1, D_OUTPUT = 2};
+            enum {D_STATIC, D_REG, D_IMMEDIATE, D_ADDRESS, D_OFFSET, D_STACKOFFSET, D_SPILLED};
+            enum {D_INPUT = 1, D_OUTPUT = 2, D_INVERT_IMM = 4};
             Detail(int tag, size_t fieldsize);
             Detail(int tag, uint64_t val, size_t fieldsize);
             int tag;
@@ -96,9 +96,9 @@ namespace loops
             return res;
         }
 
-        inline Binatr::Detail BDcon(size_t arVecNum, size_t width, uint64_t flags = 0)//TODO(ch): Rename const -> immediate, BDcon->BDimm
+        inline Binatr::Detail BDimm(size_t arVecNum, size_t width, uint64_t flags = 0)
         {
-            Binatr::Detail res(Binatr::Detail::D_CONST, width);
+            Binatr::Detail res(Binatr::Detail::D_IMMEDIATE, width);
             res.arVecNum = arVecNum;
             res.fieldOflags = flags;
             return res;
@@ -111,7 +111,7 @@ namespace loops
             return res;
         }
 
-        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT, IO = Binatr::Detail::D_OUTPUT};
+        enum {In = Binatr::Detail::D_INPUT, Out = Binatr::Detail::D_OUTPUT, IO = Binatr::Detail::D_OUTPUT, InvIm = Binatr::Detail::D_INVERT_IMM}; //TODO(ch): Use IO in table construction.
     };
 };
 

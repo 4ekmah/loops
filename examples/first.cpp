@@ -15,8 +15,7 @@ loops::Func gencode(loops::Context& ctx)
     IReg maxpos = ctx.const_(0);
     IReg minval = load_<int>(ptr);
     IReg maxval = minval;
-    IReg elemsize = ctx.const_((int)sizeof(int));
-    n *= elemsize;
+    n *= sizeof(int);
     ctx.do_();
         IReg x = load_<int>(ptr, i);
         ctx.if_(x < minval);
@@ -27,13 +26,14 @@ loops::Func gencode(loops::Context& ctx)
             maxval = x;
             maxpos = i;
         ctx.endif_();
-        i += elemsize;
+        i += sizeof(int);
     ctx.while_(i < n);
+    IReg elemsize = ctx.const_(sizeof(int));
     minpos /= elemsize;
     maxpos /= elemsize;
     store_<int>(minpos_addr, minpos);
     store_<int>(maxpos_addr, maxpos);
-    ctx.return_(ctx.const_(0));
+    ctx.return_(0);
     ctx.endFunc();
     return ctx.getFunc("foo");
 }
