@@ -10,6 +10,176 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "common.hpp"
 #include "func_impl.hpp"
 
+//This file contains two consequently applied algorithms: liveness analysis and register
+//allocation.
+//
+//I.) Liveness analysis considers all references of virtual register and detect start and end
+//operation numbers of register usage interval. In most sophisticated versions of algorithm this
+//interval can be discontinious, in some sublintervals register can be inactive. There it's
+//assumed, that register is alive from start to end. On the other hand, there is auxillary effect
+//of this algorithm: separating liveinterval to many subintervals with reappointing new register
+//number to each subinterval. In some degree, it can substitute effectiveness of more sophisticated
+//scheme.
+//
+//Algorithm have four stages:
+//1.) Lookup for elementary subintervals and initialization of event queues.
+//    It's known amount of virtual registers, used in code of the function. First step is
+//    initialization of vector of subintervals, each register will have subintervals breakdown -
+//    vector of starts and ends of subinterval(for simplicity it's used LiveInterval struct
+//    everywhere in both algorithms). For each instruction, by making getInRegisters,
+//    getOutRegisters requests to Backend, algorithm understands, which registers was used in
+//    instruction and which was redefined. Each elementary subinterval is the chain like def-use-
+//    use-...-use(use is optional). Algorithm stores info only about first and last link of chain.
+//
+//    In the same time it's initialized two event queues: for loops and for embranchments. It's
+//    stored info about each loop into loopQueue with help of control flow stack(flowstack).
+//    loopQueue[<startLoopPosition>].endNesting is end of loop. Same for branchQueue:
+//    branchQueue[<startEmbranchementPosition>].endNesting is endif position and
+//    branchQueue[<startEmbranchementPosition>].elsePos is else position. At this stage elseif are
+//    already deconstructed.
+//    Complexity: O(N) - where N is amount of instructions.
+//
+//2.) Splicing subintervals, which intersects loops borders.
+//    Main idea: if subinterval was alive at start of the loop, it must stay alive until the
+//    end of loop, that's why in this case all subintervals, intersects loop's interval must be
+//    spliced in one. For making this splice there will be used loopQueue. It's obvious, that there
+//    is no need to work with all registers, but only with active. For effective keeping "active"
+//    container actual it's used same event queue with locating here information about starts end
+//    ends of subintervals activity.
+//
+//    It's important, that on algorithm's work there is only forward movement along vector of
+//    certain register. That's why each subinterval will be considered only once(don't be confused
+//    by matix view of data).
+//
+//    In start, for each register it's zeroed number of of current subinterval with help of
+//    function initSubintervalHeaders(). Registers are activate from 0 instruction(parameters) must
+//    be added to the event queue with LAE_ENDSUBINT tag, other with LAE_STARTSUBINT. Also
+//    parameters are added to "active" multiset, which is ordered by ends of intervals. This order
+//    increases find operations(because element to erase will always be in start of "active"
+//    container).
+//
+//    In iterations over instruction  it's keeped "active" and numbers of current subintervals
+//    actual with help of iterateSubinterval, getNextSubinterval, isIterateable methods.
+//
+//    When it's meet loop start (there is loop end in event description), each active subinterval
+//    will spliced all subintervals, intersected with loop body. If loop is finished further, than
+//    union got, subinterval will be prolongated to end end of loop.
+//
+//    Complexity: O(B*M) - where B - number of basic blocks, M - amount of elementary subintervals,
+//    roughly equal to amount of instructions.
+//
+//3.) Splicing subintervals, which intersects loops borders.
+//    Algorithm is really similar to previous one, but there is two serious differences:
+//    First, on intersection condtions it's used last active intervals instead of active one(that
+//    is the reason why stage 2 and 3 cannot be united into one stage). E.g:
+//        Active intervals    LastActive Intervals
+//    1:        ^                      ^
+//    2:        |                      |
+//    3:        v                      |
+//    4:                               |
+//    5:                               v
+//    6:        ^                      ^
+//    7:        |                      |
+//    8:        |                      |
+//    9:        v                      v
+//
+//    Second, this stage have much more complicated splicing decision logic. It depends on amount
+//    of branches, position of first "use" and fisrt "def" in each branch and after-embranchment
+//    usage(afterlife). In some cases it's list of subintervals to splice can be shorted.
+//
+//    Complexity same as for previous: O(B*M).
+//
+//4.) Renaming.
+//    Finally each subinterval can be considered as separate register.
+//
+//    Two linear loops:
+//    First one is over the subintervals breakdown with appointing new register indexes. One detail
+//    is indexes of parameter registers cannot be changed(they are first). Thus, first subintervals
+//    of parameter registers are reappointed first.
+//
+//    Second one is over program with register index substitution. Detail: in some case one
+//    register can be used along instruction as input and as output both. In this case liveinterval
+//    can be breaked in this certain instruction and input register will took appointment different
+//    with output. This logic is accurately handled with help about Backend's data about output
+//    registers and subintervals ends coincendence.
+//
+//    Complexity: O(N+M) - where N is amount of instructions, M - amount of subintervals after
+//    splicing.
+//
+//Changes in code of function is auxillary result of algorithm. Main result is actual LiveInterval
+//vector for all registers. It's used as input data for register allocator.
+//
+//II.) Register allocator fits unlimited amount of virtual register to fixed set of registers of
+//target CPU. Other purpose of algorithm is to collect some data needed to write function's
+//prologue and epilogue. It's a lot of data, thus prologue and epilogue are also written there.
+//
+//Understanding RegisterPool have big value in context of register allocation. Scalar registers
+//can lie in four functional baksets: parameter, return, caller-saved(scratch), callee-saved. Of
+//course these baskets are defined differently for different architectures. Basksets can
+//intersects, there is order of taking free registers from them: parameter, return, caller-saved,
+//callee-saved. Since amount of registers cannot have too big value(32 is maximum of scalars), the
+//best container for such scheme is dynamical bitfield. If there is need to take register from
+//certain basket, it's possible to mask bitfield with static basket's mask. There is ability to
+//oveeride this masks for supporting SpillStress mode.
+//
+//Linear scan(algorithm description is given in paper: Poletto, Massimiliano; Sarkar, Vivek (1999).
+//"Linear scan register allocation". ACM Transactions on Programming Languages and Systems. 21 (5):
+//895–913.)
+//1.) Containers initialization.
+//    LiveIntervals got from liveness analysis are separated in two groups: parameters are
+//    immediately added to "active" multiset, which is ordered by ends of intervals, others are
+//    added to "liveintervals" multiset, ordered by starts. Real registers for parameters are
+//    taken with provideParamFromPool, than, if it's not enough, with provideRegFromPool, and
+//    finally they are spilled(in this case there is no stack increment - they was passed through
+//    the stack). All appointed and pilled registers will be stored in regReassignment vector.
+//2.) Matching ther registers.
+//    Let's consider consequent LiveInterval from liveintervals. First, all expired active
+//    intervals(which end will be lesser than start of current interval) must be droped. If
+//    interval is dropped, it will return used register.
+//
+//    Next is attempt to appoint the real register to current virtual register(interval). If there
+//    is free registers, it's just added to regReassignment and active. Otherwise there needed
+//    decision: what register must be spilled. There used heuristic: must be spilled register,
+//    which ends last. It's enough to compare ends of current register and last of active to
+//    determine register to spill.
+//
+//    Also there implemented optimization, simplifing ternary instruction to binary instruction
+//    convesrion: if there is was a spectre of free registers for current interval, priority is
+//    given to registers just freed in start position of interval(i.e. input registers in
+//    instruction, where interval was defined). There used hints given by Backend's
+//    reusingPreferences.
+//
+//    Complexity: O(M * log R) - where M - amouunt of subintervals, R - amount of real registers of
+//    target machine(this is restriction of "active" size).
+//3.) Renaming and adding spill/unspill instructions.
+//    In loop over instructions, Backend gives numbers of input and output arguments, and choosed
+//    spilled one of them.
+//
+//    Next(on Intel64) is attempt to match instruction variation which support memory-placed
+//    operands. For this used Backend's filterStackPlaceable method. In bytecode it looks like
+//    substitution of IREG with ISPILLED. Aarch64 don't have this optimization.
+//
+//    All spilled input parameters are extracted from stack into one of three register are provided
+//    by provideSpillPlaceholder(it's added UNSPILL instructions). In the same manner there found
+//    synonims to output spilled registers. All instruction's argument virtual registers are
+//    substituted: to real registers, to ISPILLED, to spill placeholders. Finally, there added
+//    SPILL instructions for output stack parameters.
+//
+//    This stage must be modified to track location of variable value: in register/in stack. That's
+//    the way to decrease amount of SPILL/UNSPILL operations around every instruction and decrease
+//    stack memory usage with reusing space of droped variables. Putting into operation this
+//    mechanics is the highest priority task for Register allocator.
+//
+//    Complexity: O(N) - where N is amount of instructions.
+//4.) Prologue/Epilogue
+//    There was collected data, needed for writing prologue and epilogue of function: stack
+//    increment, indexes of stack-passed parameters, which are NOT extracted from it, indexes of
+//    parameters, which have to be spilled at start, indexes of used callee-saved registers.
+//
+//    Complexity: O(P+E+N) - where P is amount of parameters, and E - amount of used callee-saved
+//    registers, N is amount of instructions.
+
+
 namespace loops
 {
     inline size_t pickFirstBit64(uint64_t& bigNum)
@@ -896,6 +1066,7 @@ namespace loops
 
         size_t resSize = 0;
         { //4.) Renaming splitted registers.
+            initSubintervalHeaders();
             size_t pseudIdx = a_processed.params.size();
             for (IRegInternal idx = 0; idx < a_processed.params.size(); idx++)
                 for (size_t si = 1; si < size(idx); si++)
@@ -916,17 +1087,17 @@ namespace loops
                             continue;
                         bool isOut = (outRegArnums.count(arnum) > 0);
                         Assert(size(arg.idx) > 0);
-                        size_t linum = 0;
-                        if (size(arg.idx) > 1)
-                            for (; linum < size(arg.idx); linum++)
-                            {
-                                LiveInterval& li = m_subintervals[arg.idx][linum];
-                                if (opnum >= li.start && opnum <= li.end &&
-                                    (!isOut || ((linum + 1) >= size(arg.idx)) || m_subintervals[arg.idx][linum + 1].start > opnum))
-                                    break;
-                            }
-                        Assert(linum < size(arg.idx));
-                        arg.idx = m_subintervals[arg.idx][linum].idx;
+                        while (isIterateable(arg.idx))
+                        {
+                            LiveInterval& li = getCurrentSubinterval(arg.idx);
+                            if (opnum >= li.start && opnum <= li.end)
+                                break;
+                            iterateSubinterval(arg.idx);
+                        }
+                        size_t sinum = getCurrentSinum(arg.idx);
+                        if (isIterateable(arg.idx) && isOut && (getNextSubinterval(arg.idx).start <= opnum))
+                            sinum++;
+                        arg.idx = m_subintervals[arg.idx][sinum].idx;
                     }
                 }
             }
