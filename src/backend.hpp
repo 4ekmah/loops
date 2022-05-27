@@ -18,55 +18,55 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
 class Backend;
-struct Mnemotr //is for "mnemonic translation"
+struct SyntopTranslation
 {
-    struct Argutr
+    struct ArgTranslation
     {
         enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_ERROROFUSAGE}; //TODO(ch): probably, it's needed some T_TRANSFORM(something like int map)
-        Argutr(const Arg& a_fixed);
-        Argutr(size_t a_src_arnum, uint64_t flags = 0);
+        ArgTranslation(const Arg& a_fixed);
+        ArgTranslation(size_t a_src_arnum, uint64_t flags = 0);
         int tag;
         Arg fixed;
         size_t srcArgnum;
         uint64_t transitFlags;
     };
     int m_tarop;
-    std::vector<Argutr> m_argsList;
-    Mnemotr(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
-    Mnemotr(int a_tarop, std::initializer_list<Argutr> a_args);
+    std::vector<ArgTranslation> m_argsList;
+    SyntopTranslation(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
+    SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args);
     Syntop apply(const Syntop& a_source, const Backend* a_backend = nullptr) const;
     size_t targetArgNum(size_t a_srcnum) const;
     enum {ARG_NOT_USED = -1}; //TODO(ch) : Probably, it's better to replace it with NOIDX?
 };
 
-namespace MnemotrTableConstructor
+namespace SyntopTranslationConstruction
 {
-    inline Mnemotr MnT(int taropcode, std::initializer_list<Mnemotr::Argutr> translations)
+    inline SyntopTranslation SyT(int taropcode, std::initializer_list<SyntopTranslation::ArgTranslation> translations)
     {
-        return Mnemotr(taropcode, translations);
+        return SyntopTranslation(taropcode, translations);
     }
 
-    //MAreg is for Mnemotr::Argutr fixed reigster
-    inline Mnemotr::Argutr MAreg(IRegInternal idx, uint64_t flags = 0)
+    //SAreg is for SyntopTranslation::ArgTranslation fixed reigster
+    inline SyntopTranslation::ArgTranslation SAreg(IRegInternal idx, uint64_t flags = 0)
     {
         Arg resArg = argIReg(idx);
         resArg.flags = flags;
-        return Mnemotr::Argutr(resArg);
+        return SyntopTranslation::ArgTranslation(resArg);
     }
-    //MAcon is for Mnemotr::Argutr fixed value
-    inline Mnemotr::Argutr MAimm(int64_t val, uint64_t flags = 0)
+    //SAimm is for SyntopTranslation::ArgTranslation fixed value
+    inline SyntopTranslation::ArgTranslation SAimm(int64_t val, uint64_t flags = 0)
 {
         Arg resArg = argIImm(val);
         resArg.flags = flags;
-        return Mnemotr::Argutr(resArg);
+        return SyntopTranslation::ArgTranslation(resArg);
     }
-    //MAcop is for Mnemotr::Argutr to be copied from source
-    inline Mnemotr::Argutr MAcop(size_t argnum, uint64_t flags = 0) { return Mnemotr::Argutr(argnum, flags); }
-    //MAcop is for Mnemotr::Argutr to be copied and transformed to spill.
-    inline Mnemotr::Argutr MAcopspl(size_t argnum)
+    //SAcop is for SyntopTranslation::ArgTranslation to be copied from source
+    inline SyntopTranslation::ArgTranslation SAcop(size_t argnum, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, flags); }
+    //SAcopspl is for SyntopTranslation::ArgTranslation to be copied and transformed to spill.
+    inline SyntopTranslation::ArgTranslation SAcopspl(size_t argnum)
     {
-        Mnemotr::Argutr res(argnum);
-        res.tag = Mnemotr::Argutr::T_TRANSFORMTOSPILL;
+        SyntopTranslation::ArgTranslation res(argnum);
+        res.tag = SyntopTranslation::ArgTranslation::T_TRANSFORMTOSPILL;
         return res; 
     }
 };
@@ -82,12 +82,12 @@ public:
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const;
+    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
     std::set<size_t> getOutRegistersIdxs(const Syntop& a_op) const;
     std::set<size_t> getInRegistersIdxs(const Syntop& a_op) const;
 
     //Next three functions return register numbers.
-    std::set<IRegInternal> getUsedRegisters(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const;
+    std::set<IRegInternal> getUsedRegisters(const Syntop& a_op, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
     std::set<IRegInternal> getOutRegisters(const Syntop& a_op) const;
     std::set<IRegInternal> getInRegisters(const Syntop& a_op) const;
 
@@ -118,25 +118,25 @@ public:
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
 private:
-    mutable size_t m_m2mCurrentOffset; //TODO(ch): Do something with thread-safety.
+    mutable size_t m_s2sCurrentOffset; //TODO(ch): Do something with thread-safety.
 protected:
     Backend();
-    size_t getM2mCurrentOffset() const {return m_m2mCurrentOffset;}
+    size_t getS2sCurrentOffset() const {return m_s2sCurrentOffset;}
     virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const = 0;
 
-    Binatr(*m_m2blookup)(const Syntop&, bool&);
-    Mnemotr(*m_m2mlookup)(const Syntop&, bool&);
-    inline Binatr lookM2b(const Syntop& index) const
+    BinTranslation(*m_s2blookup)(const Syntop&, bool&);
+    SyntopTranslation(*m_s2slookup)(const Syntop&, bool&);
+    inline BinTranslation lookS2b(const Syntop& index) const
     {
         bool NOTSUPPORTED;
-        Binatr ret = m_m2blookup(index, NOTSUPPORTED);
+        BinTranslation ret = m_s2blookup(index, NOTSUPPORTED);
         Assert(NOTSUPPORTED);
         return ret;
     }
-    inline Mnemotr lookM2m(const Syntop& index) const
+    inline SyntopTranslation lookS2s(const Syntop& index) const
     {
         bool NOTSUPPORTED;
-        Mnemotr ret = m_m2mlookup(index, NOTSUPPORTED);
+        SyntopTranslation ret = m_s2slookup(index, NOTSUPPORTED);
         Assert(NOTSUPPORTED);
         return ret;
     }

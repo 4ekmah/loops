@@ -37,7 +37,8 @@ See https://github.com/vpisarev/loops/LICENSE
 //    branchQueue[<startEmbranchementPosition>].endNesting is endif position and
 //    branchQueue[<startEmbranchementPosition>].elsePos is else position. At this stage elseif are
 //    already deconstructed.
-//    Complexity: O(N) - where N is amount of instructions.
+//    Time complexity: O(N) - where N is amount of instructions.
+//    Space complexity: O(M), M - amount of elementary subintervals.
 //
 //2.) Splicing subintervals, which intersects loops borders.
 //    Main idea: if subinterval was alive at start of the loop, it must stay alive until the
@@ -65,8 +66,9 @@ See https://github.com/vpisarev/loops/LICENSE
 //    will spliced all subintervals, intersected with loop body. If loop is finished further, than
 //    union got, subinterval will be prolongated to end end of loop.
 //
-//    Complexity: O(B*M) - where B - number of basic blocks, M - amount of elementary subintervals,
-//    roughly equal to amount of instructions.
+//    Time complexity: O(B*M) - where B - number of basic blocks, M - amount of elementary
+//    subintervals, roughly equal to amount of instructions.
+//    Space complexity: O(M), M - amount of elementary subintervals.
 //
 //3.) Splicing subintervals, which intersects loops borders.
 //    Algorithm is really similar to previous one, but there is two serious differences:
@@ -87,7 +89,8 @@ See https://github.com/vpisarev/loops/LICENSE
 //    of branches, position of first "use" and fisrt "def" in each branch and after-embranchment
 //    usage(afterlife). In some cases it's list of subintervals to splice can be shorted.
 //
-//    Complexity same as for previous: O(B*M).
+//    Time complexity same as for previous: O(B*M).
+//    Space complexity: O(M), M - amount of elementary subintervals.
 //
 //4.) Renaming.
 //    Finally each subinterval can be considered as separate register.
@@ -103,8 +106,9 @@ See https://github.com/vpisarev/loops/LICENSE
 //    with output. This logic is accurately handled with help about Backend's data about output
 //    registers and subintervals ends coincendence.
 //
-//    Complexity: O(N+M) - where N is amount of instructions, M - amount of subintervals after
+//    Time complexity: O(N+M) - where N is amount of instructions, M - amount of subintervals after
 //    splicing.
+//    Space complexity: O(M), M - amount of elementary subintervals.
 //
 //Changes in code of function is auxillary result of algorithm. Main result is actual LiveInterval
 //vector for all registers. It's used as input data for register allocator.
@@ -132,7 +136,7 @@ See https://github.com/vpisarev/loops/LICENSE
 //    taken with provideParamFromPool, than, if it's not enough, with provideRegFromPool, and
 //    finally they are spilled(in this case there is no stack increment - they was passed through
 //    the stack). All appointed and pilled registers will be stored in regReassignment vector.
-//2.) Matching ther registers.
+//2.) Matching target-mchine and virtual registers.
 //    Let's consider consequent LiveInterval from liveintervals. First, all expired active
 //    intervals(which end will be lesser than start of current interval) must be droped. If
 //    interval is dropped, it will return used register.
@@ -149,8 +153,9 @@ See https://github.com/vpisarev/loops/LICENSE
 //    instruction, where interval was defined). There used hints given by Backend's
 //    reusingPreferences.
 //
-//    Complexity: O(M * log R) - where M - amouunt of subintervals, R - amount of real registers of
-//    target machine(this is restriction of "active" size).
+//    Time complexity: O(M * log R) - where M - amount of subintervals, R - amount of real
+//    registers of target machine(this is restriction of "active" size).
+//    Space complexity: O(M), M - amount of subintervals.
 //3.) Renaming and adding spill/unspill instructions.
 //    In loop over instructions, Backend gives numbers of input and output arguments, and choosed
 //    spilled one of them.
@@ -170,28 +175,26 @@ See https://github.com/vpisarev/loops/LICENSE
 //    stack memory usage with reusing space of droped variables. Putting into operation this
 //    mechanics is the highest priority task for Register allocator.
 //
-//    Complexity: O(N) - where N is amount of instructions.
+//    Time complexity: O(N) - where N is amount of instructions.
+//    Space complexity: O(M), M - amount of subintervals.
 //4.) Prologue/Epilogue
 //    There was collected data, needed for writing prologue and epilogue of function: stack
 //    increment, indexes of stack-passed parameters, which are NOT extracted from it, indexes of
 //    parameters, which have to be spilled at start, indexes of used callee-saved registers.
 //
-//    Complexity: O(P+E+N) - where P is amount of parameters, and E - amount of used callee-saved
-//    registers, N is amount of instructions.
-
+//    Time complexity: O(P+E+N) - where P is amount of parameters, and E - amount of used
+//    callee-saved registers, N is amount of instructions.
+//    Space complexity: O(P+E+N).
 
 namespace loops
 {
-    inline size_t pickFirstBit64(uint64_t& bigNum)
+    inline IRegInternal pickFirstBit64(uint64_t& bigNum)
     {
         Assert(bigNum != 0);
-        size_t ret = lsb64(bigNum);
+        IRegInternal ret = lsb64(bigNum);
         bigNum = (bigNum | (uint64_t(1) << ret)) ^ (uint64_t(1) << ret);
         return ret;
     }
-
-    const size_t RegisterPool::m_maximumSpills = 3;    //TODO(ch):need more detailed scheme
-    const size_t RegisterPool::NOREGISTER = static_cast<size_t>(-1);
 
     RegisterPool::RegisterPool(ContextImpl* a_owner): m_owner(a_owner)
         , m_pool(0)
@@ -223,7 +226,7 @@ namespace loops
             origCalleeSavedRegisters = m_calleeSavedRegistersO;
         }
         std::unordered_map<IRegInternal, size_t> invertOrderMapping;
-        size_t regMax = 0;
+        IRegInternal regMax = 0;
         {
             invertOrderMapping.clear();
             m_regOrder.clear();
@@ -232,7 +235,7 @@ namespace loops
             {
                 while (basket)
                 {
-                    size_t reg = pickFirstBit64(basket);
+                    IRegInternal reg = pickFirstBit64(basket);
                     auto irator = invertOrderMapping.find(reg);
                     if (irator == invertOrderMapping.end())
                     {
@@ -277,7 +280,7 @@ namespace loops
 
     size_t RegisterPool::freeRegsAmount() const
     {
-        return amountOfBits64(m_pool) - m_maximumSpills;
+        return amountOfBits64(m_pool) - MAXIMUM_SPILLS;
     }
 
     IRegInternal RegisterPool::provideParamFromPool()
@@ -297,7 +300,7 @@ namespace loops
         if (a_hint != IReg::NOIDX)
         {
             Assert(m_invertOrderMapping[a_hint] != IReg::NOIDX);
-            res = m_invertOrderMapping[a_hint];
+            res = static_cast<IRegInternal>(m_invertOrderMapping[a_hint]);
             Assert(((uint64_t(1)) << res) & m_pool);
         }
         else if (havefreeRegs())
@@ -406,20 +409,20 @@ namespace loops
         ContextImpl* m_owner;
         size_t m_snippetCausedSpills;
         inline size_t size() const { return m_subintervals.size(); };
-        inline size_t size(size_t regNum) const;
-        inline bool defined(size_t regNum) const { return size(regNum) > 0; }
-        inline void def(size_t regNum, size_t opnum);
-        inline void use(size_t regNum, size_t opnum);
-        inline void spliceUntilSinum(size_t regNum, size_t siEnd);
-        inline size_t expandUntilOpnum(size_t regNum, size_t opnum);
-        inline size_t deactivationOpnum(size_t regNum);
+        inline size_t size(IRegInternal regNum) const;
+        inline bool defined(IRegInternal regNum) const { return size(regNum) > 0; }
+        inline void def(IRegInternal regNum, size_t opnum);
+        inline void use(IRegInternal regNum, size_t opnum);
+        inline void spliceUntilSinum(IRegInternal regNum, size_t siEnd);
+        inline size_t expandUntilOpnum(IRegInternal regNum, size_t opnum);
+        inline size_t deactivationOpnum(IRegInternal regNum);
         inline void initSubintervalHeaders(size_t initval = 0);
-        inline size_t getCurrentSinum(size_t regNum);
-        inline LiveInterval& getCurrentSubinterval(size_t regNum);
-        inline LiveInterval& getNextSubinterval(size_t regNum);
-        inline bool isIterateable(size_t regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state. 
-        inline void iterateSubinterval(size_t regNum);
-        inline void moveEventLater(std::multimap<size_t, LAEvent>& queue, size_t regNum, int eventType, size_t oldOpnum, size_t newOpnum);
+        inline size_t getCurrentSinum(IRegInternal regNum);
+        inline LiveInterval& getCurrentSubinterval(IRegInternal regNum);
+        inline LiveInterval& getNextSubinterval(IRegInternal regNum);
+        inline bool isIterateable(IRegInternal regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state. 
+        inline void iterateSubinterval(IRegInternal regNum);
+        inline void moveEventLater(std::multimap<size_t, LAEvent>& queue, IRegInternal regNum, int eventType, size_t oldOpnum, size_t newOpnum);
     };
 
     RegisterAllocator::RegisterAllocator(ContextImpl* a_owner): m_owner(a_owner)
@@ -466,7 +469,7 @@ namespace loops
                 IRegInternal parreg = 0;
                 for (; parreg < a_processed.params.size(); parreg++)
                 {
-                    size_t attempt = m_pool.provideParamFromPool();
+                    IRegInternal attempt = m_pool.provideParamFromPool();
                     if (attempt == IReg::NOIDX)
                         break;
                     regReassignment[parreg] = argIReg(attempt);
@@ -475,7 +478,7 @@ namespace loops
                 std::copy(a_processed.params.begin() + parreg, a_processed.params.end(), paramsFromStack.begin());
                 for (; parreg < a_processed.params.size(); parreg++)
                 {
-                    size_t attempt = m_pool.provideRegFromPool();
+                    IRegInternal attempt = m_pool.provideRegFromPool();
                     if (attempt == IReg::NOIDX)
                         break;
                     regReassignment[parreg] = argIReg(attempt);
@@ -686,7 +689,7 @@ namespace loops
         {
             size_t opnum = std::get<0>(spss);
             size_t arnum = std::get<1>(spss);
-            size_t oldid = std::get<2>(spss);
+            IRegInternal oldid = std::get<2>(spss);
             newProgUnbracketed[opnum][arnum].value = backend->stackParamOffset(nettoSpills, snippetCausedSpills) + stackParametersIndex[oldid];
         }
 
@@ -838,7 +841,7 @@ namespace loops
         { //2.) Expanding loop intervals, which are crossing loops borders.
             initSubintervalHeaders();
             std::multiset<LiveInterval, endordering> active;
-            for (size_t idx = 0; idx < m_virtualRegsAmount; idx++)
+            for (IRegInternal idx = 0; idx < m_virtualRegsAmount; idx++)
             {
                 const size_t sintStart = m_subintervals[idx][0].start;
                 if (sintStart == 0)
@@ -908,7 +911,7 @@ namespace loops
         { //3.) Calculating intervals crossing if branches.
             initSubintervalHeaders(-1);
             std::multiset<LiveInterval, endordering> lastActive; // NOTE: In this part of code LiveInterval::end means not end position of subinterval, but deactivation position, position, when starts new subinterval or ends final one.
-            for (size_t idx = 0; idx < m_virtualRegsAmount; idx++)
+            for (IRegInternal idx = 0; idx < m_virtualRegsAmount; idx++)
             {
                 if (size(idx) == 0)
                     continue;
@@ -1067,11 +1070,11 @@ namespace loops
         size_t resSize = 0;
         { //4.) Renaming splitted registers.
             initSubintervalHeaders();
-            size_t pseudIdx = a_processed.params.size();
+            IRegInternal pseudIdx = static_cast<IRegInternal>(a_processed.params.size());
             for (IRegInternal idx = 0; idx < a_processed.params.size(); idx++)
                 for (size_t si = 1; si < size(idx); si++)
                     m_subintervals[idx][si].idx = pseudIdx++;
-            for (IRegInternal idx = a_processed.params.size(); idx < size(); idx++)
+            for (IRegInternal idx = static_cast<IRegInternal>(a_processed.params.size()); idx < size(); idx++)
                 for (LiveInterval& li : m_subintervals[idx])
                     li.idx = pseudIdx++;
             for (size_t opnum = 0; opnum < a_processed.program.size(); opnum++)
@@ -1117,13 +1120,13 @@ namespace loops
         , m_virtualRegsAmount(virtualRegsAmount)
     {}
 
-    size_t LivenessAnalysisAlgo::size(size_t regNum) const
+    size_t LivenessAnalysisAlgo::size(IRegInternal regNum) const
     {
         Assert(regNum < size());
         return m_subintervals[regNum].size();
     };
 
-    void LivenessAnalysisAlgo::def(size_t regNum, size_t opnum)
+    void LivenessAnalysisAlgo::def(IRegInternal regNum, size_t opnum)
     {
         if (regNum != Syntfunc::RETREG)
         {
@@ -1132,7 +1135,7 @@ namespace loops
         }
     }
 
-    void LivenessAnalysisAlgo::use(size_t regNum, size_t opnum)
+    void LivenessAnalysisAlgo::use(IRegInternal regNum, size_t opnum)
     {
         if (regNum != Syntfunc::RETREG) //TODO(ch): At some day we will need to work with different types of return.
         {
@@ -1142,7 +1145,7 @@ namespace loops
         }
     }
 
-    void LivenessAnalysisAlgo::spliceUntilSinum(size_t regNum, size_t siEnd)
+    void LivenessAnalysisAlgo::spliceUntilSinum(IRegInternal regNum, size_t siEnd)
     {
         size_t siStart = m_subintervalHeaders[regNum];
         Assert(siStart <= siEnd);
@@ -1151,7 +1154,7 @@ namespace loops
         m_subintervals[regNum].erase(m_subintervals[regNum].begin() + siStart + 1, m_subintervals[regNum].begin() + siEnd + 1);
     }
 
-    size_t LivenessAnalysisAlgo::expandUntilOpnum(size_t regNum, size_t opnum)
+    size_t LivenessAnalysisAlgo::expandUntilOpnum(IRegInternal regNum, size_t opnum)
     {
         size_t sinum = m_subintervalHeaders[regNum];
         size_t subinterval2erase = sinum + 1;
@@ -1169,7 +1172,7 @@ namespace loops
         return opnum;
     }
 
-    size_t LivenessAnalysisAlgo::deactivationOpnum(size_t regNum)
+    size_t LivenessAnalysisAlgo::deactivationOpnum(IRegInternal regNum)
     {
         size_t sinum = m_subintervalHeaders[regNum];
         return (sinum + 1 < size(regNum)) ? m_subintervals[regNum][sinum + 1].start : m_subintervals[regNum][sinum].end;
@@ -1181,35 +1184,35 @@ namespace loops
         m_subintervalHeaders.resize(m_subintervals.size(), initval);
     }
 
-    size_t LivenessAnalysisAlgo::getCurrentSinum(size_t regNum)
+    size_t LivenessAnalysisAlgo::getCurrentSinum(IRegInternal regNum)
     {
         return m_subintervalHeaders[regNum];
     }
 
-    LiveInterval& LivenessAnalysisAlgo::getCurrentSubinterval(size_t regNum)
+    LiveInterval& LivenessAnalysisAlgo::getCurrentSubinterval(IRegInternal regNum)
     {
         Assert(m_subintervalHeaders[regNum] < size(regNum));
         return m_subintervals[regNum][m_subintervalHeaders[regNum]];
     }
 
-    LiveInterval& LivenessAnalysisAlgo::getNextSubinterval(size_t regNum)
+    LiveInterval& LivenessAnalysisAlgo::getNextSubinterval(IRegInternal regNum)
     {
         Assert(m_subintervalHeaders[regNum] + 1 < size(regNum));
         return m_subintervals[regNum][m_subintervalHeaders[regNum] + 1];
     }
 
-    bool LivenessAnalysisAlgo::isIterateable(size_t regNum) const //Well, unfotunately, we don't have after-end-state, only last-one state. 
+    bool LivenessAnalysisAlgo::isIterateable(IRegInternal regNum) const //Well, unfotunately, we don't have after-end-state, only last-one state. 
     {
         return (m_subintervalHeaders[regNum] + 1) < size(regNum);
     }
 
-    void LivenessAnalysisAlgo::iterateSubinterval(size_t regNum)
+    void LivenessAnalysisAlgo::iterateSubinterval(IRegInternal regNum)
     {
         if (isIterateable(regNum))
             m_subintervalHeaders[regNum]++;
     }
 
-    void LivenessAnalysisAlgo::moveEventLater(std::multimap<size_t, LAEvent>& queue, size_t regNum, int eventType, size_t oldOpnum, size_t newOpnum)
+    void LivenessAnalysisAlgo::moveEventLater(std::multimap<size_t, LAEvent>& queue, IRegInternal regNum, int eventType, size_t oldOpnum, size_t newOpnum)
     {
         auto qremrator = queue.find(oldOpnum);
         while (qremrator != queue.end() && qremrator->first == oldOpnum)

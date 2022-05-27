@@ -28,15 +28,15 @@ namespace loops
         R15 = 15
     };
 
-    static inline Binatr::Detail nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
+    static inline BinTranslation::Token nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
     {
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
-        return Binatr::Detail(Binatr::Detail::D_STATIC, field, n*8+k);
+        return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
     }
 
-    Binatr i64binatrLookup(const Syntop& index, bool& scs)
+    BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
-        using namespace BinatrTableConstructor;
+        using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
         {
@@ -47,13 +47,13 @@ namespace loops
             {
                 static uint64_t stats[4] = { 0x1218C , 0x1318C, 0x1258C, 0x1358C };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                return BiT({ BDsta(stats[statn], 18), BDreg(0, 3, Out), BDreg(1, 3, In) });
+                return BiT({ BTsta(stats[statn], 18), BTreg(0, 3, Out), BTreg(1, 3, In) });
             }
             else //if(index.size() == 3)
             {
                 static uint64_t stats[8] = { 0x1218C, 0x1318C, 0x1258C, 0x1358C, 0x1298C, 0x1398C, 0x12D8C, 0x13D8C };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
-                return BiT({ BDsta(stats[statn], 18), BDreg(0, 3, Out), BDsta(0x10, 5), BDreg(2, 3, In), BDreg(1, 3, In) });
+                return BiT({ BTsta(stats[statn], 18), BTreg(0, 3, Out), BTsta(0x10, 5), BTreg(2, 3, In), BTreg(1, 3, In) });
             }
             break;
         case (INTEL64_MOV):
@@ -70,38 +70,38 @@ namespace loops
                             if (index[0].idx == 13 || index[0].idx == 13) //mov [r12/r13], ebx
                             {
                                 stat = index[0].idx == 13 ? (index[1].idx < 8 ? 0x10625 : 0x11625) : (index[1].idx < 8 ? 0x10624 : 0x11624);
-                                return BiT({ BDsta(stat, 18), BDreg(1, 3, In), BDreg(0, 3, In) , BDsta(index[0].idx == 13 ? 0 : 0x24, 8) });
+                                return BiT({ BTsta(stat, 18), BTreg(1, 3, In), BTreg(0, 3, In) , BTsta(index[0].idx == 13 ? 0 : 0x24, 8) });
                             }
                             else
                             {
                                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                 static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
                                 static uint64_t statw[4] = { 10, 18, 18, 18 };
-                                return BiT({ BDsta(stats[statn], statw[statn]), BDreg(1, 3, In), BDreg(0, 3, In) });
+                                return BiT({ BTsta(stats[statn], statw[statn]), BTreg(1, 3, In), BTreg(0, 3, In) });
                             }
                         }
                         else
-                            return BiT({ BDsta(0x12224, 18), BDreg(1, 3, In), BDreg(0, 3, In) }); //mov [rax], rbx  
+                            return BiT({ BTsta(0x12224, 18), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], rbx
                     }
                     else
                     {
                         static uint64_t stats[4] = { 0x12227, 0x12627, 0x13227, 0x13627 };
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                        return BiT({ BDsta(stats[statn], 18), BDreg(1, 3, In), BDreg(0, 3, Out) }); //mov rax, rbx 
+                        return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, Out) }); //mov rax, rbx
                     }
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BDsta(index[0].idx < 8 ? 0x1222E : 0x1322E, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 32) }); //mov rax, [rsp + offset]
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x1222E : 0x1322E, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //mov rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return  BiT({ BDsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BDreg(0, 3, Out), BDimm(1, 32) });//mov rax, <imm>
+                    return  BiT({ BTsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm>
 
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BDsta(index[1].idx < 8 ? 0x12225 : 0x13225, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //mov [rsp + offset], rbx
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x12225 : 0x13225, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //mov [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(0x48c74424, 32), BDspl(0, 8), BDimm(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x48c74424, 32), BTspl(0, 8), BTimm(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_ADD):
@@ -112,19 +112,19 @@ namespace loops
                 {
                     static uint64_t stats[4] = { 0x12007, 0x12407, 0x13007, 0x13407 };
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                    return BiT({ BDsta(stats[statn], 18), BDreg(1, 3, In), BDreg(0, 3, In | Out) });           //add rax, rbx 
+                    return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In | Out) });           //add rax, rbx
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BDsta(index[0].idx < 8 ? 0x1200D : 0x1300D, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) }); //add rax, [rsp + offset]
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x1200D : 0x1300D, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) }); //add rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BDreg(0, 3, In | Out), BDimm(1, 8) });
+                    return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BTreg(0, 3, In | Out), BTimm(1, 8) });
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BDsta(index[1].idx < 8 ? 0x12005 : 0x13005, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //add [rsp + offset], rbx
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x12005 : 0x13005, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //add [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(0x48834424, 32), BDspl(0, 8), BDimm(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x48834424, 32), BTspl(0, 8), BTimm(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_SUB):
@@ -135,19 +135,19 @@ namespace loops
                 {
                     static uint64_t stats[4] = { 0x120A7, 0x124A7, 0x130A7, 0x134A7 };
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                    return BiT({ BDsta(stats[statn], 18), BDreg(1, 3, In), BDreg(0, 3, In | Out) });           //sub rax, rbx 
+                    return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In | Out) });           //sub rax, rbx
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BDsta(index[0].idx < 8 ? 0x120AD : 0x130AD, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) }); //sub rax, [rsp + offset]
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x120AD : 0x130AD, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) }); //sub rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(index[0].idx < 8 ? 0x9107D : 0x9307D, 21), BDreg(0, 3, Out), BDimm(1, 8) });//sub rax, <imm>
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x9107D : 0x9307D, 21), BTreg(0, 3, Out), BTimm(1, 8) });//sub rax, <imm>
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BDsta(index[1].idx < 8 ? 0x120A5 : 0x130A5, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });   //sub [rsp + offset], rbx
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x120A5 : 0x130A5, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //sub [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(0x48836c24, 32), BDspl(0, 8), BDimm(1, 8) });  //sub QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x48836c24, 32), BTspl(0, 8), BTimm(1, 8) });  //sub QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_IMUL):
@@ -156,19 +156,19 @@ namespace loops
             {
                 static uint64_t stats[4] = { 0x1203EBF, 0x1303EBF, 0x1243EBF, 0x1343EBF };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                return BiT({ BDsta(stats[statn], 26), BDreg(0, 3, In | Out), BDreg(1, 3, In) });
+                return BiT({ BTsta(stats[statn], 26), BTreg(0, 3, In | Out), BTreg(1, 3, In) });
             }
             else if(index[1].tag == Arg::ISPILLED)
-                return BiT({ BDsta(index[0].idx < 8 ? 0x1203EBD : 0x1303EBD, 26), BDreg(0, 3, In | Out), BDsta(0x424, 11), BDspl(1, 8) });
+                return BiT({ BTsta(index[0].idx < 8 ? 0x1203EBD : 0x1303EBD, 26), BTreg(0, 3, In | Out), BTsta(0x424, 11), BTspl(1, 8) });
             else if (index[1].tag == Arg::IIMMEDIATE)
-                return BiT({ index[0].idx < 8 ? nBkb(2, 0x486b, 2, 0b11) : nBkb(2, 0x4d6b, 2, 0b11), BDreg(0, 3, In | Out) , BDreg(0, 3, In | Out), BDimm(1, 8) });
+                return BiT({ index[0].idx < 8 ? nBkb(2, 0x486b, 2, 0b11) : nBkb(2, 0x4d6b, 2, 0b11), BTreg(0, 3, In | Out) , BTreg(0, 3, In | Out), BTimm(1, 8) });
             break;
         case (INTEL64_IDIV):
             Assert(index.size() == 1);
             if (index[0].tag == Arg::IREG)
-                return BiT({ BDsta(index[0].idx < 8 ? 0x91EFF : 0x93EFF, 21), BDreg(0, 3, In) });
+                return BiT({ BTsta(index[0].idx < 8 ? 0x91EFF : 0x93EFF, 21), BTreg(0, 3, In) });
             else if(index[0].tag == Arg::ISPILLED)
-                return BiT({ BDsta(0x48f77c24, 32), BDspl(0, 8) });
+                return BiT({ BTsta(0x48f77c24, 32), BTspl(0, 8) });
             break;
         case (INTEL64_CMP):
             Assert(index.size() == 2);
@@ -178,47 +178,47 @@ namespace loops
                 {
                     static uint64_t stats[4] = { 0x120E7, 0x124E7, 0x130E7, 0x134E7 };
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                    return BiT({ BDsta(stats[statn], 18), BDreg(1, 3, In), BDreg(0, 3, In) });
+                    return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In) });
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BDsta((index[0].idx < 8) ? 0x120ED : 0x130ED, 18), BDreg(0, 3, In), BDsta(0x424, 11), BDspl(1, 8) });
+                    return BiT({ BTsta((index[0].idx < 8) ? 0x120ED : 0x130ED, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(0x9107F, 21), BDreg(0, 3, Out), BDimm(1, 8) });
+                    return BiT({ BTsta(0x9107F, 21), BTreg(0, 3, Out), BTimm(1, 8) });
 
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BDsta(index[1].idx < 8 ? 0x120E5 : 0x130E5, 18), BDreg(1, 3, In), BDsta(0x424, 11), BDspl(0, 8) });
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x120E5 : 0x130E5, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BDsta(0x48817c24, 32), BDspl(0, 8), BDimm(1, 32) });
+                    return BiT({ BTsta(0x48817c24, 32), BTspl(0, 8), BTimm(1, 32) });
             }
             break;
         case (INTEL64_NEG):
             Assert(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED));
             if (index[0].tag == Arg::IREG)
-                return BiT({ BDsta((index[0].idx < 8) ? 0x91EFB : 0x93EFB, 21), BDreg(0, 3, In | Out) });
+                return BiT({ BTsta((index[0].idx < 8) ? 0x91EFB : 0x93EFB, 21), BTreg(0, 3, In | Out) });
             else //if(index[0].tag == Arg::ISPILLED)
-                return BiT({ BDsta(0x48f75c24, 32), BDspl(0, 8) });
-        case (INTEL64_CQO): return BiT({ BDsta(0x4899, 16) });
-        case (INTEL64_JMP): return BiT({ BDsta(0xE9,8), BDoff(0, 32) });
-        case (INTEL64_JNE): return BiT({ BDsta(0xf85,16), BDoff(0, 32) });
-        case (INTEL64_JE):  return BiT({ BDsta(0xf84,16), BDoff(0, 32) });
-        case (INTEL64_JL):  return BiT({ BDsta(0xf8c,16), BDoff(0, 32) });
-        case (INTEL64_JLE): return BiT({ BDsta(0xf8e,16), BDoff(0, 32) });
-        case (INTEL64_JG):  return BiT({ BDsta(0xf8f,16), BDoff(0, 32) });
-        case (INTEL64_JGE): return BiT({ BDsta(0xf8d,16), BDoff(0, 32) });
-        case (INTEL64_RET): return BiT({ BDsta(0xC3, 8) });
+                return BiT({ BTsta(0x48f75c24, 32), BTspl(0, 8) });
+        case (INTEL64_CQO): return BiT({ BTsta(0x4899, 16) });
+        case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BToff(0, 32) });
+        case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BToff(0, 32) });
+        case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BToff(0, 32) });
+        case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BToff(0, 32) });
+        case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BToff(0, 32) });
+        case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BToff(0, 32) });
+        case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BToff(0, 32) });
+        case (INTEL64_RET): return BiT({ BTsta(0xC3, 8) });
         default:
             break;
         }
         scs = false;
-        return Binatr();
+        return BinTranslation();
     }
 
-    Mnemotr i64mnemotrLookup(const Syntop& index, bool& scs)
+    SyntopTranslation i64STLookup(const Syntop& index, bool& scs)
     {
-        using namespace MnemotrTableConstructor;
+        using namespace SyntopTranslationConstruction;
         scs = true;
         switch (index.opcode)
         {
@@ -227,9 +227,9 @@ namespace loops
             if (index[1].value == TYPE_I32)
             {
                 if (index.size() == 3)
-                    return MnT(INTEL64_MOVSXD, { MAcop(0), MAcop(2) });
+                    return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(2) });
                 else
-                    return MnT(INTEL64_MOVSXD, { MAcop(0), MAcop(2), MAcop(3) });
+                    return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(2), SAcop(3) });
             }//TODO(ch): Support all loads(64 and base:offset).
             break;
         case (OP_STORE):
@@ -237,10 +237,10 @@ namespace loops
             {
                 switch (index[0].value)
                 {
-                case (TYPE_I32): return MnT(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2, AF_LOWER32) });
-                case (TYPE_U32): return MnT(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2, AF_LOWER32) });
-                case (TYPE_I64): return MnT(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2) });
-                case (TYPE_U64): return MnT(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2) });
+                case (TYPE_I32): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
+                case (TYPE_I64): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2) });
+                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2) });
                 default: break;
                 }
             }
@@ -248,30 +248,30 @@ namespace loops
             //{
                     //switch (index[0].value)
                     //{
-                    //case (TYPE_I32): return Sl(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2, AF_LOWER32), MAcop(3) });
-                    //case (TYPE_U32): return Sl(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2, AF_LOWER32), MAcop(3) });
-                    //case (TYPE_I64): return Sl(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2), MAcop(3) });
-                    //case (TYPE_U64): return Sl(INTEL64_MOV, { MAcop(1, AF_ADDRESS), MAcop(2), MAcop(3) });
+                    //case (TYPE_I32): return Sl(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32), SAcop(3) });
+                    //case (TYPE_U32): return Sl(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32), SAcop(3) });
+                    //case (TYPE_I64): return Sl(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2), SAcop(3) });
+                    //case (TYPE_U64): return Sl(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2), SAcop(3) });
                     //default: break;
                     //}
             //}
             break;
-        case (OP_MOV): return MnT(INTEL64_MOV, { MAcop(0), MAcop(1) });
-        case (OP_ADD): return MnT(INTEL64_ADD, { MAcop(0), MAcop(2) });
-        case (OP_SUB): return MnT(INTEL64_SUB, { MAcop(0), MAcop(2) });
-        case (OP_MUL): return MnT(INTEL64_IMUL, { MAcop(0), MAcop(2) });
-        case (OP_DIV): return MnT(INTEL64_IDIV, { MAcop(2) });
-        case (OP_NEG): return MnT(INTEL64_NEG, { MAcop(0) });
-        case (OP_CQO): return MnT(INTEL64_CQO, {});
-        case (OP_CMP): return MnT(INTEL64_CMP, { MAcop(0), MAcop(1) });
-        case (OP_UNSPILL): return MnT(INTEL64_MOV, { MAcop(0), MAcopspl(1) });
-        case (OP_SPILL): return MnT(INTEL64_MOV, { MAcopspl(0), MAcop(1) });
-        case (OP_RET): return MnT(INTEL64_RET, {});
+        case (OP_MOV): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1) });
+        case (OP_ADD): return SyT(INTEL64_ADD, { SAcop(0), SAcop(2) });
+        case (OP_SUB): return SyT(INTEL64_SUB, { SAcop(0), SAcop(2) });
+        case (OP_MUL): return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
+        case (OP_DIV): return SyT(INTEL64_IDIV, { SAcop(2) });
+        case (OP_NEG): return SyT(INTEL64_NEG, { SAcop(0) });
+        case (OP_CQO): return SyT(INTEL64_CQO, {});
+        case (OP_CMP): return SyT(INTEL64_CMP, { SAcop(0), SAcop(1) });
+        case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
+        case (OP_SPILL): return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
+        case (OP_RET): return SyT(INTEL64_RET, {});
         default:
             break;
         }
         scs = false;
-        return Mnemotr();
+        return SyntopTranslation();
     }
 
     class Three2Two : public CompilerStage
@@ -287,8 +287,8 @@ namespace loops
 
     Intel64Backend::Intel64Backend()
     {
-        m_m2blookup = i64binatrLookup;
-        m_m2mlookup = i64mnemotrLookup;
+        m_s2blookup = i64BTLookup;
+        m_s2slookup = i64STLookup;
         m_exeAlloc = Allocator::getInstance();
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
@@ -320,7 +320,7 @@ namespace loops
         {
             if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong JMP format.");
-            m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getM2mCurrentOffset());
+            m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getS2sCurrentOffset());
             int targetop = (a_btop.opcode == OP_JMP_NE) ? INTEL64_JNE : (
                 (a_btop.opcode == OP_JMP_EQ) ? INTEL64_JE : (
                 (a_btop.opcode == OP_JMP_LT) ? INTEL64_JL : (
@@ -328,10 +328,10 @@ namespace loops
                 (a_btop.opcode == OP_JMP_GE) ? INTEL64_JGE : (
                 (a_btop.opcode == OP_JMP_LE) ? INTEL64_JLE :
                                                               INTEL64_JMP)))));
-            Arg jtar = getM2mCurrentOffset();
+            Arg jtar = getS2sCurrentOffset();
             jtar.flags = AF_PRINTOFFSET;
             Syntop toAdd(targetop, std::initializer_list<Arg>({ jtar }));
-            toAdd.args[0].value += lookM2b(toAdd).size();
+            toAdd.args[0].value += lookS2b(toAdd).size();
             a_formingtarget.program.emplace_back(toAdd);
             return true;
         }
@@ -341,7 +341,7 @@ namespace loops
                 throw std::runtime_error("Wrong LABEL format.");
             if (m_labelMap.count(a_btop.args[0].value) != 0)
                 throw std::runtime_error("Label redefinition");
-            m_labelMap[a_btop.args[0].value] = getM2mCurrentOffset();
+            m_labelMap[a_btop.args[0].value] = getS2sCurrentOffset();
             return true;
         }
         default:
@@ -423,7 +423,7 @@ namespace loops
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
-        //Actually, it's easy to think, that we have to keep used registers info on level of mnemotr. Hmm...
+        //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
 
         std::set<size_t> res;
         bool bypass = true;
@@ -434,10 +434,10 @@ namespace loops
             case (OP_MUL):
             {
                 Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-                if (a_op[0].idx != a_op[1].idx && a_op[2].tag == Arg::IREG && ((~(Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) & flagmask) == 0))
+                if (a_op[0].idx != a_op[1].idx && a_op[2].tag == Arg::IREG && ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0))
                 {
-                    bool in = Binatr::Detail::D_INPUT & flagmask;
-                    bool out = Binatr::Detail::D_OUTPUT & flagmask;
+                    bool in = BinTranslation::Token::T_INPUT & flagmask;
+                    bool out = BinTranslation::Token::T_OUTPUT & flagmask;
                     if (in && out)
                         in = out = false;
                     if (out)
@@ -454,10 +454,10 @@ namespace loops
             case (OP_DIV):
             {
                 Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
-                if ((~(Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) & flagmask) == 0)
+                if ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
                 {
-                    bool in = Binatr::Detail::D_INPUT & flagmask;
-                    bool out = Binatr::Detail::D_OUTPUT & flagmask;
+                    bool in = BinTranslation::Token::T_INPUT & flagmask;
+                    bool out = BinTranslation::Token::T_OUTPUT & flagmask;
                     if (in && out)
                         in = out = false;
                     if (out)
@@ -551,7 +551,7 @@ namespace loops
         size_t oppos = 0;
         for (const Syntop& op : toP.program)
         {
-            size_t opsize = lookM2b(op).size();
+            size_t opsize = lookS2b(op).size();
             posNsizes.push_back(std::make_pair(oppos, opsize));
             oppos += opsize;
         }
@@ -572,7 +572,7 @@ namespace loops
         size_t oppos = 0;
         for (size_t opnum = 0; opnum < toP.program.size(); opnum++)
         {
-            size_t opsize = lookM2b(toP.program[opnum]).size();
+            size_t opsize = lookS2b(toP.program[opnum]).size();
             positions.push_back(oppos);
             numbersAtPositions[oppos] = opnum;
             oppos += opsize;

@@ -43,7 +43,7 @@ public:
     std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline size_t provideIdx() { return m_nextIdx++; }
+    inline IRegInternal provideIdx() { return m_nextIdx++; }
     size_t provideLabel();
     enum {NOLABEL = -1};
 
@@ -80,7 +80,7 @@ private:
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
     ContextImpl* m_context;
-    size_t m_nextIdx;
+    int m_nextIdx;
     size_t m_nextLabelIdx;
 
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
@@ -97,7 +97,7 @@ private:
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
-    size_t retidx = provideIdx();
+    IRegInternal retidx = provideIdx();
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this) }), args);
     if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
     m_data.program.emplace_back(toAdd);
@@ -106,7 +106,7 @@ inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, uint
 
 inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
 {
-    size_t retidx = provideIdx();
+    IRegInternal retidx = provideIdx();
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this), depth }), args);
     if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 2);
     m_data.program.emplace_back(toAdd);

@@ -25,31 +25,31 @@ void Bitwriter::startInstruction()
     m_startsize = m_size;
 }
 
-void Bitwriter::writeDetail(uint64_t a_detail, size_t a_fieldwidth)
+void Bitwriter::writeToken(uint64_t a_token, size_t a_fieldwidth)
 {
     if (a_fieldwidth > 64)
         throw std::runtime_error("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
-        throw std::runtime_error("Bitwriter: writing detail out of instruction");
+        throw std::runtime_error("Bitwriter: writing token out of instruction");
     if(m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
     uint8_t* buffer = &m_buffer->operator[](0);
     uint64_t body = m_bitpos ? ((uint64_t)(*(buffer + m_size))) << 56 : 0;
-    a_detail = (a_fieldwidth < 64)? a_detail & ( ((uint64_t)(1) << a_fieldwidth) - 1): a_detail;
+    a_token = (a_fieldwidth < 64)? a_token & ( ((uint64_t)(1) << a_fieldwidth) - 1): a_token;
     const size_t bits2write = m_bitpos + a_fieldwidth;
     const size_t bytes2write = (bits2write >> 3) + (bits2write%8 ? 1 : 0);
     uint8_t tail = 0;
     if (bits2write > 64)
     {
         size_t tailwidth = bits2write - 64;
-        tail = (uint8_t)((a_detail & ( ((uint64_t)(1) << tailwidth) - 1)) << (8 - tailwidth));
-        a_detail = a_detail >> (tailwidth);
-        body |= a_detail;
+        tail = (uint8_t)((a_token & ( ((uint64_t)(1) << tailwidth) - 1)) << (8 - tailwidth));
+        a_token = a_token >> (tailwidth);
+        body |= a_token;
     }
     else
     {
-        a_detail = a_detail << (64 - bits2write);
-        body |= a_detail;
+        a_token = a_token << (64 - bits2write);
+        body |= a_token;
     }
     size_t bytesfromfield = bytes2write % 8;
     uint8_t* bytearray = reinterpret_cast<uint8_t*>(&body);
@@ -88,108 +88,108 @@ void Bitwriter::endInstruction()
     m_startsize = NOTRANSACTION;
 }
 
-uint64_t Bitwriter::revertDetail(uint64_t a_det, size_t dwidth)
+uint64_t Bitwriter::revertToken(uint64_t a_tok, size_t dwidth)
 {
     dwidth = (dwidth + 7) >> 3;
     size_t endpos = dwidth - 1;
     dwidth = dwidth >> 1;
-    uint8_t* bytearr = reinterpret_cast<uint8_t*>(&a_det);
+    uint8_t* bytearr = reinterpret_cast<uint8_t*>(&a_tok);
     for (size_t p1 = 0; p1 < dwidth; p1++)
         std::swap(bytearr[p1], bytearr[endpos - p1]);
-    return a_det;
+    return a_tok;
 }
 
-Binatr::Detail::Detail(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
+BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
-    if(tag != D_REG && tag != D_IMMEDIATE && tag != D_ADDRESS && tag != D_OFFSET && tag != D_STACKOFFSET && tag != D_SPILLED)
-        throw std::runtime_error("Binary translator: wrong detail constructor.");
+    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED)
+        throw std::runtime_error("Binary translator: wrong token constructor.");
 }
 
-Binatr::Detail::Detail(int tag, uint64_t val, size_t fieldsize):tag(tag)
+BinTranslation::Token::Token(int tag, uint64_t val, size_t fieldsize):tag(tag)
    ,width(fieldsize)
    ,fieldOflags(val)
    ,arVecNum(-1)
 {
-    if(tag != D_STATIC)
-        throw std::runtime_error("Binary translator: wrong detail constructor.");
+    if(tag != T_STATIC)
+        throw std::runtime_error("Binary translator: wrong token constructor.");
 }
 
-Binatr::Binatr(std::initializer_list<Detail> lst) : m_compound(lst), m_bytewidth(0)
+BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(lst), m_bytewidth(0)
 {
-    for (const Detail& det:m_compound)
+    for (const Token& det:m_compound)
         m_bytewidth += det.width;
     m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
 }
 
-void Binatr::applyNAppend(const Syntop& op, Bitwriter* bits) const
+void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
         throw std::runtime_error("Binary translator: null writer pointer.");
             bits->startInstruction();
             uint64_t argmask = (uint64_t(1) << op.size()) - 1;
-    for (const Detail& det : m_compound)
+    for (const Token& det : m_compound)
     {
         uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
 
         switch (det.tag)
         {
-        case (Detail::D_REG):
+        case (Token::T_REG):
             if (op.args[det.arVecNum].tag != Arg::IREG)
                 throw std::runtime_error("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;
-        case (Detail::D_SPILLED):
+        case (Token::T_SPILLED):
             if (op.args[det.arVecNum].tag != Arg::ISPILLED)
                 throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
-        case (Detail::D_IMMEDIATE):
-        case (Detail::D_ADDRESS):
-        case (Detail::D_OFFSET):
-        case (Detail::D_STACKOFFSET):
+        case (Token::T_IMMEDIATE):
+        case (Token::T_ADDRESS):
+        case (Token::T_OFFSET):
+        case (Token::T_STACKOFFSET):
             if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
-        case (Detail::D_STATIC): break;
+        case (Token::T_STATIC): break;
         default:
-            throw std::runtime_error("Binary translator: unknown detail type.");
+            throw std::runtime_error("Binary translator: unknown token type.");
         };
     }
     Assert(argmask == 0);
-    for (const Detail& det : m_compound)
+    for (const Token& det : m_compound)
     {
         uint64_t piece = 0;
         switch (det.tag)
         {
-        case (Detail::D_STATIC):
+        case (Token::T_STATIC):
             piece = det.fieldOflags;
             break;
-        case (Detail::D_REG):
+        case (Token::T_REG):
             piece = op.args[det.arVecNum].idx;
             break;
-        case (Detail::D_ADDRESS):
+        case (Token::T_ADDRESS):
         {
             //                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
         }
-        case (Detail::D_IMMEDIATE):
-        case (Detail::D_OFFSET):
-        case (Detail::D_STACKOFFSET):
-        case (Detail::D_SPILLED):
+        case (Token::T_IMMEDIATE):
+        case (Token::T_OFFSET):
+        case (Token::T_STACKOFFSET):
+        case (Token::T_SPILLED):
             piece = static_cast<uint64_t>(op.args[det.arVecNum].value);
-            if(det.fieldOflags & Detail::D_INVERT_IMM)
+            if(det.fieldOflags & Token::T_INVERT_IMM)
                 piece = ~piece;
-            if (det.tag == Detail::D_SPILLED)
+            if (det.tag == Token::T_SPILLED)
                 piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
             if (bits->getBackend()->isLittleEndianOperands())
-                piece = Bitwriter::revertDetail(piece, det.width);
+                piece = Bitwriter::revertToken(piece, det.width);
             break;
         default:
-            throw std::runtime_error("Binary translator: unknown detail type.");
+            throw std::runtime_error("Binary translator: unknown token type.");
         };
-        bits->writeDetail(piece, det.width);
+        bits->writeToken(piece, det.width);
     }
     bits->endInstruction();
     return;

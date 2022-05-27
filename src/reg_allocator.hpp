@@ -38,7 +38,6 @@ namespace loops {
 
         ContextImpl* m_owner;
         std::set<IRegInternal> m_usedCallee;
-        static const size_t m_maximumSpills;
 
         // Sometimes register can exist in more than one basket(like parameter and return), so we have to trace 
         // register to be erased from all of them. That's why we are using one pool for controling engagement 
@@ -50,10 +49,10 @@ namespace loops {
         uint64_t m_calleeSavedRegisters;
         uint64_t m_spillPlaceholders;
         uint64_t m_spillPlaceholdersAvailable;
-        static const size_t NOREGISTER;
+        enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed scheme, than just 3 spills.
         // Register pool have internal ordering of registers for supporting correct providing sequence. 
         // (There must be provided first registers from parameter basket, further: return - callerSaved - calleeSaved).
-        std::vector<size_t> m_regOrder;
+        std::vector<IRegInternal> m_regOrder;
         std::vector<size_t> m_invertOrderMapping;
 
         uint64_t m_parameterRegistersO;

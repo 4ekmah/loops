@@ -21,7 +21,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    typedef size_t IRegInternal;
+    typedef int IRegInternal;
 
     inline IReg iregHid(IRegInternal a_idx, Func* a_func)
     {
@@ -83,7 +83,7 @@ namespace loops
         AF_PRINTOFFSET = 8,
     };
 
-    inline size_t onlyBitPos64(uint64_t bigNum)
+    inline IRegInternal onlyBitPos64(uint64_t bigNum)
     {
         static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
         static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -106,17 +106,17 @@ namespace loops
         bytenum += (second8 != 0);
         uint8_t bytecontent = first8 + ((~(uint32_t)(second8 == 0)) & second8);
 
-        return static_cast<size_t>(bnBase[bytenum]) + static_cast<size_t>(bnAdd[bytecontent]) - 1;
+        return static_cast<IRegInternal>(bnBase[bytenum]) + static_cast<IRegInternal>(bnAdd[bytecontent]) - 1;
     }
 
 
-    inline size_t lsb64(uint64_t bigNum)
+    inline IRegInternal lsb64(uint64_t bigNum)
     {
         uint64_t firstReg = (bigNum & ~(bigNum - 1));
         return onlyBitPos64(firstReg);
     }
 
-    inline size_t msb64(uint64_t bigNum)
+    inline IRegInternal msb64(uint64_t bigNum)
     {
         bigNum |= bigNum >> 1;
         bigNum |= bigNum >> 2;

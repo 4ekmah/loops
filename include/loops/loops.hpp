@@ -145,12 +145,11 @@ struct IReg
 
     IReg(const IReg& r); //Must generate copy(mov) code 
     IReg(IReg&& a) noexcept;
-    IReg& operator=(const IReg& r); // may generate real code
-                                      // if 'this' is already initialized
+    IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
 
-    size_t idx;
+    int idx;
     Func* func;
-    static const size_t NOIDX;
+    enum {NOIDX = -1};
 };
 
 class Context;
@@ -164,7 +163,7 @@ template<typename _Tp> struct VReg
     VReg(const VReg<_Tp>& r);
     VReg<_Tp>& operator = (const VReg<_Tp>& r);
 
-    int idx; // 0 means uninitialized
+    int idx;
     Context* ctx;
 };
 
@@ -190,7 +189,7 @@ struct Arg
 
     template<typename _Tp> VReg<_Tp> vreg() const;
 
-    size_t idx;
+    int idx;
     Func* func;
     size_t tag;
     int64_t value;

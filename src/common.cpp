@@ -16,8 +16,6 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    const size_t IReg::NOIDX = static_cast<size_t>(-1);
-
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
     IReg::IReg(const IReg& r)

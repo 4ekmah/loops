@@ -38,7 +38,7 @@ namespace loops
         virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const override final;
         virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
         virtual size_t spillSpaceNeeded(const Syntop& a_op) const override final;
-        virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = Binatr::Detail::D_INPUT | Binatr::Detail::D_OUTPUT) const override final;
+        virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
         virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
         virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
         virtual size_t stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const override final;
