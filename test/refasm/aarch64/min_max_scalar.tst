@@ -10,7 +10,7 @@ min_max_scalar(i0, i1, i2, i3)
      8 : str   x20, [sp], #0x03 ; f4 0f 00 f9  
      9 : mov   x20, #0          ; 14 00 80 d2  
     10 : str   x20, [sp], #0x02 ; f4 0b 00 f9  
-    11 : ldrsw x2, [x0], #0     ; 02 04 80 b8  
+    11 : ldrsw x2, [x0], #0     ; 02 00 80 b9  
     12 : mov   x3, x2           ; e3 03 02 aa  
     13 : mov   x19, #0x04       ; 93 00 80 d2  
     14 : mul   x1, x1, x19      ; 21 7c 13 9b  

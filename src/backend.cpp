@@ -40,6 +40,18 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
                 resargs.push_back(toAdd);
                 break;
             }
+            case ArgTranslation::T_COPYSHIFTRIGHT:
+            {
+                Assert(argt.srcArgnum < a_source.size());
+                Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
+                Arg toAdd = a_source.args[argt.srcArgnum];
+                toAdd.value >>= argt.fixed.value;
+                if((toAdd.value << argt.fixed.value) != a_source.args[argt.srcArgnum].value)
+                    throw std::runtime_error("Syntop translator: argument alignment error.");
+                toAdd.flags |= argt.transitFlags;
+                resargs.push_back(toAdd);
+                break;
+            }
             default:
                 throw std::runtime_error("Syntop translator: unknown type of argument translation.");
         }
@@ -100,17 +112,18 @@ size_t Backend::spillSpaceNeeded(const Syntop& a_op) const
 std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
 {
     bool foundSynTr;
-    SyntopTranslation ret = m_s2slookup(a_op, foundSynTr);
+    SyntopTranslation s2s = m_s2slookup(a_op, foundSynTr);
     std::set<size_t> result;
     if (!foundSynTr)
         return result;
-    const SyntopTranslation& s2s = lookS2s(a_op);
     Syntop tarop = s2s.apply(a_op);
+    
+//0:BTsta(1, 1), 1:BTimm(0, 1), 2:BTsta(0b111000011, 9), 3:BTreg(3, 5, In),4:BTsta(0b011010, 6), 5:BTreg(2, 5, In), 6:BTreg(1, 5, Out)
     const BinTranslation& s2b = lookS2b(tarop);
-    size_t bpiecenum = 0;
-    for (size_t argnum = 0; argnum < s2s.m_argsList.size(); ++argnum)
+    for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
     {
-        while (bpiecenum < s2b.size() && s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC) ++bpiecenum;  //Drop all statics
+        if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
+            continue;   //Drop all statics
         const SyntopTranslation::ArgTranslation& ar = s2s.m_argsList[s2b.m_compound[bpiecenum].arVecNum];
         if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE)
         {
@@ -119,7 +132,6 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64
             if (a_op[ar.srcArgnum].tag == Arg::IREG && ((s2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
-        ++bpiecenum; //Drop one biantr argument.
     }
     return result;
 }

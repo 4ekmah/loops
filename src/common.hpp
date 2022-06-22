@@ -77,11 +77,38 @@ namespace loops
 
     enum ArgFlags
     {
-        AF_ADDRESS = 1,
-        AF_LOWER32 = 2,
-        AF_NOPRINT = 4,
-        AF_PRINTOFFSET = 8,
+        AF_ADDRESS  = 1,
+        AF_LOWER32  = 2, //010
+        AF_LOWER16  = 4, //100
+        AF_LOWER8   = 6, //110
+        AF_NOPRINT  = 8,
+        AF_PRINTOFFSET = 16,
     };
+
+    enum InstructionConditions
+    {
+        IC_EQ = 0,
+        IC_NE,
+        IC_LT,
+        IC_GT,
+        IC_LE,
+        IC_GE,
+        IC_S,
+        IC_NS,
+        IC_UNKNOWN
+    };
+
+    inline int invertCondition(int condition)
+    {
+        return condition == IC_EQ ? IC_NE : (
+               condition == IC_NE ? IC_EQ : (
+               condition == IC_LT ? IC_GE : (
+               condition == IC_GT ? IC_LE : (
+               condition == IC_LE ? IC_GT : (
+               condition == IC_GE ? IC_LT : (
+               condition == IC_S  ? IC_NS : (
+               condition == IC_NS ? IC_S  : IC_UNKNOWN)))))));
+    }
 
     inline IRegInternal onlyBitPos64(uint64_t bigNum)
     {
@@ -118,6 +145,8 @@ namespace loops
 
     inline IRegInternal msb64(uint64_t bigNum)
     {
+        if (bigNum == 0)
+            return 0;
         bigNum |= bigNum >> 1;
         bigNum |= bigNum >> 2;
         bigNum |= bigNum >> 4;
@@ -237,7 +266,7 @@ namespace loops
     public:
         ContextImpl(Context* owner);
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
-        void endFunc();
+        void endFunc(bool directTranslation = false); //directTranslation == true
         Func getFunc(const std::string& name);
         std::string getPlatformName() const;
         void compileAll();

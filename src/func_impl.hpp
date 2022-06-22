@@ -54,7 +54,9 @@ public:
     inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
 
-    void endfunc();
+    //directTranslation  == true. Avoids most part of stages, like register allocation or controlBlocks2Jumps.
+    //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
+    void endfunc(bool directTranslation = false); 
 
     IReg const_(int64_t value);
 
@@ -72,6 +74,15 @@ public:
     void return_(int64_t retval);
     void return_(const IReg& retval);
 
+    IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
+    inline IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
+    {
+        return select(cond, const_(truev), falsev);
+    }
+    inline IReg select(const IReg& cond, const IReg& truev, int64_t falsev)
+    {
+        return select(cond, truev, const_(falsev));
+    }
 
     const Syntfunc& getData() const { return m_data; }
     
@@ -86,8 +97,9 @@ private:
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
 
+    int condition2jumptype(int cond);
+
     void controlBlocks2Jumps();
-    int invertCondition(int condition) const;
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
 
     void immediateImplantationAttempt(Syntop& op, uint64_t tryImmMask, size_t anumAdd);

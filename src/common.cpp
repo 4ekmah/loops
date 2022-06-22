@@ -100,87 +100,103 @@ namespace loops
         return newiopNoret(opcode, args, tryImmMask);
     }
 
+    IReg select(const IReg& cond, const IReg& truev, const IReg& falsev)
+    {
+        return FuncImpl::verifyArgs({ truev, falsev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
+    IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
+    {
+        return FuncImpl::verifyArgs({ falsev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
+    IReg select(const IReg& cond, const IReg& truev, int64_t falsev)
+    {
+        return FuncImpl::verifyArgs({ truev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+        //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
     IReg operator == (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_EQ;
+        fnc->m_cmpopcode = IC_EQ;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator == (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_EQ;
+        fnc->m_cmpopcode = IC_EQ;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator != (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_NE;
+        fnc->m_cmpopcode = IC_NE;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator != (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_NE;
+        fnc->m_cmpopcode = IC_NE;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_LE;
+        fnc->m_cmpopcode = IC_LE;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_LE;
+        fnc->m_cmpopcode = IC_LE;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator >= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_GE;
+        fnc->m_cmpopcode = IC_GE;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator >= (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_GE;
+        fnc->m_cmpopcode = IC_GE;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_GT;
+        fnc->m_cmpopcode = IC_GT;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_GT;
+        fnc->m_cmpopcode = IC_GT;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator < (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_LT;
+        fnc->m_cmpopcode = IC_LT;
         newiopNoret(OP_CMP, {a, b});
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator < (const IReg& a, int64_t b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->m_cmpopcode = OP_JMP_LT;
+        fnc->m_cmpopcode = IC_LT;
         newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
@@ -281,10 +297,10 @@ namespace loops
         m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
     }
 
-    void ContextImpl::endFunc()
+    void ContextImpl::endFunc(bool directTranslation)
     {
         FuncImpl* func = getImpl(&m_currentFunc);
-        func->endfunc();
+        func->endfunc(directTranslation);
         m_currentFunc = Func();
     }
 

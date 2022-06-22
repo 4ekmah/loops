@@ -22,7 +22,7 @@ struct SyntopTranslation
 {
     struct ArgTranslation
     {
-        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_ERROROFUSAGE}; //TODO(ch): probably, it's needed some T_TRANSFORM(something like int map)
+        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_ERROROFUSAGE};
         ArgTranslation(const Arg& a_fixed);
         ArgTranslation(size_t a_src_arnum, uint64_t flags = 0);
         int tag;
@@ -68,6 +68,16 @@ namespace SyntopTranslationConstruction
         SyntopTranslation::ArgTranslation res(argnum);
         res.tag = SyntopTranslation::ArgTranslation::T_TRANSFORMTOSPILL;
         return res; 
+    }
+    //SAcopshr is for copy original immediate argument and divide it by 2 <shft> times.
+    //Used for immediate offsets values on Arm.
+    inline SyntopTranslation::ArgTranslation SAcopsar(size_t argnum, size_t shft, uint64_t flags = 0)
+    {
+        SyntopTranslation::ArgTranslation res(argnum);
+        res.fixed.value = shft;
+        res.tag = SyntopTranslation::ArgTranslation::T_COPYSHIFTRIGHT;
+        res.transitFlags = flags;
+        return res;
     }
 };
 

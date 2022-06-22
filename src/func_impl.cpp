@@ -50,13 +50,30 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
     {OP_MOV, "mov"},
-    {OP_CMP, "cmp"},
+    {OP_ADC, "adc"},
     {OP_ADD, "add"},
     {OP_MUL, "mul"},
-    {OP_DIV, "div"},
     {OP_SUB, "sub"},
+    {OP_DIV, "div"},
+    {OP_MOD, "mod"},
+    {OP_SHL, "shl"},
+    {OP_SHR, "shr"},
+    {OP_SAR, "sar"},
+    {OP_AND, "and"},
+    {OP_OR,  "or"},
+    {OP_XOR, "xor"},
+    {OP_NOT, "not"},
     {OP_NEG, "neg"},
+    {OP_CMP, "cmp"},
+    {OP_SELECT, "select"},
+    {OP_MIN, "min"},
+    {OP_MAX, "max"},
+    {OP_ABS, "abs"},
+    {OP_SIGN, "sign"},
     {OP_CQO, "cqo"},
+    {OP_XCHG,"xchg"},
+    {OP_CINC,"cinc"},
+    {OP_CNEG,"cneg"},
     {OP_JMP, "jmp"},
     {OP_JMP_EQ, "jmp_eq"},
     {OP_JMP_NE, "jmp_ne"},
@@ -84,6 +101,7 @@ FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<
     , m_context(getImpl(ctx))
     , m_returnType(RT_NOTDEFINED)
     , m_compiled(nullptr)
+    , m_cmpopcode(IC_UNKNOWN)
 {
     m_data.name = name;
     m_data.params.reserve(params.size());
@@ -148,7 +166,7 @@ FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
 {
     FuncImpl* func = nullptr;
     for (const Arg& arg : args)
-        if (arg.tag == Arg::IREG)
+        if (arg.func != nullptr)
         {
             if (func == nullptr)
                 func = static_cast<FuncImpl*>(arg.func);
@@ -160,17 +178,20 @@ FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
     return func;
 }
 
-void FuncImpl::endfunc()
+void FuncImpl::endfunc(bool directTranslation)
 {
-    if(m_cflowStack.size())
-        throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
-    //TODO(ch): block somehow adding new instruction after this call.
-    m_context->getRegisterAllocator()->process(this,m_data,m_nextIdx);
-    
-    controlBlocks2Jumps();
-    auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
-    for (CompilerStagePtr araStage : afterRegAlloc)
-        araStage->process(m_data);
+    if (!directTranslation)
+    {
+        if (m_cflowStack.size())
+            throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
+        //TODO(ch): block somehow adding new instruction after this call.
+        m_context->getRegisterAllocator()->process(this, m_data, m_nextIdx);
+
+        controlBlocks2Jumps();
+        auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
+        for (CompilerStagePtr araStage : afterRegAlloc)
+            araStage->process(m_data);
+    }
 }
 
 IReg FuncImpl::const_(int64_t value)
@@ -221,10 +242,11 @@ void FuncImpl::while_(const IReg& r)
             breop[0].value = brekLabel;
         }
     }
-    if(m_cmpopcode == OP_JMP)
+    int jumptype = condition2jumptype(m_cmpopcode);
+    if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    newiopNoret(OP_WHILE, {argIImm(m_cmpopcode, this), argIImm(bracket.labelOrPos, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
-    m_cmpopcode = OP_JMP;
+    newiopNoret(OP_WHILE, {argIImm(jumptype, this), argIImm(bracket.labelOrPos, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
+    m_cmpopcode = IC_UNKNOWN;
 }
 
 void FuncImpl::doif_(const IReg& r)
@@ -233,11 +255,11 @@ void FuncImpl::doif_(const IReg& r)
     size_t contLabel = provideLabel();
     size_t brekLabel = NOLABEL;
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, nextPos));
-    m_cmpopcode = invertCondition(m_cmpopcode);
-    if(m_cmpopcode == OP_JMP)
+    int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
+    if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    newiopNoret(OP_DOIF, {argIImm(m_cmpopcode, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
-    m_cmpopcode = OP_JMP;
+    newiopNoret(OP_DOIF, {argIImm(jumptype, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
+    m_cmpopcode = IC_UNKNOWN;
 }
 
 void FuncImpl::enddo_()
@@ -311,12 +333,12 @@ void FuncImpl::continue_()
 void FuncImpl::if_(const IReg& r)
 {
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
-    m_cmpopcode = invertCondition(m_cmpopcode);
-    if(m_cmpopcode == OP_JMP)
+    int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
+    if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
     //IF(cmp, wrongjmp)
-    newiopNoret(OP_IF, {argIImm(m_cmpopcode, this), argIImm(0, this)});
-    m_cmpopcode = OP_JMP;
+    newiopNoret(OP_IF, {argIImm(jumptype, this), argIImm(0, this)});
+    m_cmpopcode = IC_UNKNOWN;
 }
 
 void FuncImpl::elif_(const IReg& r)
@@ -427,14 +449,13 @@ void FuncImpl::return_(const IReg& retval)
     newiopNoret(OP_RET, {});
 }
 
-int FuncImpl::invertCondition(int condition) const
+IReg FuncImpl::select(const IReg& cond, const IReg& truev, const IReg& falsev)
 {
-    return condition == OP_JMP_EQ ? OP_JMP_NE : (
-           condition == OP_JMP_NE ? OP_JMP_EQ : (
-           condition == OP_JMP_LT ? OP_JMP_GE : (
-           condition == OP_JMP_GT ? OP_JMP_LE : (
-           condition == OP_JMP_LE ? OP_JMP_GT : (
-           condition == OP_JMP_GE ? OP_JMP_LT : condition)))));
+    if (m_cmpopcode >= IC_UNKNOWN)                        //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Select: first argument must be condition.");
+    Arg cmpop = Arg(m_cmpopcode);
+    m_cmpopcode = OP_JMP;
+    return newiop(OP_SELECT, {cmpop, truev, falsev});
 }
 
 void FuncImpl::printSyntopBC(const Syntop& op) const
@@ -599,4 +620,17 @@ void FuncImpl::controlBlocks2Jumps()
     newProg.push_back(Syntop(OP_RET, {}));
     m_data.program = newProg;
 }
+
+int FuncImpl::condition2jumptype(int cond)
+{
+    return cond == IC_EQ ? OP_JMP_EQ : (
+           cond == IC_NE ? OP_JMP_NE : (
+           cond == IC_LT ? OP_JMP_LT : (
+           cond == IC_GT ? OP_JMP_GT : (
+           cond == IC_LE ? OP_JMP_LE : (
+           cond == IC_GE ? OP_JMP_GE : OP_JMP )))));
+         //cond == IC_S  ? OP_JMP_S  : (
+         //cond == IC_NS ? OP_JMP_NS : IC_UNKNOWN)))))));
+}
+
 };
