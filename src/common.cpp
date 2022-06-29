@@ -75,29 +75,29 @@ namespace loops
         return ret;
     }
     
-    IReg newiop(int opcode, std::initializer_list<Arg> args, uint64_t tryImmMask)
+    IReg newiop(int opcode, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args, tryImmMask));
+        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args, tryImmList));
     }
 
-    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
+    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args, tryImmMask);
+        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args, tryImmList);
     }
 
-    void newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
+    void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args, tryImmMask);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args, tryImmList);
     }
 
-    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
+    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args, tryImmMask);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args, tryImmList);
     }
     
-    void newiopAug(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
+    void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return newiopNoret(opcode, args, tryImmMask);
+        return newiopNoret(opcode, args, tryImmList);
     }
 
     IReg select(const IReg& cond, const IReg& truev, const IReg& falsev)
@@ -127,7 +127,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_EQ;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator != (const IReg& a, const IReg& b)
@@ -141,7 +141,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_NE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, const IReg& b)
@@ -155,7 +155,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_LE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator >= (const IReg& a, const IReg& b)
@@ -169,7 +169,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_GE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, const IReg& b)
@@ -183,7 +183,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_GT;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator < (const IReg& a, const IReg& b)
@@ -197,7 +197,7 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_LT;
-        newiopNoret(OP_CMP, { a, Arg(b) }, makeBitmask64({ 1 }));
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
@@ -231,10 +231,8 @@ namespace loops
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
 
     IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
-    void Context::do_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->do_(); }
-    void Context::while_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
-    void Context::doif_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->doif_(r); }
-    void Context::enddo_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->enddo_(); }
+    void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
+    void Context::endwhile_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endwhile_(); }
     void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->break_(); }
     void Context::continue_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->continue_(); }
 
@@ -249,30 +247,65 @@ namespace loops
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
+    {
+        switch (_cftype)
+        {
+        case(IF):
+            CTX->if_(condition);
+            break;
+        case(ELIF):
+            getImpl(getImpl(CTX)->getCurrentFunc())->subst_elif(condition);
+            break;
+        case(ELSE):
+            getImpl(getImpl(CTX)->getCurrentFunc())->subst_else();
+            break;
+        case(WHILE):
+            CTX->while_(condition);
+            break;
+        default:
+            Assert(false);
+        }
+    }
 
-    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
-    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size)
+    __Loops_CFScopeBracket_::~__Loops_CFScopeBracket_()
+    {
+        if(cftype == WHILE)
+            CTX->endwhile_();
+        else
+            CTX->endif_();
+    }
+
+    __Loops_FuncScopeBracket_::__Loops_FuncScopeBracket_(Context* _CTX, const std::string& name, std::initializer_list<IReg*> params): CTX(_CTX)
+    {
+        CTX->startFunc(name, params);
+    }
+
+    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
+
+    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
+    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");

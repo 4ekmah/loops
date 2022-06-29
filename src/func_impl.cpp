@@ -49,50 +49,48 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
-    {OP_MOV, "mov"},
-    {OP_ADC, "adc"},
-    {OP_ADD, "add"},
-    {OP_MUL, "mul"},
-    {OP_SUB, "sub"},
-    {OP_DIV, "div"},
-    {OP_MOD, "mod"},
-    {OP_SHL, "shl"},
-    {OP_SHR, "shr"},
-    {OP_SAR, "sar"},
-    {OP_AND, "and"},
-    {OP_OR,  "or"},
-    {OP_XOR, "xor"},
-    {OP_NOT, "not"},
-    {OP_NEG, "neg"},
-    {OP_CMP, "cmp"},
-    {OP_SELECT, "select"},
-    {OP_MIN, "min"},
-    {OP_MAX, "max"},
-    {OP_ABS, "abs"},
-    {OP_SIGN, "sign"},
-    {OP_CQO, "cqo"},
-    {OP_XCHG,"xchg"},
-    {OP_CINC,"cinc"},
-    {OP_CNEG,"cneg"},
-    {OP_JMP, "jmp"},
-    {OP_JMP_EQ, "jmp_eq"},
-    {OP_JMP_NE, "jmp_ne"},
-    {OP_JMP_GE, "jmp_ge"},
-    {OP_JMP_LE, "jmp_le"},
-    {OP_JMP_GT, "jmp_gt"},
-    {OP_JMP_LT, "jmp_gt"},
-    {OP_SPILL, "spill"},
-    {OP_UNSPILL, "unspill"},
-    {OP_IF, "annotation:if"},
-    {OP_ELSE, "annotation:else"},
-    {OP_ENDIF,"annotation:endif"},
-    {OP_DO, "annotation:do"},
-    {OP_WHILE, "annotation:while"},
-    {OP_DOIF, "annotation:doif"},
-    {OP_ENDDO, "annotation:enddo"},
-    {OP_BREAK, "annotation:break"},
+    {OP_MOV,      "mov"},
+    {OP_XCHG,     "xchg"},
+    {OP_ADC,      "adc"},
+    {OP_ADD,      "add"},
+    {OP_MUL,      "mul"},
+    {OP_SUB,      "sub"},
+    {OP_DIV,      "div"},
+    {OP_MOD,      "mod"},
+    {OP_SHL,      "shl"},
+    {OP_SHR,      "shr"},
+    {OP_SAR,      "sar"},
+    {OP_AND,      "and"},
+    {OP_OR,       "or"},
+    {OP_XOR,      "xor"},
+    {OP_NOT,      "not"},
+    {OP_NEG,      "neg"},
+    {OP_CMP,      "cmp"},
+    {OP_SELECT,   "select"},
+    {OP_MIN,      "min"},
+    {OP_MAX,      "max"},
+    {OP_ABS,      "abs"},
+    {OP_SIGN,     "sign"},
+    {OP_X86_CQO,  "x86_cqo"},
+    {OP_ARM_CINC, "arm_cinc"},
+    {OP_ARM_CNEG, "arm_cneg"},
+    {OP_JMP,      "jmp"},
+    {OP_JMP_EQ,   "jmp_eq"},
+    {OP_JMP_NE,   "jmp_ne"},
+    {OP_JMP_GE,   "jmp_ge"},
+    {OP_JMP_LE,   "jmp_le"},
+    {OP_JMP_GT,   "jmp_gt"},
+    {OP_JMP_LT,   "jmp_gt"},
+    {OP_SPILL,    "spill"},
+    {OP_UNSPILL,  "unspill"},
+    {OP_IF,       "annotation:if"},
+    {OP_ELSE,     "annotation:else"},
+    {OP_ENDIF,    "annotation:endif"},
+    {OP_WHILE,    "annotation:while"},
+    {OP_ENDWHILE, "annotation:endwhile"},
+    {OP_BREAK,    "annotation:break"},
     {OP_CONTINUE, "annotation:continue"},
-    {OP_RET, "ret"},
+    {OP_RET,      "ret"},
 };
 
 FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0)
@@ -199,108 +197,58 @@ IReg FuncImpl::const_(int64_t value)
     return static_cast<IReg&&>(newiop(OP_MOV, { argIImm(value, this) }));
 }
 
-void FuncImpl::do_()
-{
-    size_t label = provideLabel();
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::DO, label));
-    newiopNoret(OP_DO, {argIImm(label,this)});
-}
-
-void FuncImpl::while_(const IReg& r)
-{
-    if (m_cflowStack.size() == 0)
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"do\" for \"while\".");
-    auto bracket = m_cflowStack.back();
-    if (bracket.tag != ControlFlowBracket::DO)
-        throw std::runtime_error("Control flow bracket error: expected corresponding \"do\" for \"while\".");
-    m_cflowStack.pop_back();
-    size_t brekLabel = NOLABEL;
-    size_t contLabel = NOLABEL;
-    if(!bracket.continues.empty())
-    {
-        contLabel = provideLabel();
-        for(size_t con : bracket.continues)
-        {
-            if (con >= m_data.program.size())
-                throw std::runtime_error("\"Do\" internal error: wrong \"continue\" address.");
-            Syntop& conop = m_data.program[con];
-            if (conop.opcode != OP_CONTINUE || conop.size() != 1 || conop.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("\"Do\" internal error: wrong \"continue\" command format.");
-            conop[0].value = contLabel;
-        }
-    }
-    if(!bracket.breaks.empty())
-    {
-        brekLabel = provideLabel();
-        for(size_t bre : bracket.breaks)
-        {
-            if (bre >= m_data.program.size())
-                throw std::runtime_error("\"Do\" internal error: wrong \"break\" address.");
-            Syntop& breop = m_data.program[bre];
-            if (breop.opcode != OP_BREAK || breop.size() != 1 || breop.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("\"Do\" internal error: wrong \"break\" command format.");
-            breop[0].value = brekLabel;
-        }
-    }
-    int jumptype = condition2jumptype(m_cmpopcode);
-    if (jumptype == OP_JMP)
-        throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    newiopNoret(OP_WHILE, {argIImm(jumptype, this), argIImm(bracket.labelOrPos, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
-    m_cmpopcode = IC_UNKNOWN;
-}
-
-void FuncImpl::doif_(const IReg& r)
+void FuncImpl::while_(const IReg& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
     size_t nextPos = m_data.program.size();
     size_t contLabel = provideLabel();
     size_t brekLabel = NOLABEL;
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, nextPos));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, nextPos));
     int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
     if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    newiopNoret(OP_DOIF, {argIImm(jumptype, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
+    newiopNoret(OP_WHILE, {argIImm(jumptype, this), argIImm(contLabel, this), argIImm(brekLabel, this)});
     m_cmpopcode = IC_UNKNOWN;
 }
 
-void FuncImpl::enddo_()
+void FuncImpl::endwhile_()
 {
     if (m_cflowStack.size() == 0)
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"doif\" for \"enddo\".");
+        throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"endwhile\".");
     auto bracket = m_cflowStack.back();
     m_cflowStack.pop_back();
-    if (bracket.tag != ControlFlowBracket::DOIF)
-        throw std::runtime_error("Control flow bracket error: expected corresponding \"doif\" for \"enddo\".");
+    if (bracket.tag != ControlFlowBracket::WHILE)
+        throw std::runtime_error("Control flow bracket error: expected corresponding \"while\" for \"endwhile\".");
     size_t nextPos = m_data.program.size();
-    size_t doifPos = bracket.labelOrPos;
-    if(doifPos >= nextPos)
-        throw std::runtime_error("\"Doif\" internal error: wrong branch start address.");
-    Syntop& doifOp = m_data.program[doifPos];
-    if (doifOp.opcode!= OP_DOIF || doifOp.size() != 3 || doifOp[0].tag != Arg::IIMMEDIATE || doifOp[1].tag != Arg::IIMMEDIATE || doifOp[2].tag != Arg::IIMMEDIATE)
-        throw std::runtime_error("\"Doif\" internal error: wrong command format.");
+    size_t whilePos = bracket.labelOrPos;
+    if(whilePos >= nextPos)
+        throw std::runtime_error("\"While\" internal error: wrong branch start address.");
+    Syntop& whileOp = m_data.program[whilePos];
+    if (whileOp.opcode!= OP_WHILE || whileOp.size() != 3 || whileOp[0].tag != Arg::IIMMEDIATE || whileOp[1].tag != Arg::IIMMEDIATE || whileOp[2].tag != Arg::IIMMEDIATE)
+        throw std::runtime_error("\"While\" internal error: wrong command format.");
     size_t brekLabel = provideLabel();
-    doifOp[2].value = brekLabel;
-    size_t contLabel = doifOp[1].value;
+    whileOp[2].value = brekLabel;
+    size_t contLabel = whileOp[1].value;
     for(size_t bre : bracket.breaks)
     {
         if (bre >= m_data.program.size())
-            throw std::runtime_error("\"Doif\" internal error: wrong \"break\" address.");
+            throw std::runtime_error("\"While\" internal error: wrong \"break\" address.");
         Syntop& breop = m_data.program[bre];
         if (breop.opcode != OP_BREAK || breop.size() != 1 || breop.args[0].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("\"Doif\" internal error: wrong \"break\" command format.");
+            throw std::runtime_error("\"While\" internal error: wrong \"break\" command format.");
         breop[0].value = brekLabel;
     }
-    newiopNoret(OP_ENDDO, {argIImm(contLabel, this), argIImm(brekLabel, this)});
+    newiopNoret(OP_ENDWHILE, {argIImm(contLabel, this), argIImm(brekLabel, this)});
 }
 
 void FuncImpl::break_()
 {
     auto rator = m_cflowStack.rbegin();
     for(; rator != m_cflowStack.rend(); ++rator)
-        if(rator->tag == ControlFlowBracket::DO || rator->tag == ControlFlowBracket::DOIF)
+        if(rator->tag == ControlFlowBracket::WHILE)
             break;
     size_t nextPos = m_data.program.size();
     if (rator == m_cflowStack.rend())
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"do\" or \"doif\" for \"break\".");
+        throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"break\".");
     rator->breaks.push_back(nextPos);
     newiopNoret(OP_BREAK, {argIImm(0,this)});
 }
@@ -309,21 +257,21 @@ void FuncImpl::continue_()
 {
     auto rator = m_cflowStack.rbegin();
     for(; rator != m_cflowStack.rend(); ++rator)
-        if(rator->tag == ControlFlowBracket::DO || rator->tag == ControlFlowBracket::DOIF)
+        if(rator->tag == ControlFlowBracket::WHILE)
             break;
     if (rator == m_cflowStack.rend())
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"do\" or \"doif\" for \"break\".");
+        throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"break\".");
     size_t nextPos = m_data.program.size();
     size_t targetLabel = 0;
-    if(rator->tag == ControlFlowBracket::DOIF)
+    if(rator->tag == ControlFlowBracket::WHILE)
     {
-        size_t doifPos = rator->labelOrPos;
-        if(doifPos >= m_data.program.size())
-            throw std::runtime_error("\"Doif\" internal error: wrong branch start address.");
-        Syntop& doifOp = m_data.program[doifPos];
-        if (doifOp.opcode!= OP_DOIF || doifOp.size() != 3 || doifOp[0].tag != Arg::IIMMEDIATE || doifOp[1].tag != Arg::IIMMEDIATE || doifOp[2].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("\"Doif\" internal error: wrong command format.");
-        targetLabel = doifOp[1].value;
+        size_t whilePos = rator->labelOrPos;
+        if(whilePos >= m_data.program.size())
+            throw std::runtime_error("\"While\" internal error: wrong branch start address.");
+        Syntop& whileOp = m_data.program[whilePos];
+        if (whileOp.opcode!= OP_WHILE || whileOp.size() != 3 || whileOp[0].tag != Arg::IIMMEDIATE || whileOp[1].tag != Arg::IIMMEDIATE || whileOp[2].tag != Arg::IIMMEDIATE)
+            throw std::runtime_error("\"While\" internal error: wrong command format.");
+        targetLabel = whileOp[1].value;
     }
     else
         rator->continues.push_back(nextPos);
@@ -350,7 +298,7 @@ void FuncImpl::elif_(const IReg& r)
         ControlFlowBracket& bracket = m_cflowStack.back();
         if (bracket.tag != ControlFlowBracket::IF)
             throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
-        size_t elifRep = bracket.elifRepeats;
+        elifRep = bracket.elifRepeats;
     }
     Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
     m_data.program.pop_back();
@@ -382,8 +330,79 @@ void FuncImpl::else_()
         throw std::runtime_error("\"If\" internal error: wrong \"if\" command format");
     size_t label = provideLabel();
     m_data.program[prevBranchPos].args[1].value = label;
+    m_ifLabelMap[label] = std::pair<size_t, size_t>(prevBranchPos, 0);
     //ELSE(mylabel, endjmp)
     newiopNoret(OP_ELSE, {argIImm(label, this), argIImm(0, this)});
+}
+
+void FuncImpl::subst_elif(const IReg& r)
+{
+    static int num = 0;
+    Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
+    m_data.program.pop_back();
+    size_t elifRep = 0;
+    size_t restoredElifRep = 0;
+    bool gotElifRepeats = false;
+    do
+    {
+        if(m_data.program.size() == 0 || m_data.program.back().opcode != OP_ENDIF)
+            throw std::runtime_error("Control flow bracket error: there is no \"if\" or \"elif\", for \"else\" or \"elif\".");
+        Assert(m_data.program.back()[0].tag == Arg::IIMMEDIATE);
+        size_t label = m_data.program.back()[0].value;
+        size_t ifPos = m_ifLabelMap[label].first;
+        size_t elsePos = -1;
+        elifRep = gotElifRepeats ? elifRep - 1: m_ifLabelMap[label].second ;
+        gotElifRepeats = true;
+        m_ifLabelMap.erase(label);
+        m_data.program.pop_back();
+        Assert(ifPos < m_data.program.size() && (m_data.program[ifPos].opcode == OP_IF || m_data.program[ifPos].opcode == OP_ELSE));
+        if(m_data.program[ifPos].opcode == OP_ELSE)
+        {
+            Assert(m_data.program[ifPos].size() && m_data.program[ifPos][0].tag == Arg::IIMMEDIATE);
+            size_t label = m_data.program[ifPos][0].value;
+            elsePos = ifPos;
+            ifPos = m_ifLabelMap[label].first;
+        }
+        m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, ifPos));
+        m_cflowStack.back().elifRepeats = restoredElifRep++;
+        if(elsePos != -1)
+            m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, elsePos));
+    } while(elifRep != 0);
+    m_data.program.push_back(conditionBackup);
+    elif_(r);
+}
+
+void FuncImpl::subst_else()
+{
+    size_t elifRep = 0;
+    size_t restoredElifRep = 0;
+    bool gotElifRepeats = false;
+    do
+    {
+        if(m_data.program.size() == 0 || m_data.program.back().opcode != OP_ENDIF)
+            throw std::runtime_error("Control flow bracket error: there is no \"if\" or \"elif\", for \"else\" or \"elif\".");
+        Assert(m_data.program.back()[0].tag == Arg::IIMMEDIATE);
+        size_t label = m_data.program.back()[0].value;
+        size_t ifPos = m_ifLabelMap[label].first;
+        size_t elsePos = -1;
+        elifRep = gotElifRepeats ? elifRep - 1: m_ifLabelMap[label].second ;
+        gotElifRepeats = true;
+        m_ifLabelMap.erase(label);
+        m_data.program.pop_back();
+        Assert(ifPos < m_data.program.size() && (m_data.program[ifPos].opcode == OP_IF || m_data.program[ifPos].opcode == OP_ELSE));
+        if(m_data.program[ifPos].opcode == OP_ELSE)
+        {
+            Assert(m_data.program[ifPos].size() && m_data.program[ifPos][0].tag == Arg::IIMMEDIATE);
+            size_t label = m_data.program[ifPos][0].value;
+            elsePos = ifPos;
+            ifPos = m_ifLabelMap[label].first;
+        }
+        m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, ifPos));
+        m_cflowStack.back().elifRepeats = restoredElifRep++;
+        if(elsePos != -1)
+            m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, elsePos));
+    } while(elifRep != 0);
+    else_();
 }
 
 void FuncImpl::endif_()
@@ -405,6 +424,7 @@ void FuncImpl::endif_()
         if (elseOp.opcode != OP_ELSE || elseOp.size() != 2 || elseOp.args[1].tag != Arg::IIMMEDIATE)
             throw std::runtime_error("\"If\" internal error: wrong \"else\" command format");
         m_data.program[elsePos].args[1].value = label;
+        m_ifLabelMap[label] = std::pair<size_t, size_t>(elsePos, 0);
         if (m_cflowStack.size() == 0)
             throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
         bracket = m_cflowStack.back();
@@ -420,10 +440,17 @@ void FuncImpl::endif_()
     if (ifOp.opcode != OP_IF || ifOp.size() != 2 || ifOp.args[1].tag != Arg::IIMMEDIATE)
         throw std::runtime_error("\"If\" internal error: wrong \"else\" command format");
     if(rewriteNEAddress)
+    {
+        m_ifLabelMap[label] = std::pair<size_t, size_t>(ifPos, 0);
         m_data.program[ifPos].args[1].value = label;
+    }
     newiopNoret(OP_ENDIF, {argIImm(label, this)});
     if(bracket.elifRepeats != 0)
+    {
         endif_();
+        size_t justAddedIfPos = m_ifLabelMap[label + bracket.elifRepeats].first;
+        m_ifLabelMap[label + bracket.elifRepeats] = std::pair<size_t, size_t>(justAddedIfPos, bracket.elifRepeats);
+    }
 }
 
 void FuncImpl::return_()
@@ -466,18 +493,14 @@ void FuncImpl::printSyntopBC(const Syntop& op) const
     printer.print(std::cout, toPrint, false);
 }
 
-void FuncImpl::immediateImplantationAttempt(Syntop& op, uint64_t tryImmMask, size_t anumAdd)
+void FuncImpl::immediateImplantationAttempt(Syntop& op, size_t anumAdd, ::std::initializer_list<size_t> tryImmList)
 {
     Backend* backend = m_context->getBackend();
     std::vector<size_t> arnums;
-    arnums.reserve(amountOfBits64(tryImmMask));
-    while (tryImmMask)
-    {
-        size_t newArnum = lsb64(tryImmMask);
-        arnums.push_back(newArnum + anumAdd);
-        uint64_t pos = uint64_t(1) << newArnum;
-        tryImmMask = (tryImmMask | pos) ^ pos;
-    }
+    arnums.reserve(tryImmList.size());
+    for(size_t arnum : tryImmList)
+        arnums.push_back(arnum + anumAdd);
+    std::sort(arnums.begin(), arnums.end());
     std::set<IRegInternal> usedRegs;
     for (const Arg& ar : op)
         if (ar.tag == Arg::IREG)
@@ -542,41 +565,16 @@ void FuncImpl::controlBlocks2Jumps()
                 newProg.push_back(Syntop(OP_LABEL, {op.args[0].value}));
                 break;
             }
-            case (OP_DO):
-            {
-                if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
-                   throw std::runtime_error("Internal error: wrong DO command format");
-                newProg.push_back(Syntop(OP_LABEL, {op.args[0].value}));
-                break;
-            }
             case (OP_WHILE):
-            {
-                if (op.size() != 4 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE || op.args[2].tag != Arg::IIMMEDIATE || op.args[3].tag != Arg::IIMMEDIATE)
-                   throw std::runtime_error("Internal error: wrong WHILE command format");
-                if(op.args[2].value != NOLABEL)
-                {
-                    Syntop conditionBackup = newProg.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
-                    newProg.pop_back();
-                    newProg.push_back(Syntop(OP_LABEL, {op.args[2].value}));
-                    newProg.push_back(conditionBackup);
-                }
-                newProg.push_back(Syntop(static_cast<int>(op.args[0].value), {op.args[1].value}));
-                if(op.args[3].value != NOLABEL)
-                    newProg.push_back(Syntop(OP_LABEL, {op.args[3].value}));
-                break;
-            }
-            case (OP_DOIF):
             {
                 if (op.size() != 3 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE || op.args[2].tag != Arg::IIMMEDIATE)
                    throw std::runtime_error("Internal error: wrong WHILE command format");
-                Syntop conditionBackup = newProg.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
-                newProg.pop_back();
-                newProg.push_back(Syntop(OP_LABEL, {op.args[1].value}));
-                newProg.push_back(conditionBackup);
+                std::vector<Syntop> conditionBackup(newProg.back().spillPrefix + 1);
+                newProg.insert(newProg.end() - 1 - newProg.back().spillPrefix,  Syntop(OP_LABEL, {op.args[1].value}));//TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
                 newProg.push_back(Syntop(static_cast<int>(op.args[0].value), {op.args[2].value}));
                 break;
             }
-            case (OP_ENDDO):
+            case (OP_ENDWHILE):
             {
                 if (op.size() != 2 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE)
                    throw std::runtime_error("Internal error: wrong DO command format");

@@ -15,7 +15,7 @@ nonnegative_odd(i0, i1)
     13 : label 1:               
     14 : mov      i12, 2        
     15 : spill    1, i2         
-    16 : cqo                    
+    16 : x86_cqo                
     17 : mod      i0, i0, i12   
     18 : mov      i0, i2        
     19 : unspill  i2, 1         
@@ -31,7 +31,7 @@ nonnegative_odd(i0, i1)
     29 : spill    0, i0         
     30 : spill    1, i2         
     31 : mov      i0, i9        
-    32 : cqo                    
+    32 : x86_cqo                
     33 : div      i0, i0, i1    
     34 : mov      i1, i0        
     35 : unspill  i0, 0         

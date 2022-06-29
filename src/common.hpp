@@ -110,6 +110,14 @@ namespace loops
                condition == IC_NS ? IC_S  : IC_UNKNOWN)))))));
     }
 
+    static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
+    {
+        uint64_t res = 0;
+        for (size_t bitnum : regNumbers)
+            res |= (static_cast<uint64_t>(1) << bitnum);
+        return res;
+    }
+
     inline IRegInternal onlyBitPos64(uint64_t bigNum)
     {
         static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
@@ -193,6 +201,8 @@ namespace loops
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         size_t args_size;
+        int spillPrefix;  //TODO(ch): IMPORTANT(CMPLCOND) : delete
+        int spillPostfix; //TODO(ch): IMPORTANT(CMPLCOND) : delete
         Syntop();
         Syntop(const Syntop& fwho);
         Syntop(int a_opcode, const std::vector<Arg>& a_args);

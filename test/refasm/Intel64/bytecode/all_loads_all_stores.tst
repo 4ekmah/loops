@@ -30,125 +30,127 @@ all_loads_all_stores(i0, i1, i2, i3, i4)
     28 : select    i0, 3, i12, i0  
     29 : mov       i0, i0          
     30 : label 0:                  
-    31 : mov       i12, 0          
-    32 : cmp       i2, 0           
-    33 : jmp_ne    1               
-    34 : unspill   i13, 0          
-    35 : load.u8   i12, 0, i1, i13 
-    36 : mov       i12, i12        
-    37 : jmp       14              
-    38 : label 1:                  
-    39 : cmp       i2, 1           
-    40 : jmp_ne    2               
-    41 : unspill   i13, 0          
-    42 : load.i8   i12, 1, i1, i13 
-    43 : mov       i12, i12        
-    44 : jmp       13              
-    45 : label 2:                  
-    46 : cmp       i2, 2           
-    47 : jmp_ne    3               
-    48 : unspill   i13, 0          
-    49 : load.u16  i12, 2, i1, i13 
-    50 : mov       i12, i12        
-    51 : jmp       12              
-    52 : label 3:                  
-    53 : cmp       i2, 3           
-    54 : jmp_ne    4               
-    55 : unspill   i13, 0          
-    56 : load.i16  i12, 3, i1, i13 
-    57 : mov       i12, i12        
-    58 : jmp       11              
-    59 : label 4:                  
-    60 : cmp       i2, 4           
-    61 : jmp_ne    5               
-    62 : unspill   i13, 0          
-    63 : load.u32  i12, 4, i1, i13 
-    64 : mov       i12, i12        
-    65 : jmp       10              
-    66 : label 5:                  
-    67 : cmp       i2, 5           
-    68 : jmp_ne    6               
-    69 : unspill   i13, 0          
-    70 : load.i32  i12, 5, i1, i13 
-    71 : mov       i12, i12        
-    72 : jmp       9               
-    73 : label 6:                  
-    74 : cmp       i2, 6           
-    75 : jmp_ne    7               
-    76 : unspill   i13, 0          
-    77 : load.u64  i12, 6, i1, i13 
-    78 : mov       i12, i12        
-    79 : jmp       8               
-    80 : label 7:                  
-    81 : unspill   i13, 0          
-    82 : load.i64  i12, 7, i1, i13 
-    83 : mov       i12, i12        
-    84 : label 8:                  
-    85 : label 9:                  
-    86 : label 10:                 
-    87 : label 11:                 
-    88 : label 12:                 
-    89 : label 13:                 
-    90 : label 14:                 
-    91 : cmp       i9, 0           
-    92 : jmp_ne    15              
-    93 : unspill   i13, 1          
-    94 : store.u8  0, i8, i13, i12 
-    95 : jmp       28              
-    96 : label 15:                 
-    97 : cmp       i9, 1           
-    98 : jmp_ne    16              
-    99 : unspill   i13, 1          
-   100 : store.i8  1, i8, i13, i12 
-   101 : jmp       27              
-   102 : label 16:                 
-   103 : cmp       i9, 2           
-   104 : jmp_ne    17              
-   105 : unspill   i13, 1          
-   106 : store.u16 2, i8, i13, i12 
-   107 : jmp       26              
-   108 : label 17:                 
-   109 : cmp       i9, 3           
-   110 : jmp_ne    18              
-   111 : unspill   i13, 1          
-   112 : store.i16 3, i8, i13, i12 
-   113 : jmp       25              
-   114 : label 18:                 
-   115 : cmp       i9, 4           
-   116 : jmp_ne    19              
-   117 : unspill   i13, 1          
-   118 : store.u32 4, i8, i13, i12 
-   119 : jmp       24              
-   120 : label 19:                 
-   121 : cmp       i9, 5           
-   122 : jmp_ne    20              
-   123 : unspill   i13, 1          
-   124 : store.i32 5, i8, i13, i12 
-   125 : jmp       23              
-   126 : label 20:                 
-   127 : cmp       i9, 6           
-   128 : jmp_ne    21              
-   129 : unspill   i13, 1          
-   130 : store.u64 6, i8, i13, i12 
-   131 : jmp       22              
-   132 : label 21:                 
-   133 : unspill   i13, 1          
-   134 : store.i64 7, i8, i13, i12 
-   135 : label 22:                 
-   136 : label 23:                 
-   137 : label 24:                 
-   138 : label 25:                 
-   139 : label 26:                 
-   140 : label 27:                 
-   141 : label 28:                 
-   142 : unspill   i13, 3          
-   143 : add       s0, s0, i13     
-   144 : add       s1, s1, i0      
-   145 : add       s2, s2, 1       
-   146 : unspill   i13, 12         
-   147 : cmp       s2, i13         
-   148 : jmp_gt    0               
-   149 : unspill   i12, 4          
-   150 : unspill   i13, 5          
-   151 : add       i4, i4, 56      
-   152 : ret                       
+    31 : unspill   i13, 12         
+    32 : cmp       s2, i13         
+    33 : jmp_ge    85              
+    34 : mov       i12, 0          
+    35 : cmp       i2, 0           
+    36 : jmp_ne    2               
+    37 : unspill   i13, 0          
+    38 : load.u8   i12, 0, i1, i13 
+    39 : mov       i12, i12        
+    40 : jmp       42              
+    41 : label 2:                  
+    42 : cmp       i2, 1           
+    43 : jmp_ne    5               
+    44 : unspill   i13, 0          
+    45 : load.i8   i12, 1, i1, i13 
+    46 : mov       i12, i12        
+    47 : jmp       41              
+    48 : label 5:                  
+    49 : cmp       i2, 2           
+    50 : jmp_ne    9               
+    51 : unspill   i13, 0          
+    52 : load.u16  i12, 2, i1, i13 
+    53 : mov       i12, i12        
+    54 : jmp       40              
+    55 : label 9:                  
+    56 : cmp       i2, 3           
+    57 : jmp_ne    14              
+    58 : unspill   i13, 0          
+    59 : load.i16  i12, 3, i1, i13 
+    60 : mov       i12, i12        
+    61 : jmp       39              
+    62 : label 14:                 
+    63 : cmp       i2, 4           
+    64 : jmp_ne    20              
+    65 : unspill   i13, 0          
+    66 : load.u32  i12, 4, i1, i13 
+    67 : mov       i12, i12        
+    68 : jmp       38              
+    69 : label 20:                 
+    70 : cmp       i2, 5           
+    71 : jmp_ne    27              
+    72 : unspill   i13, 0          
+    73 : load.i32  i12, 5, i1, i13 
+    74 : mov       i12, i12        
+    75 : jmp       37              
+    76 : label 27:                 
+    77 : cmp       i2, 6           
+    78 : jmp_ne    35              
+    79 : unspill   i13, 0          
+    80 : load.u64  i12, 6, i1, i13 
+    81 : mov       i12, i12        
+    82 : jmp       36              
+    83 : label 35:                 
+    84 : unspill   i13, 0          
+    85 : load.i64  i12, 7, i1, i13 
+    86 : mov       i12, i12        
+    87 : label 36:                 
+    88 : label 37:                 
+    89 : label 38:                 
+    90 : label 39:                 
+    91 : label 40:                 
+    92 : label 41:                 
+    93 : label 42:                 
+    94 : cmp       i9, 0           
+    95 : jmp_ne    44              
+    96 : unspill   i13, 1          
+    97 : store.u8  0, i8, i13, i12 
+    98 : jmp       84              
+    99 : label 44:                 
+   100 : cmp       i9, 1           
+   101 : jmp_ne    47              
+   102 : unspill   i13, 1          
+   103 : store.i8  1, i8, i13, i12 
+   104 : jmp       83              
+   105 : label 47:                 
+   106 : cmp       i9, 2           
+   107 : jmp_ne    51              
+   108 : unspill   i13, 1          
+   109 : store.u16 2, i8, i13, i12 
+   110 : jmp       82              
+   111 : label 51:                 
+   112 : cmp       i9, 3           
+   113 : jmp_ne    56              
+   114 : unspill   i13, 1          
+   115 : store.i16 3, i8, i13, i12 
+   116 : jmp       81              
+   117 : label 56:                 
+   118 : cmp       i9, 4           
+   119 : jmp_ne    62              
+   120 : unspill   i13, 1          
+   121 : store.u32 4, i8, i13, i12 
+   122 : jmp       80              
+   123 : label 62:                 
+   124 : cmp       i9, 5           
+   125 : jmp_ne    69              
+   126 : unspill   i13, 1          
+   127 : store.i32 5, i8, i13, i12 
+   128 : jmp       79              
+   129 : label 69:                 
+   130 : cmp       i9, 6           
+   131 : jmp_ne    77              
+   132 : unspill   i13, 1          
+   133 : store.u64 6, i8, i13, i12 
+   134 : jmp       78              
+   135 : label 77:                 
+   136 : unspill   i13, 1          
+   137 : store.i64 7, i8, i13, i12 
+   138 : label 78:                 
+   139 : label 79:                 
+   140 : label 80:                 
+   141 : label 81:                 
+   142 : label 82:                 
+   143 : label 83:                 
+   144 : label 84:                 
+   145 : unspill   i13, 3          
+   146 : add       s0, s0, i13     
+   147 : add       s1, s1, i0      
+   148 : add       s2, s2, 1       
+   149 : jmp       0               
+   150 : label 85:                 
+   151 : unspill   i12, 4          
+   152 : unspill   i13, 5          
+   153 : add       i4, i4, 56      
+   154 : ret                       

@@ -67,6 +67,7 @@ public:                                                         \
     virtual std::string generateCode()                          \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
+        USE_CONTEXT_(CTX)                                        \
         __VA_ARGS__                                             \
         m_func = CTX.getFunc(TESTNAME);                         \
         return TESTNAME;                                        \

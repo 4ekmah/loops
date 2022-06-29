@@ -982,24 +982,24 @@ namespace loops
                 }
             }
             break;
-        case (OP_MOV): return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
-        case (OP_ADC): return SyT(INTEL64_ADC, { SAcop(0), SAcop(2) });
-        case (OP_ADD): return SyT(INTEL64_ADD,  { SAcop(0), SAcop(2) });
-        case (OP_SUB): return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
-        case (OP_MUL): return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
-        case (OP_MOD):
-        case (OP_DIV): return SyT(INTEL64_IDIV, { SAcop(2) });
-        case (OP_SHL): return SyT(INTEL64_SHL, { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
-        case (OP_SHR): return SyT(INTEL64_SHR, { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
-        case (OP_SAR): return SyT(INTEL64_SAR, { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
-        case (OP_AND): return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
-        case (OP_OR):  return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
-        case (OP_XOR): return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
-        case (OP_NOT): return SyT(INTEL64_NOT,  { SAcop(0) });
-        case (OP_NEG): return SyT(INTEL64_NEG,  { SAcop(0) });
-        case (OP_CQO): return SyT(INTEL64_CQO,  {});
-        case (OP_XCHG): return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
-        case (OP_CMP): return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
+        case (OP_MOV):     return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
+        case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
+        case (OP_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
+        case (OP_ADD):     return SyT(INTEL64_ADD,  { SAcop(0), SAcop(2) });
+        case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
+        case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
+        case (OP_MOD):     
+        case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
+        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
+        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
+        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
+        case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
+        case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
+        case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
+        case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
+        case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
+        case (OP_X86_CQO): return SyT(INTEL64_CQO,  {});
+        case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
         case (OP_SELECT): 
             if (index.size() == 4)
             {
@@ -1016,17 +1016,17 @@ namespace loops
             }
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
-        case (OP_SPILL): return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
+        case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
 
-        case (OP_JMP_NE): return SyT(INTEL64_JNE, { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_EQ): return SyT(INTEL64_JE,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_LT): return SyT(INTEL64_JL,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_GT): return SyT(INTEL64_JG,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_GE): return SyT(INTEL64_JGE, { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_LE): return SyT(INTEL64_JLE, { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP):    return SyT(INTEL64_JMP, { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_NE):  return SyT(INTEL64_JNE, { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_EQ):  return SyT(INTEL64_JE,  { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_LT):  return SyT(INTEL64_JL,  { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_GT):  return SyT(INTEL64_JG,  { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_GE):  return SyT(INTEL64_JGE, { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP_LE):  return SyT(INTEL64_JLE, { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0, AF_PRINTOFFSET) });
 
-        case (OP_RET): return SyT(INTEL64_RET, {});
+        case (OP_RET):     return SyT(INTEL64_RET, {});
         default:
             break;
         }
@@ -1602,7 +1602,7 @@ namespace loops
                 }
                 if (op[1].idx != RAX)
                     newProg.push_back(Syntop(OP_MOV, { argIReg(RAX), op[1] }));
-                newProg.push_back(Syntop(OP_CQO, {}));
+                newProg.push_back(Syntop(OP_X86_CQO, {}));
                 newProg.push_back(Syntop(op.opcode, { argIReg(RAX), argIReg(RAX), effectiveDivider }));
                 if(op.opcode == OP_DIV && op[0].idx != RAX)
                     newProg.push_back(Syntop(OP_MOV, { op[0], argIReg(RAX) }));

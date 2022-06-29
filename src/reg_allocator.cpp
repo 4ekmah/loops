@@ -220,7 +220,7 @@ namespace loops
         return ret;
     }
 
-    RegisterPool::RegisterPool(ContextImpl* a_owner): m_owner(a_owner)
+    RegisterPool::RegisterPool(Backend* a_backend): m_backend(a_backend)
         , m_pool(0)
         , m_parameterRegisters(0)
         , m_returnRegisters(0)
@@ -236,11 +236,10 @@ namespace loops
 
     void RegisterPool::initRegisterPool()
     {
-        Backend* backend = m_owner->getBackend();
-        uint64_t origParameterRegisters = backend->parameterRegisters();
-        uint64_t origReturnRegisters = backend->returnRegisters();
-        uint64_t origCallerSavedRegisters = backend->callerSavedRegisters();
-        uint64_t origCalleeSavedRegisters = backend->calleeSavedRegisters();
+        uint64_t origParameterRegisters = m_backend->parameterRegisters();
+        uint64_t origReturnRegisters = m_backend->returnRegisters();
+        uint64_t origCallerSavedRegisters = m_backend->callerSavedRegisters();
+        uint64_t origCalleeSavedRegisters = m_backend->calleeSavedRegisters();
         if (m_parameterRegistersO != 0 || m_returnRegistersO != 0 ||
             m_callerSavedRegistersO != 0 || m_calleeSavedRegistersO != 0)
         {
@@ -409,6 +408,12 @@ namespace loops
         bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
     };
 
+/*
+TODO(ch): Implement with RISC-V RVV
+There will be needed modification for support of connected(nested) vectors:
+Nested vector register must be redefined on redefinition of container vector,
+but only if this nested register will be used after this redefinition.
+*/
     class LivenessAnalysisAlgo
     {
     public:
@@ -450,7 +455,7 @@ namespace loops
     };
 
     RegisterAllocator::RegisterAllocator(ContextImpl* a_owner): m_owner(a_owner)
-        , m_pool(a_owner)
+        , m_pool(a_owner->getBackend())
         , m_epilogueSize(0)
     {
         Assert(m_owner != nullptr);
@@ -700,6 +705,8 @@ namespace loops
                             ar.idx = (argRenaming.count(ar.idx) == 0) ? getReassigned(ar.idx).idx : argRenaming[ar.idx];
                     }
                 }
+                op.spillPrefix = unspilledArgs.size();
+                op.spillPostfix = spilledArgs.size();
                 newProgUnbracketed.push_back(op);
                 for (IRegInternal regAr : spilledArgs)
                 {
@@ -857,37 +864,19 @@ namespace loops
                     rator->second.oppositeNestingSide = ifStart;
                     continue;
                 }
-                case (OP_DO):
-                {
-                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DO, opnum));
-                    loopQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
-                    continue;
-                }
                 case (OP_WHILE):
-                {
-                    Assert(op.size() == 4 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE && op.args[3].tag == Arg::IIMMEDIATE);
-                    Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::DO);
-                    const ControlFlowBracket& bracket = flowstack.back();
-                    flowstack.pop_back();
-                    auto rator = loopQueue.find(bracket.labelOrPos);
-                    Assert(rator != loopQueue.end());
-                    rator->second.oppositeNestingSide = opnum;
-                    continue;
-                }
-                case (OP_DOIF):
                 {
                     Assert(op.size() == 3 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE);
                     if (opnum < 2)
-                        throw std::runtime_error("Temporary condition solution needs one instruction before DOIF cycle.");
-                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::DOIF, opnum - 1));
+                        throw std::runtime_error("Temporary condition solution needs one instruction before WHILE cycle.");
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum - 1));
                     loopQueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 2) mean that condition can be one-instruction only.
                     continue;
                 }
-                case (OP_ENDDO):
+                case (OP_ENDWHILE):
                 {
                     Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
-                    Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::DOIF);
+                    Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
                     auto rator = loopQueue.find(bracket.labelOrPos);

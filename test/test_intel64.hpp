@@ -19,23 +19,25 @@ namespace loops
 {
     LTEST(arithm_arrs, { //There we are testing stack parameter passing.
         IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul;
-        CTX.startFunc(TESTNAME, { &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul });
-        IReg offset = CTX.const_(0);
-        IReg i = CTX.const_(0);
-        CTX.do_();
-            IReg a = load_<int>(ptrA, offset);
-            IReg b = load_<int>(ptrB, offset);
-            store_<int>(ptrAdd, a + b);
-            store_<int>(ptrSub, a - b);
-            store_<int>(ptrMul, a* b);
-            i += 1;
-            offset += sizeof(int);
-            ptrAdd += sizeof(int);
-            ptrSub += sizeof(int);
-            ptrMul += sizeof(int);
-        CTX.while_(i < n);
-        CTX.return_(0);
-        CTX.endFunc();
+        STARTFUNC_(TESTNAME, &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul )
+        {
+            IReg offset = CONST_(0);
+            IReg i = CONST_(0);
+            WHILE_(i < n)
+            {
+                IReg a = load_<int>(ptrA, offset);
+                IReg b = load_<int>(ptrB, offset);
+                store_<int>(ptrAdd, a + b);
+                store_<int>(ptrSub, a - b);
+                store_<int>(ptrMul, a * b);
+                i += 1;
+                offset += sizeof(int);
+                ptrAdd += sizeof(int);
+                ptrSub += sizeof(int);
+                ptrMul += sizeof(int);
+            };
+            RETURN_(0);
+        }
         });
     LTESTexe(arithm_arrs, {
         typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul);

@@ -13,11 +13,20 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <map>
 
 namespace loops {
-
+/*
+TODO(ch): Implement with RISC-V RVV
+For RVV support Register pool must be modified to support connected vectors(fractions and splices):
+1.) There will be hierarchy of nested vectors: biggest vector can be separated into 1/2, 1/4, 1/8,
+1/16, 1/32, 1/64. Connected vectors are allocated in one space and simulteneously: container one \
+and nested one.
+2.) Since vectors can have different sizes, allocation of nested vector blocks container allocation,
+excepts connected vectors.
+3.) And vice versa, container vector can be released only after releasing all components.
+ */
     class RegisterPool
     {
     public:
-        RegisterPool(ContextImpl* m_owner);
+        RegisterPool(Backend* m_owner);
 
         void initRegisterPool();
         size_t freeRegsAmount() const;
@@ -36,7 +45,7 @@ namespace loops {
     private:
         void removeFromAllBaskets(size_t reg);
 
-        ContextImpl* m_owner;
+        Backend* m_backend;
         std::set<IRegInternal> m_usedCallee;
 
         // Sometimes register can exist in more than one basket(like parameter and return), so we have to trace 
@@ -61,6 +70,19 @@ namespace loops {
         uint64_t m_calleeSavedRegistersO;
     };
 
+/*
+TODO(ch): Implement with RISC-V RVV
+There can be useful next approach:
+Do not choose upper-level multiplier(M1, M2, ..M8) until calculation amount of needed
+vector registers(which can be done only on register allocation). When amount is known,
+it's simple to find appropriate multiplier, defining vector register set able to fit
+this amount with maximal length of vector.
+E.g:
+M8 provide 4 highest-level registers of hierarchy depth = 6.
+M4 provide 8 highest-level registers of hierarchy depth = 5.
+M1 provide 32 highest-level registers of hierarchy depth = 3.
+MF8 provide 256 highest-level registers of hierarchy depth = 0.
+*/
 class FuncImpl;
 class RegisterAllocator //TODO(ch): Can you make it derivative from CompilerStage?
 {

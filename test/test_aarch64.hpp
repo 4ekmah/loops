@@ -15,20 +15,21 @@ namespace loops
 {
     LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
         IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
-        CTX.startFunc(TESTNAME, {&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9});
-        IReg res = a0 * 1;
-        res += a1 * 2;
-        res += a2 * 3;
-        res += a3 * 4;
-        res += a4 * 5;
-        res += a5 * 6;
-        res += a6 * 7;
-        res += a7 * 8;
-        res += a8 * 3;
-        res += a9 * 2;
-        CTX.return_(res);
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
-        CTX.endFunc();
+        STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+        {
+            IReg res = a0 * 1;
+            res += a1 * 2;
+            res += a2 * 3;
+            res += a3 * 4;
+            res += a4 * 5;
+            res += a5 * 6;
+            res += a6 * 7;
+            res += a7 * 8;
+            res += a8 * 3;
+            res += a9 * 2;
+            RETURN_(res);
+            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
+        }
         getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
         });
     LTESTexe(ten_args_to_sum, {
@@ -150,27 +151,27 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_SELECT, { x0, IC_EQ, x15, x0 });
     newiopNoret(OP_SELECT, { x0, IC_EQ, x0, x15 });
 
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_EQ });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_NE });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_LT });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_GT });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_LE });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_GE });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_S  });
-    newiopNoret(OP_CINC, { x0 ,  x0, IC_NS });
-    newiopNoret(OP_CINC, { x15,  x0, IC_EQ });
-    newiopNoret(OP_CINC, { x0 , x15, IC_EQ });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_EQ });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_NE });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_LT });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_GT });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_LE });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_GE });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_S  });
+    newiopNoret(OP_ARM_CINC, { x0 ,  x0, IC_NS });
+    newiopNoret(OP_ARM_CINC, { x15,  x0, IC_EQ });
+    newiopNoret(OP_ARM_CINC, { x0 , x15, IC_EQ });
 
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_EQ });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_NE });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_LT });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_GT });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_LE });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_GE });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_S  });
-    newiopNoret(OP_CNEG, { x0 ,  x0, IC_NS });
-    newiopNoret(OP_CNEG, { x15,  x0, IC_EQ });
-    newiopNoret(OP_CNEG, { x0 , x15, IC_EQ });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_EQ });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_NE });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_LT });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_GT });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_LE });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_GE });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_S  });
+    newiopNoret(OP_ARM_CNEG, { x0 ,  x0, IC_NS });
+    newiopNoret(OP_ARM_CNEG, { x15,  x0, IC_EQ });
+    newiopNoret(OP_ARM_CNEG, { x0 , x15, IC_EQ });
 
     newiopNoret(OP_SAR, { x0,  x0, argIImm(63, _f) });
     newiopNoret(OP_SAR, { x15, x0, argIImm(63, _f) });

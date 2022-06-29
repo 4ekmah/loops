@@ -5,6 +5,8 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include "backend_aarch64.hpp"
+#if defined(__APPLE__) //TODO(ch): It must be about target processor, not operational system
+
 #include "composer.hpp"
 #include "func_impl.hpp"
 #include <unordered_map>
@@ -462,9 +464,9 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
             return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
         break;
     }
-    case (OP_NOT):    return SyT(AARCH64_MVN, { SAcop(0), SAcop(1) });
-    case (OP_NEG):    return SyT(AARCH64_NEG, { SAcop(0), SAcop(1) });
-    case (OP_CMP):    return SyT(AARCH64_CMP, { SAcop(0), SAcop(1) });
+    case (OP_NOT):      return SyT(AARCH64_MVN, { SAcop(0), SAcop(1) });
+    case (OP_NEG):      return SyT(AARCH64_NEG, { SAcop(0), SAcop(1) });
+    case (OP_CMP):      return SyT(AARCH64_CMP, { SAcop(0), SAcop(1) });
     case (OP_SELECT):
         if (index.size() == 4)
         {
@@ -472,18 +474,18 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
             return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(ICbytecode2Aarch64(index[1].value)) });
         }
         break;
-    case (OP_CINC):   return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
-    case (OP_CNEG):   return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
-    case (OP_UNSPILL):return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
-    case (OP_SPILL):  return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
-    case (OP_JMP_NE): return SyT(AARCH64_B_NE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //AArch64 supports only multiply-4 offsets,
-    case (OP_JMP_EQ): return SyT(AARCH64_B_EQ,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //so, for compactification, they are divided by 4.
-    case (OP_JMP_LT): return SyT(AARCH64_B_LT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
-    case (OP_JMP_GT): return SyT(AARCH64_B_GT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
-    case (OP_JMP_LE): return SyT(AARCH64_B_LE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
-    case (OP_JMP_GE): return SyT(AARCH64_B_GE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
-    case (OP_JMP):    return SyT(AARCH64_B,   { SAcopsar(0, 2, AF_PRINTOFFSET) });
-    case (OP_RET):    return SyT(AARCH64_RET, { SAreg(LR) });
+    case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
+    case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
+    case (OP_UNSPILL):  return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
+    case (OP_SPILL):    return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+    case (OP_JMP_NE):   return SyT(AARCH64_B_NE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //AArch64 supports only multiply-4 offsets,
+    case (OP_JMP_EQ):   return SyT(AARCH64_B_EQ,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //so, for compactification, they are divided by 4.
+    case (OP_JMP_LT):   return SyT(AARCH64_B_LT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP_GT):   return SyT(AARCH64_B_GT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP_LE):   return SyT(AARCH64_B_LE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP_GE):   return SyT(AARCH64_B_GE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP):      return SyT(AARCH64_B,   { SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_RET):      return SyT(AARCH64_RET, { SAreg(LR) });
     default:
         break;
     };
@@ -798,12 +800,12 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
             Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             newProg.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
             newProg.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
-            newProg.push_back(Syntop(OP_CINC,{ op[0], op[0], argIImm(IC_GT) }));
+            newProg.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(IC_GT) }));
             break;
         case OP_ABS:
             Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             newProg.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
-            newProg.push_back(Syntop(OP_CNEG,{ op[0], op[1], argIImm(IC_LT) }));
+            newProg.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(IC_LT) }));
             break;
         default:
             newProg.push_back(op);
@@ -813,3 +815,4 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
 }
 
 };
+#endif //__APPLE__

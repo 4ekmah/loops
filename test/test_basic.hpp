@@ -18,10 +18,11 @@ namespace loops
 {
 LTEST(a_plus_b, {
     IReg a, b;
-    CTX.startFunc(TESTNAME, {&a, &b});
-    a+=b;
-    CTX.return_(a);
-    CTX.endFunc();
+    STARTFUNC_(TESTNAME, &a, &b)
+    {
+        a+=b;
+        RETURN_(a);
+    }
 });
 LTESTexe(a_plus_b, {
     typedef int64_t (*a_plus_b_f)(int64_t a, int64_t b);
@@ -34,32 +35,36 @@ LTESTexe(a_plus_b, {
 
 LTEST(min_max_scalar, {
     IReg ptr, n, minpos_addr, maxpos_addr;
-    CTX.startFunc(TESTNAME, {&ptr, &n, &minpos_addr, &maxpos_addr});
-    IReg i = CTX.const_(0);
-    IReg minpos = CTX.const_(0);
-    IReg maxpos = CTX.const_(0);
-    IReg minval = load_<int>(ptr);
-    IReg maxval = minval;
-    n *= sizeof(int);
-    CTX.do_();
-        IReg x = load_<int>(ptr, i);
-        CTX.if_(x < minval);
-            minval = x;
-            minpos = i;
-        CTX.endif_();
-        CTX.if_(x > maxval);
-            maxval = x;
-            maxpos = i;
-        CTX.endif_();
-        i += sizeof(int);
-    CTX.while_(i < n);
-    IReg elemsize = CTX.const_(sizeof(int));
-    minpos /= elemsize;
-    maxpos /= elemsize;
-    store_<int>(minpos_addr, minpos);
-    store_<int>(maxpos_addr, maxpos);
-    CTX.return_(0);
-    CTX.endFunc();
+    STARTFUNC_(TESTNAME, &ptr, &n, &minpos_addr, &maxpos_addr)
+    {
+        IReg i = CONST_(0);
+        IReg minpos = CONST_(0);
+        IReg maxpos = CONST_(0);
+        IReg minval = load_<int>(ptr);
+        IReg maxval = minval;
+        n *= sizeof(int);
+        WHILE_(i < n)
+        {
+            IReg x = load_<int>(ptr, i);
+            IF_(x < minval)
+            {
+                minval = x;
+                minpos = i;
+            }
+            IF_(x > maxval)
+            {
+                maxval = x;
+                maxpos = i;
+            }
+            i += sizeof(int);
+        }
+        IReg elemsize = CONST_(sizeof(int));
+        minpos /= elemsize;
+        maxpos /= elemsize;
+        store_<int>(minpos_addr, minpos);
+        store_<int>(maxpos_addr, maxpos);
+        RETURN_(0);
+    }
 });
 LTESTexe(min_max_scalar, {
     typedef int (*minmaxscalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
@@ -83,28 +88,30 @@ LTESTexe(min_max_scalar, {
 LTEST(min_max_select, {
     using namespace loops;
     IReg ptr, n, minpos_addr, maxpos_addr;
-    CTX.startFunc(TESTNAME, {&ptr, &n, &minpos_addr, &maxpos_addr});
-    IReg i = CTX.const_(0);
-    IReg minpos = CTX.const_(0);
-    IReg maxpos = CTX.const_(0);
-    IReg minval = load_<int>(ptr);
-    IReg maxval = minval;
-    n <<= 2;// sizeof(int) == 4;
-    CTX.do_();
-        IReg x = load_<int>(ptr, i);
-        minpos = select(x < minval, i, minpos);
-        minval = min(x, minval);
-        maxpos = select(x > maxval, i, maxpos);
-        maxval = max(x, maxval);
-        i += sizeof(int);
-    CTX.while_(i < n);
-    IReg elemsize = CTX.const_(sizeof(int));
-    minpos >>= 2;// sizeof(int);
-    maxpos >>= 2;// sizeof(int);
-    store_<int>(minpos_addr, minpos);
-    store_<int>(maxpos_addr, maxpos);
-    CTX.return_(0);
-    CTX.endFunc();
+    STARTFUNC_(TESTNAME, &ptr, &n, &minpos_addr, &maxpos_addr)
+    {
+        IReg i = CONST_(0);
+        IReg minpos = CONST_(0);
+        IReg maxpos = CONST_(0);
+        IReg minval = load_<int>(ptr);
+        IReg maxval = minval;
+        n <<= 2;// sizeof(int) == 4;
+        WHILE_(i < n)
+        {
+            IReg x = load_<int>(ptr, i);
+            minpos = select(x < minval, i, minpos);
+            minval = min(x, minval);
+            maxpos = select(x > maxval, i, maxpos);
+            maxval = max(x, maxval);
+            i += sizeof(int);
+        }
+        IReg elemsize = CONST_(sizeof(int));
+        minpos >>= 2;// sizeof(int);
+        maxpos >>= 2;// sizeof(int);
+        store_<int>(minpos_addr, minpos);
+        store_<int>(maxpos_addr, maxpos);
+        RETURN_(0);
+    }
     });
 LTESTexe(min_max_select, {
     typedef int (*minmaxselect_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
@@ -128,65 +135,65 @@ LTESTexe(min_max_select, {
 enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
 LTEST(triangle_types, {
     IReg a, b, c;
-    CTX.startFunc(TESTNAME, {&a,&b,&c});
-    CTX.if_(a <= 0);
-        CTX.return_(NOT_A_TRIANGLE);
-    CTX.elif_(b <= 0);
-        CTX.return_(NOT_A_TRIANGLE);
-    CTX.elif_(c <= 0);
-        CTX.return_(NOT_A_TRIANGLE);
-    CTX.else_();
-        IReg apb = a + b;
-        IReg apc = a + c;
-        IReg bpc = b + c;
-        CTX.if_(a > bpc);
-            CTX.return_(NOT_A_TRIANGLE);
-        CTX.elif_(b > apc);
-            CTX.return_(NOT_A_TRIANGLE);
-        CTX.elif_(c > apb);
-            CTX.return_(NOT_A_TRIANGLE);
-        CTX.else_();
-            CTX.if_(a == b);
-                CTX.if_(b == c);
-                    CTX.return_(EQUILATERAL_TRIANGLE);
-                CTX.else_();
-                    CTX.return_(ISOSCELES_TRIANGLE);
-                CTX.endif_();
-            CTX.elif_(a == c);
-                CTX.return_(ISOSCELES_TRIANGLE);
-            CTX.elif_(b == c);
-                CTX.return_(ISOSCELES_TRIANGLE);
-            CTX.endif_();
+    STARTFUNC_(TESTNAME, &a, &b, &c)
+    {
+        IF_(a <= 0)
+            RETURN_(NOT_A_TRIANGLE);
+        ELIF_(b <= 0)
+            RETURN_(NOT_A_TRIANGLE);
+        ELIF_(c <= 0)
+            RETURN_(NOT_A_TRIANGLE);
+        ELSE_
+        {
+            IReg apb = a + b;
+            IReg apc = a + c;
+            IReg bpc = b + c;
+            IF_(a > bpc)
+                RETURN_(NOT_A_TRIANGLE);
+            ELIF_(b > apc)
+                RETURN_(NOT_A_TRIANGLE);
+            ELIF_(c > apb)
+                RETURN_(NOT_A_TRIANGLE);
+            ELSE_
+            {
+                IF_(a == b)
+                {
+                    IF_(b == c)
+                        RETURN_(EQUILATERAL_TRIANGLE);
+                    ELSE_
+                        RETURN_(ISOSCELES_TRIANGLE);
+                }
+                ELIF_(a == c)
+                    RETURN_(ISOSCELES_TRIANGLE);
+                ELIF_(b == c)
+                    RETURN_(ISOSCELES_TRIANGLE);
 
-            IReg a2 = a*a;
-            IReg b2 = b*b;
-            IReg c2 = c*c;
-            IReg a2pb2 = a2+b2;
-            IReg a2pc2 = a2+c2;
-            IReg b2pc2 = b2+c2;
-            CTX.if_(a2 == b2pc2);
-                CTX.return_(RIGHT_TRIANGLE);
-            CTX.elif_(b2 == a2pc2);
-                CTX.return_(RIGHT_TRIANGLE);
-            CTX.elif_(c2 == a2pb2);
-                CTX.return_(RIGHT_TRIANGLE);
-            CTX.endif_();
+                IReg a2 = a*a;
+                IReg b2 = b*b;
+                IReg c2 = c*c;
+                IReg a2pb2 = a2+b2;
+                IReg a2pc2 = a2+c2;
+                IReg b2pc2 = b2+c2;
+                IF_(a2 == b2pc2)
+                    RETURN_(RIGHT_TRIANGLE);
+                ELIF_(b2 == a2pc2)
+                    RETURN_(RIGHT_TRIANGLE);
+                ELIF_(c2 == a2pb2)
+                    RETURN_(RIGHT_TRIANGLE);
 
-            IReg cosa = b2pc2 - a2;
-            IReg cosb = a2pc2 - b2;
-            IReg cosc = a2pb2 - c2;
-            CTX.if_(cosa < 0);
-                CTX.return_(OBTUSE_TRIANGLE);
-            CTX.elif_(cosb < 0);
-                CTX.return_(OBTUSE_TRIANGLE);
-            CTX.elif_(cosc < 0);
-                CTX.return_(OBTUSE_TRIANGLE);
-            CTX.endif_();
-
-        CTX.endif_();
-    CTX.endif_();
-    CTX.return_(ACUTE_TRIANGLE);
-    CTX.endFunc();
+                IReg cosa = b2pc2 - a2;
+                IReg cosb = a2pc2 - b2;
+                IReg cosc = a2pb2 - c2;
+                IF_(cosa < 0)
+                    RETURN_(OBTUSE_TRIANGLE);
+                ELIF_(cosb < 0)
+                    RETURN_(OBTUSE_TRIANGLE);
+                ELIF_(cosc < 0)
+                    RETURN_(OBTUSE_TRIANGLE);
+            }
+        }
+        RETURN_(ACUTE_TRIANGLE);
+    }
 });
 LTESTexe(triangle_types, {
     typedef int (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
@@ -212,26 +219,30 @@ LTESTexe(triangle_types, {
 
 LTEST(nonnegative_odd, {
     IReg ptr, n, toFind;
-    CTX.startFunc(TESTNAME, {&ptr, &n});
-    IReg i = CTX.const_(0);
-    IReg res = CTX.const_(-(int64_t)sizeof(int));
-    n *= sizeof(int);
-    CTX.doif_(i < n);
-        IReg x = load_<int>(ptr, i);
-        CTX.if_(x < 0);
+    STARTFUNC_(TESTNAME, &ptr, &n)
+    {
+        IReg i = CONST_(0);
+        IReg res = CONST_(-(int64_t)sizeof(int));
+        n *= sizeof(int);
+        WHILE_(i < n)
+        {
+            IReg x = load_<int>(ptr, i);
+            IF_(x < 0)
+            {
+                i += sizeof(int);
+                CONTINUE_;
+            }
+            IReg mod = x % 2;
+            IF_(mod != 0)
+            {
+                res = i;
+                BREAK_;
+            }
             i += sizeof(int);
-            CTX.continue_();
-        CTX.endif_();
-        IReg mod = x % 2;
-        CTX.if_(mod != 0);
-            res = i;
-            CTX.break_();
-        CTX.endif_();
-        i += sizeof(int);
-    CTX.enddo_();
-    res /= sizeof(int);
-    CTX.return_(res);
-    CTX.endFunc();
+        }
+        res /= sizeof(int);
+        RETURN_(res);
+    }
 });
 LTESTexe(nonnegative_odd, {
     typedef int (*nonnegative_odd_f)(const int* ptr, int64_t n);
@@ -243,66 +254,63 @@ LTESTexe(nonnegative_odd, {
 
 LTEST(all_loads_all_stores, {
     IReg iptr, ityp, optr, otyp, n;
-    CTX.startFunc(TESTNAME, { &iptr, &ityp, &optr, &otyp, &n });
-    IReg num = CTX.const_(0);
-    IReg i_offset = CTX.const_(0);
-    IReg o_offset = CTX.const_(0);
-    IReg ielemsize = select(ityp > TYPE_I8, CTX.const_(2), CTX.const_(1));
-    ielemsize = select(ityp > TYPE_I16, CTX.const_(4), ielemsize);
-    ielemsize = select(ityp > TYPE_I32, CTX.const_(8), ielemsize);
-    IReg oelemsize = select(otyp > TYPE_I8, CTX.const_(2), CTX.const_(1));
-    oelemsize = select(otyp > TYPE_I16, CTX.const_(4), oelemsize);
-    oelemsize = select(otyp > TYPE_I32, CTX.const_(8), oelemsize);
-    CTX.do_();
-        IReg x = CTX.const_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
-        CTX.if_(ityp == TYPE_U8);
-            x = load_<uint8_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_I8);
-            x = load_<int8_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_U16);
-            x = load_<uint16_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_I16);
-            x = load_<int16_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_U32);
-            x = load_<uint32_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_I32);
-            x = load_<int32_t>(iptr, i_offset);
-        CTX.elif_(ityp == TYPE_U64);
-            x = load_<uint64_t>(iptr, i_offset);
-        CTX.else_();
-            x = load_<int64_t>(iptr, i_offset);
-        CTX.endif_();
-
-        CTX.if_(otyp == TYPE_U8);
-            store_<uint8_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_I8);
-            store_<int8_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_U16);
-            store_<uint16_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_I16);
-            store_<int16_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_U32);
-            store_<uint32_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_I32);
-            store_<int32_t>(optr, o_offset, x);
-        CTX.elif_(otyp == TYPE_U64);
-            store_<uint64_t>(optr, o_offset, x);
-        CTX.else_();
-            store_<int64_t>(optr, o_offset, x);
-        CTX.endif_();
-
-        i_offset += ielemsize;
-        o_offset += oelemsize;
-        num += 1;
-    CTX.while_(num < n);
-    if (CTX.getPlatformName() == "AArch64")
+    STARTFUNC_(TESTNAME, &iptr, &ityp, &optr, &otyp, &n )
     {
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
-        CTX.endFunc();
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
+        IReg num = CONST_(0);
+        IReg i_offset = CONST_(0);
+        IReg o_offset = CONST_(0);
+        IReg ielemsize = select(ityp > TYPE_I8, CONST_(2), CONST_(1));
+        ielemsize = select(ityp > TYPE_I16, CONST_(4), ielemsize);
+        ielemsize = select(ityp > TYPE_I32, CONST_(8), ielemsize);
+        IReg oelemsize = select(otyp > TYPE_I8, CONST_(2), CONST_(1));
+        oelemsize = select(otyp > TYPE_I16, CONST_(4), oelemsize);
+        oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
+        WHILE_(num < n)
+        {
+            IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
+            IF_(ityp == TYPE_U8)
+                x = load_<uint8_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I8)
+                x = load_<int8_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U16)
+                x = load_<uint16_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I16)
+                x = load_<int16_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U32)
+                x = load_<uint32_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I32)
+                x = load_<int32_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U64)
+                x = load_<uint64_t>(iptr, i_offset);
+            ELSE_
+                x = load_<int64_t>(iptr, i_offset);
+
+            IF_(otyp == TYPE_U8)
+                store_<uint8_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I8)
+                store_<int8_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U16)
+                store_<uint16_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I16)
+                store_<int16_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U32)
+                store_<uint32_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I32)
+                store_<int32_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U64)
+                store_<uint64_t>(optr, o_offset, x);
+            ELSE_
+                store_<int64_t>(optr, o_offset, x);
+
+            i_offset += ielemsize;
+            o_offset += oelemsize;
+            num += 1;
+        }
+        if (CTX.getPlatformName() == "AArch64")
+            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
     }
-    else
-        CTX.endFunc();
+    if (CTX.getPlatformName() == "AArch64")
+        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
     });
 template <typename inT, typename outT>
 static inline bool AldrAstrTestInner(const uint8_t* inA, uint8_t* outA, int siz)
@@ -368,22 +376,23 @@ LTESTexe(all_loads_all_stores, {
 
 LTEST(erode_msb_lsb, {
     IReg in, elsb, emsb;
-    CTX.startFunc(TESTNAME, {&in, &elsb, &emsb });
-    IReg msb = in | ushift_right(in,1);
-    msb |= ushift_right(msb, 2);
-    msb |= ushift_right(msb, 4);
-    msb |= ushift_right(msb, 8);
-    msb |= ushift_right(msb, 16);
-    msb |= ushift_right(msb, 32);
-    msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
-    msb = ushift_right(msb, 1);
-    msb ^= in;
-    store_<uint64_t>(emsb, msb);
-    IReg lsb = in & ~(in - 1);
-    lsb ^= in;
-    store_<uint64_t>(elsb, lsb);
-    CTX.return_();
-    CTX.endFunc();
+    STARTFUNC_(TESTNAME, &in, &elsb, &emsb )
+    {
+        IReg msb = in | ushift_right(in,1);
+        msb |= ushift_right(msb, 2);
+        msb |= ushift_right(msb, 4);
+        msb |= ushift_right(msb, 8);
+        msb |= ushift_right(msb, 16);
+        msb |= ushift_right(msb, 32);
+        msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
+        msb = ushift_right(msb, 1);
+        msb ^= in;
+        store_<uint64_t>(emsb, msb);
+        IReg lsb = in & ~(in - 1);
+        lsb ^= in;
+        store_<uint64_t>(elsb, lsb);
+        RETURN_();
+    }
     });
 LTESTexe(erode_msb_lsb, {
     typedef void (*erode_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
@@ -412,44 +421,41 @@ LTESTexe(erode_msb_lsb, {
 //This implementation(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 LTEST(bresenham, {
     IReg canvas, w, x0, y0, x1, y1, filler;
-    CTX.startFunc(TESTNAME, {&canvas, &w, &x0, &y0, &x1, &y1, &filler });
-    IReg dx = abs(x1 - x0);
-    IReg sx = sign(x1 - x0);
-    IReg dy = -abs(y1 - y0);
-    IReg sy = sign(y1 - y0);
-    IReg error = dx + dy;
-    CTX.doif_(canvas != 0); //TODO(ch): this is substitution of while(true)
-        store_<uint8_t>(canvas, y0* w + x0, filler);
-        CTX.if_(x0 == x1);
-            CTX.if_(y0 == y1);
-                CTX.break_();
-            CTX.endif_();
-        CTX.endif_();
-        IReg e2 = error << 1;
-        CTX.if_(e2 >= dy);
-            CTX.if_(x0 == x1); //looks like it break of "if".
-                CTX.break_();
-            CTX.endif_();
-            error = error + dy;
-            x0 = x0 + sx;
-        CTX.endif_();
-        CTX.if_(e2 <= dx);
-            CTX.if_(y0 == y1); //looks like it break of "if".
-                CTX.break_();
-            CTX.endif_();
-            error = error + dx;
-            y0 = y0 + sy;
-        CTX.endif_();
-    CTX.enddo_();
-    CTX.return_();
-    if (CTX.getPlatformName() == "AArch64")
+    STARTFUNC_(TESTNAME, &canvas, &w, &x0, &y0, &x1, &y1, &filler)
     {
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
-        CTX.endFunc();
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
+        IReg dx = abs(x1 - x0);
+        IReg sx = sign(x1 - x0);
+        IReg dy = -abs(y1 - y0);
+        IReg sy = sign(y1 - y0);
+        IReg error = dx + dy;
+        WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
+        {
+            store_<uint8_t>(canvas, y0* w + x0, filler);
+            IF_(x0 == x1)
+                IF_(y0 == y1)
+                    BREAK_;
+            IReg e2 = error << 1;
+            IF_(e2 >= dy)
+            {
+                IF_(x0 == x1)
+                    BREAK_;
+                error = error + dy;
+                x0 = x0 + sx;
+            }
+            IF_(e2 <= dx)
+            {
+                IF_(y0 == y1)
+                    BREAK_;
+                error = error + dx;
+                y0 = y0 + sy;
+            }
+        }
+        RETURN_();
+        if (CTX.getPlatformName() == "AArch64")
+            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
     }
-    else 
-        CTX.endFunc();
+    if (CTX.getPlatformName() == "AArch64")
+        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
     });
 static void BresenhamRef(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
 {

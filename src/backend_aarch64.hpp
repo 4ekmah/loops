@@ -6,6 +6,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #ifndef __LOOPS_BACKEND_AARCH64_HPP__
 #define __LOOPS_BACKEND_AARCH64_HPP__
+#if defined(__APPLE__)
 
 #include "composer.hpp"
 #include "backend.hpp"
@@ -84,4 +85,5 @@ private:
 };
 
 };
+#endif //__APPLE__
 #endif //__LOOPS_BACKEND_AARCH64_HPP__

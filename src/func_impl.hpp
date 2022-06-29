@@ -19,7 +19,7 @@ class ContextImpl;
 
 struct ControlFlowBracket
 {
-    enum { DO, DOIF, IF, ELSE };
+    enum { WHILE, IF, ELSE };
     size_t tag;
     size_t labelOrPos;
     size_t elifRepeats;
@@ -47,11 +47,11 @@ public:
     size_t provideLabel();
     enum {NOLABEL = -1};
 
-    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
-    inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
-    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, uint64_t tryImmMask = 0);
-    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
-    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask = 0);
+    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+    inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, ::std::initializer_list<size_t> tryImmList = {});
+    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
 
     //directTranslation  == true. Avoids most part of stages, like register allocation or controlBlocks2Jumps.
@@ -59,16 +59,30 @@ public:
     void endfunc(bool directTranslation = false); 
 
     IReg const_(int64_t value);
+    
+    /*
+    TODO(ch): Implement with RISC-V RVV
+    //Create register, connected to v1, v2, and contain them as halves. RVV-only.
+    template<typename _Tp> VReg<_Tp> spliceVregs(const VReg<_Tp>& v1, const VReg<_Tp>& v2);
+    //Create constrained register, which is pnum's part of wh. Divider is degree of two. RVV-only.
+    template<typename _Tp> VReg<_Tp> fractionVreg(const VReg<_Tp>& wh, size_t divider, size_t pnum);
+    
+    These functions will fill next structure, keeping info about interregister connections:
+             containerReg           divider              containedReg
+    std::map<IRegInternal, std::pair<size_t, std::vector<IRegInternal> > > m_vregConstraints;
+    Divider is degree of two from 2 to 64(mf8 of m8), because it's better to consider constraints
+    like relational.
+    */
 
-    void do_();
     void while_(const IReg& r);
-    void doif_(const IReg& r);
-    void enddo_();
+    void endwhile_();
     void break_();
     void continue_();
     void if_(const IReg& r);
     void elif_(const IReg& r);
     void else_();
+    void subst_elif(const IReg& r);
+    void subst_else();
     void endif_();
     void return_();
     void return_(int64_t retval);
@@ -90,6 +104,7 @@ public:
 private:
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
+    std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     ContextImpl* m_context;
     int m_nextIdx;
     size_t m_nextLabelIdx;
@@ -102,48 +117,48 @@ private:
     void controlBlocks2Jumps();
     void printSyntopBC(const Syntop& op) const; //Debug purposes only
 
-    void immediateImplantationAttempt(Syntop& op, uint64_t tryImmMask, size_t anumAdd);
+    void immediateImplantationAttempt(Syntop& op, size_t anumAdd, ::std::initializer_list<size_t> tryImmList);
     
     void* m_compiled;
 };
 
-inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
+inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
     IRegInternal retidx = provideIdx();
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this) }), args);
-    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
     return iregHid(retidx, this);
 }
 
-inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
+inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
     IRegInternal retidx = provideIdx();
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this), depth }), args);
-    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 2);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 2, tryImmList);
     m_data.program.emplace_back(toAdd);
     return iregHid(retidx, this);
 }
 
-inline IReg FuncImpl::newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, uint64_t tryImmMask)
+inline IReg FuncImpl::newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, ::std::initializer_list<size_t> tryImmList)
 {
     Syntop toAdd(opcode, std::initializer_list<Arg>({ argIReg(retreg, this) }), args);
-    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
     return iregHid(retreg, this);
 }
 
-inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args, uint64_t tryImmMask)
+inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
     Syntop toAdd(opcode, args);
-    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 0);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 0, tryImmList);
     m_data.program.emplace_back(toAdd);
 }
 
-inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, uint64_t tryImmMask)
+inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
     Syntop toAdd(opcode, std::initializer_list<Arg>({ Arg(depth) }), args);
-    if (tryImmMask) immediateImplantationAttempt(toAdd, tryImmMask, 1);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
 }
 

@@ -14,32 +14,33 @@ min_max_scalar(i0, i1, i2, i3)
     12 : mov   x3, x2           ; e3 03 02 aa  
     13 : mov   x19, #0x04       ; 93 00 80 d2  
     14 : mul   x1, x1, x19      ; 21 7c 13 9b  
-    15 : ldrsw x19, [x0], x18   ; 13 68 b2 b8  
-    16 : cmp   x19, x2          ; 7f 02 02 eb  
-    17 : b.ge  [21]             ; 8a 00 00 54  
-    18 : mov   x2, x19          ; e2 03 13 aa  
-    19 : mov   x20, x18         ; f4 03 12 aa  
-    20 : str   x20, [sp], #0x03 ; f4 0f 00 f9  
-    21 : cmp   x19, x3          ; 7f 02 03 eb  
-    22 : b.le  [26]             ; 8d 00 00 54  
-    23 : mov   x3, x19          ; e3 03 13 aa  
-    24 : mov   x20, x18         ; f4 03 12 aa  
-    25 : str   x20, [sp], #0x02 ; f4 0b 00 f9  
-    26 : add   x18, x18, #0x04  ; 52 12 00 91  
-    27 : cmp   x18, x1          ; 5f 02 01 eb  
-    28 : b.lt  [15]             ; 6b fe ff 54  
-    29 : mov   x0, #0x04        ; 80 00 80 d2  
-    30 : ldr   x20, [sp], #0x03 ; f4 0f 40 f9  
-    31 : sdiv  x1, x20, x0      ; 81 0e c0 9a  
-    32 : ldr   x20, [sp], #0x02 ; f4 0b 40 f9  
-    33 : sdiv  x0, x20, x0      ; 80 0e c0 9a  
-    34 : ldr   x20, [sp], #0x01 ; f4 07 40 f9  
-    35 : str   w1, [x20], #0    ; 81 02 00 b9  
-    36 : ldr   x20, [sp], #0    ; f4 03 40 f9  
-    37 : str   w0, [x20], #0    ; 80 02 00 b9  
-    38 : mov   x0, #0           ; 00 00 80 d2  
-    39 : ldr   x18, [sp], #0x04 ; f2 13 40 f9  
-    40 : ldr   x19, [sp], #0x05 ; f3 17 40 f9  
-    41 : ldr   x20, [sp], #0x06 ; f4 1b 40 f9  
-    42 : add   sp, sp, #0x40    ; ff 03 01 91  
-    43 : ret   x30              ; c0 03 5f d6  
+    15 : cmp   x18, x1          ; 5f 02 01 eb  
+    16 : b.ge  [30]             ; ca 01 00 54  
+    17 : ldrsw x19, [x0], x18   ; 13 68 b2 b8  
+    18 : cmp   x19, x2          ; 7f 02 02 eb  
+    19 : b.ge  [23]             ; 8a 00 00 54  
+    20 : mov   x2, x19          ; e2 03 13 aa  
+    21 : mov   x20, x18         ; f4 03 12 aa  
+    22 : str   x20, [sp], #0x03 ; f4 0f 00 f9  
+    23 : cmp   x19, x3          ; 7f 02 03 eb  
+    24 : b.le  [28]             ; 8d 00 00 54  
+    25 : mov   x3, x19          ; e3 03 13 aa  
+    26 : mov   x20, x18         ; f4 03 12 aa  
+    27 : str   x20, [sp], #0x02 ; f4 0b 00 f9  
+    28 : add   x18, x18, #0x04  ; 52 12 00 91  
+    29 : b     [15]             ; f2 ff ff 17  
+    30 : mov   x0, #0x04        ; 80 00 80 d2  
+    31 : ldr   x20, [sp], #0x03 ; f4 0f 40 f9  
+    32 : sdiv  x1, x20, x0      ; 81 0e c0 9a  
+    33 : ldr   x20, [sp], #0x02 ; f4 0b 40 f9  
+    34 : sdiv  x0, x20, x0      ; 80 0e c0 9a  
+    35 : ldr   x20, [sp], #0x01 ; f4 07 40 f9  
+    36 : str   w1, [x20], #0    ; 81 02 00 b9  
+    37 : ldr   x20, [sp], #0    ; f4 03 40 f9  
+    38 : str   w0, [x20], #0    ; 80 02 00 b9  
+    39 : mov   x0, #0           ; 00 00 80 d2  
+    40 : ldr   x18, [sp], #0x04 ; f2 13 40 f9  
+    41 : ldr   x19, [sp], #0x05 ; f3 17 40 f9  
+    42 : ldr   x20, [sp], #0x06 ; f4 1b 40 f9  
+    43 : add   sp, sp, #0x40    ; ff 03 01 91  
+    44 : ret   x30              ; c0 03 5f d6  
