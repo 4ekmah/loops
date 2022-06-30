@@ -7,22 +7,22 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
      5 : spill    9, i22         
      6 : sub      i18, i4, i2    
      7 : cmp      i18, 0         
-     8 : cneg     i20, i18, 2    
+     8 : arm_cneg i20, i18, 2    
      9 : spill    4, i20         
     10 : sub      i19, i4, i2    
     11 : cmp      i19, 0         
     12 : sar      i20, i19, 63   
-    13 : cinc     i20, i20, 3    
+    13 : arm_cinc i20, i20, 3    
     14 : spill    0, i20         
     15 : sub      i19, i5, i3    
     16 : cmp      i19, 0         
-    17 : cneg     i19, i19, 2    
+    17 : arm_cneg i19, i19, 2    
     18 : neg      i20, i19       
     19 : spill    1, i20         
     20 : sub      i19, i5, i3    
     21 : cmp      i19, 0         
     22 : sar      i20, i19, 63   
-    23 : cinc     i20, i20, 3    
+    23 : arm_cinc i20, i20, 3    
     24 : spill    3, i20         
     25 : unspill  i20, 4         
     26 : unspill  i21, 1         

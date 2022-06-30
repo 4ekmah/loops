@@ -9,19 +9,19 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include <stdint.h>
 #include <stddef.h>
+#include <unordered_map>
 
 namespace loops
 {
     class Allocator
     {
     public:
+        Allocator(){};
         uint8_t* allocate(size_t size);
         uint8_t* expand(uint8_t* buffer, size_t size);
         void protect2Execution(uint8_t* a_buffer);
-        static Allocator* getInstance(); //TODO(ch): I hope, it's temporary solution. And definetely non-threadsafe.
     private:
-        Allocator();
-        size_t m_cachedSize; //TODO(ch): element of disposable implementation.
+        std::unordered_map<uint8_t*, size_t> m_table; //[ptr] = size
     };
 };
 

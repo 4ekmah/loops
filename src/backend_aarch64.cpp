@@ -508,7 +508,6 @@ Aarch64Backend::Aarch64Backend()
 {
     m_s2blookup = a64BTLookup;
     m_s2slookup = a64STLookup;
-    m_exeAlloc = Allocator::getInstance();
     m_isLittleEndianInstructions = true;
     m_isLittleEndianOperands = false;
     m_isMonowidthInstruction = true;

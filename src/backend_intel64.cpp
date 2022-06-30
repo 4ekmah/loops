@@ -1049,7 +1049,6 @@ namespace loops
     {
         m_s2blookup = i64BTLookup;
         m_s2slookup = i64STLookup;
-        m_exeAlloc = Allocator::getInstance();
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;

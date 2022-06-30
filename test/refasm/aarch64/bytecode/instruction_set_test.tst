@@ -90,26 +90,26 @@ instruction_set_test()
     88 : select    i15, 0, i0, i0             
     89 : select    i0, 0, i15, i0             
     90 : select    i0, 0, i0, i15             
-    91 : cinc      i0, i0, 0                  
-    92 : cinc      i0, i0, 1                  
-    93 : cinc      i0, i0, 2                  
-    94 : cinc      i0, i0, 3                  
-    95 : cinc      i0, i0, 4                  
-    96 : cinc      i0, i0, 5                  
-    97 : cinc      i0, i0, 6                  
-    98 : cinc      i0, i0, 7                  
-    99 : cinc      i15, i0, 0                 
-   100 : cinc      i0, i15, 0                 
-   101 : cneg      i0, i0, 0                  
-   102 : cneg      i0, i0, 1                  
-   103 : cneg      i0, i0, 2                  
-   104 : cneg      i0, i0, 3                  
-   105 : cneg      i0, i0, 4                  
-   106 : cneg      i0, i0, 5                  
-   107 : cneg      i0, i0, 6                  
-   108 : cneg      i0, i0, 7                  
-   109 : cneg      i15, i0, 0                 
-   110 : cneg      i0, i15, 0                 
+    91 : arm_cinc  i0, i0, 0                  
+    92 : arm_cinc  i0, i0, 1                  
+    93 : arm_cinc  i0, i0, 2                  
+    94 : arm_cinc  i0, i0, 3                  
+    95 : arm_cinc  i0, i0, 4                  
+    96 : arm_cinc  i0, i0, 5                  
+    97 : arm_cinc  i0, i0, 6                  
+    98 : arm_cinc  i0, i0, 7                  
+    99 : arm_cinc  i15, i0, 0                 
+   100 : arm_cinc  i0, i15, 0                 
+   101 : arm_cneg  i0, i0, 0                  
+   102 : arm_cneg  i0, i0, 1                  
+   103 : arm_cneg  i0, i0, 2                  
+   104 : arm_cneg  i0, i0, 3                  
+   105 : arm_cneg  i0, i0, 4                  
+   106 : arm_cneg  i0, i0, 5                  
+   107 : arm_cneg  i0, i0, 6                  
+   108 : arm_cneg  i0, i0, 7                  
+   109 : arm_cneg  i15, i0, 0                 
+   110 : arm_cneg  i0, i15, 0                 
    111 : sar       i0, i0, 63                 
    112 : sar       i15, i0, 63                
    113 : sar       i0, i15, 63                

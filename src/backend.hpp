@@ -103,7 +103,7 @@ public:
 
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const; //TODO(ch): most part of this function must be implemeted here. Or it must be there fully.
     const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
-    void* compile(Context* a_ctx, Func* a_func) const;
+    void* compile(Context* a_ctx, Func* a_func);
     
     //Prologue and epilogue support
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
@@ -114,7 +114,7 @@ public:
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
 
-    Allocator* getAllocator() { return m_exeAlloc; }
+    Allocator* getAllocator() { return &m_exeAlloc; }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
@@ -151,7 +151,7 @@ protected:
         return ret;
     }
 
-    Allocator* m_exeAlloc;
+    Allocator m_exeAlloc;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;

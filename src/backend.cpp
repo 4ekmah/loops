@@ -202,18 +202,17 @@ const FuncBodyBuf Backend::target2Hex(const Syntfunc& a_bcfunc) const
     return bitstream.buffer();
 }
 
-void* Backend::compile(Context* a_ctx, Func* a_func) const
+void* Backend::compile(Context* a_ctx, Func* a_func)
 {
     FuncImpl* func = static_cast<FuncImpl*>(a_func);
     Syntfunc tarcode = bytecode2Target(func->getData());
     const FuncBodyBuf body = target2Hex(tarcode);
     
-    Allocator* alloc = m_exeAlloc;
-    uint8_t* exebuf = alloc->allocate(body->size());
+    uint8_t* exebuf = m_exeAlloc.allocate(body->size());
     
     memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adressess before.
     
-    alloc->protect2Execution(exebuf);
+    m_exeAlloc.protect2Execution(exebuf);
     return exebuf;
 }
 
@@ -227,8 +226,7 @@ SyntopTranslation STLookup(const Syntop&, bool&)
     throw std::runtime_error("Syntop translation table is not implemented.");
 }
 
-Backend::Backend() : m_exeAlloc(nullptr)
-, m_isLittleEndianInstructions(true)
+Backend::Backend() : m_isLittleEndianInstructions(true)
 , m_isLittleEndianOperands(false)
 , m_isMonowidthInstruction(false)
 , m_instructionWidth(0)
