@@ -5,6 +5,8 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include "tests.hpp"
+#include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
+#include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
 #include <fstream>
 #include <sstream>
 #include <sys/stat.h> //TODO(ch): *nix-only.
@@ -21,7 +23,7 @@ inline bool fileexists(const std::string& name) //TODO(ch): need crossplatform s
 bool Test::testAssembly(bool a_rewriteIfWrong)
 {
     std::string tarcname = CTX.getPlatformName();
-    std::string bfilename("./refasm/"); //TODO(ch): IMPORTANT: Now I'm manually copying refasm folder to build folder. What is the best known practices???
+    std::string bfilename(LOOPS_TEST_DIR"/refasm/");
     std::string tfilename = bfilename;
     bool result = true;
     { //Bytecode check
@@ -30,7 +32,7 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         ::std::ostringstream bcstream(bctext, ::std::ios::out);
         m_func.printBytecode(bcstream);
         bctext = bcstream.str();
-        bfilename += "bytecode/";
+        bfilename += tarcname + "/bytecode/";
         bfilename += m_func.name() + ".tst";
         if(fileexists(bfilename))
         {
@@ -116,7 +118,7 @@ bool Test::checkListingEquality(const std::string& curL, const std::string& refL
     const size_t refSiz = refL.size();
     bool result = true;
     std::string mainErrorMes = "    " + errMes +": ";
-    while(true)
+    while(true)   //TODO(ch): Line vs line comparing and avoid spaces duplicates.
     {
         if(curPos == curSiz && refSiz!=curSiz)
         {
@@ -213,5 +215,10 @@ void TestSuite::run(bool rewriteListings)
         (*m_out)<<"Execution fails   : "<<executionFail<<std::endl;
         (*m_out)<<"Listing fails     : "<<listingFail<<std::endl;
     }
+}
+
+TestSuite::TestSuite(std::ostream& a_out) : m_out(&a_out), CTX()
+{
+    getImpl(&CTX)->getBackend()->switchOnSpillStressMode();
 }
 };

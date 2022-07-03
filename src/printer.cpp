@@ -18,7 +18,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
 {
     lastop = (lastop == -1) ? toPrint.program.size() : lastop;
     if(lastop > toPrint.program.size())
-        throw std::string("Printer error: too far last operation.");
+        throw std::runtime_error("Printer error: too far last operation.");
     if (printheader)
         printHeader(out, toPrint);
     std::vector<std::string> pdetails;
@@ -46,7 +46,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
 
 Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl*)
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
     {
         out << std::setw(6) << rowNum << " :";
     };
@@ -54,7 +54,7 @@ Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
 
 Printer::ColPrinter Printer::colDelimeterPrinter()
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl*)
+    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
     {
         out << ";";
     };
@@ -62,12 +62,12 @@ Printer::ColPrinter Printer::colDelimeterPrinter()
 
 Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
 {
-    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* backend)
+    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
             if (opstrings.count(toPrint.opcode) == 0)
-                throw std::string("Printer: unprintable operation");
+                throw std::runtime_error("Printer: unprintable operation");
             out<<opstrings.at(toPrint.opcode);
         }
         else
@@ -75,30 +75,29 @@ Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std:
     };
 }
 
-Printer::ColPrinter Printer::colArgListPrinter(const std::unordered_map<int, Printer::ColPrinter>& p_overrules)
+Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const std::unordered_map<int, Printer::ColPrinter>& p_overrules)
 {
-    return [p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, BackendImpl* backend)
+    return [suppfunc, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
-            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum, const OpPrintInfo& pinfo)
+            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
                 {
                     out<<toPrint[argNum];
                 };
             if(backend)
-                argprinter = backend->argPrinter();
-            OpPrintInfo pinfo;
-            if(backend)
-                pinfo = backend->getPrintInfo(const_cast<Syntop&>(toPrint));
-            size_t aamount = pinfo.size() ? pinfo.size() : toPrint.size();
+                argprinter = backend->argPrinter(suppfunc); //TODO(ch): We shouldn't request printer at any row. It must be called once in start.
+            size_t aamount = toPrint.size();
             size_t anum = 0;
             for(size_t anum = 0; anum + 1 < aamount ; anum++)
             {
-                argprinter(out, toPrint, rowNum, anum, pinfo);
+                if(toPrint[anum].flags & AF_NOPRINT)
+                    continue;
+                argprinter(out, toPrint, rowNum, anum);
                 out<<", ";
             }
             if(aamount)
-                argprinter(out, toPrint, rowNum, aamount - 1, pinfo);
+                argprinter(out, toPrint, rowNum, aamount - 1);
         }
         else
             p_overrules.at(toPrint.opcode)(out, toPrint, rowNum, backend);

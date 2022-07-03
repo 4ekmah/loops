@@ -10,6 +10,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <vector>
 #include <list>
 #include <iostream>
+#include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
 
 namespace loops
 {
@@ -54,7 +55,7 @@ private:
     std::list<std::shared_ptr<Test> > m_testList;
     Context CTX;
     std::ostream* m_out;
-    TestSuite(std::ostream& a_out = std::cout) : m_out(&a_out), CTX(Backend::makeAarch64Compiler()) {}
+    TestSuite(std::ostream& a_out = std::cout);
 };
 };
 
@@ -66,6 +67,7 @@ public:                                                         \
     virtual std::string generateCode()                          \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
+        USE_CONTEXT_(CTX)                                        \
         __VA_ARGS__                                             \
         m_func = CTX.getFunc(TESTNAME);                         \
         return TESTNAME;                                        \
@@ -88,6 +90,69 @@ bool funcname::testExecution()                                  \
     void* EXEPTR = m_func.ptr();                                \
     __VA_ARGS__                                                 \
     return true;                                                \
+}
+
+#define LTESTcomposer(funcname, ...)                            \
+class funcname: public Test                                     \
+{                                                               \
+public:                                                         \
+    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
+    virtual std::string generateCode()                          \
+    {                                                           \
+        std::string TESTNAME = #funcname;                       \
+        CTX.startFunc(TESTNAME, {});                            \
+        __VA_ARGS__                                             \
+        m_func = CTX.getFunc(TESTNAME);                         \
+        getImpl(&CTX)->endFunc(true);                           \
+        return TESTNAME;                                        \
+    }                                                           \
+    virtual bool testExecution();                               \
+};                                                              \
+class funcname##_reg                                            \
+{                                                               \
+public:                                                         \
+    funcname##_reg()                                            \
+    {                                                           \
+        TestSuite::getInstance()->regTest<funcname>();          \
+    };                                                          \
+};                                                              \
+bool funcname::testExecution()                                  \
+{                                                               \
+    return true;                                                \
+}                                                               \
+funcname##_reg funcname##_reg_instance
+
+
+//Utils
+
+template<typename _Tp>
+static inline void load2(const loops::IReg& dest, const loops::IReg& base)
+{
+    using namespace loops;
+    IReg dummy = load_<_Tp>(base);
+    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    sfunc.program.back()[0].idx = dest.idx;
+}
+
+template<typename _Tp>
+static inline void load2(const loops::IReg& dest, const loops::IReg& base, const loops::IReg& offset)
+{
+    using namespace loops;
+    IReg dummy = load_<_Tp>(base, offset);
+    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    sfunc.program.back()[0].idx = dest.idx;
+}
+
+template<typename _Tp>
+static inline void load2(const loops::IReg& dest, const loops::IReg& base, int64_t offset)
+{
+    using namespace loops;
+    IReg dummy = load_<_Tp>(base, offset);
+    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    sfunc.program.back()[0].idx = dest.idx;
 }
 
 #endif//__LOOPS_TESTS_HPP__

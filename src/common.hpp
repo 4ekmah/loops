@@ -7,14 +7,21 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_COMMON_HPP__
 
 #include "loops/loops.hpp"
-#include <unordered_map>
+#include <functional>
+#include <set>
 #include <stack>
 #include <unordered_map>
 #include <typeindex>
 
+#define LOOPS_ASSERT_LINE_(x) #x
+#define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
+
+#undef Assert
+#define Assert(expr) if(expr) ; else throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
+
 namespace loops
 {
-    typedef size_t IRegInternal;
+    typedef int IRegInternal;
 
     inline IReg iregHid(IRegInternal a_idx, Func* a_func)
     {
@@ -32,101 +39,161 @@ namespace loops
         res.func = impl;
         return res;
     }
-    
-    inline Arg argIConst(int64_t val, Func* impl = nullptr)
+
+    inline Arg argISpilled(size_t spOffset, Func* impl = nullptr)
     {
         Arg res;
-        res.tag = Arg::ICONST;
+        res.tag = Arg::ISPILLED;
+        res.value = spOffset;
+        res.func = impl;
+        return res;
+    }
+
+    inline Arg argIImm(int64_t val, Func* impl = nullptr)
+    {
+        Arg res;
+        res.tag = Arg::IIMMEDIATE;
         res.value = val;
         res.func = impl;
         return res;
     }
 
-    struct ExpandableClass
+    inline bool regOrSpi(const Arg& toCheck)
     {
-    public:
-        template<typename T>
-        void addExtension(const T& toAdd)
-        {
-            if(m_dictionary.get() == nullptr)
-                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) != 0)
-                throw std::string("Internal error: trying to add extension already defined.");
-            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >(toAdd);
-            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
-            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
-            dictionary.insert(partoadd);
-        }
+        return toCheck.tag == Arg::IREG || toCheck.tag == Arg::ISPILLED;
+    }
 
-        template<typename T>
-        void addExtension()
-        {
-            if(m_dictionary.get() == nullptr)
-                m_dictionary = std::make_shared<std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > >();
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) != 0)
-                throw std::string("Internal error: trying to add extension already defined.");
-            std::shared_ptr< shrd<T> > extension = std::make_shared< shrd<T> >();
-            std::shared_ptr<voidshrd> extcasted = std::static_pointer_cast<voidshrd>(extension);
-            std::pair<std::type_index, std::shared_ptr<voidshrd> > partoadd(typeid(T), extcasted);
-            dictionary.insert(partoadd);
-        }
+    inline bool regOrSpiEq(const Arg& toCmp1, const Arg& toCmp2)
+    {
+        Assert(regOrSpi(toCmp1) && regOrSpi(toCmp2));
+        if (toCmp1.tag != toCmp2.tag)
+            return false;
+        if (toCmp1.tag == Arg::IREG)
+            return toCmp1.idx == toCmp2.idx;
+        if (toCmp1.tag == Arg::ISPILLED)
+            return toCmp1.value == toCmp2.value;
+        return false;
+    }
 
-        template<typename T>
-        T& getExtension()
-        {
-            if(m_dictionary.get() == nullptr)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
-            return extptr->get();
-        }
-
-        template<typename T>
-        const T& getExtension() const
-        {
-            if(m_dictionary.get() == nullptr)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                throw std::string("Internal error: asking for nonexistent expansion.");
-            std::shared_ptr<shrd<T> > extptr = std::static_pointer_cast<shrd<T> >(dictionary.at(typeid(T)));
-            return extptr->get();
-        }
-        
-        template<typename T>
-        bool haveExtension() const
-        {
-            if(m_dictionary.get() == nullptr)
-                return false;
-            std::unordered_map<std::type_index, std::shared_ptr<voidshrd> >& dictionary = *m_dictionary;
-            if(dictionary.count(typeid(T)) == 0)
-                return false;
-            return true;
-        }
-    private:
-        struct voidshrd
-        {
-            public:
-            virtual ~voidshrd() {}
-        };
-        template <typename T>
-        struct shrd : public voidshrd
-        {
-            std::shared_ptr<T> content;
-            inline shrd() : content(std::make_shared<T>()) {}
-            inline shrd(const T& cp) : content(std::make_shared<T>(cp)) {}
-            virtual ~shrd() {}
-            inline T& get() { return *content; }
-            inline const T& get() const { return *content; }
-        };
-        std::shared_ptr< std::unordered_map<std::type_index, std::shared_ptr<voidshrd> > > m_dictionary;
+    enum ArgFlags
+    {
+        AF_ADDRESS  = 1,
+        AF_LOWER32  = 2, //010
+        AF_LOWER16  = 4, //100
+        AF_LOWER8   = 6, //110
+        AF_NOPRINT  = 8,
+        AF_PRINTOFFSET = 16,
     };
 
-    struct Syntop: public ExpandableClass
+    enum InstructionConditions
+    {
+        IC_EQ = 0,
+        IC_NE,
+        IC_LT,
+        IC_GT,
+        IC_LE,
+        IC_GE,
+        IC_S,
+        IC_NS,
+        IC_UNKNOWN
+    };
+
+    inline int invertCondition(int condition)
+    {
+        return condition == IC_EQ ? IC_NE : (
+               condition == IC_NE ? IC_EQ : (
+               condition == IC_LT ? IC_GE : (
+               condition == IC_GT ? IC_LE : (
+               condition == IC_LE ? IC_GT : (
+               condition == IC_GE ? IC_LT : (
+               condition == IC_S  ? IC_NS : (
+               condition == IC_NS ? IC_S  : IC_UNKNOWN)))))));
+    }
+
+    static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
+    {
+        uint64_t res = 0;
+        for (size_t bitnum : regNumbers)
+            res |= (static_cast<uint64_t>(1) << bitnum);
+        return res;
+    }
+
+    inline IRegInternal onlyBitPos64(uint64_t bigNum)
+    {
+        static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+        static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                            8 };
+        uint32_t first32 = (uint32_t)(bigNum & 0xFFFFFFFF);
+        uint32_t second32 = (uint32_t)(bigNum >> 32);
+        uint8_t bytenum = (second32 != 0) << 2;
+        uint32_t bnHalf = first32 + ((~(uint32_t)(second32 == 0)) & second32);
+
+        uint16_t first16 = (uint16_t)(bnHalf & 0xFFFF);
+        uint16_t second16 = (uint16_t)(bnHalf >> 16);
+        bytenum += (second16 != 0) << 1;
+        uint16_t bnHalfHalf = first16 + ((~(uint32_t)(second16 == 0)) & second16);
+
+        uint8_t first8 = (uint8_t)(bnHalfHalf & 0xFF);
+        uint8_t second8 = (uint8_t)(bnHalfHalf >> 8);
+        bytenum += (second8 != 0);
+        uint8_t bytecontent = first8 + ((~(uint32_t)(second8 == 0)) & second8);
+
+        return static_cast<IRegInternal>(bnBase[bytenum]) + static_cast<IRegInternal>(bnAdd[bytecontent]) - 1;
+    }
+
+
+    inline IRegInternal lsb64(uint64_t bigNum)
+    {
+        uint64_t firstReg = (bigNum & ~(bigNum - 1));
+        return onlyBitPos64(firstReg);
+    }
+
+    inline IRegInternal msb64(uint64_t bigNum)
+    {
+        if (bigNum == 0)
+            return 0;
+        bigNum |= bigNum >> 1;
+        bigNum |= bigNum >> 2;
+        bigNum |= bigNum >> 4;
+        bigNum |= bigNum >> 8;
+        bigNum |= bigNum >> 16;
+        bigNum |= bigNum >> 32;
+        if (bigNum == 0xFFFFFFFFFFFFFFFF)
+            return 63;
+        bigNum += 1;
+        return onlyBitPos64(bigNum) - 1;
+    }
+
+    inline size_t amountOfBits64(uint64_t bigNum)
+    {
+        size_t res = 0;
+        static const uint8_t amountInByte[256] =
+        { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+          2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8 };
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        bigNum >>= 8;
+        res += amountInByte[bigNum & 0xFF];
+        return res;
+    }
+
+    struct Syntop
     {
     private:
         enum {SYNTOP_ARGS_MAX = 10};
@@ -134,6 +201,8 @@ namespace loops
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         size_t args_size;
+        int spillPrefix;  //TODO(ch): IMPORTANT(CMPLCOND) : delete
+        int spillPostfix; //TODO(ch): IMPORTANT(CMPLCOND) : delete
         Syntop();
         Syntop(const Syntop& fwho);
         Syntop(int a_opcode, const std::vector<Arg>& a_args);
@@ -143,14 +212,14 @@ namespace loops
         inline Arg* end()
         {
             if(args_size > SYNTOP_ARGS_MAX)
-                throw std::string("Syntaxic operation: too much args!");
+                throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
         inline const Arg* begin() const { return args; }
         inline const Arg* end() const
         {
             if(args_size > SYNTOP_ARGS_MAX)
-                throw std::string("Syntaxic operation: too much args!");
+                throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
 
@@ -159,26 +228,26 @@ namespace loops
         inline Arg& operator[](size_t anum)
         {
             if(anum >= args_size)
-                throw std::string("Syntaxic operation: too big argument index!");
+                throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
         inline const Arg& operator[](size_t anum) const
         {
             if(anum >= args_size)
-                throw std::string("Syntaxic operation: too big argument index!");
+                throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
 
         inline Arg& back()
         {
             if(args_size == 0)
-                throw std::string("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
         inline const Arg& back() const
         {
             if(args_size == 0)
-                throw std::string("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
     };
@@ -192,150 +261,44 @@ namespace loops
         Syntfunc() {}
     };
 
-
-    template<typename T>
-    struct SyntopIndexedArray
+    class CompilerStage
     {
-        struct ArgIndA
-        {
-            enum {C_ARRSIZE, C_ARGTYPE, C_ARGVALUE, C_LEAF};
-            int m_condition;
-            size_t m_argnum;
-            T m_leaf;
-            std::unordered_map<int, ArgIndA> m_branches;
-            ArgIndA(): m_condition(C_LEAF) {}
-            ArgIndA(const T& a_leaf): m_condition(C_LEAF), m_leaf(a_leaf) {}
-        };
-
-        std::unordered_map<int, ArgIndA > containment;
-        void add(int opcode, const ArgIndA& toAdd) {containment[opcode] = toAdd;};
-        const T& operator[](const Syntop& index) const
-        {
-            auto opcoderator = containment.find(index.opcode);
-            if (opcoderator == containment.end())
-                throw std::string("Index error: nothing is registered with given opcode.");
-            const ArgIndA* branch = &(opcoderator->second);
-            while(branch->m_condition != ArgIndA::C_LEAF)
-            {
-                int condition_val;
-                switch(branch->m_condition)
-                {
-                    case(ArgIndA::C_ARRSIZE):
-                    {
-                        condition_val = index.size();
-                        break;
-                    }
-                    case(ArgIndA::C_ARGTYPE):
-                    {
-                        if(branch->m_argnum >= index.size())
-                            throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
-                        condition_val = index[branch->m_argnum].tag;
-                        break;
-                    }
-                    case(ArgIndA::C_ARGVALUE):
-                    {
-                        if(branch->m_argnum >= index.size())
-                            throw std::string("Argument-indexed Array: too big argument indexed used in condition .");
-                        condition_val = index[branch->m_argnum].value;
-                        break;
-                    }
-                    default:
-                        throw std::string("Argument-indexed Array: Unknown condition type.");
-                }
-                if(branch->m_branches.count(condition_val) == 0)
-                    throw std::string("Argument-indexed Array: don't have such an element.");
-                branch = &(branch->m_branches.at(condition_val));
-            }
-            return branch->m_leaf;
-        }
-        inline bool empty() const { return containment.empty();}
-        inline bool has(int opcode) const { return containment.count(opcode) != 0;} //Check only existence of command. For checking existance of variant correspondent to given arguments use has(Syntop& index)
+    public:
+        virtual void process(Syntfunc& a_processed) const = 0;
+        virtual ~CompilerStage() {}
     };
+    typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
 
-    namespace BackendTableConstructor
-    {
-        //Sl is for "SyntopIndexedArray leaf"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA Sl(const T& towrap) { return typename SyntopIndexedArray<T>::ArgIndA(towrap); }
-        
-        template<typename T>
-        struct SyntopTreeTempBranch
-        {
-            int condval;
-            typename SyntopIndexedArray<T>::ArgIndA val;
-        };
-    
-        //Sb is for "SyntopIndexedArray branch"
-        template<typename T>
-        inline SyntopTreeTempBranch<T> _Sb(int cval, const typename SyntopIndexedArray<T>::ArgIndA& val)
-        {
-            SyntopTreeTempBranch<T> result;
-            result.condval = cval;
-            result.val = val;
-            return result;
-        }
-    
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA Sf(int condtype, size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            typename SyntopIndexedArray<T>::ArgIndA result;
-            result.m_condition = condtype;
-            result.m_argnum = argnum;
-            for(const SyntopTreeTempBranch<T>& branch : branches)
-                result.m_branches[branch.condval] = branch.val;
-            return result;
-        }
-
-        //SFsiz is for "SyntopIndexedArray fork by array size"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFsiz(std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARRSIZE, 0, branches);
-        }
-
-        //SFtyp is for "SyntopIndexedArray fork by argument type"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFtyp(size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARGTYPE, argnum, branches);
-        }
-
-        //SFval is for "SyntopIndexedArray fork by argument value"
-        template<typename T>
-        inline typename SyntopIndexedArray<T>::ArgIndA SFval(size_t argnum, std::initializer_list<SyntopTreeTempBranch<T> > branches)
-        {
-            return Sf(SyntopIndexedArray<T>::ArgIndA::C_ARGVALUE, argnum, branches);
-        }
-    };
-
+    class Backend;
+    class RegisterAllocator;
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context* owner, Backend bcknd) : m_owner(owner), m_bcknd(bcknd) {}
+        ContextImpl(Context* owner);
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
-        void endFunc();
+        void endFunc(bool directTranslation = false); //directTranslation == true
         Func getFunc(const std::string& name);
         std::string getPlatformName() const;
         void compileAll();
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
-        inline Backend* getBackend() { return &m_bcknd; }
+        inline Backend* getBackend() { return m_backend.get(); }
+        inline RegisterAllocator* getRegisterAllocator() { return m_registerAllocator.get(); }
         inline Context* getOwner() const { return m_owner; }
     private:
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
         Context* m_owner;
-        Backend m_bcknd;
+        std::shared_ptr<Backend> m_backend;
+        std::shared_ptr<RegisterAllocator> m_registerAllocator;
     };
 
     inline Func* _getImpl(Func* wrapper) { return wrapper->impl; };
     inline Context* _getImpl(Context* wrapper) { return wrapper->impl; };
-    inline Backend* _getImpl(Backend* wrapper) { return wrapper->impl; };
     inline ContextImpl* getImpl(Context* wrapper)
     {
-        if(!wrapper)
-            throw std::string("Null context pointer.");
+        Assert(wrapper);
         return static_cast<ContextImpl*>(_getImpl(wrapper));
     }
 };

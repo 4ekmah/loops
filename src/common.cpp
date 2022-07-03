@@ -5,8 +5,10 @@ See https://github.com/vpisarev/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
-#include "aarch64.hpp"
+#include "backend_aarch64.hpp"
+#include "backend_intel64.hpp"
 #include "backend.hpp"
+#include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
 #include <map>
@@ -14,8 +16,6 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    const size_t IReg::NOIDX = static_cast<size_t>(-1);
-
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
     IReg::IReg(const IReg& r)
@@ -25,20 +25,20 @@ namespace loops
         func = selfval.func;
     }
 
-    IReg::IReg(IReg&& a) : func(a.func), idx(a.idx) {}
+    IReg::IReg(IReg&& a) noexcept : func(a.func), idx(a.idx) {}
 
     IReg& IReg::operator=(const IReg& r)
     {
         if (r.func == nullptr)
-            throw std::string("Cannot find motherfunction in registers.");
+            throw std::runtime_error("Cannot find motherfunction in registers.");
         FuncImpl* funcimpl = static_cast<FuncImpl*>(func);
-        funcimpl->newiop(OP_MOV, { r }, idx);
+        funcimpl->newiopPreret(OP_MOV, { r }, idx);
         return (*this);
     }
 
-    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0) {}
-    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0) {}
-    Arg::Arg(int64_t a_value) : tag(Arg::ICONST), value(a_value){}
+    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0) {}
+    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
+    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0) {}
 
     Func::Func() : impl(nullptr) {}
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->m_refcount++; }
@@ -75,107 +75,137 @@ namespace loops
         return ret;
     }
     
-    IReg newiop(int opcode, std::initializer_list<Arg> args)
+    IReg newiop(int opcode, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args));
+        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args, tryImmList));
     }
 
-    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args)
+    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args);
+        return FuncImpl::verifyArgs(args)->newiop(opcode,depth,args, tryImmList);
     }
 
-    void newiopNoret(int opcode, ::std::initializer_list<Arg> args)
+    void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, args, tryImmList);
     }
 
-    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args)
+    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args);
+        FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args, tryImmList);
     }
     
-    void newiopAug(int opcode, ::std::initializer_list<Arg> args)
+    void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
-        return newiopNoret(opcode, args);
+        return newiopNoret(opcode, args, tryImmList);
+    }
+
+    IReg select(const IReg& cond, const IReg& truev, const IReg& falsev)
+    {
+        return FuncImpl::verifyArgs({ truev, falsev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
+    IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
+    {
+        return FuncImpl::verifyArgs({ falsev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
+    IReg select(const IReg& cond, const IReg& truev, int64_t falsev)
+    {
+        return FuncImpl::verifyArgs({ truev })->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
+        //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
     IReg operator == (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_EQ;
+        fnc->m_cmpopcode = IC_EQ;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator == (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_EQ;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator != (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_NE;
+        fnc->m_cmpopcode = IC_NE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator != (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_NE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator <= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_LE;
+        fnc->m_cmpopcode = IC_LE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator <= (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_LE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator >= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_GE;
+        fnc->m_cmpopcode = IC_GE;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator >= (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_GE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator > (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_GT;
+        fnc->m_cmpopcode = IC_GT;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg operator > (const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_GT;
+        newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
     IReg operator < (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->m_cmpopcode = OP_JMP_LT;
+        fnc->m_cmpopcode = IC_LT;
         newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
-
-    Backend::Backend() : impl(nullptr) {}
-    Backend::Backend(Backend* a_p):impl(a_p)
+    IReg operator < (const IReg& a, int64_t b)
     {
-        BackendImpl* rcb = dynamic_cast<BackendImpl*>(a_p);
-        if (rcb == nullptr)
-            throw std::string("Backend: wrong backend implementation pointer.");
-        rcb->m_refcount = 1;
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_LT;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
-    Backend::Backend(const Backend& f) : impl(f.impl) { (static_cast<BackendImpl*>(impl))->m_refcount++; }
-
-    Backend& Backend::operator=(const Backend& f)
+    Context::Context() : impl(nullptr)
     {
-        BackendImpl* old_p = static_cast<BackendImpl*>(impl);
-        if ((static_cast<BackendImpl*>(impl))) (static_cast<BackendImpl*>(impl))->m_refcount--;
-        impl = f.impl;
-        if (impl != nullptr)
-            (static_cast<BackendImpl*>(impl))->m_refcount++;
-        if (old_p && !old_p->m_refcount)
-            delete old_p;
-        return *this;
+        impl = new ContextImpl(this);
     }
 
-    Backend::~Backend()
-    {
-        BackendImpl* _p = static_cast<BackendImpl*>(impl);
-        if (_p && !(--(_p->m_refcount)))
-            delete _p;
-    }
-
-    void* Backend::compile(Context* ctx, Func* a_func) const { return impl->compile(ctx, a_func); }
-
-    Backend Backend::makeAarch64Compiler()
-    {
-        return Backend(new Aarch64Backend());
-    }
-
-    Context::Context() : impl(nullptr) {}
-    Context::Context(Backend cmpl) : impl(new ContextImpl(this, cmpl)) { static_cast<ContextImpl*>(impl)->m_refcount = 1; }
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
 
     Context& Context::operator=(const Context& f)
@@ -201,10 +231,8 @@ namespace loops
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
 
     IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
-    void Context::do_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->do_(); }
-    void Context::while_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
-    void Context::doif_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->doif_(r); }
-    void Context::enddo_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->enddo_(); }
+    void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
+    void Context::endwhile_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endwhile_(); }
     void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->break_(); }
     void Context::continue_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->continue_(); }
 
@@ -213,53 +241,99 @@ namespace loops
     void Context::else_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->else_(); };
     void Context::endif_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endif_(); }
 
-    void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(); }
+    void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
+    void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
+    {
+        switch (_cftype)
+        {
+        case(IF):
+            CTX->if_(condition);
+            break;
+        case(ELIF):
+            getImpl(getImpl(CTX)->getCurrentFunc())->subst_elif(condition);
+            break;
+        case(ELSE):
+            getImpl(getImpl(CTX)->getCurrentFunc())->subst_else();
+            break;
+        case(WHILE):
+            CTX->while_(condition);
+            break;
+        default:
+            Assert(false);
+        }
+    }
 
-    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
-    Syntop::Syntop(const Syntop& fwho) : ExpandableClass(fwho), opcode(fwho.opcode), args_size(fwho.args_size)
+    __Loops_CFScopeBracket_::~__Loops_CFScopeBracket_()
+    {
+        if(cftype == WHILE)
+            CTX->endwhile_();
+        else
+            CTX->endif_();
+    }
+
+    __Loops_FuncScopeBracket_::__Loops_FuncScopeBracket_(Context* _CTX, const std::string& name, std::initializer_list<IReg*> params): CTX(_CTX)
+    {
+        CTX->startFunc(name, params);
+    }
+
+    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
+
+    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
+    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix,                                             std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size()), spillPrefix(0), spillPostfix(0)
     {
         if(args_size > SYNTOP_ARGS_MAX)
-            throw std::string("Syntaxic operation: too much args!");
+            throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_prefix.begin(), a_prefix.end(), args);
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
+    }
+
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
+#if defined(__APPLE__) //TODO(ch): this conditions are actually inaccurate. We have to ask system about type of compiler. 
+        std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
+#elif defined(_WIN32)
+        std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
+#endif
+        m_backend = std::static_pointer_cast<Backend>(backend);
+        m_registerAllocator = std::make_shared<RegisterAllocator>(this);
     }
 
     void ContextImpl::startFunc(const std::string& name, std::initializer_list<IReg*> params)
     {
         if(m_functionsStorage.find(name) != m_functionsStorage.end())
-            throw std::string("Function is already registered.");  //TODO(ch): We need good exception class.
+            throw std::runtime_error("Function is already registered.");  //TODO(ch): We need good exception class.
         m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
     }
 
-    void ContextImpl::endFunc()
+    void ContextImpl::endFunc(bool directTranslation)
     {
         FuncImpl* func = getImpl(&m_currentFunc);
-        func->endfunc();
+        func->endfunc(directTranslation);
         m_currentFunc = Func();
     }
 
@@ -267,33 +341,31 @@ namespace loops
     {
         auto found = m_functionsStorage.find(name);
         if(found == m_functionsStorage.end()) 
-            throw std::string("Cannot find function.");
+            throw std::runtime_error("Cannot find function.");
         return found->second;
     }
     
     std::string ContextImpl::getPlatformName() const
     {
-        const BackendImpl* backend = getImpl(&m_bcknd);
-        return backend->name();
+        return m_backend->name();
     }
 
     void ContextImpl::compileAll()
     {
         const size_t funcAlignment = 16; //TODO(ch): Get precise info from backend.
         size_t totalSize = funcAlignment;
-        BackendImpl* backend = getImpl(&m_bcknd);
         std::vector<FuncBodyBuf> bodies;
         bodies.reserve(m_functionsStorage.size());
         for(auto par:m_functionsStorage)
         {
             FuncImpl* func = getImpl(&par.second);
-            FuncBodyBuf body = backend->target2Hex(backend->bytecode2Target(func->getData()));
+            FuncBodyBuf body = m_backend->target2Hex(m_backend->bytecode2Target(func->getData()));
             size_t bsize = body->size();
             bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?
             totalSize += bsize;
             bodies.push_back(body);
         }
-        Allocator* alloc= backend->getAllocator();
+        Allocator* alloc= m_backend->getAllocator();
         uint8_t* exebuf = alloc->allocate(totalSize);
         uint8_t* exeptr = exebuf;
         auto curBody = bodies.begin();
@@ -310,6 +382,5 @@ namespace loops
             ++curBody;
         }
         alloc->protect2Execution(exebuf);
-        return exeptr;
     }
 }
