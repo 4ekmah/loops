@@ -1,4 +1,4 @@
-erode_msb_lsb(i0, i1, i2)
+nullify_msb_lsb(i0, i1, i2)
      0 : sub sp, sp, #0x10  ; ff 43 00 d1  
      1 : str x18, [sp], #0  ; f2 03 00 f9  
      2 : lsr x3, x0, #0x01  ; 03 fc 41 d3  

@@ -47,9 +47,9 @@ namespace SyntopTranslationConstruction
     }
 
     //SAreg is for SyntopTranslation::ArgTranslation fixed reigster
-    inline SyntopTranslation::ArgTranslation SAreg(IRegInternal idx, uint64_t flags = 0)
+    inline SyntopTranslation::ArgTranslation SAreg(RegIdx idx, uint64_t flags = 0)
     {
-        Arg resArg = argIReg(idx);
+        Arg resArg = argReg(RB_INT, idx);
         resArg.flags = flags;
         return SyntopTranslation::ArgTranslation(resArg);
     }
@@ -81,25 +81,26 @@ namespace SyntopTranslationConstruction
     }
 };
 
+
 class Backend
 {
 public:
     bool isImmediateFit(const Syntop& a_op, size_t argnum) const;
     virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
     virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
-    virtual size_t spillSpaceNeeded(const Syntop& a_op) const;
+    virtual size_t spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
-    std::set<size_t> getOutRegistersIdxs(const Syntop& a_op) const;
-    std::set<size_t> getInRegistersIdxs(const Syntop& a_op) const;
+    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<size_t> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    std::set<size_t> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
-    std::set<IRegInternal> getUsedRegisters(const Syntop& a_op, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
-    std::set<IRegInternal> getOutRegisters(const Syntop& a_op) const;
-    std::set<IRegInternal> getInRegisters(const Syntop& a_op) const;
+    std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
+    std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
 
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const; //TODO(ch): most part of this function must be implemeted here. Or it must be there fully.
     const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
@@ -107,22 +108,24 @@ public:
     
     //Prologue and epilogue support
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
-    virtual size_t stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const = 0;
+    virtual size_t stackParamOffset(size_t alignedSPAdd) const = 0;
     virtual Arg getSParg(Func* funcimpl) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
-
+    
     Allocator* getAllocator() { return &m_exeAlloc; }
+    inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
+    inline int getVectorRegisterSize() const { return m_vectorRegisterSize; }  //in bits
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
     inline size_t instructionWidth() const { return m_instructionWidth; };
-    virtual uint64_t parameterRegisters() const { return m_parameterRegisters; }
-    virtual uint64_t returnRegisters() const { return m_returnRegisters; }
-    virtual uint64_t callerSavedRegisters() const { return m_callerSavedRegisters; }
-    virtual uint64_t calleeSavedRegisters() const { return m_calleeSavedRegisters; }
+    virtual std::vector<size_t> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
+    virtual std::vector<size_t> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
+    virtual std::vector<size_t> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
+    virtual std::vector<size_t> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
     virtual void switchOnSpillStressMode() = 0;
 
@@ -152,15 +155,16 @@ protected:
     }
 
     Allocator m_exeAlloc;
+    int m_vectorRegisterSize;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;
     size_t m_instructionWidth;
     size_t m_registersAmount;
-    uint64_t m_parameterRegisters;
-    uint64_t m_returnRegisters;
-    uint64_t m_callerSavedRegisters;
-    uint64_t m_calleeSavedRegisters;
+    std::vector<size_t> m_parameterRegisters[RB_AMOUNT];
+    std::vector<size_t> m_returnRegisters[RB_AMOUNT];
+    std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
+    std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
     std::vector<CompilerStagePtr> m_afterRegAllocStages;
     std::string m_name;
 };

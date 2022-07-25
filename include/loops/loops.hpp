@@ -11,9 +11,15 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <ostream>
 #include <string>
 #include <vector>
+#include "defines.hpp"
 
 namespace loops
 {
+
+struct f16_t {
+    explicit f16_t(float x);
+    uint16_t bits;
+};
 
 enum {
     TYPE_U8=0, TYPE_I8=1, TYPE_U16=2, TYPE_I16=3,
@@ -23,34 +29,14 @@ enum {
 
 enum {
     OP_LOAD=0,
-    OP_LOADX,
-    OP_LOAD_SCALAR,
-    OP_LOAD2X,
-    OP_LOAD_DEINTERLEAVE,
     OP_STORE,
-    OP_STOREX,
-    OP_STORE_SCALAR,
-    OP_STORE2X,
-    OP_STORE_INTERLEAVE,
-    OP_CONST,
-
-    OP_CAST,
-    OP_REINTERPRET,
-    OP_ROUND,
-    OP_FLOOR,
-    OP_CEIL,
 
     OP_MOV,
     OP_XCHG,
 
-    OP_ADC,       //Add with carry flag.
     OP_ADD,
-    OP_ADD_WRAP,
     OP_SUB,
-    OP_SUB_WRAP,
     OP_MUL,
-    OP_MUL_HIGH,
-    OP_MUL_EXPAND,
     OP_DIV,
     OP_MOD,
     OP_SHL,
@@ -67,9 +53,11 @@ enum {
     OP_MAX,
     OP_ABS,
     OP_SIGN,
-    OP_ALL,
-    OP_ANY,
-    
+
+    OP_ROUND,
+    OP_FLOOR,
+    OP_CEIL,
+
     OP_SPILL,    //For service usage only
     OP_UNSPILL,
 
@@ -91,7 +79,43 @@ enum {
     OP_BREAK,
     OP_CONTINUE,
 
+    VOP_LOAD,
+    VOP_STORE,
+    
+    VOP_ADD,
+    VOP_SUB,
+    VOP_MUL,
+    VOP_DIV,
+//    VOP_MOD,
+    VOP_MLA,
+    VOP_SAL,
+    VOP_SHL,
+    VOP_SAR,
+    VOP_SHR,
+    VOP_AND,
+    VOP_OR,
+    VOP_XOR,
+    VOP_NOT,
+    VOP_NEG,
+
+    VOP_MIN,
+    VOP_MAX,
+
+    VOP_GT,
+    VOP_GE,
+    VOP_LT,
+    VOP_LE,
+    VOP_NE,
+    VOP_EQ,
+    
+    VOP_ALL,
+    VOP_ANY,
+    VOP_CVTTZ,
+    VOP_CAST,
+    VOP_REINTERPRET,
+
 //Intel-only operations:
+    OP_X86_ADC, //Add with carry flag.
     OP_X86_CQO, //TODO(ch): I don't think, that there will be need to direct use of this command, so it must be in some service sector, actually.
 //Aarch64-only operations:
     OP_ARM_CINC,
@@ -103,42 +127,57 @@ enum {
 template<typename _Tp> struct ElemTraits {};
 template<> struct ElemTraits<uint8_t> {
     typedef uint8_t elemtype;
+    typedef uint8_t masktype;
     enum { depth = TYPE_U8, elemsize=1 };
 };
 template<> struct ElemTraits<int8_t> {
     typedef int8_t elemtype;
+    typedef uint8_t masktype;
     enum { depth = TYPE_I8, elemsize=1 };
 };
 template<> struct ElemTraits<uint16_t> {
     typedef uint16_t elemtype;
+    typedef uint16_t masktype;
     enum { depth = TYPE_U16, elemsize=2 };
 };
 template<> struct ElemTraits<int16_t> {
     typedef int16_t elemtype;
+    typedef uint16_t masktype;
     enum { depth = TYPE_I16, elemsize=2 };
 };
 template<> struct ElemTraits<uint32_t> {
     typedef uint32_t elemtype;
+    typedef uint32_t masktype;
     enum { depth = TYPE_U32, elemsize=4 };
 };
 template<> struct ElemTraits<int32_t> {
     typedef int32_t elemtype;
+    typedef uint32_t masktype;
     enum { depth = TYPE_I32, elemsize=4 };
 };
 template<> struct ElemTraits<uint64_t> {
     typedef uint64_t elemtype;
+    typedef uint64_t masktype;
     enum { depth = TYPE_U64, elemsize=8 };
 };
 template<> struct ElemTraits<int64_t> {
     typedef int64_t elemtype;
+    typedef uint64_t masktype;
     enum { depth = TYPE_I64, elemsize=8 };
+};
+template<> struct ElemTraits<f16_t> {
+    typedef float elemtype;
+    typedef uint16_t masktype;
+    enum { depth = TYPE_FP16, elemsize=2 };
 };
 template<> struct ElemTraits<float> {
     typedef float elemtype;
+    typedef uint32_t masktype;
     enum { depth = TYPE_FP32, elemsize=4 };
 };
 template<> struct ElemTraits<double> {
     typedef double elemtype;
+    typedef uint64_t masktype;
     enum { depth = TYPE_FP64, elemsize=8 };
 };
 
@@ -146,8 +185,7 @@ class Func;
 struct IReg
 {
     IReg();
-
-    IReg(const IReg& r); //Must generate copy(mov) code 
+    IReg(const IReg& r); //Must generate copy(mov) code
     IReg(IReg&& a) noexcept;
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
 
@@ -161,14 +199,14 @@ template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
 
-    VReg();
-    VReg(int idx, const Context& ctx);
-
+    VReg() : idx(NOIDX), func(nullptr) {}
     VReg(const VReg<_Tp>& r);
-    VReg<_Tp>& operator = (const VReg<_Tp>& r);
+    VReg(VReg<_Tp>&& a) noexcept : func(a.func), idx(a.idx) {}
+    VReg<_Tp>& operator=(const VReg<_Tp>& r);
 
     int idx;
     Func* func;
+    enum {NOIDX = -1};
 };
 
 typedef VReg<uint8_t> VReg8u;
@@ -184,21 +222,19 @@ typedef VReg<double> VReg64f;
 
 struct Arg
 {
-    enum { EMPTY = 0, IREG = 1, IIMMEDIATE = 2, ISPILLED = 3, VREG = 3 };
+    enum { EMPTY = 0, IREG = 1, IIMMEDIATE = 2, VREG = 3, ISPILLED = 4, VSPILLED = 5 };
 
     Arg();
     Arg(const IReg& r);
-    Arg(int64_t a_value);
-    template<typename _Tp> Arg(const VReg<_Tp>& vr) : idx(vr.idx)
-        , func(vr.func)
-        , tag(VREG)
-        , elemsize(ElemTraits<_Tp>::elemsize) {}
+    Arg(int64_t a_value, Context* ctx = nullptr);
+    template<typename _Tp>
+    Arg(const VReg<_Tp>& vr);
     int idx;
     Func* func;
     size_t tag;
     int64_t value;
     uint64_t flags;
-    size_t elemsize;   //in bytes
+    size_t elemtype;
 };
 
 class Func
@@ -234,9 +270,6 @@ public:
     void getFuncs(std::vector<Func>& funcs);
     Func getFunc(const std::string& name);
 
-    template<typename _Tp> VReg<_Tp> vconst_(_Tp value);
-    IReg ireg_();
-    template<typename _Tp> VReg<_Tp> vreg_();
     /*
     //TODO(ch): Implement with RISC-V RVV
     //Create register, connected to v1, v2, and contain them as halves. RVV-only.
@@ -272,7 +305,11 @@ public:
     // indirect call
     IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
 
+    //TODO(ch): make next methods static:
+    
     std::string getPlatformName() const;
+    size_t vectorRegisterSize() const;
+    template<typename _Tp> inline size_t vlanes() const { return vectorRegisterSize() / sizeof(_Tp); }
     void compileAll();
 protected:
     Context(Context* a_impl): impl(a_impl) {}
@@ -300,6 +337,7 @@ struct __Loops_FuncScopeBracket_
 #define USE_CONTEXT_(ctx) loops::Context& __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
+#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(int64_t(x), &__loops_ctx__) })
 #define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
 #define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
@@ -313,6 +351,7 @@ IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initi
 void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+template<typename _Tp> inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 
 ///////////////////////////// integer operations ///////////////////////
 
@@ -325,7 +364,7 @@ static inline IReg loadx(const IReg& base, int64_t offset, int depth)
 { return newiop(OP_LOAD, depth, {base, Arg(offset)}, { 1 }); }
 
 static inline IReg load(const IReg& base)
-{ return static_cast<IReg&&>(newiop(OP_LOAD, TYPE_I64, {base})); }
+{ return newiop(OP_LOAD, TYPE_I64, {base}); }
 static inline IReg load(const IReg& base, const IReg& offset)
 { return newiop(OP_LOAD, TYPE_I64, {base, offset}); }
 
@@ -517,62 +556,194 @@ static inline IReg& operator ^= (IReg& a, int64_t b)
 
 ///////////////////////////// vector operations ///////////////////////
 
-//template<typename _Tp> VReg<_Tp> loadv(const IReg& base);
-//template<typename _Tp> VReg<_Tp> loadv(const IReg& base, const IReg& offset);
-//// load with zero/sign extension
-//template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int depth);
-//template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset, int depth);
-//
-//template<typename _Tp> void storev(const IReg& base, const VReg<_Tp>& r);
-//template<typename _Tp> void storev(const IReg& base, const IReg& offset, const IReg& r);
-//// cast and store
-//template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r, int depth);
-//template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r, int depth);
-//
-//template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b);
+// load with zero/sign extension
+template<typename _Tp> VReg<_Tp> loadvx(const IReg& base)
+{ return newiopV<_Tp>(VOP_LOAD, {base}); }
+template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset)
+{ return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
+template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int64_t offset)
+{ return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
+
+// cast and store
+template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r)
+{ newiopNoret(VOP_STORE, {base, r}); }
+template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
+{ newiopNoret(VOP_STORE, {base, offset, r}); }
+
+template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_ADD, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_SUB, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator * (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_MUL, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_DIV, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
+{ return newiopV<_Tp>(VOP_NEG, {a}); }
+template<typename _Tp> VReg<_Tp> mla(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
+{ newiopNoret(VOP_MLA, {a, b, c}); return a; }
+
+
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator * (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> operator % (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator << (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator ^ (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator ~ (const VReg<_Tp>& a);
-//template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a);
-//// SSE, NEON etc. comparison operations on vectors produce vectors of the same type as the compared vectors.
-//template<typename _Tp> VReg<_Tp> operator == (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator != (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator <= (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator >= (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator > (const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b);
+
+//template<typename _Tp, typename _Sp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Sp>& b)
+//{
+//    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+//    return newiopV<_Tp>(VOP_SAR, {a, b});
+//}
+template<typename _Tp> VReg<_Tp> operator >> (const VReg<_Tp>& a, int64_t b)
+{ return newiopV<_Tp>(VOP_SAR, {a, b}, {1}); }
+//template<typename _Tp, typename _Sp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, const VReg<_Sp>& b)
+//{
+//    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+//    return newiopV<_Tp>(VOP_SHR, {a, b});
+//}
+template<typename _Tp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, int64_t b)
+{ return newiopV<_Tp>(VOP_SHR, {a, b}, {1}); }
+template<typename _Tp, typename _Sp> VReg<_Tp> operator << (const VReg<_Tp>& a, const VReg<_Sp>& b)
+{
+    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+    return newiopV<_Tp>(VOP_SAL, {a, b});
+}
+template<typename _Tp> VReg<_Tp> operator << (const VReg<_Tp>& a, int64_t b)
+{ return newiopV<_Tp>(VOP_SAL, {a, b}, {1}); }
+template<typename _Tp, typename _Sp> VReg<_Tp> ushift_left(const VReg<_Tp>& a, const VReg<_Sp>& b)
+{
+    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+    return newiopV<_Tp>(VOP_SHL, {a, b});
+}
+
+template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_AND, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_OR, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator ^ (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_XOR, {a, b}); }
+template<typename _Tp> VReg<_Tp> operator ~ (const VReg<_Tp>& a)
+{ return newiopV<_Tp>(VOP_NOT, {a}); }
+// SSE, NEON etc. comparison operations on vectors produce vectors of the same type as the compared vectors.
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator == (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_EQ, {a, b});}
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator != (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_NE, {a, b});}
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator >= (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GE, {a, b});}
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator <= (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LE, {a, b});}
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator > (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GT, {a, b});}
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LT, {a, b});}
 //template<typename _Tp> VReg<_Tp> select(const VReg<_Tp>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse);
-//template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_MAX, {a, b}); }
+template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
+{ return newiopV<_Tp>(VOP_MIN, {a, b}); }
 //template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
 //template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
 //
-//template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& a, const VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_ADD, {Arg(a), Arg(a), Arg(b)}); return a; }
+template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_SUB, {Arg(a), Arg(a), Arg(b)}); return a; }
+template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_MUL, {Arg(a), Arg(a), Arg(b)}); return a; }
+template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_DIV, {Arg(a), Arg(a), Arg(b)}); return a; }
 //template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//
+//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, const VReg<_Tp>& b)
+//{ newiopAug(VOP_SAR, {a, a, b}); return a;}
+template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, int64_t b)
+{ newiopAug(VOP_SAR, {a, a, b}, {2}); return a; }
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_SAL, {a, a, b}); return a;}
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, int64_t b)
+{ newiopAug(VOP_SAL, {a, a, b}, {2}); return a; }
+template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_AND, {a, a, b} ); return a; }
+template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_OR, {a, a, b} ); return a; }
+template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
+{ newiopAug(VOP_XOR, {a, a, b} ); return a; }
+
 //// if all/any of the elements is true
 //template<typename _Tp> IReg all(VReg<_Tp>& a);
 //template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
 
+template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a)
+{ return newiopV<_Dp>(VOP_CVTTZ, {a}); }
+template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
+{
+    VReg<_Dp> res;
+    res.func = a.func;
+    res.idx = a.idx;
+    return res;
 }
 
+
+//TODO(ch): These template implementation can be obviously moved to auxilary header:
+template<typename _Tp>
+VReg<_Tp>::VReg(const VReg<_Tp>& r)
+{
+    VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
+    idx = selfval.idx;
+    func = selfval.func;
+}
+
+template<typename _Tp>
+VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
+{
+    if (r.func == nullptr)
+        throw std::runtime_error("Cannot find motherfunction in registers.");
+    newiopNoret(OP_MOV, {*this, r});
+    return (*this);
+}
+
+template<typename _Tp>
+Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)
+    , func(vr.func)
+    , tag(VREG)
+    , elemtype(ElemTraits<_Tp>::depth)
+    , flags(0){}
+
+VReg<uint8_t>  newiopV_U8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<int8_t>   newiopV_I8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<uint16_t> newiopV_U16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<int16_t>  newiopV_I16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<uint32_t> newiopV_U32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<int32_t>  newiopV_I32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<uint64_t> newiopV_U64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<int64_t>  newiopV_I64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<f16_t>   newiopV_FP16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+//VReg<...> newiopV_BF16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<float>    newiopV_FP32(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+VReg<double>   newiopV_FP64(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+
+template<> inline VReg<uint8_t> newiopV<uint8_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_U8(opcode, args, tryImmList); }
+template<> inline VReg<int8_t> newiopV<int8_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_I8(opcode, args, tryImmList); }
+template<> inline VReg<uint16_t> newiopV<uint16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_U16(opcode, args, tryImmList); }
+template<> inline VReg<int16_t> newiopV<int16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_I16(opcode, args, tryImmList); }
+template<> inline VReg<uint32_t> newiopV<uint32_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_U32(opcode, args, tryImmList); }
+template<> inline VReg<int32_t> newiopV<int32_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_I32(opcode, args, tryImmList); }
+template<> inline VReg<uint64_t> newiopV<uint64_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_U64(opcode, args, tryImmList); }
+template<> inline VReg<int64_t> newiopV<int64_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_I64(opcode, args, tryImmList); }
+template<> inline VReg<f16_t> newiopV<f16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_FP16(opcode, args, tryImmList); }
+template<> inline VReg<float> newiopV<float>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_FP32(opcode, args, tryImmList); }
+template<> inline VReg<double> newiopV<double>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{ return newiopV_FP64(opcode, args, tryImmList); }
+}
 #endif

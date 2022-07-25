@@ -7,6 +7,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "backend.hpp"
 #include "func_impl.hpp"
 #include <iostream>
+#include <cstring>
 namespace loops
 {
 SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(-1), transitFlags(0) {}
@@ -35,7 +36,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
             {
                 Assert(argt.srcArgnum < a_source.size());
                 Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
-                Arg toAdd = argISpilled(a_source.args[argt.srcArgnum].value);
+                Arg toAdd = argSpilled(RB_INT, a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
                 break;
@@ -71,12 +72,14 @@ size_t SyntopTranslation::targetArgNum(size_t a_srcnum) const
 
 bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
 {
-    const SyntopTranslation& s2s = lookS2s(a_op);
+    bool found;
+    SyntopTranslation s2s = m_s2slookup(a_op, found);
+    if (!found)
+        return false;
     argnum = s2s.targetArgNum(argnum);
     if(argnum == SyntopTranslation::ARG_NOT_USED)
         return true;
     Syntop tar_op = s2s.apply(a_op);
-    bool found;
     BinTranslation instemp = m_s2blookup(tar_op, found);
     if (!found)
         return false;
@@ -104,12 +107,12 @@ size_t Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& u
     return -1;
 }
 
-size_t Backend::spillSpaceNeeded(const Syntop& a_op) const
+size_t Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     return 0;
 }
 
-std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64_t flagmask) const
+std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
 {
     bool foundSynTr;
     SyntopTranslation s2s = m_s2slookup(a_op, foundSynTr);
@@ -117,9 +120,8 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64
     if (!foundSynTr)
         return result;
     Syntop tarop = s2s.apply(a_op);
-    
-//0:BTsta(1, 1), 1:BTimm(0, 1), 2:BTsta(0b111000011, 9), 3:BTreg(3, 5, In),4:BTsta(0b011010, 6), 5:BTreg(2, 5, In), 6:BTreg(1, 5, Out)
     const BinTranslation& s2b = lookS2b(tarop);
+    int desiredRegType = ((basketNum == RB_INT) ? Arg::IREG :Arg::VREG);
     for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
     {
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
@@ -129,52 +131,53 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, uint64
         {
             if (ar.srcArgnum >= a_op.size())
                 throw std::runtime_error("Binary translator: non-existent argument is requested.");
-            if (a_op[ar.srcArgnum].tag == Arg::IREG && ((s2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
+            if (a_op[ar.srcArgnum].tag == desiredRegType && ((s2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
     }
     return result;
 }
 
-std::set<size_t> Backend::getOutRegistersIdxs(const Syntop& a_op) const
+std::set<size_t> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
 }
 
-std::set<size_t> Backend::getInRegistersIdxs(const Syntop& a_op) const
+std::set<size_t> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, BinTranslation::Token::T_INPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_INPUT);
 }
 
-std::set<IRegInternal> Backend::getUsedRegisters(const Syntop& a_op, uint64_t flagmask) const
+std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
-    std::set<size_t> preres = getUsedRegistersIdxs(a_op, flagmask);
-    std::set<IRegInternal> result;
+    std::set<size_t> preres = getUsedRegistersIdxs(a_op, basketNum, flagmask);
+    std::set<RegIdx> result;
     for(size_t arnum: preres)
     {
         if(arnum >= a_op.size())
             throw std::runtime_error("Compile error: non-existent argument is requested.");
-        if(a_op[arnum].tag != Arg::IREG)
+        if(a_op[arnum].tag != Arg::IREG && a_op[arnum].tag != Arg::VREG)
             throw std::runtime_error("Compile error: constant is requested instead of register.");
         result.insert(a_op[arnum].idx);
     }
     return result;
 }
 
-std::set<IRegInternal> Backend::getOutRegisters(const Syntop& a_op) const
+std::set<RegIdx> Backend::getOutRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
 }
 
-std::set<IRegInternal> Backend::getInRegisters(const Syntop& a_op) const
+std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, BinTranslation::Token::T_INPUT);
+    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_INPUT);
 }
 
 Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
     Syntfunc result;
-    result.params = a_bcfunc.params;
+    for(int basketNum = 0; basketNum<RB_AMOUNT; basketNum++ )
+    result.params[basketNum] = a_bcfunc.params[basketNum];
     result.program.reserve(a_bcfunc.program.size());
     result.name = a_bcfunc.name;
     m_s2sCurrentOffset = 0;

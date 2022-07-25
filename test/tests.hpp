@@ -31,6 +31,7 @@ public:
             (*m_out)<<"    Failed:"<<tstd<<"!="<<ref<<std::endl;
         return res;
     }
+    static std::string OSname();
 #define TEST_EQ(a,b) if(!test_eq((a),(b))) return false;
 protected:
     Context CTX;
@@ -103,7 +104,8 @@ public:                                                         \
         CTX.startFunc(TESTNAME, {});                            \
         __VA_ARGS__                                             \
         m_func = CTX.getFunc(TESTNAME);                         \
-        getImpl(&CTX)->endFunc(true);                           \
+        getImpl(&m_func)->setDirectTranslation(true);           \
+        getImpl(&CTX)->endFunc();                               \
         return TESTNAME;                                        \
     }                                                           \
     virtual bool testExecution();                               \

@@ -18,7 +18,7 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     16 : mov      i1, i13          
     17 : sar      i13, i13, 63     
     18 : neg      i1, i1           
-    19 : adc      i13, i13, i13    
+    19 : x86_adc  i13, i13, i13    
     20 : unspill  i1, 0            
     21 : spill    2, i13           
     22 : unspill  i13, 15          
@@ -37,7 +37,7 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     35 : mov      i1, i13          
     36 : sar      i13, i13, 63     
     37 : neg      i1, i1           
-    38 : adc      i13, i13, i13    
+    38 : x86_adc  i13, i13, i13    
     39 : unspill  i1, 0            
     40 : spill    5, i13           
     41 : unspill  i13, 1           

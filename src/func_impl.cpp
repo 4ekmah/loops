@@ -34,6 +34,70 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {OP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "load." << type_suffixes[op.args[1].value];
     }},
+    {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vld." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
+        str << "vld." << type_suffixes[_Tp];
+    }},
+    {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "add." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_SUB, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "sub." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_MUL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "mul." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_DIV, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "mul." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_MLA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "mla." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "sal." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_SHL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shl." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_SAR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "sar." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_SHR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shr." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_NEG, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "neg." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "min." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_MAX, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "max." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_GT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "gt." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_GE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "ge." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_LT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "lt." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_LE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "le." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_NE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "ne." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_EQ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "eq." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_CVTTZ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cvttz." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
     {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "store." << type_suffixes[op.args[0].value];
     }},
@@ -51,7 +115,6 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
     {OP_MOV,      "mov"},
     {OP_XCHG,     "xchg"},
-    {OP_ADC,      "adc"},
     {OP_ADD,      "add"},
     {OP_MUL,      "mul"},
     {OP_SUB,      "sub"},
@@ -71,9 +134,6 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_MAX,      "max"},
     {OP_ABS,      "abs"},
     {OP_SIGN,     "sign"},
-    {OP_X86_CQO,  "x86_cqo"},
-    {OP_ARM_CINC, "arm_cinc"},
-    {OP_ARM_CNEG, "arm_cneg"},
     {OP_JMP,      "jmp"},
     {OP_JMP_EQ,   "jmp_eq"},
     {OP_JMP_NE,   "jmp_ne"},
@@ -90,26 +150,36 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_ENDWHILE, "annotation:endwhile"},
     {OP_BREAK,    "annotation:break"},
     {OP_CONTINUE, "annotation:continue"},
+    {VOP_AND,     "and"},
+    {VOP_OR,      "or"},
+    {VOP_XOR,     "xor"},
+    {VOP_NOT,     "not"},
     {OP_RET,      "ret"},
+    {OP_X86_ADC,  "x86_adc"},
+    {OP_X86_CQO,  "x86_cqo"},
+    {OP_ARM_CINC, "arm_cinc"},
+    {OP_ARM_CNEG, "arm_cneg"},
 };
 
 FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0)
-    , m_nextIdx(0)
+    , m_nextIdx{0, 0}
     , m_nextLabelIdx(0)
     , m_context(getImpl(ctx))
     , m_returnType(RT_NOTDEFINED)
     , m_compiled(nullptr)
     , m_cmpopcode(IC_UNKNOWN)
+    , m_directTranslation(false)
+    , m_syntopStagesApplied(false)
 {
     m_data.name = name;
-    m_data.params.reserve(params.size());
+    m_data.params[RB_INT].reserve(params.size());  //TODO(ch): support vector parameters
     for (IReg* parreg : params)
     {
         if(parreg->func != nullptr || parreg->idx != IReg::NOIDX)
             throw std::runtime_error("Parameter index is already initilized in some other function");
         parreg->func = this;
-        parreg->idx = provideIdx();
-        m_data.params.emplace_back(parreg->idx);
+        parreg->idx = provideIdx(RB_INT);
+        m_data.params[RB_INT].emplace_back(parreg->idx);
     }
 }
 
@@ -121,17 +191,57 @@ Func FuncImpl::makeWrapper(const std::string& name, Context* ctx, std::initializ
 void* FuncImpl::ptr()
 {
     if(!m_compiled)
+    {
+        applySyntopStages();
         m_compiled = m_context->getBackend()->compile(m_context, this);
+    }
     return m_compiled;
 }
 
-void FuncImpl::printBytecode(std::ostream& out) const
+void FuncImpl::applySyntopStages()
+{
+    if(!m_syntopStagesApplied)
+    {
+        if (!m_directTranslation)
+        {
+            if (m_cflowStack.size())
+                throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
+                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, m_parameterRegistersO[basketNum], m_returnRegistersO[basketNum], m_callerSavedRegistersO[basketNum], m_calleeSavedRegistersO[basketNum]);
+            m_context->getRegisterAllocator()->process(this, m_data, m_nextIdx);
+
+            controlBlocks2Jumps();
+            auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
+            for (CompilerStagePtr araStage : afterRegAlloc)
+                araStage->process(m_data);
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
+                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
+
+        }
+        m_syntopStagesApplied = true;
+    }
+}
+
+void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
+                                                  const std::vector<size_t>&  a_returnRegisters,
+                                                  const std::vector<size_t>&  a_callerSavedRegisters,
+                                                  const std::vector<size_t>&  a_calleeSavedRegisters)
+{
+    m_parameterRegistersO[basketNum]   = a_parameterRegisters;
+    m_returnRegistersO[basketNum]      = a_returnRegisters;
+    m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;
+    m_calleeSavedRegistersO[basketNum] = a_calleeSavedRegisters;
+}
+
+void FuncImpl::printBytecode(std::ostream& out)
 {
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(m_data, argoverrules)});
     printer.print(out, m_data);
 }
 
-void FuncImpl::printAssembly(std::ostream& out, int columns) const
+void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Backend* backend = m_context->getBackend();
     Syntfunc tarcode = backend->bytecode2Target(m_data);
@@ -174,22 +284,6 @@ FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
     if (func == nullptr)
         throw std::runtime_error("Cannot find mother function in registers.");
     return func;
-}
-
-void FuncImpl::endfunc(bool directTranslation)
-{
-    if (!directTranslation)
-    {
-        if (m_cflowStack.size())
-            throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
-        //TODO(ch): block somehow adding new instruction after this call.
-        m_context->getRegisterAllocator()->process(this, m_data, m_nextIdx);
-
-        controlBlocks2Jumps();
-        auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
-        for (CompilerStagePtr araStage : afterRegAlloc)
-            araStage->process(m_data);
-    }
 }
 
 IReg FuncImpl::const_(int64_t value)
@@ -464,7 +558,7 @@ void FuncImpl::return_(int64_t retval)
 {
     if (m_returnType == RT_VOID)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, { argIReg(Syntfunc::RETREG, this), Arg(retval) });
+    newiopNoret(OP_MOV, { argReg(RB_INT, Syntfunc::RETREG, this), Arg(retval) });
     newiopNoret(OP_RET, {});
 }
 
@@ -472,7 +566,7 @@ void FuncImpl::return_(const IReg& retval)
 {
     if (m_returnType == RT_VOID)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, {argIReg(Syntfunc::RETREG, this), retval});
+    newiopNoret(OP_MOV, {argReg(RB_INT, Syntfunc::RETREG, this), retval});
     newiopNoret(OP_RET, {});
 }
 
@@ -501,26 +595,26 @@ void FuncImpl::immediateImplantationAttempt(Syntop& op, size_t anumAdd, ::std::i
     for(size_t arnum : tryImmList)
         arnums.push_back(arnum + anumAdd);
     std::sort(arnums.begin(), arnums.end());
-    std::set<IRegInternal> usedRegs;
+    std::set<RegIdx> usedRegs;
     for (const Arg& ar : op)
         if (ar.tag == Arg::IREG)
             usedRegs.insert(ar.idx);
     std::vector<Arg> attempts;
     attempts.reserve(arnums.size());
-    IRegInternal placeholderTop = 0;
+    RegIdx placeholderTop = 0;
     for (size_t arNum : arnums)
     {
         Assert(op[arNum].tag == Arg::IIMMEDIATE);
         attempts.push_back(op[arNum]);
         while (usedRegs.count(placeholderTop)) placeholderTop++;
-        op[arNum] = argIReg(placeholderTop++, this);
+        op[arNum] = argReg(RB_INT, placeholderTop++, this);
     }
     for (size_t attemptN = 0; attemptN < arnums.size(); attemptN++)
     {
         size_t arNum = arnums[attemptN];
         op[arNum] = attempts[attemptN];
         if (!backend->isImmediateFit(op, arNum))
-            op[arNum] = argIReg(const_(attempts[attemptN].value).idx, this);
+            op[arNum] = argReg(RB_INT, const_(attempts[attemptN].value).idx, this);
     }
 };
 
