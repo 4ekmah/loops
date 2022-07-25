@@ -6,38 +6,87 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #ifndef __LOOPS_TEST_AARCH64_HPP__
 #define __LOOPS_TEST_AARCH64_HPP__
-#if defined(__APPLE__)
 #include "loops/loops.hpp"
+#if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "tests.hpp"
 #include <iostream>
 
 namespace loops
 {
-    LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
-        IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
-        STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
+    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
+    STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+    {
+        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
+        IReg res = a0 * 1;
+        res += a1 * 2;
+        res += a2 * 3;
+        res += a3 * 4;
+        res += a4 * 5;
+        res += a5 * 6;
+        res += a6 * 7;
+        res += a7 * 8;
+        res += a8 * 3;
+        res += a9 * 2;
+        RETURN_(res);
+    }
+    });
+LTESTexe(ten_args_to_sum, {
+    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
+    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
+    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
+    TEST_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+    });
+
+LTEST(clear_lsb_msb_v, {
+    IReg iptr, omptr, olptr, n;
+    STARTFUNC_(TESTNAME, &iptr, &omptr, &olptr, &n)
+    {
+        IReg offset  = CONST_(0);
+        n *= sizeof(uint32_t);
+        VReg<uint32_t> one  = VCONST_(uint32_t, 1);
+        WHILE_(offset < n)
         {
-            IReg res = a0 * 1;
-            res += a1 * 2;
-            res += a2 * 3;
-            res += a3 * 4;
-            res += a4 * 5;
-            res += a5 * 6;
-            res += a6 * 7;
-            res += a7 * 8;
-            res += a8 * 3;
-            res += a9 * 2;
-            RETURN_(res);
-            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6, 7 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
+            VReg<uint32_t> in = loadvx<uint32_t>(iptr, offset);
+            VReg<uint32_t> msb = in | ushift_right(in,1);
+            msb |= ushift_right(msb,  2);
+            msb |= ushift_right(msb,  4);
+            msb |= ushift_right(msb,  8);
+            msb |= ushift_right(msb, 16);
+            msb += one;  //It's assumed, that 0x80000000 bit is switched off.
+            msb = ushift_right(msb, 1);
+            msb ^= in;
+            storevx(omptr, offset, msb);
+            VReg<uint32_t> lsb = in & ~(in - one);
+            lsb ^= in;
+            storevx(olptr, offset, lsb);
+            offset += CTX.vectorRegisterSize();
         }
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
-        });
-    LTESTexe(ten_args_to_sum, {
-        typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
-        ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
-        std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
-        TEST_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-        });
+        RETURN_();
+    }
+    });
+LTESTexe(clear_lsb_msb_v, {
+    typedef uint32_t (*clear_lsb_msb_v)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
+    clear_lsb_msb_v tested = reinterpret_cast<clear_lsb_msb_v>(EXEPTR);
+    std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
+    std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    std::vector<uint32_t> msb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    tested(&v[0], &msb[0], &lsb[0], v.size());
+    for (size_t vnum = 0; vnum < v.size(); vnum++ )
+    {
+        uint32_t tchk = v[vnum];
+        uint32_t relsb = tchk ^ (tchk & ~(tchk - 1));
+        uint32_t remsb = tchk | tchk >> 1;
+        remsb |= remsb >> 2;
+        remsb |= remsb >> 4;
+        remsb |= remsb >> 8;
+        remsb |= remsb >> 16;
+        remsb = (remsb + 1) >> 1;
+        remsb ^= tchk;
+        TEST_EQ(msb[vnum], remsb);
+        TEST_EQ(lsb[vnum], relsb);
+    }
+    });
 
 LTESTcomposer(instruction_set_test, {
     FuncImpl* _f = getImpl(getImpl(&CTX)->getCurrentFunc());
@@ -45,6 +94,30 @@ LTESTcomposer(instruction_set_test, {
     IReg w0 = iregHid(0,_f);
     IReg x15 = iregHid(15,_f);
     IReg w15 = iregHid(15,_f);
+    VReg<uint8_t> v0_16u = vregHid<uint8_t>(0,_f);
+    VReg<uint8_t> v31_16u = vregHid<uint8_t>(31,_f);
+    VReg<uint16_t> v0_8u = vregHid<uint16_t>(0,_f);
+    VReg<uint16_t> v31_8u = vregHid<uint16_t>(31,_f);
+    VReg<uint32_t> v0_4u = vregHid<uint32_t>(0,_f);
+    VReg<uint32_t> v31_4u = vregHid<uint32_t>(31,_f);
+    VReg<uint64_t> v0_2u = vregHid<uint64_t>(0,_f);
+    VReg<uint64_t> v31_2u = vregHid<uint64_t>(31,_f);
+    VReg<int8_t> v0_16s = vregHid<int8_t>(0,_f);
+    VReg<int8_t> v31_16s = vregHid<int8_t>(31,_f);
+    VReg<int16_t> v0_8s = vregHid<int16_t>(0,_f);
+    VReg<int16_t> v31_8s = vregHid<int16_t>(31,_f);
+    VReg<int32_t> v0_4s = vregHid<int32_t>(0,_f);
+    VReg<int32_t> v31_4s = vregHid<int32_t>(31,_f);
+    VReg<int64_t> v0_2s = vregHid<int64_t>(0,_f);
+    VReg<int64_t> v31_2s = vregHid<int64_t>(31,_f);
+    VReg<f16_t> v0_8f = vregHid<f16_t>(0,_f);
+    VReg<f16_t> v31_8f = vregHid<f16_t>(31,_f);
+    VReg<float> v0_4f = vregHid<float>(0,_f);
+    VReg<float> v31_4f = vregHid<float>(31,_f);
+    VReg<double> v0_2f = vregHid<double>(0,_f);
+    VReg<double> v31_2f = vregHid<double>(31,_f);
+    VReg<uint64_t> q0 = vregHid<uint64_t>(0,_f);
+    VReg<uint64_t> q31 = vregHid<uint64_t>(31,_f);
 
     store_<uint64_t>(x0, 256, x0);
     store_<int64_t>(x0, 256, x0);
@@ -244,8 +317,372 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_NEG, { x15 , x0});
     newiopNoret(OP_NEG, { x0 , x15});
 
+    newiopNoret(VOP_LOAD, { q0 ,  x0 });
+    newiopNoret(VOP_LOAD, { q0 ,  x0, argIImm(32784, _f) });
+    newiopNoret(VOP_LOAD, { q31,  x0 });
+    newiopNoret(VOP_LOAD, { q0 , x15 });
+    newiopNoret(VOP_LOAD, { q0 ,  x0, x0  });
+    newiopNoret(VOP_LOAD, { q31,  x0, x0  });
+    newiopNoret(VOP_LOAD, { q0 , x15, x0  });
+    newiopNoret(VOP_LOAD, { q0 ,  x0, x15 });
+
+    newiopNoret(VOP_STORE, { x0, q0 });
+    newiopNoret(VOP_STORE, { x0, argIImm(32784, _f), q0 });
+    newiopNoret(VOP_STORE, {  x0, q31 });
+    newiopNoret(VOP_STORE, { x15, q0 });
+    newiopNoret(VOP_STORE, {  x0, x0 , q0  });
+    newiopNoret(VOP_STORE, {  x0, x0 , q31 });
+    newiopNoret(VOP_STORE, { x15, x0 , q0  });
+    newiopNoret(VOP_STORE, {  x0, x15, q0  });
+
+    newiopNoret(VOP_ADD, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_ADD, { v31_16u, v0_16u,  v0_16u  });
+    newiopNoret(VOP_ADD, { v0_16u,  v31_16u, v0_16u  });
+    newiopNoret(VOP_ADD, { v0_16u,  v0_16u,  v31_16u });
+    newiopNoret(VOP_ADD, { v0_8u,  v0_8u,  v0_8u  });
+    newiopNoret(VOP_ADD, { v31_8u, v0_8u,  v0_8u  });
+    newiopNoret(VOP_ADD, { v0_8u,  v31_8u, v0_8u  });
+    newiopNoret(VOP_ADD, { v0_8u,  v0_8u,  v31_8u });
+    newiopNoret(VOP_ADD, { v0_4u,  v0_4u,  v0_4u  });
+    newiopNoret(VOP_ADD, { v31_4u, v0_4u,  v0_4u  });
+    newiopNoret(VOP_ADD, { v0_4u,  v31_4u, v0_4u  });
+    newiopNoret(VOP_ADD, { v0_4u,  v0_4u,  v31_4u });
+    newiopNoret(VOP_ADD, { v0_2u,  v0_2u,  v0_2u  });
+    newiopNoret(VOP_ADD, { v31_2u, v0_2u,  v0_2u  });
+    newiopNoret(VOP_ADD, { v0_2u,  v31_2u, v0_2u  });
+    newiopNoret(VOP_ADD, { v0_2u,  v0_2u,  v31_2u });
+    newiopNoret(VOP_ADD, { v0_8f,  v0_8f,  v0_8f  });
+    newiopNoret(VOP_ADD, { v31_8f, v0_8f,  v0_8f  });
+    newiopNoret(VOP_ADD, { v0_8f,  v31_8f, v0_8f  });
+    newiopNoret(VOP_ADD, { v0_8f,  v0_8f,  v31_8f });
+    newiopNoret(VOP_ADD, { v0_4f,  v0_4f,  v0_4f  });
+    newiopNoret(VOP_ADD, { v31_4f, v0_4f,  v0_4f  });
+    newiopNoret(VOP_ADD, { v0_4f,  v31_4f, v0_4f  });
+    newiopNoret(VOP_ADD, { v0_4f,  v0_4f,  v31_4f });
+    newiopNoret(VOP_ADD, { v0_2f,  v0_2f,  v0_2f  });
+    newiopNoret(VOP_ADD, { v31_2f, v0_2f,  v0_2f  });
+    newiopNoret(VOP_ADD, { v0_2f,  v31_2f, v0_2f  });
+    newiopNoret(VOP_ADD, { v0_2f,  v0_2f,  v31_2f });
+
+    newiopNoret(VOP_SUB, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_SUB, { v31_16u, v0_16u,  v0_16u  });
+    newiopNoret(VOP_SUB, { v0_16u,  v31_16u, v0_16u  });
+    newiopNoret(VOP_SUB, { v0_16u,  v0_16u,  v31_16u });
+    newiopNoret(VOP_SUB, { v0_8u,  v0_8u,  v0_8u  });
+    newiopNoret(VOP_SUB, { v31_8u, v0_8u,  v0_8u  });
+    newiopNoret(VOP_SUB, { v0_8u,  v31_8u, v0_8u  });
+    newiopNoret(VOP_SUB, { v0_8u,  v0_8u,  v31_8u });
+    newiopNoret(VOP_SUB, { v0_4u,  v0_4u,  v0_4u  });
+    newiopNoret(VOP_SUB, { v31_4u, v0_4u,  v0_4u  });
+    newiopNoret(VOP_SUB, { v0_4u,  v31_4u, v0_4u  });
+    newiopNoret(VOP_SUB, { v0_4u,  v0_4u,  v31_4u });
+    newiopNoret(VOP_SUB, { v0_2u,  v0_2u,  v0_2u  });
+    newiopNoret(VOP_SUB, { v31_2u, v0_2u,  v0_2u  });
+    newiopNoret(VOP_SUB, { v0_2u,  v31_2u, v0_2u  });
+    newiopNoret(VOP_SUB, { v0_2u,  v0_2u,  v31_2u });
+    newiopNoret(VOP_SUB, { v0_8f,  v0_8f,  v0_8f  });
+    newiopNoret(VOP_SUB, { v31_8f, v0_8f,  v0_8f  });
+    newiopNoret(VOP_SUB, { v0_8f,  v31_8f, v0_8f  });
+    newiopNoret(VOP_SUB, { v0_8f,  v0_8f,  v31_8f });
+    newiopNoret(VOP_SUB, { v0_4f,  v0_4f,  v0_4f  });
+    newiopNoret(VOP_SUB, { v31_4f, v0_4f,  v0_4f  });
+    newiopNoret(VOP_SUB, { v0_4f,  v31_4f, v0_4f  });
+    newiopNoret(VOP_SUB, { v0_4f,  v0_4f,  v31_4f });
+    newiopNoret(VOP_SUB, { v0_2f,  v0_2f,  v0_2f  });
+    newiopNoret(VOP_SUB, { v31_2f, v0_2f,  v0_2f  });
+    newiopNoret(VOP_SUB, { v0_2f,  v31_2f, v0_2f  });
+    newiopNoret(VOP_SUB, { v0_2f,  v0_2f,  v31_2f });
+
+    newiopNoret(VOP_MUL, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_MUL, { v31_16u, v0_16u,  v0_16u  });
+    newiopNoret(VOP_MUL, { v0_16u,  v31_16u, v0_16u  });
+    newiopNoret(VOP_MUL, { v0_16u,  v0_16u,  v31_16u });
+    newiopNoret(VOP_MUL, { v0_8u,  v0_8u,  v0_8u  });
+    newiopNoret(VOP_MUL, { v31_8u, v0_8u,  v0_8u  });
+    newiopNoret(VOP_MUL, { v0_8u,  v31_8u, v0_8u  });
+    newiopNoret(VOP_MUL, { v0_8u,  v0_8u,  v31_8u });
+    newiopNoret(VOP_MUL, { v0_4u,  v0_4u,  v0_4u  });
+    newiopNoret(VOP_MUL, { v31_4u, v0_4u,  v0_4u  });
+    newiopNoret(VOP_MUL, { v0_4u,  v31_4u, v0_4u  });
+    newiopNoret(VOP_MUL, { v0_4u,  v0_4u,  v31_4u });
+    newiopNoret(VOP_MUL, { v0_8f,  v0_8f,  v0_8f  });
+    newiopNoret(VOP_MUL, { v31_8f, v0_8f,  v0_8f  });
+    newiopNoret(VOP_MUL, { v0_8f,  v31_8f, v0_8f  });
+    newiopNoret(VOP_MUL, { v0_8f,  v0_8f,  v31_8f });
+    newiopNoret(VOP_MUL, { v0_4f,  v0_4f,  v0_4f  });
+    newiopNoret(VOP_MUL, { v31_4f, v0_4f,  v0_4f  });
+    newiopNoret(VOP_MUL, { v0_4f,  v31_4f, v0_4f  });
+    newiopNoret(VOP_MUL, { v0_4f,  v0_4f,  v31_4f });
+    newiopNoret(VOP_MUL, { v0_2f,  v0_2f,  v0_2f  });
+    newiopNoret(VOP_MUL, { v31_2f, v0_2f,  v0_2f  });
+    newiopNoret(VOP_MUL, { v0_2f,  v31_2f, v0_2f  });
+    newiopNoret(VOP_MUL, { v0_2f,  v0_2f,  v31_2f });
+
+    newiopNoret(VOP_DIV, { v0_4f,  v0_4f,  v0_4f  });
+    newiopNoret(VOP_DIV, { v31_4f, v0_4f,  v0_4f  });
+    newiopNoret(VOP_DIV, { v0_4f,  v31_4f, v0_4f  });
+    newiopNoret(VOP_DIV, { v0_4f,  v0_4f,  v31_4f });
+    newiopNoret(VOP_DIV, { v0_2f,  v0_2f,  v0_2f  });
+    newiopNoret(VOP_DIV, { v31_2f, v0_2f,  v0_2f  });
+    newiopNoret(VOP_DIV, { v0_2f,  v31_2f, v0_2f  });
+    newiopNoret(VOP_DIV, { v0_2f,  v0_2f,  v31_2f });
+    newiopNoret(VOP_DIV, { v0_8f,  v0_8f,  v0_8f  });
+    newiopNoret(VOP_DIV, { v31_8f, v0_8f,  v0_8f  });
+    newiopNoret(VOP_DIV, { v0_8f,  v31_8f, v0_8f  });
+    newiopNoret(VOP_DIV, { v0_8f,  v0_8f,  v31_8f });
+
+    newiopNoret(VOP_SAL, { v0_16u,  v0_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v31_16u,  v0_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_16u,  v31_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_16u,  v0_16u,  argIImm(7, _f)  });
+    newiopNoret(VOP_SAL, { v0_8u,  v0_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v31_8u,  v0_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_8u,  v31_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_8u,  v0_8u,  argIImm(15, _f)  });
+    newiopNoret(VOP_SAL, { v0_4u,  v0_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v31_4u,  v0_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_4u,  v31_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_4u,  v0_4u,  argIImm(31, _f)  });
+    newiopNoret(VOP_SAL, { v0_2u,  v0_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v31_2u,  v0_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_2u,  v31_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAL, { v0_2u,  v0_2u,  argIImm(63, _f)  });
+
+    newiopNoret(VOP_SAL, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_SAL, { v31_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_SAL, { v0_16u,  v31_16u,  v0_16u  });
+    newiopNoret(VOP_SAL, { v0_16u,  v0_16u,  v31_16u  });
+    newiopNoret(VOP_SAL, { v0_8u,  v0_8u,  v0_8u  });
+    newiopNoret(VOP_SAL, { v31_8u,  v0_8u,  v0_8u  });
+    newiopNoret(VOP_SAL, { v0_8u,  v31_8u,  v0_8u  });
+    newiopNoret(VOP_SAL, { v0_8u,  v0_8u,  v31_8u  });
+    newiopNoret(VOP_SAL, { v0_4u,  v0_4u,  v0_4u  });
+    newiopNoret(VOP_SAL, { v31_4u,  v0_4u,  v0_4u  });
+    newiopNoret(VOP_SAL, { v0_4u,  v31_4u,  v0_4u  });
+    newiopNoret(VOP_SAL, { v0_4u,  v0_4u,  v31_4u  });
+    newiopNoret(VOP_SAL, { v0_2u,  v0_2u,  v0_2u  });
+    newiopNoret(VOP_SAL, { v31_2u,  v0_2u,  v0_2u  });
+    newiopNoret(VOP_SAL, { v0_2u,  v31_2u,  v0_2u  });
+    newiopNoret(VOP_SAL, { v0_2u,  v0_2u,  v31_2u  });
+
+    newiopNoret(VOP_SAL, { v0_16s,  v0_16s,  v0_16s  });
+    newiopNoret(VOP_SAL, { v31_16s,  v0_16s,  v0_16s  });
+    newiopNoret(VOP_SAL, { v0_16s,  v31_16s,  v0_16s  });
+    newiopNoret(VOP_SAL, { v0_16s,  v0_16s,  v31_16s  });
+    newiopNoret(VOP_SAL, { v0_8s,  v0_8s,  v0_8s  });
+    newiopNoret(VOP_SAL, { v31_8s,  v0_8s,  v0_8s  });
+    newiopNoret(VOP_SAL, { v0_8s,  v31_8s,  v0_8s  });
+    newiopNoret(VOP_SAL, { v0_8s,  v0_8s,  v31_8s  });
+    newiopNoret(VOP_SAL, { v0_4s,  v0_4s,  v0_4s  });
+    newiopNoret(VOP_SAL, { v31_4s,  v0_4s,  v0_4s  });
+    newiopNoret(VOP_SAL, { v0_4s,  v31_4s,  v0_4s  });
+    newiopNoret(VOP_SAL, { v0_4s,  v0_4s,  v31_4s  });
+    newiopNoret(VOP_SAL, { v0_2s,  v0_2s,  v0_2s  });
+    newiopNoret(VOP_SAL, { v31_2s,  v0_2s,  v0_2s  });
+    newiopNoret(VOP_SAL, { v0_2s,  v31_2s,  v0_2s  });
+    newiopNoret(VOP_SAL, { v0_2s,  v0_2s,  v31_2s  });
+
+    newiopNoret(VOP_SAR, { v0_16u,  v0_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_16u,  v0_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_16u,  v31_16u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_16u,  v0_16u,  argIImm(7, _f)  });
+    newiopNoret(VOP_SAR, { v0_8u,  v0_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_8u,  v0_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_8u,  v31_8u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_8u,  v0_8u,  argIImm(15, _f)  });
+    newiopNoret(VOP_SAR, { v0_4u,  v0_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_4u,  v0_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_4u,  v31_4u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_4u,  v0_4u,  argIImm(31, _f)  });
+    newiopNoret(VOP_SAR, { v0_2u,  v0_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_2u,  v0_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_2u,  v31_2u,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_2u,  v0_2u,  argIImm(63, _f)  });
+
+    newiopNoret(VOP_SAR, { v0_16s,  v0_16s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_16s,  v0_16s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_16s,  v31_16s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_16s,  v0_16s,  argIImm(7, _f)  });
+    newiopNoret(VOP_SAR, { v0_8s,  v0_8s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_8s,  v0_8s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_8s,  v31_8s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_8s,  v0_8s,  argIImm(15, _f)  });
+    newiopNoret(VOP_SAR, { v0_4s,  v0_4s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_4s,  v0_4s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_4s,  v31_4s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_4s,  v0_4s,  argIImm(31, _f)  });
+    newiopNoret(VOP_SAR, { v0_2s,  v0_2s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v31_2s,  v0_2s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_2s,  v31_2s,  argIImm(1, _f)  });
+    newiopNoret(VOP_SAR, { v0_2s,  v0_2s,  argIImm(63, _f)  });
+
+    newiopNoret(VOP_AND, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_AND, { v31_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_AND, { v0_16u,  v31_16u,  v0_16u  });
+    newiopNoret(VOP_AND, { v0_16u,  v0_16u,  v31_16u  });
+
+    newiopNoret(VOP_OR, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_OR, { v31_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_OR, { v0_16u,  v31_16u,  v0_16u  });
+    newiopNoret(VOP_OR, { v0_16u,  v0_16u,  v31_16u  });
+
+    newiopNoret(VOP_XOR, { v0_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_XOR, { v31_16u,  v0_16u,  v0_16u  });
+    newiopNoret(VOP_XOR, { v0_16u,  v31_16u,  v0_16u  });
+    newiopNoret(VOP_XOR, { v0_16u,  v0_16u,  v31_16u  });
+
+    newiopNoret(VOP_NOT, { v0_16u,  v0_16u  });
+    newiopNoret(VOP_NOT, { v31_16u,  v0_16u });
+    newiopNoret(VOP_NOT, { v0_16u,  v31_16u });
+
+    newiopNoret(OP_MOV, { v0_16u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v31_16u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v0_16u,  argIImm(255, _f)  });
+    newiopNoret(OP_MOV, { v0_8u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v31_8u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v0_8u,  argIImm(255, _f)  });
+    newiopNoret(OP_MOV, { v0_4u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v31_4u,  argIImm(0, _f)  });
+    newiopNoret(OP_MOV, { v0_4u,  argIImm(255, _f)  });
+
+    newiopNoret(VOP_MIN, { v0_8f,  v0_8f, v0_8f  });
+    newiopNoret(VOP_MIN, { v31_8f, v0_8f, v0_8f  });
+    newiopNoret(VOP_MIN, { v0_8f, v31_8f, v0_8f  });
+    newiopNoret(VOP_MIN, { v0_8f,  v0_8f, v31_8f  });
+    newiopNoret(VOP_MIN, { v0_4f,  v0_4f, v0_4f  });
+    newiopNoret(VOP_MIN, { v31_4f, v0_4f, v0_4f  });
+    newiopNoret(VOP_MIN, { v0_4f, v31_4f, v0_4f  });
+    newiopNoret(VOP_MIN, { v0_4f,  v0_4f, v31_4f  });
+    newiopNoret(VOP_MIN, { v0_2f,  v0_2f, v0_2f  });
+    newiopNoret(VOP_MIN, { v31_2f, v0_2f, v0_2f  });
+    newiopNoret(VOP_MIN, { v0_2f, v31_2f, v0_2f  });
+    newiopNoret(VOP_MIN, { v0_2f,  v0_2f, v31_2f  });
+
+    newiopNoret(VOP_MAX, { v0_8f,  v0_8f, v0_8f  });
+    newiopNoret(VOP_MAX, { v31_8f, v0_8f, v0_8f  });
+    newiopNoret(VOP_MAX, { v0_8f, v31_8f, v0_8f  });
+    newiopNoret(VOP_MAX, { v0_8f,  v0_8f, v31_8f  });
+    newiopNoret(VOP_MAX, { v0_4f,  v0_4f, v0_4f  });
+    newiopNoret(VOP_MAX, { v31_4f, v0_4f, v0_4f  });
+    newiopNoret(VOP_MAX, { v0_4f, v31_4f, v0_4f  });
+    newiopNoret(VOP_MAX, { v0_4f,  v0_4f, v31_4f  });
+    newiopNoret(VOP_MAX, { v0_2f,  v0_2f, v0_2f  });
+    newiopNoret(VOP_MAX, { v31_2f, v0_2f, v0_2f  });
+    newiopNoret(VOP_MAX, { v0_2f, v31_2f, v0_2f  });
+    newiopNoret(VOP_MAX, { v0_2f,  v0_2f, v31_2f  });
+
+    newiopNoret(VOP_MLA, { v0_8f,  v0_8f, v0_8f  });
+    newiopNoret(VOP_MLA, { v31_8f,  v0_8f, v0_8f });
+    newiopNoret(VOP_MLA, { v0_8f,  v31_8f, v0_8f });
+    newiopNoret(VOP_MLA, { v0_8f,  v0_8f, v31_8f });
+    newiopNoret(VOP_MLA, { v0_4f,  v0_4f, v0_4f  });
+    newiopNoret(VOP_MLA, { v31_4f,  v0_4f, v0_4f });
+    newiopNoret(VOP_MLA, { v0_4f,  v31_4f, v0_4f });
+    newiopNoret(VOP_MLA, { v0_4f,  v0_4f, v31_4f });
+    newiopNoret(VOP_MLA, { v0_2f,  v0_2f, v0_2f  });
+    newiopNoret(VOP_MLA, { v31_2f,  v0_2f, v0_2f });
+    newiopNoret(VOP_MLA, { v0_2f,  v31_2f, v0_2f });
+    newiopNoret(VOP_MLA, { v0_2f,  v0_2f, v31_2f });
+
+    newiopNoret(VOP_CVTTZ, { v0_8s , v0_8f  });
+    newiopNoret(VOP_CVTTZ, { v31_8s, v0_8f  });
+    newiopNoret(VOP_CVTTZ, { v0_8s , v31_8f });
+    newiopNoret(VOP_CVTTZ, { v0_4s , v0_4f  });
+    newiopNoret(VOP_CVTTZ, { v31_4s, v0_4f  });
+    newiopNoret(VOP_CVTTZ, { v0_4s , v31_4f });
+    newiopNoret(VOP_CVTTZ, { v0_2s , v0_2f  });
+    newiopNoret(VOP_CVTTZ, { v31_2s, v0_2f  });
+    newiopNoret(VOP_CVTTZ, { v0_2s , v31_2f });
+    newiopNoret(VOP_CVTTZ, { v0_8u , v0_8f  });
+    newiopNoret(VOP_CVTTZ, { v31_8u, v0_8f  });
+    newiopNoret(VOP_CVTTZ, { v0_8u , v31_8f });
+    newiopNoret(VOP_CVTTZ, { v0_4u , v0_4f  });
+    newiopNoret(VOP_CVTTZ, { v31_4u, v0_4f  });
+    newiopNoret(VOP_CVTTZ, { v0_4u , v31_4f });
+    newiopNoret(VOP_CVTTZ, { v0_2u , v0_2f  });
+    newiopNoret(VOP_CVTTZ, { v31_2u, v0_2f  });
+    newiopNoret(VOP_CVTTZ, { v0_2u , v31_2f });
+    newiopNoret(VOP_CVTTZ, { v0_8f , v0_8s  });
+    newiopNoret(VOP_CVTTZ, { v31_8f, v0_8s  });
+    newiopNoret(VOP_CVTTZ, { v0_8f , v31_8s });
+    newiopNoret(VOP_CVTTZ, { v0_4f , v0_4s  });
+    newiopNoret(VOP_CVTTZ, { v31_4f, v0_4s  });
+    newiopNoret(VOP_CVTTZ, { v0_4f , v31_4s });
+    newiopNoret(VOP_CVTTZ, { v0_2f , v0_2s  });
+    newiopNoret(VOP_CVTTZ, { v31_2f, v0_2s  });
+    newiopNoret(VOP_CVTTZ, { v0_2f , v31_2s });
+    newiopNoret(VOP_CVTTZ, { v0_8f , v0_8u  });
+    newiopNoret(VOP_CVTTZ, { v31_8f, v0_8u  });
+    newiopNoret(VOP_CVTTZ, { v0_8f , v31_8u });
+    newiopNoret(VOP_CVTTZ, { v0_4f , v0_4u  });
+    newiopNoret(VOP_CVTTZ, { v31_4f, v0_4u  });
+    newiopNoret(VOP_CVTTZ, { v0_4f , v31_4u });
+    newiopNoret(VOP_CVTTZ, { v0_2f , v0_2u  });
+    newiopNoret(VOP_CVTTZ, { v31_2f, v0_2u  });
+    newiopNoret(VOP_CVTTZ, { v0_2f , v31_2u });
+
+    newiopNoret(VOP_GT, { v0_8u , v0_8f , v0_8f });
+    newiopNoret(VOP_GT, { v31_8u, v0_8f , v0_8f });
+    newiopNoret(VOP_GT, { v0_8u , v31_8f, v0_8f });
+    newiopNoret(VOP_GT, { v0_8u , v0_8f , v31_8f});
+    newiopNoret(VOP_GT, { v0_4u , v0_4f , v0_4f });
+    newiopNoret(VOP_GT, { v31_4u, v0_4f , v0_4f });
+    newiopNoret(VOP_GT, { v0_4u , v31_4f, v0_4f });
+    newiopNoret(VOP_GT, { v0_4u , v0_4f , v31_4f});
+    newiopNoret(VOP_GT, { v0_2u , v0_2f , v0_2f });
+    newiopNoret(VOP_GT, { v31_2u, v0_2f , v0_2f });
+    newiopNoret(VOP_GT, { v0_2u , v31_2f, v0_2f });
+    newiopNoret(VOP_GT, { v0_2u , v0_2f , v31_2f});
+
+    newiopNoret(VOP_GE, { v0_8u , v0_8f , v0_8f });
+    newiopNoret(VOP_GE, { v31_8u, v0_8f , v0_8f });
+    newiopNoret(VOP_GE, { v0_8u , v31_8f, v0_8f });
+    newiopNoret(VOP_GE, { v0_8u , v0_8f , v31_8f});
+    newiopNoret(VOP_GE, { v0_4u , v0_4f , v0_4f });
+    newiopNoret(VOP_GE, { v31_4u, v0_4f , v0_4f });
+    newiopNoret(VOP_GE, { v0_4u , v31_4f, v0_4f });
+    newiopNoret(VOP_GE, { v0_4u , v0_4f , v31_4f});
+    newiopNoret(VOP_GE, { v0_2u , v0_2f , v0_2f });
+    newiopNoret(VOP_GE, { v31_2u, v0_2f , v0_2f });
+    newiopNoret(VOP_GE, { v0_2u , v31_2f, v0_2f });
+    newiopNoret(VOP_GE, { v0_2u , v0_2f , v31_2f});
+
+    newiopNoret(VOP_EQ, { v0_8u , v0_8f , v0_8f });
+    newiopNoret(VOP_EQ, { v31_8u, v0_8f , v0_8f });
+    newiopNoret(VOP_EQ, { v0_8u , v31_8f, v0_8f });
+    newiopNoret(VOP_EQ, { v0_8u , v0_8f , v31_8f});
+    newiopNoret(VOP_EQ, { v0_4u , v0_4f , v0_4f });
+    newiopNoret(VOP_EQ, { v31_4u, v0_4f , v0_4f });
+    newiopNoret(VOP_EQ, { v0_4u , v31_4f, v0_4f });
+    newiopNoret(VOP_EQ, { v0_4u , v0_4f , v31_4f});
+    newiopNoret(VOP_EQ, { v0_2u , v0_2f , v0_2f });
+    newiopNoret(VOP_EQ, { v31_2u, v0_2f , v0_2f });
+    newiopNoret(VOP_EQ, { v0_2u , v31_2f, v0_2f });
+    newiopNoret(VOP_EQ, { v0_2u , v0_2f , v31_2f});
+    
+    newiopNoret(VOP_NEG, { v0_16s , v0_16s });
+    newiopNoret(VOP_NEG, { v31_16s , v0_16s });
+    newiopNoret(VOP_NEG, { v0_16s , v31_16s });
+    newiopNoret(VOP_NEG, { v0_8s , v0_8s });
+    newiopNoret(VOP_NEG, { v31_8s , v0_8s });
+    newiopNoret(VOP_NEG, { v0_8s , v31_8s });
+    newiopNoret(VOP_NEG, { v0_4s , v0_4s });
+    newiopNoret(VOP_NEG, { v31_4s , v0_4s });
+    newiopNoret(VOP_NEG, { v0_4s , v31_4s });
+    newiopNoret(VOP_NEG, { v0_2s , v0_2s });
+    newiopNoret(VOP_NEG, { v31_2s , v0_2s });
+    newiopNoret(VOP_NEG, { v0_2s , v31_2s });
+    newiopNoret(VOP_NEG, { v0_8f , v0_8f });
+    newiopNoret(VOP_NEG, { v31_8f , v0_8f });
+    newiopNoret(VOP_NEG, { v0_8f , v31_8f });
+    newiopNoret(VOP_NEG, { v0_4f , v0_4f });
+    newiopNoret(VOP_NEG, { v31_4f , v0_4f });
+    newiopNoret(VOP_NEG, { v0_4f , v31_4f });
+    newiopNoret(VOP_NEG, { v0_2f , v0_2f });
+    newiopNoret(VOP_NEG, { v31_2f , v0_2f });
+    newiopNoret(VOP_NEG, { v0_2f , v31_2f });
 });
 
 };
 #endif
-#endif//__LOOPS_TEST_AARCH64_HPP__
+#endif// __LOOPS_ARCH == __LOOPS_AARCH64

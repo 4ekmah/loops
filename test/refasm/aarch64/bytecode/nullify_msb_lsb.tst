@@ -1,4 +1,4 @@
-erode_msb_lsb(i0, i1, i2)
+nullify_msb_lsb(i0, i1, i2)
      0 : sub       i31, i31, 16 
      1 : spill     0, i18       
      2 : shr       i3, i0, 1    

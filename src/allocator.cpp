@@ -6,20 +6,27 @@ See https://github.com/vpisarev/loops/LICENSE
 
 //TODO(ch): write some words, that this code was basically copied from xbyak
 #include "allocator.hpp"
+#include "loops/defines.hpp"
 #include <stdexcept>
 #include <string>
 #include <memory>
-#if defined(__APPLE__)
+#if __LOOPS_OS == __LOOPS_MAC
 #include <unistd.h>
 #include <sys/mman.h>
 #include <libkern/OSCacheControl.h>
-#elif defined(_WIN32)
+#elif __LOOPS_OS == __LOOPS_WINDOWS
 #include <windows.h>
+#elif __LOOPS_OS == __LOOPS_LINUX
+#include <assert.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#else
+#error Unknown OS
 #endif
 
 namespace loops
 {
-#if defined(__APPLE__)
+#if __LOOPS_OS == __LOOPS_MAC
 uint8_t* Allocator::allocate(size_t size)
 {
     //Allocate memory:
@@ -49,12 +56,12 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
     size_t iaddr = reinterpret_cast<size_t>(a_buffer);
     size_t roundAddr = iaddr & ~(pageSize - static_cast<size_t>(1));
 
-    auto proret = mprotect(reinterpret_cast<void*>(roundAddr), 4096/*size*/ + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
+    auto proret = mprotect(reinterpret_cast<void*>(roundAddr), m_table[a_buffer] + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
     if (proret != 0)
         throw std::runtime_error("Memory protection failure.");
     sys_icache_invalidate(a_buffer, m_table[a_buffer]);
 }
-#elif defined(_WIN32)
+#elif __LOOPS_OS == __LOOPS_WINDOWS
     uint8_t* Allocator::allocate(size_t size)
     {
         static const size_t ALIGN_PAGE_SIZE = 4096;
@@ -76,6 +83,48 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
         if (!FlushInstructionCache(GetCurrentProcess(), a_buffer, m_table[a_buffer]))
             throw std::runtime_error("Memory cache flushing failure.");
     }
+#elif __LOOPS_OS == __LOOPS_LINUX
+uint8_t* Allocator::allocate(size_t size)
+{
+    //Allocate memory:
+    size_t pageSize = sysconf(_SC_PAGESIZE);
+    const size_t alignedSizeM1 = pageSize - 1;
+    size = (size + alignedSizeM1) & ~alignedSizeM1;
+#ifdef MAP_ANONYMOUS
+    int mode = MAP_PRIVATE | MAP_ANONYMOUS;
+#elif defined(MAP_ANON)
+    int mode = MAP_PRIVATE | MAP_ANON;
+#else
+#error "not supported"
+#endif
+    // mode |= MAP_JIT;
+    void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, mode, -1, 0);
+    if (p == MAP_FAILED)
+      throw std::runtime_error("Memory allocation failure.");
+    assert(p);
+    uint8_t* res = reinterpret_cast<uint8_t*>(p);
+    m_table[res] = size;
+    return reinterpret_cast<uint8_t*>(p);
+}
+
+void Allocator::protect2Execution(uint8_t* a_buffer)
+{
+    size_t pageSize = sysconf(_SC_PAGESIZE);
+    size_t iaddr = reinterpret_cast<size_t>(a_buffer);
+    size_t roundAddr = iaddr & ~(pageSize - static_cast<size_t>(1));
+
+    auto proret = mprotect(reinterpret_cast<void*>(roundAddr), m_table[a_buffer] + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
+    if (proret != 0)
+        throw std::runtime_error("Memory protection failure.");
+#ifdef __clang__
+    __clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
+#else// __GNUC__
+    __builtin___clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
+#endif
+}
+    
+#else
+#error Unknown OS
 #endif
 
 uint8_t* Allocator::expand(uint8_t* buffer, size_t size)

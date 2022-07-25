@@ -23,7 +23,10 @@ inline bool fileexists(const std::string& name) //TODO(ch): need crossplatform s
 bool Test::testAssembly(bool a_rewriteIfWrong)
 {
     std::string tarcname = CTX.getPlatformName();
+    std::string arcOSsuffix = tarcname;
     std::string bfilename(LOOPS_TEST_DIR"/refasm/");
+    if(tarcname == "Intel64")
+        arcOSsuffix += std::string("/") + OSname();
     std::string tfilename = bfilename;
     bool result = true;
     { //Bytecode check
@@ -32,7 +35,7 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         ::std::ostringstream bcstream(bctext, ::std::ios::out);
         m_func.printBytecode(bcstream);
         bctext = bcstream.str();
-        bfilename += tarcname + "/bytecode/";
+        bfilename += arcOSsuffix + "/bytecode/";
         bfilename += m_func.name() + ".tst";
         if(fileexists(bfilename))
         {
@@ -71,7 +74,7 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         ::std::ostringstream tastream(tatext, ::std::ios::out);
         m_func.printAssembly(tastream);
         tatext = tastream.str();
-        tfilename += tarcname + "/";
+        tfilename += arcOSsuffix + "/";
         tfilename += m_func.name() + ".tst";
         if(fileexists(tfilename))
         {
@@ -106,6 +109,18 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         }
     }
     return result;
+}
+std::string Test::OSname()
+{
+    #if __LOOPS_OS == __LOOPS_LINUX
+        return "Linux";
+    #elif __LOOPS_OS == __LOOPS_WINDOWS
+        return "Windows";
+    #elif __LOOPS_OS == __LOOPS_MAC
+        return "Macos";
+    #else
+        #error Unknown OS
+    #endif
 }
 
 bool Test::checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes)

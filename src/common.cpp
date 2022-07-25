@@ -13,9 +13,17 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "func_impl.hpp"
 #include <map>
 #include <stack>
+#include <cstring>
 
 namespace loops
 {
+    f16_t::f16_t(float x)
+    {
+    #if __LOOPS_ARCH == __LOOPS_INTEL64
+        (*(reinterpret_cast<__fp16*>(*bits))) = __fp16(x);
+    #endif
+    }
+
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
     IReg::IReg(const IReg& r)
@@ -38,7 +46,11 @@ namespace loops
 
     Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0) {}
     Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
-    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0) {}
+    Arg::Arg(int64_t a_value, Context* ctx) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0)
+    {
+        if(ctx)
+            func = getImpl(getImpl(ctx)->getCurrentFunc());
+    }
 
     Func::Func() : impl(nullptr) {}
     Func::Func(const Func& f) : impl(f.impl) { static_cast<FuncImpl*>(impl)->m_refcount++; }
@@ -64,8 +76,16 @@ namespace loops
     std::string Func::name() const { return static_cast<FuncImpl*>(impl)->name(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
-    void Func::printBytecode(std::ostream& out) const { static_cast<FuncImpl*>(impl)->printBytecode(out); }
-    void Func::printAssembly(std::ostream& out, int columns) const { static_cast<FuncImpl*>(impl)->printAssembly(out, columns); }
+    void Func::printBytecode(std::ostream& out) const
+    {
+        static_cast<FuncImpl*>(impl)->applySyntopStages();
+        static_cast<FuncImpl*>(impl)->printBytecode(out);
+    }
+    void Func::printAssembly(std::ostream& out, int columns) const
+    {
+        static_cast<FuncImpl*>(impl)->applySyntopStages();
+        static_cast<FuncImpl*>(impl)->printAssembly(out, columns);
+    }
 
     Func Func::make(Func* a_wrapped)
     {
@@ -99,6 +119,30 @@ namespace loops
     {
         return newiopNoret(opcode, args, tryImmList);
     }
+
+    VReg<uint8_t> newiopV_U8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<uint8_t>(opcode, args, tryImmList);  }
+    VReg<int8_t> newiopV_I8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<int8_t>(opcode, args, tryImmList);  }
+    VReg<uint16_t> newiopV_U16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<uint16_t>(opcode, args, tryImmList);  }
+    VReg<int16_t> newiopV_I16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<int16_t>(opcode, args, tryImmList);  }
+    VReg<uint32_t> newiopV_U32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<uint32_t>(opcode, args, tryImmList);  }
+    VReg<int32_t> newiopV_I32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<int32_t>(opcode, args, tryImmList);  }
+    VReg<uint64_t> newiopV_U64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<uint64_t>(opcode, args, tryImmList);  }
+    VReg<int64_t> newiopV_I64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<int64_t>(opcode, args, tryImmList);  }
+    VReg<f16_t> newiopV_FP16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<f16_t>(opcode, args, tryImmList);  }
+    //VReg<...> newiopV_BF16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList);
+    VReg<float> newiopV_FP32(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<float>(opcode, args, tryImmList);  }
+    VReg<double> newiopV_FP64(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    {   return FuncImpl::verifyArgs(args)->newiopV<double>(opcode, args, tryImmList);  }
 
     IReg select(const IReg& cond, const IReg& truev, const IReg& falsev)
     {
@@ -245,6 +289,8 @@ namespace loops
     void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
+    size_t Context::vectorRegisterSize() const {return static_cast<ContextImpl*>(impl)->vectorRegisterSize(); }
+
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 
     __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
@@ -314,9 +360,9 @@ namespace loops
     }
 
     ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
-#if defined(__APPLE__) //TODO(ch): this conditions are actually inaccurate. We have to ask system about type of compiler. 
+#if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
-#elif defined(_WIN32)
+#elif __LOOPS_ARCH == __LOOPS_INTEL64
         std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
 #endif
         m_backend = std::static_pointer_cast<Backend>(backend);
@@ -330,10 +376,9 @@ namespace loops
         m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
     }
 
-    void ContextImpl::endFunc(bool directTranslation)
+    void ContextImpl::endFunc()
     {
         FuncImpl* func = getImpl(&m_currentFunc);
-        func->endfunc(directTranslation);
         m_currentFunc = Func();
     }
 
@@ -346,9 +391,10 @@ namespace loops
     }
     
     std::string ContextImpl::getPlatformName() const
-    {
-        return m_backend->name();
-    }
+    { return m_backend->name(); }
+
+    size_t ContextImpl::vectorRegisterSize() const
+    { return m_backend->getVectorRegisterSize() >> 3; }
 
     void ContextImpl::compileAll()
     {
@@ -359,6 +405,7 @@ namespace loops
         for(auto par:m_functionsStorage)
         {
             FuncImpl* func = getImpl(&par.second);
+            func->applySyntopStages();
             FuncBodyBuf body = m_backend->target2Hex(m_backend->bytecode2Target(func->getData()));
             size_t bsize = body->size();
             bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?

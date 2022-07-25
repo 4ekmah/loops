@@ -136,7 +136,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         switch (det.tag)
         {
         case (Token::T_REG):
-            if (op.args[det.arVecNum].tag != Arg::IREG)
+            if (op.args[det.arVecNum].tag != Arg::IREG && op.args[det.arVecNum].tag != Arg::VREG)
                 throw std::runtime_error("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;

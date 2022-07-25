@@ -4,7 +4,7 @@ Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
 #include "backend_intel64.hpp"
-#if defined(_M_AMD64) //TODO(ch): It must be about target processor, not operational system
+#if __LOOPS_ARCH == __LOOPS_INTEL64
 #include <algorithm>
 #include <iomanip>
 namespace loops
@@ -27,7 +27,7 @@ namespace loops
         R13 = 13,
         R14 = 14,
         R15 = 15
-    };
+    }; 
 
     static inline BinTranslation::Token nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
     {
@@ -984,7 +984,7 @@ namespace loops
             break;
         case (OP_MOV):     return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
         case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
-        case (OP_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
+        case (OP_X86_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
         case (OP_ADD):     return SyT(INTEL64_ADD,  { SAcop(0), SAcop(2) });
         case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
         case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
@@ -1049,19 +1049,25 @@ namespace loops
     {
         m_s2blookup = i64BTLookup;
         m_s2slookup = i64STLookup;
+        m_vectorRegisterSize = 256; // AVX2???
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
         m_registersAmount = 40;
         m_name = "Intel64";
         m_afterRegAllocStages.push_back(Intel64ARASnippets::make());
-#if defined(_WIN32)
-        m_parameterRegisters = makeBitmask64({ RCX, RDX, R8, R9 });
-        m_returnRegisters = makeBitmask64({ RAX });
-        m_callerSavedRegisters = makeBitmask64({ R10, R11 });
-        m_calleeSavedRegisters = makeBitmask64({ RBX, RSI, RDI, RBP, R12, R13, R14, R15 });
+#if __LOOPS_OS == __LOOPS_WINDOWS
+        m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
+        m_returnRegisters[RB_INT] = { RAX };
+        m_callerSavedRegisters[RB_INT] = { R10, R11 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, RBP, R12, R13, R14, R15 };
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+        m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX, R8, R9 };
+        m_returnRegisters[RB_INT] = { RAX, RDX };
+        m_callerSavedRegisters[RB_INT] = { R10, R11 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, RBP, R12, R13, R14, R15 };
 #else
-#error Linux is not supported
+#error Unknown OS
 #endif
     }
 
@@ -1108,7 +1114,7 @@ namespace loops
         case(OP_AND):
         case(OP_OR):
         case(OP_XOR):
-        case(OP_ADC):
+        case(OP_X86_ADC):
         case(OP_ADD):
         case(OP_SUB):
         case(OP_SHL):
@@ -1161,7 +1167,7 @@ namespace loops
     {
         switch (a_op.opcode)
         {
-        case OP_ADC:
+        case OP_X86_ADC:
         case OP_ADD:
         case OP_MUL:
         case OP_AND:
@@ -1200,31 +1206,32 @@ namespace loops
         return Backend::reusingPreferences(a_op, undefinedArgNums);
     }
 
-    size_t Intel64Backend::spillSpaceNeeded(const Syntop& a_op) const
+    size_t Intel64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     {
-        switch (a_op.opcode)
-        {
-        case (OP_DIV):
-        case (OP_MOD):
-            return 2;
-            break;
-        case (OP_SHL):
-        case (OP_SHR):
-        case (OP_SAR):
-            Assert(a_op.size() == 3);
-            if (a_op[2].tag == Arg::IREG)
+        if(basketNum == RB_INT)
+            switch (a_op.opcode)
+            {
+            case (OP_DIV):
+            case (OP_MOD):
+                return 2;
+                break;
+            case (OP_SHL):
+            case (OP_SHR):
+            case (OP_SAR):
+                Assert(a_op.size() == 3);
+                if (a_op[2].tag == Arg::IREG)
+                    return 1;
+            case (OP_ABS):
+            case (OP_SIGN):
                 return 1;
-        case (OP_ABS):
-        case (OP_SIGN):
-            return 1;
-            break;
-        default:
-            break;
-        }
-        return Backend::spillSpaceNeeded(a_op);
+                break;
+            default:
+                break;
+            }
+        return Backend::spillSpaceNeeded(a_op, basketNum);
     }
 
-    std::set<size_t> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, uint64_t flagmask) const
+    std::set<size_t> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
@@ -1236,7 +1243,7 @@ namespace loops
         uint64_t outRegs;
         switch (a_op.opcode)
         {
-            case (OP_ADC):
+            case (OP_X86_ADC):
             case (OP_ADD):
             case (OP_SUB):
             case (OP_MUL):
@@ -1252,7 +1259,7 @@ namespace loops
             case (OP_SAR):
             {
                 Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-                if ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = (a_op[2].tag == Arg::IREG ? makeBitmask64({ 0,1,2 }) : makeBitmask64({ 0,1 }));
                     inRegs = makeBitmask64({ 1, 2 });
@@ -1264,7 +1271,7 @@ namespace loops
             case (OP_SELECT):
             {
                 Assert(a_op.size() == 4 && a_op[0].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
-                if ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
                     inRegs = makeBitmask64({ 2, 3 });
@@ -1279,7 +1286,7 @@ namespace loops
             case (OP_SIGN):
             {
                 Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-                if ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = makeBitmask64({ 0,1 });
                     inRegs = makeBitmask64({ 1 });
@@ -1311,7 +1318,7 @@ namespace loops
             return res;
         }
         else
-            return Backend::getUsedRegistersIdxs(a_op, flagmask);
+            return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
     Syntfunc Intel64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
@@ -1345,14 +1352,20 @@ namespace loops
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
 
-    size_t Intel64Backend::stackParamOffset(size_t a_nettoSpills, size_t a_snippetCausedSpills) const
+    size_t Intel64Backend::stackParamOffset(size_t alignedSPAdd) const
     {
-        return stackGrowthAlignment(a_nettoSpills + a_snippetCausedSpills) + 5; //TODO(ch): I have to understand, why it's 5??? I just got it by experiments.
+    #if __LOOPS_OS == __LOOPS_WINDOWS
+        return alignedSPAdd + 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
+    #elif __LOOPS_OS == __LOOPS_LINUX
+        return alignedSPAdd + 1; //+1 is because of return address kept in stack 
+    #else
+        #error Unknown OS.
+    #endif
     }
 
     Arg Intel64Backend::getSParg(Func* funcimpl) const
     {
-        return argIReg(RSP, funcimpl);
+        return argReg(RB_INT, RSP, funcimpl);
     }
 
     std::unordered_map<int, std::string> Intel64Backend::getOpStrings() const
@@ -1483,7 +1496,7 @@ namespace loops
             case OP_AND:
             case OP_OR:
             case OP_XOR:
-            case OP_ADC:
+            case OP_X86_ADC:
             case OP_ADD:
             case OP_MUL:
             {
@@ -1547,25 +1560,25 @@ namespace loops
                         if (op[1].tag == Arg::ISPILLED)
                         {
                             newProg.push_back(Syntop(OP_SPILL, { 0, op[2] }));
-                            newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RCX), op[1].value }));
-                            newProg.push_back(Syntop(OP_XCHG, { argIReg(RCX), argISpilled(0) }));
+                            newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), op[1].value }));
+                            newProg.push_back(Syntop(OP_XCHG, { argReg(RB_INT, RCX), argSpilled(RB_INT, 0) }));
                         }
                         else
                             newProg.push_back(Syntop(OP_SPILL, { 0, op[0] }));
-                        if(!regOrSpiEq(argIReg(RCX), op[2]))
-                            newProg.push_back(Syntop(OP_MOV, { argIReg(RCX), op[2] }));
-                        newProg.push_back(Syntop(op.opcode, { argISpilled(0), argISpilled(0), argIReg(RCX) }));
-                        newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RCX), 0 }));
+                        if(!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
+                            newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
+                        newProg.push_back(Syntop(op.opcode, { argSpilled(RB_INT, 0), argSpilled(RB_INT, 0), argReg(RB_INT, RCX) }));
+                        newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
                     }
                     else
                     {
-                        newProg.push_back(Syntop(OP_SPILL, { 0, argIReg(RCX) }));
+                        newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RCX) }));
                         if(!regOrSpiEq(op[0], op[1]))
                             newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                        if (!regOrSpiEq(argIReg(RCX), op[2]))
-                            newProg.push_back(Syntop(OP_MOV, { argIReg(RCX), op[2] }));
-                        newProg.push_back(Syntop(op.opcode, { op[0], op[0], argIReg(RCX)}));
-                        newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RCX), 0 }));
+                        if (!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
+                            newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
+                        newProg.push_back(Syntop(op.opcode, { op[0], op[0], argReg(RB_INT, RCX)}));
+                        newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
                     }
                 }
                 break;
@@ -1577,40 +1590,40 @@ namespace loops
                 bool unspillRax = false;;
                 if (op[0].idx != RAX)
                 {
-                    newProg.push_back(Syntop(OP_SPILL, { 0, argIReg(RAX) }));
+                    newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
                     unspillRax = true;
                 }
                 bool unspillRdx = false;
                 if (op[0].idx != RDX)
                 {
-                    newProg.push_back(Syntop(OP_SPILL, { 1, argIReg(RDX) }));
+                    newProg.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
                     unspillRdx = true;
                 }
                 Arg effectiveDivider = op[2];
                 if (op[2].tag == Arg::IREG && op[2].idx == RAX)
                 {
                     if (!unspillRax)
-                        newProg.push_back(Syntop(OP_SPILL, { 0, argIReg(RAX) }));
-                    effectiveDivider = argISpilled(0);
+                        newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
+                    effectiveDivider = argSpilled(RB_INT, 0);
                 }
                 else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
                 {
                     if (!unspillRdx)
-                        newProg.push_back(Syntop(OP_SPILL, { 1, argIReg(RDX) }));
-                    effectiveDivider = argISpilled(1);
+                        newProg.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
+                    effectiveDivider = argSpilled(RB_INT, 1);
                 }
                 if (op[1].idx != RAX)
-                    newProg.push_back(Syntop(OP_MOV, { argIReg(RAX), op[1] }));
+                    newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
                 newProg.push_back(Syntop(OP_X86_CQO, {}));
-                newProg.push_back(Syntop(op.opcode, { argIReg(RAX), argIReg(RAX), effectiveDivider }));
+                newProg.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
                 if(op.opcode == OP_DIV && op[0].idx != RAX)
-                    newProg.push_back(Syntop(OP_MOV, { op[0], argIReg(RAX) }));
+                    newProg.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
                 if (op.opcode == OP_MOD && op[0].idx != RDX)
-                    newProg.push_back(Syntop(OP_MOV, { op[0], argIReg(RDX) }));
+                    newProg.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
                 if (unspillRax)
-                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RAX), 0 }));
+                    newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
                 if (unspillRdx)
-                    newProg.push_back(Syntop(OP_UNSPILL, { argIReg(RDX), 1 }));
+                    newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
                 break;
             }
             case OP_NOT:
@@ -1662,20 +1675,20 @@ namespace loops
                 else
                     newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                 newProg.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                newProg.push_back(Syntop(OP_SELECT, { op[0], IC_S, augAbs ? argISpilled(0) : op[1] , op[0]}));
+                newProg.push_back(Syntop(OP_SELECT, { op[0], IC_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
                 break;
             }
             case OP_SIGN:
             {
                 Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-                Arg scratch = argIReg(op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
+                Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
                 newProg.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
                 if (!regOrSpiEq(op[0], op[1]))
                     newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                 newProg.push_back(Syntop(OP_MOV, { scratch, op[0] }));
                 newProg.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
                 newProg.push_back(Syntop(OP_NEG, { scratch, scratch }));
-                newProg.push_back(Syntop(OP_ADC, { op[0], op[0], op[0] }));
+                newProg.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
                 newProg.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
                 break;
             }
@@ -1688,10 +1701,19 @@ namespace loops
     
     void Intel64Backend::switchOnSpillStressMode()
     {
-        m_parameterRegisters = makeBitmask64({ RCX, RDX, R8, R9 });
-        m_returnRegisters = makeBitmask64({ RAX });
-        m_callerSavedRegisters = makeBitmask64({});
-        m_calleeSavedRegisters = makeBitmask64({ R12, R13, R14, R15 });
+#if __LOOPS_OS == __LOOPS_WINDOWS
+        m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
+        m_returnRegisters[RB_INT] = { RAX };
+        m_callerSavedRegisters[RB_INT] = {};
+        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+        m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX };
+        m_returnRegisters[RB_INT] = { RAX };
+        m_callerSavedRegisters[RB_INT] = {};
+        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
+#else
+#error Unknown OS
+#endif
     }
 };
-#endif
+#endif // __LOOPS_ARCH == __LOOPS_INTEL64

@@ -12,6 +12,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <stack>
 #include <unordered_map>
 #include <typeindex>
+#include <memory>
 
 #define LOOPS_ASSERT_LINE_(x) #x
 #define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
@@ -21,29 +22,39 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-    typedef int IRegInternal;
+    typedef int RegIdx;
+    enum RegisterBasket { RB_INT = 0, RB_VEC = 1, RB_AMOUNT };
 
-    inline IReg iregHid(IRegInternal a_idx, Func* a_func)
+    inline IReg iregHid(RegIdx a_idx, Func* a_func)
     {
         IReg ret;
         ret.func = a_func;
         ret.idx = a_idx;
         return static_cast<IReg&&>(ret);
     }
+    
+    template<typename _Tp>
+    inline VReg<_Tp> vregHid(RegIdx a_idx, Func* a_func)
+    {
+        VReg<_Tp> ret;
+        ret.func = a_func;
+        ret.idx = a_idx;
+        return static_cast<VReg<_Tp>&&>(ret);
+    }
 
-    inline Arg argIReg(IRegInternal idx, Func* impl = nullptr)
+    inline Arg argReg(int basketNum, RegIdx idx, Func* impl = nullptr)
     {
         Arg res;
-        res.tag = Arg::IREG;
+        res.tag = basketNum == RB_INT ? Arg::IREG : Arg::VREG;
         res.idx = idx;
         res.func = impl;
         return res;
     }
 
-    inline Arg argISpilled(size_t spOffset, Func* impl = nullptr)
+    inline Arg argSpilled(int basketNum, size_t spOffset, Func* impl = nullptr)
     {
         Arg res;
-        res.tag = Arg::ISPILLED;
+        res.tag = basketNum == RB_INT ? Arg::ISPILLED : Arg::VSPILLED;
         res.value = spOffset;
         res.func = impl;
         return res;
@@ -73,6 +84,45 @@ namespace loops
         if (toCmp1.tag == Arg::ISPILLED)
             return toCmp1.value == toCmp2.value;
         return false;
+    }
+
+    static inline bool isInteger(int elemTyp)
+    {
+        return elemTyp == TYPE_U8 || elemTyp == TYPE_U16 ||elemTyp == TYPE_U32 ||elemTyp == TYPE_U64 ||
+               elemTyp == TYPE_I8 || elemTyp == TYPE_I16 ||elemTyp == TYPE_I32 ||elemTyp == TYPE_I64;
+    }
+
+    static inline bool isFloat(int elemTyp)
+    { return elemTyp == TYPE_FP16 || elemTyp == TYPE_FP32 ||elemTyp == TYPE_FP64; }
+
+    static inline bool isUnsignedInteger(int elemType)
+    { return elemType == TYPE_U8 || elemType == TYPE_U16 ||elemType == TYPE_U32 ||elemType == TYPE_U64; }
+
+    static inline bool isSignedInteger(int elemType)
+    { return elemType == TYPE_I8 || elemType == TYPE_I16 ||elemType == TYPE_I32 ||elemType == TYPE_I64; }
+
+    static inline size_t elemSize(int typ)
+    {
+        switch (typ) {
+            case TYPE_I8:
+            case TYPE_U8:
+                return 1;
+            case TYPE_I16:
+            case TYPE_U16:
+            case TYPE_FP16:
+            case TYPE_BF16:
+                return 2;
+            case TYPE_I32:
+            case TYPE_U32:
+            case TYPE_FP32:
+                return 4;
+            case TYPE_I64:
+            case TYPE_U64:
+            case TYPE_FP64:
+                return 8;
+            default:
+                throw std::runtime_error("Unknown data type.");
+        }
     }
 
     enum ArgFlags
@@ -118,7 +168,7 @@ namespace loops
         return res;
     }
 
-    inline IRegInternal onlyBitPos64(uint64_t bigNum)
+    inline RegIdx onlyBitPos64(uint64_t bigNum)
     {
         static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
         static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -141,17 +191,17 @@ namespace loops
         bytenum += (second8 != 0);
         uint8_t bytecontent = first8 + ((~(uint32_t)(second8 == 0)) & second8);
 
-        return static_cast<IRegInternal>(bnBase[bytenum]) + static_cast<IRegInternal>(bnAdd[bytecontent]) - 1;
+        return static_cast<RegIdx>(bnBase[bytenum]) + static_cast<RegIdx>(bnAdd[bytecontent]) - 1;
     }
 
 
-    inline IRegInternal lsb64(uint64_t bigNum)
+    inline RegIdx lsb64(uint64_t bigNum)
     {
         uint64_t firstReg = (bigNum & ~(bigNum - 1));
         return onlyBitPos64(firstReg);
     }
 
-    inline IRegInternal msb64(uint64_t bigNum)
+    inline RegIdx msb64(uint64_t bigNum)
     {
         if (bigNum == 0)
             return 0;
@@ -255,7 +305,7 @@ namespace loops
     struct Syntfunc
     {
         std::vector<Syntop> program;
-        std::vector<IRegInternal> params;
+        std::vector<RegIdx> params[RB_AMOUNT];
         std::string name;
         enum {RETREG = size_t(-2)};
         Syntfunc() {}
@@ -276,9 +326,10 @@ namespace loops
     public:
         ContextImpl(Context* owner);
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
-        void endFunc(bool directTranslation = false); //directTranslation == true
+        void endFunc();
         Func getFunc(const std::string& name);
         std::string getPlatformName() const;
+        size_t vectorRegisterSize() const;
         void compileAll();
 
         int m_refcount;

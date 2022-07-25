@@ -36,27 +36,34 @@ public:
 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
+    void applySyntopStages();
+    //directTranslation == true avoids most part of stages, like register allocation or controlBlocks2Jumps.
+    //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
+    inline void setDirectTranslation(bool directTranslation) { m_directTranslation = directTranslation; }
+    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
+                                            const std::vector<size_t>&  a_returnRegisters,
+                                            const std::vector<size_t>&  a_callerSavedRegisters,
+                                            const std::vector<size_t>&  a_calleeSavedRegisters);
+    
     void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
 
-    void printBytecode(std::ostream& out) const;
-    void printAssembly(std::ostream& out, int columns) const;
+    void printBytecode(std::ostream& out);
+    void printAssembly(std::ostream& out, int columns);
     std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline IRegInternal provideIdx() { return m_nextIdx++; }
+    inline RegIdx provideIdx(int basketNum) { return m_nextIdx[basketNum]++; }
     size_t provideLabel();
     enum {NOLABEL = -1};
 
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, ::std::initializer_list<size_t> tryImmList = {});
+    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList = {});
     inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
-
-    //directTranslation  == true. Avoids most part of stages, like register allocation or controlBlocks2Jumps.
-    //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
-    void endfunc(bool directTranslation = false); 
+    template<typename _Tp>
+    inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 
     IReg const_(int64_t value);
     
@@ -69,7 +76,7 @@ public:
     
     These functions will fill next structure, keeping info about interregister connections:
              containerReg           divider              containedReg
-    std::map<IRegInternal, std::pair<size_t, std::vector<IRegInternal> > > m_vregConstraints;
+    std::map<RegIdx, std::pair<size_t, std::vector<RegIdx> > > m_vregConstraints;
     Divider is degree of two from 2 to 64(mf8 of m8), because it's better to consider constraints
     like relational.
     */
@@ -106,11 +113,19 @@ private:
     Syntfunc m_data;
     std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     ContextImpl* m_context;
-    int m_nextIdx;
+    int m_nextIdx[RB_AMOUNT];
     size_t m_nextLabelIdx;
+    bool m_directTranslation;
+    
+    std::vector<size_t> m_parameterRegistersO[RB_AMOUNT];
+    std::vector<size_t> m_returnRegistersO[RB_AMOUNT];
+    std::vector<size_t> m_callerSavedRegistersO[RB_AMOUNT];
+    std::vector<size_t> m_calleeSavedRegistersO[RB_AMOUNT];
 
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
+    bool m_syntopStagesApplied;
+
 
     int condition2jumptype(int cond);
 
@@ -124,7 +139,7 @@ private:
 
 inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
-    IRegInternal retidx = provideIdx();
+    RegIdx retidx = provideIdx(RB_INT);
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this) }), args);
     if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
@@ -133,16 +148,16 @@ inline IReg FuncImpl::newiop(int opcode, ::std::initializer_list<Arg> args, ::st
 
 inline IReg FuncImpl::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 {
-    IRegInternal retidx = provideIdx();
+    RegIdx retidx = provideIdx(RB_INT);
     Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, this), depth }), args);
     if (tryImmList.size()) immediateImplantationAttempt(toAdd, 2, tryImmList);
     m_data.program.emplace_back(toAdd);
     return iregHid(retidx, this);
 }
 
-inline IReg FuncImpl::newiopPreret(int opcode, ::std::initializer_list<Arg> args, IRegInternal retreg, ::std::initializer_list<size_t> tryImmList)
+inline IReg FuncImpl::newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList)
 {
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ argIReg(retreg, this) }), args);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ argReg(RB_INT, retreg, this) }), args);
     if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
     return iregHid(retreg, this);
@@ -160,6 +175,16 @@ inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<A
     Syntop toAdd(opcode, std::initializer_list<Arg>({ Arg(depth) }), args);
     if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
     m_data.program.emplace_back(toAdd);
+}
+
+template<typename _Tp>
+VReg<_Tp> FuncImpl::newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+{
+    RegIdx retidx = provideIdx(RB_VEC);
+    Syntop toAdd(opcode, std::initializer_list<Arg>({ vregHid<_Tp>(retidx, this) }), args);
+    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
+    m_data.program.emplace_back(toAdd);
+    return vregHid<_Tp>(retidx, this);
 }
 
 inline FuncImpl* getImpl(Func* wrapper)

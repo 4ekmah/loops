@@ -218,7 +218,7 @@ LTESTexe(triangle_types, {
 });
 
 LTEST(nonnegative_odd, {
-    IReg ptr, n, toFind;
+    IReg ptr, n;
     STARTFUNC_(TESTNAME, &ptr, &n)
     {
         IReg i = CONST_(0);
@@ -256,6 +256,11 @@ LTEST(all_loads_all_stores, {
     IReg iptr, ityp, optr, otyp, n;
     STARTFUNC_(TESTNAME, &iptr, &ityp, &optr, &otyp, &n )
     {
+        if (CTX.getPlatformName() == "AArch64")
+            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4 }, { 0, 1, 2, 3, 4 }, {}, { 18, 19, 20, 21, 22 });
+        else if("Intel64" && OSname() == "Linux") 
+            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8 }, { 0 }, {}, { 12, 13, 14, 15 });
+
         IReg num = CONST_(0);
         IReg i_offset = CONST_(0);
         IReg o_offset = CONST_(0);
@@ -306,11 +311,7 @@ LTEST(all_loads_all_stores, {
             o_offset += oelemsize;
             num += 1;
         }
-        if (CTX.getPlatformName() == "AArch64")
-            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({ 0, 1, 2, 3, 4 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
     }
-    if (CTX.getPlatformName() == "AArch64")
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
     });
 template <typename inT, typename outT>
 static inline bool AldrAstrTestInner(const uint8_t* inA, uint8_t* outA, int siz)
@@ -374,7 +375,7 @@ LTESTexe(all_loads_all_stores, {
         }
     });
 
-LTEST(erode_msb_lsb, {
+LTEST(nullify_msb_lsb, {
     IReg in, elsb, emsb;
     STARTFUNC_(TESTNAME, &in, &elsb, &emsb )
     {
@@ -394,7 +395,7 @@ LTEST(erode_msb_lsb, {
         RETURN_();
     }
     });
-LTESTexe(erode_msb_lsb, {
+LTESTexe(nullify_msb_lsb, {
     typedef void (*erode_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
     erode_msb_lsb_f tested = reinterpret_cast<erode_msb_lsb_f>(EXEPTR);
     std::vector<uint64_t> v = { 0x6000000000000000, 2, 0xf0, 7, 0xffffffff };
@@ -423,6 +424,11 @@ LTEST(bresenham, {
     IReg canvas, w, x0, y0, x1, y1, filler;
     STARTFUNC_(TESTNAME, &canvas, &w, &x0, &y0, &x1, &y1, &filler)
     {
+        if (CTX.getPlatformName() == "AArch64")
+            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6 }, { 0, 1, 2, 3, 4, 5, 6 }, {}, { 18, 19, 20, 21, 22 });
+        else if("Intel64" && OSname() == "Linux") 
+            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8, 9 }, { 0 }, {}, { 12, 13, 14, 15 });
+
         IReg dx = abs(x1 - x0);
         IReg sx = sign(x1 - x0);
         IReg dy = -abs(y1 - y0);
@@ -451,11 +457,7 @@ LTEST(bresenham, {
             }
         }
         RETURN_();
-        if (CTX.getPlatformName() == "AArch64")
-            getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({ 0, 1, 2, 3, 4, 5, 6 }), makeBitmask64({}), makeBitmask64({ 18, 19, 20, 21, 22 }));
     }
-    if (CTX.getPlatformName() == "AArch64")
-        getImpl(&CTX)->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(0, 0, 0, 0);
     });
 static void BresenhamRef(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
 {

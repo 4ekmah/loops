@@ -7,7 +7,8 @@ See https://github.com/vpisarev/loops/LICENSE
 #ifndef __LOOPS_TEST_INTEL64_HPP__
 #define __LOOPS_TEST_INTEL64_HPP__
 
-#if defined(_WIN32) //TODO(ch): It must be about target processor, not operational system
+#include "loops/loops.hpp"
+#if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
@@ -18,9 +19,11 @@ See https://github.com/vpisarev/loops/LICENSE
 namespace loops
 {
     LTEST(arithm_arrs, { //There we are testing stack parameter passing.
-        IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul;
-        STARTFUNC_(TESTNAME, &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul )
+        IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
+        STARTFUNC_(TESTNAME, &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv )
         {
+            if(OSname() == "Linux") 
+                getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7,6,2,1,8,9 }, { 0 }, {}, { 12, 13, 14, 15 });
             IReg offset = CONST_(0);
             IReg i = CONST_(0);
             WHILE_(i < n)
@@ -30,29 +33,33 @@ namespace loops
                 store_<int>(ptrAdd, a + b);
                 store_<int>(ptrSub, a - b);
                 store_<int>(ptrMul, a * b);
+                store_<int>(ptrDiv, a / b);
                 i += 1;
                 offset += sizeof(int);
                 ptrAdd += sizeof(int);
                 ptrSub += sizeof(int);
                 ptrMul += sizeof(int);
+                ptrDiv += sizeof(int);
             };
             RETURN_(0);
         }
         });
     LTESTexe(arithm_arrs, {
-        typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul);
+        typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
         arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(EXEPTR);
         std::vector<int> A = { 8, 2, -5, 7, 6 };
         std::vector<int> B = { 2, -5, 7, 6, 8 };
         int addArr[5];
         int subArr[5];
         int mulArr[5];
-        TEST_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr), 0);
+        int divArr[5];
+        TEST_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
         for (size_t n = 0; n < 5; n++)
         {
             TEST_EQ(A[n] + B[n], addArr[n]);
             TEST_EQ(A[n] - B[n], subArr[n]);
             TEST_EQ(A[n] * B[n], mulArr[n]);
+            TEST_EQ(A[n] / B[n], divArr[n]);
         }
         });
 
@@ -528,45 +535,45 @@ namespace loops
         newiopNoret(OP_XCHG, { rcx,  r8 });
         newiopNoret(OP_XCHG, { r8 ,  r8 });
 
-        newiopNoret(OP_XCHG, { rcx,  argISpilled(32, _f) });
-        newiopNoret(OP_XCHG, { rdi,  argISpilled(32, _f) });
-        newiopNoret(OP_XCHG, { r8 ,  argISpilled(32, _f) });
-        newiopNoret(OP_XCHG, { r15,  argISpilled(32, _f) });
+        newiopNoret(OP_XCHG, { rcx,  argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_XCHG, { rdi,  argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_XCHG, { r8 ,  argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_XCHG, { r15,  argSpilled(RB_INT, 32, _f) });
 
-        newiopNoret(OP_XCHG, { argISpilled(32, _f), rcx });
-        newiopNoret(OP_XCHG, { argISpilled(32, _f), rdi });
-        newiopNoret(OP_XCHG, { argISpilled(32, _f), r8 });
-        newiopNoret(OP_XCHG, { argISpilled(32, _f), r15 });
+        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32, _f), rcx });
+        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32, _f), rdi });
+        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32, _f), r8 });
+        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32, _f), r15 });
 
         newiopNoret(OP_SHL, { rax, rax, argIImm(15, _f) });
         newiopNoret(OP_SHL, { rdi, rdi, argIImm(15, _f) });
         newiopNoret(OP_SHL, { r8 , r8, argIImm(15, _f) });
-        newiopNoret(OP_SHL, { argISpilled(32, _f), argISpilled(32, _f), argIImm(15, _f) });
+        newiopNoret(OP_SHL, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(15, _f) });
 
         newiopNoret(OP_SHL, { rax, rax, cl });
         newiopNoret(OP_SHL, { rdi, rdi, cl });
         newiopNoret(OP_SHL, { r8, r8, cl });
-        newiopNoret(OP_SHL, { argISpilled(32, _f), argISpilled(32, _f), cl });
+        newiopNoret(OP_SHL, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), cl });
 
         newiopNoret(OP_SHR, { rax,rax, argIImm(15, _f) });
         newiopNoret(OP_SHR, { rdi,rdi, argIImm(15, _f) });
         newiopNoret(OP_SHR, { r8 , r8, argIImm(15, _f) });
-        newiopNoret(OP_SHR, { argISpilled(32, _f), argISpilled(32, _f), argIImm(15, _f) });
+        newiopNoret(OP_SHR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(15, _f) });
 
         newiopNoret(OP_SHR, { rax, rax, cl });
         newiopNoret(OP_SHR, { rdi, rdi, cl });
         newiopNoret(OP_SHR, { r8, r8, cl });
-        newiopNoret(OP_SHR, { argISpilled(32, _f), argISpilled(32, _f), cl });
+        newiopNoret(OP_SHR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), cl });
 
         newiopNoret(OP_SAR, { rax,rax, argIImm(15, _f) });
         newiopNoret(OP_SAR, { rdi,rdi, argIImm(15, _f) });
         newiopNoret(OP_SAR, { r8 , r8, argIImm(15, _f) });
-        newiopNoret(OP_SAR, { argISpilled(32, _f), argISpilled(32, _f), argIImm(15, _f) });
+        newiopNoret(OP_SAR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(15, _f) });
 
         newiopNoret(OP_SAR, { rax, rax, cl });
         newiopNoret(OP_SAR, { rdi, rdi, cl });
         newiopNoret(OP_SAR, { r8, r8, cl });
-        newiopNoret(OP_SAR, { argISpilled(32, _f), argISpilled(32, _f), cl });
+        newiopNoret(OP_SAR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), cl });
 
         newiopNoret(OP_AND, { rax, rax, rax });
         newiopNoret(OP_AND, { rax, rax, rdi });
@@ -575,20 +582,20 @@ namespace loops
         newiopNoret(OP_AND, { r8 , r8 , rax });
         newiopNoret(OP_AND, { r8 , r8 , r8 });
 
-        newiopNoret(OP_AND, { rax, rax, argISpilled(32, _f) });
-        newiopNoret(OP_AND, { rdi, rdi, argISpilled(32, _f) });
-        newiopNoret(OP_AND, { r8 , r8 , argISpilled(32, _f) });
+        newiopNoret(OP_AND, { rax, rax, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_AND, { rdi, rdi, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_AND, { r8 , r8 , argSpilled(RB_INT, 32, _f) });
 
         newiopNoret(OP_AND, { rax, rax, argIImm(256, _f) });
         newiopNoret(OP_AND, { rcx, rcx, argIImm(256, _f) });
         newiopNoret(OP_AND, { rdi, rdi, argIImm(256, _f) });
         newiopNoret(OP_AND, { r8 , r8 , argIImm(256, _f) });
 
-        newiopNoret(OP_AND, { argISpilled(32, _f), argISpilled(32, _f), rax });
-        newiopNoret(OP_AND, { argISpilled(32, _f), argISpilled(32, _f), rdi });
-        newiopNoret(OP_AND, { argISpilled(32, _f), argISpilled(32, _f), r8 });
+        newiopNoret(OP_AND, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rax });
+        newiopNoret(OP_AND, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rdi });
+        newiopNoret(OP_AND, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), r8 });
 
-        newiopNoret(OP_AND, { argISpilled(32, _f), argISpilled(32, _f), argIImm(257, _f) });
+        newiopNoret(OP_AND, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(257, _f) });
 
         newiopNoret(OP_OR, { rax, rax, rax });
         newiopNoret(OP_OR, { rax, rax, rdi });
@@ -596,15 +603,15 @@ namespace loops
         newiopNoret(OP_OR, { rax, rax, r8 });
         newiopNoret(OP_OR, { r8 , r8 , rax });
 
-        newiopNoret(OP_OR, { argISpilled(32, _f), argISpilled(32, _f), rax });
-        newiopNoret(OP_OR, { argISpilled(32, _f), argISpilled(32, _f), r8 });
+        newiopNoret(OP_OR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rax });
+        newiopNoret(OP_OR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), r8 });
 
-        newiopNoret(OP_OR, { rax, rax, argISpilled(32, _f) });
-        newiopNoret(OP_OR, { r8, r8, argISpilled(32, _f) });
+        newiopNoret(OP_OR, { rax, rax, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_OR, { r8, r8, argSpilled(RB_INT, 32, _f) });
 
         newiopNoret(OP_OR, { rax, rax, argIImm(256, _f) });
         newiopNoret(OP_OR, { r8, r8, argIImm(256, _f) });
-        newiopNoret(OP_OR, { argISpilled(32, _f), argISpilled(32, _f), argIImm(257, _f) });
+        newiopNoret(OP_OR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(257, _f) });
 
         newiopNoret(OP_XOR, { rax, rax, rax });
         newiopNoret(OP_XOR, { rax, rax, rdi });
@@ -613,20 +620,20 @@ namespace loops
         newiopNoret(OP_XOR, { r8 , r8 , rax });
         newiopNoret(OP_XOR, { r8 , r8 , r8 });
 
-        newiopNoret(OP_XOR, { rax, rax, argISpilled(32, _f) });
-        newiopNoret(OP_XOR, { rdi, rdi, argISpilled(32, _f) });
-        newiopNoret(OP_XOR, { r8 , r8 , argISpilled(32, _f) });
+        newiopNoret(OP_XOR, { rax, rax, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_XOR, { rdi, rdi, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_XOR, { r8 , r8 , argSpilled(RB_INT, 32, _f) });
 
         newiopNoret(OP_XOR, { rax, rax, argIImm(256, _f) });
         newiopNoret(OP_XOR, { rcx, rcx, argIImm(256, _f) });
         newiopNoret(OP_XOR, { rdi, rdi, argIImm(256, _f) });
         newiopNoret(OP_XOR, { r8 , r8 , argIImm(256, _f) });
 
-        newiopNoret(OP_XOR, { argISpilled(32, _f), argISpilled(32, _f), rax });
-        newiopNoret(OP_XOR, { argISpilled(32, _f), argISpilled(32, _f), rdi });
-        newiopNoret(OP_XOR, { argISpilled(32, _f), argISpilled(32, _f), r8 });
+        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rax });
+        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rdi });
+        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), r8 });
 
-        newiopNoret(OP_XOR, { argISpilled(32, _f), argISpilled(32, _f), argIImm(257, _f) });
+        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(257, _f) });
 
         newiopNoret(OP_SELECT, { rax, IC_EQ, rax, rax });
         newiopNoret(OP_SELECT, { rax, IC_NE, rax, rax });
@@ -644,32 +651,31 @@ namespace loops
         newiopNoret(OP_SELECT, { rax, IC_EQ, r8 , rax });
         newiopNoret(OP_SELECT, { r8 , IC_EQ, r8 , r8 });
 
-        newiopNoret(OP_SELECT, { rax, IC_EQ, argISpilled(32, _f), rax });
-        newiopNoret(OP_SELECT, { rdi, IC_EQ, argISpilled(32, _f), rdi });
-        newiopNoret(OP_SELECT, { r8,  IC_EQ, argISpilled(32, _f), r8 });
+        newiopNoret(OP_SELECT, { rax, IC_EQ, argSpilled(RB_INT, 32, _f), rax });
+        newiopNoret(OP_SELECT, { rdi, IC_EQ, argSpilled(RB_INT, 32, _f), rdi });
+        newiopNoret(OP_SELECT, { r8,  IC_EQ, argSpilled(RB_INT, 32, _f), r8 });
 
-        newiopNoret(OP_ADC, { rax, rax, rax });
-        newiopNoret(OP_ADC, { rdi, rdi, rax });
-        newiopNoret(OP_ADC, { rax, rax, rdi });
-        newiopNoret(OP_ADC, { r8 , r8 , rax });
-        newiopNoret(OP_ADC, { rax, rax, r8 });
-        newiopNoret(OP_ADC, { r8 , r8 , r8 });
+        newiopNoret(OP_X86_ADC, { rax, rax, rax });
+        newiopNoret(OP_X86_ADC, { rdi, rdi, rax });
+        newiopNoret(OP_X86_ADC, { rax, rax, rdi });
+        newiopNoret(OP_X86_ADC, { r8 , r8 , rax });
+        newiopNoret(OP_X86_ADC, { rax, rax, r8 });
+        newiopNoret(OP_X86_ADC, { r8 , r8 , r8 });
 
-        newiopNoret(OP_ADC, { rax, rax, argIImm(256, _f) });
-        newiopNoret(OP_ADC, { rcx, rcx, argIImm(256, _f) });
-        newiopNoret(OP_ADC, { rdi, rdi, argIImm(256, _f) });
-        newiopNoret(OP_ADC, { r8 , r8 , argIImm(256, _f) });
-
-        newiopNoret(OP_ADC, { rax, rax, argISpilled(32, _f) });
-        newiopNoret(OP_ADC, { rdi, rdi, argISpilled(32, _f) });
-        newiopNoret(OP_ADC, { r8 , r8 , argISpilled(32, _f) });
-
-        newiopNoret(OP_ADC, { argISpilled(32, _f), argISpilled(32, _f), rax });
-        newiopNoret(OP_ADC, { argISpilled(32, _f), argISpilled(32, _f), rdi });
-        newiopNoret(OP_ADC, { argISpilled(32, _f), argISpilled(32, _f), r8 });
-        newiopNoret(OP_ADC, { argISpilled(32, _f), argISpilled(32, _f), argIImm(256, _f) });
+        newiopNoret(OP_X86_ADC, { rax, rax, argIImm(256, _f) });
+        newiopNoret(OP_X86_ADC, { rcx, rcx, argIImm(256, _f) });
+        newiopNoret(OP_X86_ADC, { rdi, rdi, argIImm(256, _f) });
+        newiopNoret(OP_X86_ADC, { r8 , r8 , argIImm(256, _f) });
+        newiopNoret(OP_X86_ADC, { rax, rax, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_X86_ADC, { rdi, rdi, argSpilled(RB_INT, 32, _f) });
+        newiopNoret(OP_X86_ADC, { r8 , r8 , argSpilled(RB_INT, 32, _f) });
+        
+        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rax });
+        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rdi });
+        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), r8 });
+        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(256, _f) });
         });
 
 };
-#endif
+#endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__

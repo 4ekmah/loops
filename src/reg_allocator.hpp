@@ -29,45 +29,39 @@ excepts connected vectors.
         RegisterPool(Backend* m_owner);
 
         void initRegisterPool();
-        size_t freeRegsAmount() const;
-        inline bool havefreeRegs() const { return freeRegsAmount() > 0; }
-        IRegInternal provideParamFromPool();  //Must be called first.
-        IRegInternal provideRegFromPool(IRegInternal a_hint = IReg::NOIDX);
-        IRegInternal provideReturnFromPool(); //Must be called last.
-        void releaseRegister(IRegInternal freeReg);
+        size_t freeRegsAmount(int basketNum) const;
+        inline bool havefreeRegs(int basketNum) const { return freeRegsAmount(basketNum) > 0; }
+        RegIdx provideParamFromPool(int basketNum);  //Must be called first.
+        // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
+        RegIdx provideRegFromPool(int basketNum, RegIdx a_hint = IReg::NOIDX);
+        RegIdx provideReturnFromPool(int basketNum); //Must be called last.
+        void releaseReg(int basketNum, RegIdx freeReg);
 
-        IRegInternal provideSpillPlaceholder();
-        void clearSpillPlaceholders();
+        RegIdx provideSpillPlaceholder(int basketNum);
+        void clearSpillPlaceholders(int basketNum);
 
-        inline std::set<IRegInternal> usedCallee() const { return m_usedCallee; }
-        void overrideRegisterSet(uint64_t a_parameterRegisters, uint64_t a_returnRegisters,
-                                 uint64_t a_callerSavedRegisters, uint64_t a_calleeSavedRegisters);
+        inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
+        void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
+                                                const std::vector<size_t>&  a_returnRegisters,
+                                                const std::vector<size_t>&  a_callerSavedRegisters,
+                                                const std::vector<size_t>&  a_calleeSavedRegisters);
     private:
-        void removeFromAllBaskets(size_t reg);
-
         Backend* m_backend;
-        std::set<IRegInternal> m_usedCallee;
+        // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
+        // register to be erased from all of them.
+        void removeFromAllVessels(int basketNum, size_t reg);
 
-        // Sometimes register can exist in more than one basket(like parameter and return), so we have to trace 
-        // register to be erased from all of them. That's why we are using one pool for controling engagement 
-        // and four static bit masks, which are just marking which register is belong to which basket.
-        uint64_t m_pool;
-        uint64_t m_parameterRegisters;
-        uint64_t m_returnRegisters;
-        uint64_t m_callerSavedRegisters;
-        uint64_t m_calleeSavedRegisters;
-        uint64_t m_spillPlaceholders;
-        uint64_t m_spillPlaceholdersAvailable;
-        enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed scheme, than just 3 spills.
-        // Register pool have internal ordering of registers for supporting correct providing sequence. 
-        // (There must be provided first registers from parameter basket, further: return - callerSaved - calleeSaved).
-        std::vector<IRegInternal> m_regOrder;
-        std::vector<size_t> m_invertOrderMapping;
-
-        uint64_t m_parameterRegistersO;
-        uint64_t m_returnRegistersO;
-        uint64_t m_callerSavedRegistersO;
-        uint64_t m_calleeSavedRegistersO;
+        enum {PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255};
+        enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
+        // Register pool have internal ordering of registers for supporting correct providing sequence.
+        uint8_t m_reorderArch2Inner[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
+        uint8_t m_reorderInner2Arch[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
+        uint64_t m_vessel[RB_AMOUNT][VESS_AMOUNT];
+        uint64_t m_pool[RB_AMOUNT]; // Pool is used for easy registers amount calculation and spill placeholders management.
+        uint64_t m_spillPlaceholders[RB_AMOUNT]; //There used outer register ordering
+        uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
+        std::set<RegIdx> m_usedCallee[RB_AMOUNT];
+        std::vector<size_t> m_registersO[RB_AMOUNT][VESS_AMOUNT];
     };
 
 /*
@@ -88,7 +82,7 @@ class RegisterAllocator //TODO(ch): Can you make it derivative from CompilerStag
 {
 public:
     RegisterAllocator(ContextImpl* a_owner);
-    void process(FuncImpl* a_func, Syntfunc& a_processed, size_t a_virtualRegsAmount);
+    void process(FuncImpl* a_func, Syntfunc& a_processed, int a_virtualRegsAmount[RB_AMOUNT]);
     inline size_t epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
