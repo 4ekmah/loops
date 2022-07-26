@@ -11,6 +11,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <ostream>
 #include <string>
 #include <vector>
+#include <stdexcept>
 #include "defines.hpp"
 
 namespace loops
