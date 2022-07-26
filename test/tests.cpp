@@ -9,6 +9,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
 #include <fstream>
 #include <sstream>
+#include <locale>
 #include <sys/stat.h> //TODO(ch): *nix-only.
 
 namespace loops
@@ -20,13 +21,22 @@ inline bool fileexists(const std::string& name) //TODO(ch): need crossplatform s
   return (stat (name.c_str(), &buffer) == 0);
 }
 
+inline std::string toLower(const std::string& tL)
+{
+    std::string res;
+    res.reserve(tL.size() + 1);
+    for(char tl: tL)
+        res += std::tolower(tl);
+    return res;
+}
+
 bool Test::testAssembly(bool a_rewriteIfWrong)
 {
     std::string tarcname = CTX.getPlatformName();
-    std::string arcOSsuffix = tarcname;
+    std::string arcOSsuffix = toLower(tarcname);
     std::string bfilename(LOOPS_TEST_DIR"/refasm/");
     if(tarcname == "Intel64")
-        arcOSsuffix += std::string("/") + OSname();
+        arcOSsuffix += std::string("/") + toLower(OSname());
     std::string tfilename = bfilename;
     bool result = true;
     { //Bytecode check
