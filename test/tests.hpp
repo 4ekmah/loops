@@ -25,11 +25,11 @@ public:
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
     virtual std::vector<std::string> fixturesNames() const = 0;
     template<typename T>
-    static inline bool test_eq(const T& tstd, const T& ref)
+    inline bool test_eq(const T& tstd, const T& ref)
     {
         bool res = (tstd == ref);
         if (!res)
-            std::cout<<"    Failed:"<<tstd<<"!="<<ref<<std::endl; //TODO(ch): IMPORTANT: do something, return here m_out
+            (*m_out)<<"    Failed:"<<tstd<<"!="<<ref<<std::endl;
         return res;
     }
     static std::string OSname();
@@ -102,14 +102,14 @@ public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
     static std::vector<std::string> m_fixturesNames;            \
     static std::vector<void (*)(loops::Context)> m_generators;  \
-    static std::map<std::string, bool (*)(loops::Context)>      \
-                                                    m_executors;\
+    static std::map<std::string,                                \
+                bool (funcname::*)(loops::Context)> m_executors;\
     virtual std::vector<std::string> fixturesNames() const      \
                                                      override   \
     { return m_fixturesNames;}                                  \
     virtual bool testExecution(const std::string& fixName)      \
     {                                                           \
-        return m_executors[fixName](CTX);                       \
+        return (this->*m_executors[fixName])(CTX);              \
     }                                                           \
     virtual void generateCode()                                 \
     {                                                           \
@@ -119,7 +119,7 @@ public:                                                         \
     template<_pT1 _p1>                                          \
     static std::string pName();                                 \
     template<_pT1 _p1>                                          \
-    static bool testParameterizedExecution(loops::Context CTX); \
+    bool testParameterizedExecution(loops::Context CTX);        \
     template<_pT1 _p1>                                          \
     static void genParameterizedCode(loops::Context CTX)        \
     {                                                           \
@@ -128,12 +128,12 @@ public:                                                         \
         __VA_ARGS__                                             \
         m_fixturesNames.push_back(TESTNAME);                    \
         m_executors[TESTNAME] =                                 \
-            &(funcname::testParameterizedExecution<_p1>);       \
+                     &funcname::testParameterizedExecution<_p1>;\
     }                                                           \
 };                                                              \
 std::vector<std::string> funcname::m_fixturesNames;             \
 std::vector<void (*)(loops::Context)> funcname::m_generators;   \
-std::map<std::string, bool (*)(loops::Context)>                 \
+std::map<std::string, bool (funcname::*)(loops::Context)>       \
                                           funcname::m_executors;\
 class funcname##_reg                                            \
 {                                                               \
