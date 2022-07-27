@@ -30,8 +30,9 @@ inline std::string toLower(const std::string& tL)
     return res;
 }
 
-bool Test::testAssembly(bool a_rewriteIfWrong)
+bool Test::testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong)
 {
+    loops::Func func = CTX.getFunc(a_fixtureName);
     std::string tarcname = CTX.getPlatformName();
     std::string arcOSsuffix = toLower(tarcname);
     std::string bfilename(LOOPS_TEST_DIR"/refasm/");
@@ -43,10 +44,10 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         bool rewrite = false;
         std::string bctext;
         ::std::ostringstream bcstream(bctext, ::std::ios::out);
-        m_func.printBytecode(bcstream);
+        func.printBytecode(bcstream);
         bctext = bcstream.str();
         bfilename += arcOSsuffix + "/bytecode/";
-        bfilename += m_func.name() + ".tst";
+        bfilename += a_fixtureName + ".tst";
         if(fileexists(bfilename))
         {
             std::ifstream refstream(bfilename.c_str(), ::std::ios::in);
@@ -82,10 +83,10 @@ bool Test::testAssembly(bool a_rewriteIfWrong)
         bool rewrite = false;
         std::string tatext;
         ::std::ostringstream tastream(tatext, ::std::ios::out);
-        m_func.printAssembly(tastream);
+        func.printAssembly(tastream);
         tatext = tastream.str();
         tfilename += arcOSsuffix + "/";
-        tfilename += m_func.name() + ".tst";
+        tfilename += a_fixtureName + ".tst";
         if(fileexists(tfilename))
         {
             std::ifstream refstream(tfilename.c_str(), ::std::ios::in);
@@ -211,26 +212,27 @@ void TestSuite::run(bool rewriteListings)
         tptr->generateCode();
     CTX.compileAll();
     for(std::shared_ptr<Test> tptr: m_testList)
-    {
-        ++total;
-        (*m_out)<<"[TEST:\""<<tptr->name()<<"\"]"<<std::endl;
-        if(!tptr->testExecution())
+        for(std::string& fixtureName : tptr->fixturesNames())
         {
-            ++failed;
-            ++executionFail;
-            (*m_out)<<"[FAIL]"<<std::endl;
-            continue;
+            ++total;
+            (*m_out)<<"[TEST:\""<<fixtureName<<"\"]"<<std::endl;
+            if(!tptr->testExecution(fixtureName))
+            {
+                ++failed;
+                ++executionFail;
+                (*m_out)<<"[FAIL]"<<std::endl;
+                continue;
+            }
+            if(!tptr->testAssembly(fixtureName, rewriteListings))
+            {
+                ++failed;
+                ++listingFail;
+                (*m_out)<<"[FAIL]"<<std::endl;
+                continue;
+            }
+            ++success;
+            (*m_out)<<"[OK]"<<std::endl;
         }
-        if(!tptr->testAssembly(rewriteListings))
-        {
-            ++failed;
-            ++listingFail;
-            (*m_out)<<"[FAIL]"<<std::endl;
-            continue;
-        }
-        ++success;
-        (*m_out)<<"[OK]"<<std::endl;
-    }
     (*m_out)<<"Total tests       : "<<total<<std::endl;
     (*m_out)<<"Success           : "<<success<<std::endl;
     (*m_out)<<"Failed            : "<<failed<<std::endl;

@@ -8,6 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_TESTS_HPP__
 #include "loops/loops.hpp"
 #include <vector>
+#include <map>
 #include <list>
 #include <iostream>
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
@@ -19,10 +20,10 @@ class Test
 {
 public:
     Test(std::ostream& out, Context& ctx): m_out(&out), CTX(ctx) {}
-    virtual std::string generateCode() = 0;
-    virtual bool testExecution() = 0;
-    bool testAssembly(bool a_rewriteIfWrong = false);
-    std::string name() const { return m_func.name(); }
+    virtual void generateCode() = 0;
+    virtual bool testExecution(const std::string& fixName) = 0;
+    bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
+    virtual std::vector<std::string> fixturesNames() const = 0;
     template<typename T>
     inline bool test_eq(const T& tstd, const T& ref)
     {
@@ -35,7 +36,6 @@ public:
 #define TEST_EQ(a,b) if(!test_eq((a),(b))) return false;
 protected:
     Context CTX;
-    Func m_func;
 private:
     std::ostream* m_out;
     bool checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes);
@@ -64,16 +64,18 @@ private:
 class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    virtual std::string generateCode()                          \
+    funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
+    virtual void generateCode()                                 \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
-        USE_CONTEXT_(CTX)                                        \
+        USE_CONTEXT_(CTX)                                       \
         __VA_ARGS__                                             \
-        m_func = CTX.getFunc(TESTNAME);                         \
-        return TESTNAME;                                        \
     }                                                           \
-    virtual bool testExecution();                               \
+    virtual bool testExecution(const std::string& fixName)      \
+                                                       override;\
+    virtual std::vector<std::string> fixturesNames() const      \
+                                                     override   \
+    { return std::vector<std::string>(1, #funcname);}           \
 };                                                              \
 class funcname##_reg                                            \
 {                                                               \
@@ -86,29 +88,109 @@ public:                                                         \
 funcname##_reg funcname##_reg_instance
 
 #define LTESTexe(funcname, ...)                                 \
-bool funcname::testExecution()                                  \
+bool funcname::testExecution(const std::string& fixName)        \
 {                                                               \
-    void* EXEPTR = m_func.ptr();                                \
+    void* EXEPTR = CTX.getFunc(fixName).ptr();                  \
     __VA_ARGS__                                                 \
     return true;                                                \
 }
+
+#define PTEST_1(funcname, _pT1, _p1, ...)                       \
+class funcname: public Test                                     \
+{                                                               \
+public:                                                         \
+    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
+    static std::vector<std::string> m_fixturesNames;            \
+    static std::vector<void (*)(loops::Context)> m_generators;  \
+    static std::map<std::string,                                \
+                bool (funcname::*)(loops::Context)> m_executors;\
+    virtual std::vector<std::string> fixturesNames() const      \
+                                                     override   \
+    { return m_fixturesNames;}                                  \
+    virtual bool testExecution(const std::string& fixName)      \
+    {                                                           \
+        return (this->*m_executors[fixName])(CTX);              \
+    }                                                           \
+    virtual void generateCode()                                 \
+    {                                                           \
+        for(auto generator : m_generators)                      \
+            generator(CTX);                                     \
+    }                                                           \
+    template<_pT1 _p1>                                          \
+    static std::string pName();                                 \
+    template<_pT1 _p1>                                          \
+    bool testParameterizedExecution(loops::Context CTX);        \
+    template<_pT1 _p1>                                          \
+    static void genParameterizedCode(loops::Context CTX)        \
+    {                                                           \
+        std::string TESTNAME = pName<_p1>();                    \
+        USE_CONTEXT_(CTX)                                       \
+        __VA_ARGS__                                             \
+        m_fixturesNames.push_back(TESTNAME);                    \
+        m_executors[TESTNAME] =                                 \
+                     &funcname::testParameterizedExecution<_p1>;\
+    }                                                           \
+};                                                              \
+std::vector<std::string> funcname::m_fixturesNames;             \
+std::vector<void (*)(loops::Context)> funcname::m_generators;   \
+std::map<std::string, bool (funcname::*)(loops::Context)>       \
+                                          funcname::m_executors;\
+class funcname##_reg                                            \
+{                                                               \
+public:                                                         \
+    funcname##_reg()                                            \
+    {                                                           \
+        TestSuite::getInstance()->regTest<funcname>();          \
+    };                                                          \
+};                                                              \
+funcname##_reg funcname##_reg_instance
+
+#define PTESTexe_1(funcname, _pT1, _p1, ...)                    \
+template<_pT1 _p1>                                              \
+bool funcname::testParameterizedExecution(loops::Context CTX)   \
+{                                                               \
+    void* EXEPTR = CTX.getFunc(funcname::pName<_p1>()).ptr();   \
+    __VA_ARGS__                                                 \
+    return true;                                                \
+}
+
+#define PTESTfix_1(funcname, _p1)                               \
+template<>                                                      \
+std::string funcname::pName<_p1>()                              \
+{                                                               \
+    return std::string(#funcname) + "_" + #_p1;                 \
+}                                                               \
+class funcname##_gfix_##_p1                                     \
+{                                                               \
+public:                                                         \
+    funcname##_gfix_##_p1()                                     \
+    {                                                           \
+        funcname::m_generators.push_back(                       \
+              &(funcname::genParameterizedCode<_p1>));          \
+    };                                                          \
+};                                                              \
+funcname##_gfix_##_p1 inst##funcname##_gfix_##_p1
+
+
 
 #define LTESTcomposer(funcname, ...)                            \
 class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    virtual std::string generateCode()                          \
+    virtual void generateCode()                                 \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         CTX.startFunc(TESTNAME, {});                            \
         __VA_ARGS__                                             \
-        m_func = CTX.getFunc(TESTNAME);                         \
-        getImpl(&m_func)->setDirectTranslation(true);           \
+        loops::Func func = CTX.getFunc(TESTNAME);               \
+        getImpl(&func)->setDirectTranslation(true);             \
         getImpl(&CTX)->endFunc();                               \
-        return TESTNAME;                                        \
     }                                                           \
-    virtual bool testExecution();                               \
+    virtual bool testExecution(const std::string& fixName);     \
+    virtual std::vector<std::string> fixturesNames() const      \
+                                                     override   \
+    { return std::vector<std::string>(1, #funcname);}           \
 };                                                              \
 class funcname##_reg                                            \
 {                                                               \
@@ -118,7 +200,7 @@ public:                                                         \
         TestSuite::getInstance()->regTest<funcname>();          \
     };                                                          \
 };                                                              \
-bool funcname::testExecution()                                  \
+bool funcname::testExecution(const std::string& fixName)        \
 {                                                               \
     return true;                                                \
 }                                                               \
