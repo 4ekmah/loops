@@ -10,6 +10,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #include "tests.hpp"
 #include <iostream>
+#include <math.h>
 #include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
@@ -31,77 +32,6 @@ LTESTexe(a_plus_b, {
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
     for(size_t n = 0; n < A.size(); n++)
         TEST_EQ(tested(A[n],B[n]), A[n]+B[n]);
-});
-
-IReg __pow__(const IReg& _x, int p, loops::Context& CTX)
-{
-    USE_CONTEXT_(CTX);
-    IReg x = _x;
-    IReg res = CONST_(1);
-    while (p)
-        if (p & 1) {
-            res *= x;
-            --p;
-        }
-        else {
-            x *= x;
-            p >>= 1;
-        }
-    return res;
-}
-LTEST(exponentiation_by_squaring_0, {
-    int p = 0;
-    IReg x;
-    STARTFUNC_(TESTNAME, &x)
-    {
-        RETURN_(__pow__(x, p, CTX));
-    }
-});
-LTESTexe(exponentiation_by_squaring_0, {
-    typedef int64_t(*exponential_by_squaring_f)(int64_t x);
-    exponential_by_squaring_f tested = reinterpret_cast<exponential_by_squaring_f>(EXEPTR);
-    const int p = 0;
-    std::vector<int64_t> X = {3,5,7,3,2,0,1};
-    for (size_t n = 0; n < X.size(); n++) {
-        int64_t tmp = pow(X[n], p);
-        TEST_EQ(tested(X[n]), tmp);
-    }
-});
-LTEST(exponentiation_by_squaring_1, {
-    int p = 1;
-    IReg x;
-    STARTFUNC_(TESTNAME, &x)
-    {
-        RETURN_(__pow__(x, p, CTX));
-    }
-});
-LTESTexe(exponentiation_by_squaring_1, {
-    typedef int64_t(*exponential_by_squaring_f)(int64_t x);
-    exponential_by_squaring_f tested = reinterpret_cast<exponential_by_squaring_f>(EXEPTR);
-    const int p = 1;
-    std::vector<int64_t> X = {3,5,7,3,2,0,1};
-    for (size_t n = 0; n < X.size(); n++) {
-        int64_t tmp = pow(X[n], p);
-        TEST_EQ(tested(X[n]), tmp);
-    }
-});
-LTEST(exponentiation_by_squaring_9, {
-    int p = 9;
-    IReg x;
-    STARTFUNC_(TESTNAME, &x)
-    {
-        RETURN_(__pow__(x, p, CTX));
-    }
-});
-LTESTexe(exponentiation_by_squaring_9, {
-    typedef int64_t(*exponential_by_squaring_f)(int64_t x);
-    exponential_by_squaring_f tested = reinterpret_cast<exponential_by_squaring_f>(EXEPTR);
-    const int p = 9;
-    std::vector<int64_t> X = {3,5,7,3,2,0,1};
-    for (size_t n = 0; n < X.size(); n++) {
-        int64_t tmp = pow(X[n], p);
-        TEST_EQ(tested(X[n]), tmp);
-    }
 });
 
 LTEST(min_max_scalar, {
