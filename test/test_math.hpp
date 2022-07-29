@@ -12,23 +12,6 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-IReg __pow__(const IReg& _x, int p, loops::Context& CTX)
-{
-    USE_CONTEXT_(CTX);
-    IReg x = _x;
-    IReg res = CONST_(1);
-    while (p)
-        if (p & 1) {
-            res *= x;
-            --p;
-        }
-        else {
-            x *= x;
-            p >>= 1;
-        }
-    return res;
-}
-
 PTEST_1(exponentiation_by_squaring, int64_t, _p, {
     int p = _p;
     IReg ptrA, n, ptrPow;
@@ -40,7 +23,7 @@ PTEST_1(exponentiation_by_squaring, int64_t, _p, {
         WHILE_(i < n)
             {
                 IReg x = load_<int>(ptrA, offset);
-                store_<int>(ptrPow, __pow__(x, p, CTX));
+                store_<int>(ptrPow, pow(x, p));
                 i += 1;
                 offset += sizeof(int);
                 ptrPow += sizeof(int);
@@ -56,7 +39,7 @@ PTESTexe_1(exponentiation_by_squaring, int64_t, _p, {
     int resArr[7];
     TEST_EQ(tested(&X[0], X.size(), resArr), (int64_t)(0));
     for (size_t n = 0; n < X.size(); n++) {
-        int tmp = static_cast<int>(pow(X[n], _p));
+        int tmp = static_cast<int>(::pow(X[n], _p));
         TEST_EQ(resArr[n], tmp);
     }
 });

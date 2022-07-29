@@ -513,6 +513,7 @@ static inline IReg abs(const IReg& a)
 { return newiop(OP_ABS, {a}); }
 static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
+IReg pow(const IReg& a, int p);
 
 static inline IReg& operator += (IReg& a, const IReg& b)
 { newiopAug(OP_ADD, {a, a, b}); return a; }

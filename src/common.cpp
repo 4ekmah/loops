@@ -160,6 +160,37 @@ namespace loops
         //TODO(ch): IMPORTANT(CMPLCOND)
     }
 
+    IReg pow(const IReg& a, int p)
+    {
+        if(p == 0)
+            return FuncImpl::verifyArgs({ a })->const_(1);
+        IReg _a = a;
+        IReg* pres;
+        while (p)
+            if (p & 1) {
+                pres = new IReg(_a);
+                --p;
+                break;
+            }
+            else {
+                _a *= _a;
+                p >>= 1;
+            }
+        IReg& res = *pres;
+        while (p)
+            if (p & 1) {
+                res *= _a;
+                --p;
+            }
+            else {
+                _a *= _a;
+                p >>= 1;
+            }
+        IReg ret = static_cast<IReg&&>(res);
+        delete pres;
+        return ret;
+    }
+
     IReg operator == (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
