@@ -107,8 +107,14 @@ public:
     void* compile(Context* a_ctx, Func* a_func);
     
     //Prologue and epilogue support
+    /*
+    getStackParameterLayout
+    Return offset-of-SP map of stack-passed parameters: parLayout[basketNum][idx used in a_func.params] = offset
+    It's assumed offset from SP just after function call(without prologue).
+    Offset measured not in bytes, each unit = 8 bytes. 
+    */
+    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
-    virtual size_t stackParamOffset(size_t alignedSPAdd) const = 0;
     virtual Arg getSParg(Func* funcimpl) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;

@@ -1347,20 +1347,42 @@ namespace loops
         return result;
     }
 
+    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+    {
+    #if __LOOPS_OS == __LOOPS_WINDOWS
+        size_t sp2parShift = 5;; //+5 is because of return address kept in stack + 32 bytes of shadow space
+    #elif __LOOPS_OS == __LOOPS_LINUX
+        size_t sp2parShift = 1; //+1 is because of return address kept in stack 
+    #else
+        #error Unknown OS.
+    #endif        
+        size_t sp2parShift = 5;
+
+        size_t regPassed[RB_AMOUNT];
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
+        size_t currOffset = 0;
+        size_t xBasket[RB_AMOUNT] = {1,1};
+        xBasket[RB_VEC] = getVectorRegisterSize() / 64;
+        for(const Arg& arg : a_func.params)
+        {
+            Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+            int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
+            if (regPassed[basketNum] > 0)
+            {
+                regPassed[basketNum]--;
+                continue;
+            }
+            if(currOffset%xBasket[basketNum])
+                currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
+            parLayout[basketNum][arg.idx] = currOffset;
+            currOffset+=xBasket[basketNum];
+        }
+    }
+
     size_t Intel64Backend::stackGrowthAlignment(size_t stackGrowth) const
     {
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
-    }
-
-    size_t Intel64Backend::stackParamOffset(size_t alignedSPAdd) const
-    {
-    #if __LOOPS_OS == __LOOPS_WINDOWS
-        return alignedSPAdd + 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
-    #elif __LOOPS_OS == __LOOPS_LINUX
-        return alignedSPAdd + 1; //+1 is because of return address kept in stack 
-    #else
-        #error Unknown OS.
-    #endif
     }
 
     Arg Intel64Backend::getSParg(Func* funcimpl) const

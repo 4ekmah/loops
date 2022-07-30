@@ -1,4 +1,4 @@
-clear_lsb_msb_v(i0, i1, i2, i3)
+nullify_msb_lsb_v(i0, i1, i2, i3)
      0 : sub  sp, sp, #0x10              ; ff 43 00 d1  
      1 : str  x18, [sp], #0              ; f2 03 00 f9  
      2 : str  x19, [sp], #0x01           ; f3 07 00 f9  

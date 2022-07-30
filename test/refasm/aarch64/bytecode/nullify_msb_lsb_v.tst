@@ -1,4 +1,4 @@
-clear_lsb_msb_v(i0, i1, i2, i3)
+nullify_msb_lsb_v(i0, i1, i2, i3)
      0 : sub      i31, i31, 16 
      1 : spill    0, i18       
      2 : spill    1, i19       

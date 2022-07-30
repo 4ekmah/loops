@@ -161,7 +161,7 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_ARM_CNEG, "arm_cneg"},
 };
 
-FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0)
+FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
     , m_nextIdx{0, 0}
     , m_nextLabelIdx(0)
     , m_context(getImpl(ctx))
@@ -172,14 +172,14 @@ FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<
     , m_syntopStagesApplied(false)
 {
     m_data.name = name;
-    m_data.params[RB_INT].reserve(params.size());  //TODO(ch): support vector parameters
+    m_data.params.reserve(params.size());
     for (IReg* parreg : params)
     {
         if(parreg->func != nullptr || parreg->idx != IReg::NOIDX)
             throw std::runtime_error("Parameter index is already initilized in some other function");
         parreg->func = this;
         parreg->idx = provideIdx(RB_INT);
-        m_data.params[RB_INT].emplace_back(parreg->idx);
+        m_data.params.emplace_back(*parreg);
     }
 }
 

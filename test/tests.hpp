@@ -65,7 +65,7 @@ class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         USE_CONTEXT_(CTX)                                       \
@@ -254,7 +254,7 @@ class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         CTX.startFunc(TESTNAME, {});                            \
@@ -263,7 +263,9 @@ public:                                                         \
         getImpl(&func)->setDirectTranslation(true);             \
         getImpl(&CTX)->endFunc();                               \
     }                                                           \
-    virtual bool testExecution(const std::string& fixName);     \
+    virtual bool testExecution(const std::string& fixName)      \
+                                                     override   \
+    { return true; }                                            \
     virtual std::vector<std::string> fixturesNames() const      \
                                                      override   \
     { return std::vector<std::string>(1, #funcname);}           \
@@ -276,10 +278,6 @@ public:                                                         \
         TestSuite::getInstance()->regTest<funcname>();          \
     };                                                          \
 };                                                              \
-bool funcname::testExecution(const std::string& fixName)        \
-{                                                               \
-    return true;                                                \
-}                                                               \
 funcname##_reg funcname##_reg_instance
 
 

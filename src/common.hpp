@@ -305,7 +305,7 @@ namespace loops
     struct Syntfunc
     {
         std::vector<Syntop> program;
-        std::vector<RegIdx> params[RB_AMOUNT];
+        std::vector<Arg> params;
         std::string name;
         enum {RETREG = size_t(-2)};
         Syntfunc() {}

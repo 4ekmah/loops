@@ -45,13 +45,15 @@ excepts connected vectors.
                                                 const std::vector<size_t>&  a_returnRegisters,
                                                 const std::vector<size_t>&  a_callerSavedRegisters,
                                                 const std::vector<size_t>&  a_calleeSavedRegisters);
+        
+        void getOverridenParams(std::vector<size_t> (&regParsOverride)[RB_AMOUNT]) const;
     private:
         Backend* m_backend;
         // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
         // register to be erased from all of them.
         void removeFromAllVessels(int basketNum, size_t reg);
 
-        enum {PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255};
+        enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
         enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
         // Register pool have internal ordering of registers for supporting correct providing sequence.
         uint8_t m_reorderArch2Inner[RB_AMOUNT][VESS_AMOUNT][REG_MAX];

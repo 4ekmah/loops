@@ -82,8 +82,8 @@ public:
     virtual size_t spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
     virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
     virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
+    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const override final;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
-    virtual size_t stackParamOffset(size_t alignedSPAdd) const override final;
     virtual Arg getSParg(Func* funcimpl) const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;

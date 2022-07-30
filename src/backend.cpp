@@ -176,8 +176,7 @@ std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) cons
 Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
     Syntfunc result;
-    for(int basketNum = 0; basketNum<RB_AMOUNT; basketNum++ )
-    result.params[basketNum] = a_bcfunc.params[basketNum];
+    result.params = a_bcfunc.params;
     result.program.reserve(a_bcfunc.program.size());
     result.name = a_bcfunc.name;
     m_s2sCurrentOffset = 0;

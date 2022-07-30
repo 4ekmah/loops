@@ -46,9 +46,9 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     44 : cmp  x2, x4                 ; 5f 00 04 eb  
     45 : b.ne [47]                   ; 41 00 00 54  
     46 : b    [70]                   ; 18 00 00 14  
-    47 : ldr  x20, [sp], #0x01       ; f4 07 40 f9  
-    48 : ldr  x21, [sp], #0x02       ; f5 0b 40 f9  
-    49 : add  x18, x21, x20          ; b2 02 14 8b  
+    47 : ldr  x21, [sp], #0x01       ; f5 07 40 f9  
+    48 : ldr  x20, [sp], #0x02       ; f4 0b 40 f9  
+    49 : add  x18, x20, x21          ; 92 02 15 8b  
     50 : mov  x20, x18               ; f4 03 12 aa  
     51 : str  x20, [sp], #0x02       ; f4 0b 00 f9  
     52 : ldr  x20, [sp], #0          ; f4 03 40 f9  
@@ -60,9 +60,9 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     58 : cmp  x3, x5                 ; 7f 00 05 eb  
     59 : b.ne [61]                   ; 41 00 00 54  
     60 : b    [70]                   ; 0a 00 00 14  
-    61 : ldr  x20, [sp], #0x04       ; f4 13 40 f9  
-    62 : ldr  x21, [sp], #0x02       ; f5 0b 40 f9  
-    63 : add  x18, x21, x20          ; b2 02 14 8b  
+    61 : ldr  x21, [sp], #0x04       ; f5 13 40 f9  
+    62 : ldr  x20, [sp], #0x02       ; f4 0b 40 f9  
+    63 : add  x18, x20, x21          ; 92 02 15 8b  
     64 : mov  x20, x18               ; f4 03 12 aa  
     65 : str  x20, [sp], #0x02       ; f4 0b 00 f9  
     66 : ldr  x20, [sp], #0x03       ; f4 0f 40 f9  

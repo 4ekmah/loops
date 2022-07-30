@@ -1032,8 +1032,23 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-    case (OP_UNSPILL):  return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
-    case (OP_SPILL):    return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+    case (OP_UNSPILL):  
+        if(index.size() == 2) 
+        {
+            if(index[0].tag == Arg::IREG) 
+                return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
+            else if(index[0].tag == Arg::VREG) 
+                return SyT(AARCH64_LDR, { SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
+        }
+    case (OP_SPILL):
+        if(index.size() == 2) 
+        {
+            if(index[1].tag == Arg::IREG) 
+                return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+            else if(index[1].tag == Arg::VREG) 
+                return SyT(AARCH64_STR, { SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+        }
+    
     case (OP_JMP_NE):   return SyT(AARCH64_B_NE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //AArch64 supports only multiply-4 offsets,
     case (OP_JMP_EQ):   return SyT(AARCH64_B_EQ,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //so, for compactification, they are divided by 4.
     case (OP_JMP_LT):   return SyT(AARCH64_B_LT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
@@ -1077,10 +1092,10 @@ Aarch64Backend::Aarch64Backend()
     m_callerSavedRegisters[RB_INT] = { XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 };
     m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 };
 
-    m_parameterRegisters[RB_VEC] = { };
-    m_returnRegisters[RB_VEC] = { };
-    m_callerSavedRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
-    m_calleeSavedRegisters[RB_VEC] = { };
+    m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7 };
+    m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_callerSavedRegisters[RB_VEC] = { Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15 };
+    m_calleeSavedRegisters[RB_VEC] = { Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
 }
 
 size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
@@ -1199,14 +1214,33 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     return result;
 }
 
+void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+{
+    size_t regPassed[RB_AMOUNT];
+    for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
+    size_t currOffset = 0;
+    size_t xBasket[RB_AMOUNT] = {1,1};
+    xBasket[RB_VEC] = getVectorRegisterSize() / 64;
+    for(const Arg& arg : a_func.params)
+    {
+        Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+        int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
+        if (regPassed[basketNum] > 0)
+        {
+            regPassed[basketNum]--;
+            continue;
+        }
+        if(currOffset%xBasket[basketNum])
+            currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
+        parLayout[basketNum][arg.idx] = currOffset;
+        currOffset+=xBasket[basketNum];
+    }
+}
+
 size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
 {
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
-}
-
-size_t Aarch64Backend::stackParamOffset(size_t alignedSPAdd) const
-{
-    return alignedSPAdd;
 }
 
 Arg Aarch64Backend::getSParg(Func* funcimpl) const
@@ -1338,6 +1372,11 @@ void Aarch64Backend::switchOnSpillStressMode()
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3 };
     m_callerSavedRegisters[RB_INT] = {};
     m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22 };
+
+    m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_callerSavedRegisters[RB_VEC] = { };
+    m_calleeSavedRegisters[RB_VEC] = { Q29, Q30, Q31 };
 }
 
 void AArch64ARASnippets::process(Syntfunc& a_processed) const

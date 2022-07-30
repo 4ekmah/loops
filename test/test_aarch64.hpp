@@ -38,7 +38,7 @@ LTESTexe(ten_args_to_sum, {
     TEST_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
     });
 
-LTEST(clear_lsb_msb_v, {
+LTEST(nullify_msb_lsb_v, {
     IReg iptr, omptr, olptr, n;
     STARTFUNC_(TESTNAME, &iptr, &omptr, &olptr, &n)
     {
@@ -65,7 +65,7 @@ LTEST(clear_lsb_msb_v, {
         RETURN_();
     }
     });
-LTESTexe(clear_lsb_msb_v, {
+LTESTexe(nullify_msb_lsb_v, {
     typedef uint32_t (*clear_lsb_msb_v)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
     clear_lsb_msb_v tested = reinterpret_cast<clear_lsb_msb_v>(EXEPTR);
     std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
