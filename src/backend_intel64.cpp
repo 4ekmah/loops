@@ -1356,7 +1356,6 @@ namespace loops
     #else
         #error Unknown OS.
     #endif        
-        size_t sp2parShift = 5;
 
         size_t regPassed[RB_AMOUNT];
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -1375,7 +1374,7 @@ namespace loops
             }
             if(currOffset%xBasket[basketNum])
                 currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
-            parLayout[basketNum][arg.idx] = currOffset;
+            parLayout[basketNum][arg.idx] = currOffset + sp2parShift;
             currOffset+=xBasket[basketNum];
         }
     }
