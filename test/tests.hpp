@@ -172,6 +172,82 @@ public:                                                         \
 funcname##_gfix_##_p1 inst##funcname##_gfix_##_p1
 
 
+#define PTEST_2(funcname, _pT1, _p1, _pT2, _p2, ...)            \
+class funcname: public Test                                     \
+{                                                               \
+public:                                                         \
+    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
+    static std::vector<std::string> m_fixturesNames;            \
+    static std::vector<void (*)(loops::Context)> m_generators;  \
+    static std::map<std::string,                                \
+                bool (funcname::*)(loops::Context)> m_executors;\
+    virtual std::vector<std::string> fixturesNames() const      \
+                                                     override   \
+    { return m_fixturesNames;}                                  \
+    virtual bool testExecution(const std::string& fixName)      \
+    {                                                           \
+        return (this->*m_executors[fixName])(CTX);              \
+    }                                                           \
+    virtual void generateCode()                                 \
+    {                                                           \
+        for(auto generator : m_generators)                      \
+            generator(CTX);                                     \
+    }                                                           \
+    template<_pT1 _p1, _pT2 _p2>                                \
+    static std::string pName();                                 \
+    template<_pT1 _p1, _pT2 _p2>                                \
+    bool testParameterizedExecution(loops::Context CTX);        \
+    template<_pT1 _p1, _pT2 _p2>                                \
+    static void genParameterizedCode(loops::Context CTX)        \
+    {                                                           \
+        std::string TESTNAME = pName<_p1, _p2>();               \
+        USE_CONTEXT_(CTX)                                       \
+        __VA_ARGS__                                             \
+        m_fixturesNames.push_back(TESTNAME);                    \
+        m_executors[TESTNAME] =                                 \
+                &funcname::testParameterizedExecution<_p1, _p2>;\
+    }                                                           \
+};                                                              \
+std::vector<std::string> funcname::m_fixturesNames;             \
+std::vector<void (*)(loops::Context)> funcname::m_generators;   \
+std::map<std::string, bool (funcname::*)(loops::Context)>       \
+                                          funcname::m_executors;\
+class funcname##_reg                                            \
+{                                                               \
+public:                                                         \
+    funcname##_reg()                                            \
+    {                                                           \
+        TestSuite::getInstance()->regTest<funcname>();          \
+    };                                                          \
+};                                                              \
+funcname##_reg funcname##_reg_instance
+
+#define PTESTexe_2(funcname, _pT1, _p1, _pT2, _p2, ...)         \
+template<_pT1 _p1, _pT2 _p2>                                    \
+bool funcname::testParameterizedExecution(loops::Context CTX)   \
+{                                                               \
+    void* EXEPTR = CTX.getFunc(funcname::pName<_p1, _p2>()).ptr();\
+    __VA_ARGS__                                                 \
+    return true;                                                \
+}
+
+#define PTESTfix_2(funcname, _p1, _p2)                          \
+template<>                                                      \
+std::string funcname::pName<_p1, _p2>()                         \
+{                                                               \
+    return std::string(#funcname) + "_" + #_p1 + "_" + #_p2;    \
+}                                                               \
+class funcname##_gfix_##_p1##_p2                                \
+{                                                               \
+public:                                                         \
+    funcname##_gfix_##_p1##_p2()                                \
+    {                                                           \
+        funcname::m_generators.push_back(                       \
+              &(funcname::genParameterizedCode<_p1, _p2>));     \
+    };                                                          \
+};                                                              \
+funcname##_gfix_##_p1##_p2 inst##funcname##_gfix_##_p1##_p2
+
 
 #define LTESTcomposer(funcname, ...)                            \
 class funcname: public Test                                     \

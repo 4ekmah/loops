@@ -56,6 +56,8 @@ public:
     size_t provideLabel();
     enum {NOLABEL = -1};
 
+    inline Context GetContext() { return *(m_context->getOwner()); }
+
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList = {});

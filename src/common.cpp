@@ -95,6 +95,11 @@ namespace loops
         return ret;
     }
     
+    Context ExtractContext(const Arg& arg)
+    {
+        return FuncImpl::verifyArgs({arg})->GetContext();
+    }
+
     IReg newiop(int opcode, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
         return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->newiop(opcode, args, tryImmList));
