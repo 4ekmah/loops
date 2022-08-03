@@ -335,7 +335,7 @@ struct __Loops_FuncScopeBracket_
     operator bool() { return false; }
 };
 
-#define USE_CONTEXT_(ctx) loops::Context& __loops_ctx__(ctx);
+#define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
 #define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(int64_t(x), &__loops_ctx__) })
@@ -513,6 +513,7 @@ static inline IReg abs(const IReg& a)
 { return newiop(OP_ABS, {a}); }
 static inline IReg sign(const IReg& a)
 { return newiop(OP_SIGN, {a}); }
+IReg pow(const IReg& a, int p);
 
 static inline IReg& operator += (IReg& a, const IReg& b)
 { newiopAug(OP_ADD, {a, a, b}); return a; }
@@ -645,6 +646,7 @@ template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
 //template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
 //
+template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p);
 template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
 { newiopAug(VOP_ADD, {Arg(a), Arg(a), Arg(b)}); return a; }
 template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -674,6 +676,8 @@ template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
+
+Context ExtractContext(const Arg& arg); 
 
 template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a)
 { return newiopV<_Dp>(VOP_CVTTZ, {a}); }
@@ -746,5 +750,38 @@ template<> inline VReg<float> newiopV<float>(int opcode, ::std::initializer_list
 { return newiopV_FP32(opcode, args, tryImmList); }
 template<> inline VReg<double> newiopV<double>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
 { return newiopV_FP64(opcode, args, tryImmList); }
+
+template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p)
+{
+    USE_CONTEXT_(ExtractContext(a));
+    if(p == 0)
+        return VCONST_(_Tp, 1);
+    VReg<_Tp> _a = a;
+    VReg<_Tp>* pres;
+    while (p)
+        if (p & 1) {
+            pres = new VReg<_Tp>(_a);
+            --p;
+            break;
+        }
+        else {
+            _a *= _a;
+            p >>= 1;
+        }
+    VReg<_Tp>& res = *pres;
+    while (p)
+        if (p & 1) {
+            res *= _a;
+            --p;
+        }
+        else {
+            _a *= _a;
+            p >>= 1;
+        }
+    VReg<_Tp> ret = static_cast<VReg<_Tp>&&>(res);
+    delete pres;
+    return ret;
+}
+
 }
 #endif

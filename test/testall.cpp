@@ -7,6 +7,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #include "tests.hpp"
 #include "test_basic.hpp"
+#include "test_math.hpp"
 #include "test_aarch64.hpp"
 #include "test_intel64.hpp"
 
