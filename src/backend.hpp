@@ -136,6 +136,7 @@ public:
     virtual void switchOnSpillStressMode() = 0;
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
+    const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
 private:
     mutable size_t m_s2sCurrentOffset; //TODO(ch): Do something with thread-safety.
 protected:
@@ -172,6 +173,7 @@ protected:
     std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
     std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
     std::vector<CompilerStagePtr> m_afterRegAllocStages;
+    std::vector<CompilerStagePtr> m_beforeRegAllocStages;
     std::string m_name;
 };
 };

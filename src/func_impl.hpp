@@ -52,7 +52,7 @@ public:
     std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline RegIdx provideIdx(int basketNum) { return m_nextIdx[basketNum]++; }
+    inline RegIdx provideIdx(int basketNum) { return m_data.provideIdx(basketNum); }
     size_t provideLabel();
     enum {NOLABEL = -1};
 
@@ -115,7 +115,6 @@ private:
     Syntfunc m_data;
     std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     ContextImpl* m_context;
-    int m_nextIdx[RB_AMOUNT];
     size_t m_nextLabelIdx;
     bool m_directTranslation;
     
@@ -127,7 +126,6 @@ private:
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
     bool m_syntopStagesApplied;
-
 
     int condition2jumptype(int cond);
 

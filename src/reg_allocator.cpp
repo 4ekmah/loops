@@ -410,12 +410,11 @@ but only if this nested register will be used after this redefinition.
     class LivenessAnalysisAlgo
     {
     public:
-        LivenessAnalysisAlgo(int virtualRegsAmount[RB_AMOUNT], ContextImpl* a_owner);
+        LivenessAnalysisAlgo(ContextImpl* a_owner);
         void process(Syntfunc& a_processed, std::vector<LiveInterval> (&a_liveintervals)[RB_AMOUNT]);
-        void getSnippetCausedSpills(size_t (&r_snippetCausedSpills)[RB_AMOUNT]) const
+        size_t getSnippetCausedSpills() const
         {
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-                r_snippetCausedSpills[basketNum] = m_snippetCausedSpills[basketNum];
+            return m_snippetCausedSpills;
         }
     private:
         struct LAEvent //Liveness Analysis Event
@@ -434,7 +433,7 @@ but only if this nested register will be used after this redefinition.
                                                                    //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
         std::vector<size_t> m_subintervalHeaders[RB_AMOUNT];
         ContextImpl* m_owner;
-        size_t m_snippetCausedSpills[RB_AMOUNT];
+        size_t m_snippetCausedSpills;
         inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
         inline size_t siAmount(int basketNum, RegIdx regNum) const;
         inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
@@ -462,11 +461,11 @@ but only if this nested register will be used after this redefinition.
     //TODO(ch): It's good idea on intel64 + windows to use "shadow space", which is 32 bytes in stack just before
     //5-th parameter(other words - 1-st stack-passsed parameter). It's default and consistent place for spilling
     //register parameters.
-    void RegisterAllocator::process(FuncImpl* a_func, Syntfunc& a_processed, int a_virtualRegsAmount[RB_AMOUNT])
+    void RegisterAllocator::process(FuncImpl* a_func, Syntfunc& a_processed)
     {
         Backend* backend = m_owner->getBackend();
         m_pool.initRegisterPool();
-        size_t snippetCausedSpills[RB_AMOUNT] = {0, 0};
+        size_t snippetCausedSpills;
         std::multiset<LiveInterval, startordering> liveintervals[RB_AMOUNT];
         std::vector<LiveInterval> parintervals[RB_AMOUNT];
         std::vector<RegIdx> paramsSorted[RB_AMOUNT];
@@ -478,14 +477,14 @@ but only if this nested register will be used after this redefinition.
             int basketNum = (par.tag == Arg::IREG ? RB_INT : RB_VEC);
             paramsSorted[basketNum].push_back(par.idx);
         }
-        //Liveness analysis call 
+        //Liveness analysis call
         {
-            LivenessAnalysisAlgo LAalgo(a_virtualRegsAmount, m_owner);
+            LivenessAnalysisAlgo LAalgo(m_owner);
             std::vector<LiveInterval> analysisResult[RB_AMOUNT];
             LAalgo.process(a_processed, analysisResult);
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             {
-                a_virtualRegsAmount[basketNum] = analysisResult[basketNum].size();
+                a_processed.regAmount[basketNum] = analysisResult[basketNum].size();
                 //After liveness analysis we are sorting given liveintervals into two heaps:
                 //parameters, which are immediately marked as active and other intervals,
                 //which are reordered by start positions to work with Linear scan algorithm.
@@ -497,9 +496,10 @@ but only if this nested register will be used after this redefinition.
                 idxParMax = analysisResult[basketNum].size();
                 for (; idx < idxParMax; ++idx)
                     liveintervals[basketNum].insert(analysisResult[basketNum][idx]);
-                LAalgo.getSnippetCausedSpills(snippetCausedSpills);
+                snippetCausedSpills = LAalgo.getSnippetCausedSpills();
             }
         }
+
         //Space in stack used by snippets will be located in the bottom,
         //so spilled variables will be located higher.
         int64_t spoffset[RB_AMOUNT] = {0, 0};
@@ -516,9 +516,8 @@ but only if this nested register will be used after this redefinition.
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++) 
         {
             const int REGtag = ((basketNum == RB_INT) ? Arg::IREG : Arg::VREG);
-            spoffset[basketNum] = snippetCausedSpills[basketNum];
             std::multiset<LiveInterval, endordering> active;
-            regReassignment[basketNum].resize(a_virtualRegsAmount[basketNum], Arg());
+            regReassignment[basketNum].resize(a_processed.regAmount[basketNum], Arg());
             {//Get pseudonames for parameters.
                 RegIdx parreg = 0;
                 for (; parreg < parintervals[basketNum].size(); parreg++)
@@ -628,11 +627,14 @@ but only if this nested register will be used after this redefinition.
         // 3.) By the way, when we are using only least spill placeholder, instead of using as much of them, as possible - it's bad practice. 
         // minimizing prologue/epilogue overhead isn't so important.
 
+        size_t basketElemX[RB_AMOUNT] = {1,1};
+        basketElemX[RB_VEC] = backend->getVectorRegisterSize() / 64;
+        
         std::vector<std::map<RegIdx, Arg> > unspilledRenaming[RB_AMOUNT];
         std::vector<std::map<RegIdx, Arg> > spilledRenaming[RB_AMOUNT];
         std::vector<std::set<size_t> > stackPlaceable[RB_AMOUNT];
         size_t nettoSpills[RB_AMOUNT];
-        size_t spAddAligned = 0;
+        size_t spAddAligned = snippetCausedSpills;
         //Collecting instructionwise spills properties
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
@@ -725,29 +727,28 @@ but only if this nested register will be used after this redefinition.
                     parametersStoodSpilled++;
             nettoSpills[basketNum] = std::count_if(regReassignment[basketNum].begin(), regReassignment[basketNum].end(), [SPLtag](const Arg& arg) {return arg.tag == SPLtag; }) - parametersStoodSpilled;
             nettoSpills[basketNum] += m_pool.usedCallee(basketNum).size();
-            const size_t basketElemX = ((basketNum == RB_INT) ? 64 : backend->getVectorRegisterSize()) / 64;
-            spAddAligned += (snippetCausedSpills[basketNum] + nettoSpills[basketNum]) * basketElemX;
+            spAddAligned += nettoSpills[basketNum] * basketElemX[basketNum];
         }
         spAddAligned = backend->stackGrowthAlignment(spAddAligned);
 
         size_t basketOffset[RB_AMOUNT] = {0,0};
         {
             std::vector<int> stackBasketOrder = backend->getStackBasketOrder();
+            basketOffset[stackBasketOrder[0]] = snippetCausedSpills;
             for(int stackBasketNum = 1; stackBasketNum < stackBasketOrder.size(); stackBasketNum++)
             {
                 const int currBN = stackBasketOrder[stackBasketNum];
                 const int prevBN = stackBasketOrder[stackBasketNum - 1];
-                const size_t basketElemX = ((stackBasketOrder[prevBN] == RB_INT) ? 64 : backend->getVectorRegisterSize()) / 64;
-                basketOffset[currBN] = basketOffset[prevBN] + basketElemX * nettoSpills[prevBN];
+                basketOffset[currBN] = basketOffset[prevBN] + basketElemX[prevBN] * nettoSpills[prevBN];
             }
         }
         
-        auto getSpillOffset = [&stackParamLayout, &getReassigned, &spAddAligned, &basketOffset](int basketNum, RegIdx reg)
+        auto getSpillOffset = [&stackParamLayout, &getReassigned, &spAddAligned, &basketOffset, &basketElemX](int basketNum, RegIdx reg)
         {
             const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
             Arg reassigned = getReassigned(basketNum, reg);
             Assert(reassigned.tag == SPLtag);
-            int64_t spillOffset = reassigned.value + basketOffset[basketNum];
+            int64_t spillOffset = reassigned.value * basketElemX[basketNum] + basketOffset[basketNum];
             if (stackParamLayout[basketNum].count(reg))
                 spillOffset = spAddAligned + stackParamLayout[basketNum][reg];
             return spillOffset;
@@ -784,7 +785,7 @@ but only if this nested register will be used after this redefinition.
                 for (auto ar : spilledRenaming[basketNum][opnum])
                     newProgUnbracketed.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, ar.first)), ar.second }));
         }
-
+        
         std::vector<Syntop> newProg;
         newProg.reserve(a_processed.program.size() * 3);
         { //Write prologue
@@ -800,7 +801,7 @@ but only if this nested register will be used after this redefinition.
                             spilled.tag = basketNum == RB_INT ? Arg::IREG : Arg::VREG;
                             newProg.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, par)), spilled }));
                         }
-                    size_t savNum = (nettoSpills[basketNum] + snippetCausedSpills[basketNum]) - m_pool.usedCallee(basketNum).size();
+                    size_t savNum = nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size();
                     for (RegIdx toSav : m_pool.usedCallee(basketNum))
                     {
                         Arg spilled = argReg(basketNum, toSav);
@@ -828,7 +829,7 @@ but only if this nested register will be used after this redefinition.
             {
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 {
-                    size_t savNum = nettoSpills[basketNum] + snippetCausedSpills[basketNum] - m_pool.usedCallee(basketNum).size();
+                    size_t savNum = nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size();
                     for (RegIdx toSav : m_pool.usedCallee(basketNum))
                     {
                         Arg spilled = argReg(basketNum, toSav);
@@ -893,6 +894,9 @@ but only if this nested register will be used after this redefinition.
 
     void LivenessAnalysisAlgo::process(Syntfunc& a_processed, std::vector<LiveInterval> (&a_liveintervals)[RB_AMOUNT])
     {
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            m_subintervals[basketNum].resize(a_processed.regAmount[basketNum], std::vector<LiveInterval>());
+        
         //This function accomplishes four goals:
         //1.) Separates all register live intervals to small def-use subintervals. There can be a lot of usages in one subinterval, but only one definition.
         //2.) Expand subinteravls, which intersects with loop's body, or branches in some certain cases.
@@ -913,11 +917,15 @@ but only if this nested register will be used after this redefinition.
                 def(basketNum, par.idx, 0);
                 paramsAmount[basketNum]++;
             }
+            size_t basketElemX[RB_AMOUNT] = {1,1};
+            basketElemX[RB_VEC] = backend->getVectorRegisterSize() / 64;
             for (size_t opnum = 0; opnum < a_processed.program.size(); opnum++)
             {
                 const Syntop& op = a_processed.program[opnum];
+                size_t opSnippetSpills = 0;
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-                    m_snippetCausedSpills[basketNum] = std::max(m_snippetCausedSpills[basketNum], backend->spillSpaceNeeded(op, basketNum));
+                    opSnippetSpills += backend->spillSpaceNeeded(op, basketNum) * basketElemX[basketNum];
+                m_snippetCausedSpills = std::max(m_snippetCausedSpills, opSnippetSpills);
                 switch (op.opcode)
                 {
                 case (OP_IF):
@@ -981,8 +989,14 @@ but only if this nested register will be used after this redefinition.
                 default:
                     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     {
+                        std::set<RegIdx> IORegs = backend->getUsedRegisters(op, basketNum, BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT);
                         std::set<RegIdx> inRegs = backend->getInRegisters(op, basketNum);
                         std::set<RegIdx> outRegs = backend->getOutRegisters(op, basketNum);
+                        for(auto IO : IORegs)  //Register used in one instruction position as Input and Output simultaneously
+                        {                      //must not be redefined. First of all, it's usage, and it must be used
+                            inRegs.insert(IO); //via already known name.
+                            outRegs.erase(IO);
+                        }
                         for (RegIdx inreg : inRegs)
                             use(basketNum, inreg, opnum);
                         for (RegIdx outreg : outRegs)
@@ -1302,10 +1316,7 @@ but only if this nested register will be used after this redefinition.
         }
     }
 
-    LivenessAnalysisAlgo::LivenessAnalysisAlgo(int virtualRegsAmount[RB_AMOUNT], ContextImpl* a_owner) :
-        m_subintervals{ std::vector<std::vector<LiveInterval> >(virtualRegsAmount[RB_INT], std::vector<LiveInterval>())
-                       ,std::vector<std::vector<LiveInterval> >(virtualRegsAmount[RB_VEC], std::vector<LiveInterval>())}
-        , m_snippetCausedSpills{0,0}
+    LivenessAnalysisAlgo::LivenessAnalysisAlgo(ContextImpl* a_owner) : m_snippetCausedSpills(0)
         , m_owner(a_owner)
     {}
 

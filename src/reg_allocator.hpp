@@ -84,7 +84,7 @@ class RegisterAllocator //TODO(ch): Can you make it derivative from CompilerStag
 {
 public:
     RegisterAllocator(ContextImpl* a_owner);
-    void process(FuncImpl* a_func, Syntfunc& a_processed, int a_virtualRegsAmount[RB_AMOUNT]);
+    void process(FuncImpl* a_func, Syntfunc& a_processed);
     inline size_t epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:

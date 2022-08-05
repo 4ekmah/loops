@@ -307,8 +307,10 @@ namespace loops
         std::vector<Syntop> program;
         std::vector<Arg> params;
         std::string name;
+        int regAmount[RB_AMOUNT];
         enum {RETREG = size_t(-2)};
-        Syntfunc() {}
+        Syntfunc() : regAmount{0,0} {}
+        inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
     };
 
     class CompilerStage

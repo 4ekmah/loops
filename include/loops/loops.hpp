@@ -33,6 +33,7 @@ enum {
     OP_STORE,
 
     OP_MOV,
+    OP_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
     OP_XCHG,
 
     OP_ADD,
@@ -88,7 +89,7 @@ enum {
     VOP_MUL,
     VOP_DIV,
 //    VOP_MOD,
-    VOP_MLA,
+    VOP_FMA,
     VOP_SAL,
     VOP_SHL,
     VOP_SAR,
@@ -112,8 +113,10 @@ enum {
     VOP_ALL,
     VOP_ANY,
     VOP_CVTTZ,
+    VOP_CVTTM,
     VOP_CAST,
     VOP_REINTERPRET,
+    VOP_BROADCAST,
 
 //Intel-only operations:
     OP_X86_ADC, //Add with carry flag.
@@ -335,10 +338,18 @@ struct __Loops_FuncScopeBracket_
     operator bool() { return false; }
 };
 
+template<typename _Tp>
+inline int64_t __loops_pack_2_valtype_(_Tp tocast)
+{
+    int64_t ret = 0;
+    *(reinterpret_cast<_Tp*>(&ret)) = tocast;
+    return ret;
+}
+
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
-#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(int64_t(x), &__loops_ctx__) })
+#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(__loops_pack_2_valtype_(eltyp(x)), &__loops_ctx__) })
 #define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
 #define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
@@ -582,9 +593,8 @@ template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>
 { return newiopV<_Tp>(VOP_DIV, {a, b}); }
 template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
 { return newiopV<_Tp>(VOP_NEG, {a}); }
-template<typename _Tp> VReg<_Tp> mla(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
-{ newiopNoret(VOP_MLA, {a, b, c}); return a; }
-
+template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
+{ return newiopV<_Tp>(VOP_FMA, {a, b, c}); }
 
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
@@ -677,10 +687,14 @@ template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
 
-Context ExtractContext(const Arg& arg); 
-
-template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a)
+Context ExtractContext(const Arg& arg);
+    
+//TODO(ch): IMPORTANT // cvtTm -> floor, cvtTp -> ceil, cvtTe -> round, cvtTz -> trunc
+//"cvt" for int -> float and between floats (float <=> double, fp16 <=> float)
+template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a) //Convert with rounding to zero
 { return newiopV<_Dp>(VOP_CVTTZ, {a}); }
+template<typename _Dp, typename _Tp> VReg<_Dp> cvtTm(const VReg<_Tp>& a) //Convert with rounding to minus infinity
+{ return newiopV<_Dp>(VOP_CVTTM, {a}); }
 template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
 {
     VReg<_Dp> res;
@@ -702,8 +716,10 @@ VReg<_Tp>::VReg(const VReg<_Tp>& r)
 template<typename _Tp>
 VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
 {
-    if (r.func == nullptr)
-        throw std::runtime_error("Cannot find motherfunction in registers.");
+    if (r.func != func)
+        throw std::runtime_error("Registers of different functions as arguments of one instruction.");
+    if (func == nullptr)
+        throw std::runtime_error("Null motherfunction.");
     newiopNoret(OP_MOV, {*this, r});
     return (*this);
 }

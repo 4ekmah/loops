@@ -39,7 +39,7 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
-        str << "vld." << type_suffixes[_Tp];
+        str << "vst." << type_suffixes[_Tp];
     }},
     {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
@@ -53,8 +53,8 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_DIV, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "mul." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_MLA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "mla." << type_suffixes[op.args[0].elemtype];
+    {VOP_FMA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "fma." << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "sal." << type_suffixes[op.args[0].elemtype];
@@ -98,6 +98,12 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_CVTTZ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "cvttz." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
+    {VOP_CVTTM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cvttm." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "broadcast." << type_suffixes[op.args[0].elemtype];
+    }},
     {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "store." << type_suffixes[op.args[0].value];
     }},
@@ -114,6 +120,7 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
     {OP_MOV,      "mov"},
+    {OP_MOVK,     "movk"},
     {OP_XCHG,     "xchg"},
     {OP_ADD,      "add"},
     {OP_MUL,      "mul"},
@@ -162,7 +169,6 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
 };
 
 FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
-    , m_nextIdx{0, 0}
     , m_nextLabelIdx(0)
     , m_context(getImpl(ctx))
     , m_returnType(RT_NOTDEFINED)
@@ -204,20 +210,23 @@ void FuncImpl::applySyntopStages()
     {
         if (!m_directTranslation)
         {
+            auto beforeRegAlloc = m_context->getBackend()->getBeforeRegAllocStages();
+            for (CompilerStagePtr braStage : beforeRegAlloc)
+                braStage->process(m_data);
             if (m_cflowStack.size())
                 throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
                     m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, m_parameterRegistersO[basketNum], m_returnRegistersO[basketNum], m_callerSavedRegistersO[basketNum], m_calleeSavedRegistersO[basketNum]);
-            m_context->getRegisterAllocator()->process(this, m_data, m_nextIdx);
+            m_context->getRegisterAllocator()->process(this, m_data);
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
+                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
 
             controlBlocks2Jumps();
             auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
             for (CompilerStagePtr araStage : afterRegAlloc)
                 araStage->process(m_data);
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
-                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
 
         }
         m_syntopStagesApplied = true;
