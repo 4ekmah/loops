@@ -180,14 +180,14 @@ instruction_set_test()
    178 : vld.u64        v31, i0, i0                
    179 : vld.u64        v0, i15, i0                
    180 : vld.u64        v0, i0, i15                
-   181 : vld.u64        i0, v0                     
-   182 : vld.u64        i0, 32784, v0              
-   183 : vld.u64        i0, v31                    
-   184 : vld.u64        i15, v0                    
-   185 : vld.u64        i0, i0, v0                 
-   186 : vld.u64        i0, i0, v31                
-   187 : vld.u64        i15, i0, v0                
-   188 : vld.u64        i0, i15, v0                
+   181 : vst.u64        i0, v0                     
+   182 : vst.u64        i0, 32784, v0              
+   183 : vst.u64        i0, v31                    
+   184 : vst.u64        i15, v0                    
+   185 : vst.u64        i0, i0, v0                 
+   186 : vst.u64        i0, i0, v31                
+   187 : vst.u64        i15, i0, v0                
+   188 : vst.u64        i0, i15, v0                
    189 : add.u8         v0, v0, v0                 
    190 : add.u8         v31, v0, v0                
    191 : add.u8         v0, v31, v0                

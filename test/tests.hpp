@@ -108,10 +108,11 @@ public:                                                         \
                                                      override   \
     { return m_fixturesNames;}                                  \
     virtual bool testExecution(const std::string& fixName)      \
+                                                        override\
     {                                                           \
         return (this->*m_executors[fixName])(CTX);              \
     }                                                           \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         for(auto generator : m_generators)                      \
             generator(CTX);                                     \
@@ -185,10 +186,11 @@ public:                                                         \
                                                      override   \
     { return m_fixturesNames;}                                  \
     virtual bool testExecution(const std::string& fixName)      \
+                                                        override\
     {                                                           \
         return (this->*m_executors[fixName])(CTX);              \
     }                                                           \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         for(auto generator : m_generators)                      \
             generator(CTX);                                     \

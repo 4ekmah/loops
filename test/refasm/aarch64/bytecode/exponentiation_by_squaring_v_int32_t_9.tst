@@ -14,7 +14,7 @@ exponentiation_by_squaring_v_int32_t_9(i0, i1, i2)
     12 : mul.i32  v0, v0, v0   
     13 : mul.i32  v0, v0, v0   
     14 : mul.i32  v0, v1, v0   
-    15 : vld.i32  i1, i3, v0   
+    15 : vst.i32  i1, i3, v0   
     16 : add      i3, i3, 16   
     17 : jmp      0            
     18 : label 1:              

@@ -687,24 +687,17 @@ template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
 
-Context ExtractContext(const Arg& arg);
-    
 //TODO(ch): IMPORTANT // cvtTm -> floor, cvtTp -> ceil, cvtTe -> round, cvtTz -> trunc
 //"cvt" for int -> float and between floats (float <=> double, fp16 <=> float)
 template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a) //Convert with rounding to zero
 { return newiopV<_Dp>(VOP_CVTTZ, {a}); }
 template<typename _Dp, typename _Tp> VReg<_Dp> cvtTm(const VReg<_Tp>& a) //Convert with rounding to minus infinity
 { return newiopV<_Dp>(VOP_CVTTM, {a}); }
-template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
-{
-    VReg<_Dp> res;
-    res.func = a.func;
-    res.idx = a.idx;
-    return res;
-}
-
-
+template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a);
 //TODO(ch): These template implementation can be obviously moved to auxilary header:
+
+Context ExtractContext(const Arg& arg);
+
 template<typename _Tp>
 VReg<_Tp>::VReg(const VReg<_Tp>& r)
 {
@@ -797,6 +790,14 @@ template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p)
     VReg<_Tp> ret = static_cast<VReg<_Tp>&&>(res);
     delete pres;
     return ret;
+}
+
+template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
+{
+    VReg<_Dp> res;
+    res.func = a.func;
+    res.idx = a.idx;
+    return res;
 }
 
 }

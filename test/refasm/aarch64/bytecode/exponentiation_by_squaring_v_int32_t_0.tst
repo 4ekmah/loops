@@ -9,7 +9,7 @@ exponentiation_by_squaring_v_int32_t_0(i0, i1, i2)
      7 : jmp_ge   1            
      8 : vld.i32  v0, i0, i3   
      9 : mov      v0, 1        
-    10 : vld.i32  i1, i3, v0   
+    10 : vst.i32  i1, i3, v0   
     11 : add      i3, i3, 16   
     12 : jmp      0            
     13 : label 1:              

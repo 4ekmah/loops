@@ -12,7 +12,7 @@ exponentiation_by_squaring_v_uint32_t_4(i0, i1, i2)
     10 : mul.u32  v0, v0, v0   
     11 : mul.u32  v0, v0, v0   
     12 : mov      v0, v0       
-    13 : vld.u32  i1, i3, v0   
+    13 : vst.u32  i1, i3, v0   
     14 : add      i3, i3, 16   
     15 : jmp      0            
     16 : label 1:              

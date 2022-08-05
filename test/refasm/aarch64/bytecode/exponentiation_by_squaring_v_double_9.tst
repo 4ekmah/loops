@@ -14,7 +14,7 @@ exponentiation_by_squaring_v_double_9(i0, i1, i2)
     12 : mul.fp64 v0, v0, v0   
     13 : mul.fp64 v0, v0, v0   
     14 : mul.fp64 v0, v1, v0   
-    15 : vld.fp64 i1, i3, v0   
+    15 : vst.fp64 i1, i3, v0   
     16 : add      i3, i3, 16   
     17 : jmp      0            
     18 : label 1:              
