@@ -338,11 +338,10 @@ namespace loops
         inline Func* getCurrentFunc() { return &m_currentFunc; }
         inline Backend* getBackend() { return m_backend.get(); }
         inline RegisterAllocator* getRegisterAllocator() { return m_registerAllocator.get(); }
-        inline Context* getOwner() const { return m_owner; }
+        Context getOwner();
     private:
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
-        Context* m_owner;
         std::shared_ptr<Backend> m_backend;
         std::shared_ptr<RegisterAllocator> m_registerAllocator;
     };

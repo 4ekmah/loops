@@ -283,7 +283,9 @@ namespace loops
 
     Context::Context() : impl(nullptr)
     {
-        impl = new ContextImpl(this);
+        ContextImpl* _impl = new ContextImpl(this);
+        _impl->m_refcount = 1;
+        impl = _impl;
     }
 
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
@@ -365,6 +367,67 @@ namespace loops
 
     __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
 
+    exp_consts::exp_consts(VReg<float>&& a_lo, VReg<float>&& a_hi, VReg<float>&& a_half, VReg<float>&& a_one,
+                        VReg<float>&& a_LOG2EF, VReg<float>&& a_C1, VReg<float>&& a_C2, VReg<float>&& a_p0,
+                        VReg<float>&& a_p1, VReg<float>&& a_p2, VReg<float>&& a_p3, VReg<float>&& a_p4,
+                        VReg<float>&& a_p5, VReg<int32_t>&& a_7f) :
+                                lo(static_cast<VReg<float>&&>(a_lo))
+                              , hi(static_cast<VReg<float>&&>(a_hi))
+                              , half(static_cast<VReg<float>&&>(a_half))
+                              , one(static_cast<VReg<float>&&>(a_one))
+                              , LOG2EF(static_cast<VReg<float>&&>(a_LOG2EF))
+                              , C1(static_cast<VReg<float>&&>(a_C1))
+                              , C2(static_cast<VReg<float>&&>(a_C2))
+                              , p0(static_cast<VReg<float>&&>(a_p0))
+                              , p1(static_cast<VReg<float>&&>(a_p1))
+                              , p2(static_cast<VReg<float>&&>(a_p2))
+                              , p3(static_cast<VReg<float>&&>(a_p3))
+                              , p4(static_cast<VReg<float>&&>(a_p4))
+                              , p5(static_cast<VReg<float>&&>(a_p5))
+                              , _7f(static_cast<VReg<int32_t>&&>(a_7f)) {}
+
+    exp_consts expInitConsts(Context CTX)
+    {
+        USE_CONTEXT_(CTX);
+        return exp_consts(
+            VCONST_(float, -88.3762626647949f),
+            VCONST_(float, 88.3762626647949f),
+            VCONST_(float, 0.5f),
+            VCONST_(float, 1.f),
+            VCONST_(float, 1.44269504088896341f),
+            VCONST_(float, -0.693359375f),
+            VCONST_(float, 2.12194440e-4f),
+            VCONST_(float, 1.9875691500E-4f),
+            VCONST_(float, 1.3981999507E-3f),
+            VCONST_(float, 8.3334519073E-3f),
+            VCONST_(float, 4.1665795894E-2f),
+            VCONST_(float, 1.6666665459E-1f),
+            VCONST_(float, 5.0000001201E-1f),
+            VCONST_(int32_t, 0x7f));
+    }
+
+    VReg<float> exp(const VReg<float>& x, const exp_consts& expt)
+    {
+        VReg<float> vexp_x = min(x, expt.hi);
+        vexp_x = max(vexp_x, expt.lo);
+        VReg<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
+        VReg<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
+        vexp_fx = cast<float>(vexp_mm);
+        vexp_mm += expt._7f;
+        vexp_mm <<= 23;
+        vexp_x = fma(vexp_x, vexp_fx, expt.C1);
+        vexp_x = fma(vexp_x, vexp_fx, expt.C2);
+        VReg<float> vexp_z = vexp_x * vexp_x;
+        VReg<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
+        vexp_y = fma(expt.p2, vexp_y, vexp_x);
+        vexp_y = fma(expt.p3, vexp_y, vexp_x);
+        vexp_y = fma(expt.p4, vexp_y, vexp_x);
+        vexp_y = fma(expt.p5, vexp_y, vexp_x);
+        vexp_y = fma(vexp_x, vexp_y, vexp_z);
+        vexp_y += expt.one;
+        return vexp_y * reinterpret<float>(vexp_mm);
+    }
+
     Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
     Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
     {
@@ -395,7 +458,7 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0) {
 #if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
@@ -409,7 +472,7 @@ namespace loops
     {
         if(m_functionsStorage.find(name) != m_functionsStorage.end())
             throw std::runtime_error("Function is already registered.");  //TODO(ch): We need good exception class.
-        m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
+        m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, this, params)).first->second;
     }
 
     void ContextImpl::endFunc()
@@ -466,4 +529,15 @@ namespace loops
         }
         alloc->protect2Execution(exebuf);
     }
+    Context ContextImpl::getOwner()
+    {
+        Assert(m_refcount>0);
+        //Trick to workaround abscence of makeWrapper function of Context as smartpointer.
+        //ContextImpl simulates Context(by self-referencing) and creates a smartpointer copy.
+        impl = this;
+        Context ret = (*this);
+        impl = nullptr;
+        return ret;
+    }
+
 }

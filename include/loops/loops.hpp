@@ -60,8 +60,9 @@ enum {
     OP_FLOOR,
     OP_CEIL,
 
-    OP_SPILL,    //For service usage only
-    OP_UNSPILL,
+    //For service usage only
+    OP_SPILL,   //(stackPos, reg), stackPos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL, //(reg, stackPos)
 
     OP_JMP,
     OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
@@ -112,8 +113,8 @@ enum {
     
     VOP_ALL,
     VOP_ANY,
-    VOP_CVTTZ,
-    VOP_CVTTM,
+    VOP_TRUNC,
+    VOP_FLOOR,
     VOP_CAST,
     VOP_REINTERPRET,
     VOP_BROADCAST,
@@ -657,6 +658,11 @@ template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
 //
 template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p);
+
+struct exp_consts;
+exp_consts expInitConsts(Context CTX);
+VReg<float> exp(const VReg<float>& x, const exp_consts& expt);
+
 template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
 { newiopAug(VOP_ADD, {Arg(a), Arg(a), Arg(b)}); return a; }
 template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -686,15 +692,45 @@ template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
+//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
+template<typename _Dp> VReg<_Dp> trunc(const VReg<f16_t>& a)  //Convert with rounding to zero
+{
+    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> trunc(const VReg<float>& a)  //Convert with rounding to zero
+{
+    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> trunc(const VReg<double>& a)
+{
+    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<f16_t>& a) //Convert with rounding to minus infinity
+{
+    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<float>& a) //Convert with rounding to minus infinity
+{
+    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<double>& a)
+{
+    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
+}
 
-//TODO(ch): IMPORTANT // cvtTm -> floor, cvtTp -> ceil, cvtTe -> round, cvtTz -> trunc
-//"cvt" for int -> float and between floats (float <=> double, fp16 <=> float)
-template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a) //Convert with rounding to zero
-{ return newiopV<_Dp>(VOP_CVTTZ, {a}); }
-template<typename _Dp, typename _Tp> VReg<_Dp> cvtTm(const VReg<_Tp>& a) //Convert with rounding to minus infinity
-{ return newiopV<_Dp>(VOP_CVTTM, {a}); }
+template<typename _Dp, typename _Tp> VReg<_Dp> cast(const VReg<_Tp>& a)
+{ return newiopV<_Dp>(VOP_CAST, {a}); }
+
 template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a);
-//TODO(ch): These template implementation can be obviously moved to auxilary header:
+
+
+//TODO(ch): These template implementations can be obviously moved to auxilary header:
 
 Context ExtractContext(const Arg& arg);
 
@@ -791,6 +827,16 @@ template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p)
     delete pres;
     return ret;
 }
+
+struct exp_consts
+{
+    VReg<float> lo, hi, half, one, LOG2EF, C1, C2, p0, p1, p2, p3, p4, p5;
+    VReg<int32_t> _7f;
+    exp_consts(VReg<float>&& a_lo, VReg<float>&& a_hi, VReg<float>&& a_half, VReg<float>&& a_one,
+                        VReg<float>&& a_LOG2EF, VReg<float>&& a_C1, VReg<float>&& a_C2, VReg<float>&& a_p0,
+                        VReg<float>&& a_p1, VReg<float>&& a_p2, VReg<float>&& a_p3, VReg<float>&& a_p4,
+                        VReg<float>&& a_p5, VReg<int32_t>&& a_7f);
+};
 
 template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
 {

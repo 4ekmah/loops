@@ -95,11 +95,14 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_EQ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "eq." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_CVTTZ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "cvttz." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    {VOP_TRUNC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "trunc." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_CVTTM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "cvttm." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    {VOP_FLOOR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "floor." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_CAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cast." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "broadcast." << type_suffixes[op.args[0].elemtype];
@@ -168,9 +171,9 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_ARM_CNEG, "arm_cneg"},
 };
 
-FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
+FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
     , m_nextLabelIdx(0)
-    , m_context(getImpl(ctx))
+    , m_context(ctx)
     , m_returnType(RT_NOTDEFINED)
     , m_compiled(nullptr)
     , m_cmpopcode(IC_UNKNOWN)
@@ -189,7 +192,7 @@ FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<
     }
 }
 
-Func FuncImpl::makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params)
+Func FuncImpl::makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params)
 {
     return Func::make(new FuncImpl(name, ctx, params));
 }

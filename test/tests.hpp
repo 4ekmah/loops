@@ -25,15 +25,25 @@ public:
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
     virtual std::vector<std::string> fixturesNames() const = 0;
     template<typename T>
-    inline bool test_eq(const T& tstd, const T& ref)
+    inline bool expect_eq(const T& tstd, const T& ref)
     {
         bool res = (tstd == ref);
         if (!res)
             (*m_out)<<"    Failed:"<<tstd<<"!="<<ref<<std::endl;
         return res;
     }
+    template<typename T>
+    inline bool expect_near(const T& tstd, const T& ref, const T& err)
+    {
+        bool res = (std::abs(tstd - ref) <= err);
+        if (!res)
+            (*m_out)<<"    Failed: distance between "<<tstd<<" and "<<ref<<" more than "<<err<<"."<<std::endl;
+        return res;
+    }
+
     static std::string OSname();
-#define TEST_EQ(a,b) if(!test_eq((a),(b))) return false;
+#define EXPECT_EQ(a,b) if(!expect_eq((a),(b))) return false;
+#define EXPECT_NEAR(a,b,err) if(!expect_near((a),(b),(err))) return false
 protected:
     Context CTX;
 private:
@@ -285,7 +295,7 @@ funcname##_reg funcname##_reg_instance
 
 //Utils
 
-template<typename _Tp>
+template<typename _Tp>           //TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
 static inline void load2(const loops::IReg& dest, const loops::IReg& base)
 {
     using namespace loops;

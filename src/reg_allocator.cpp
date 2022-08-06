@@ -801,13 +801,14 @@ but only if this nested register will be used after this redefinition.
                             spilled.tag = basketNum == RB_INT ? Arg::IREG : Arg::VREG;
                             newProg.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, par)), spilled }));
                         }
-                    size_t savNum = nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size();
+                    size_t savNum = (nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size()) * basketElemX[basketNum];
                     for (RegIdx toSav : m_pool.usedCallee(basketNum))
                     {
                         Arg spilled = argReg(basketNum, toSav);
                         if(basketNum == RB_VEC)
                             spilled.elemtype = TYPE_U8; // We actually don't care, just taking simplest type.
-                        newProg.push_back(Syntop(OP_SPILL, { argIImm(basketOffset[basketNum] + savNum++), spilled }));
+                        newProg.push_back(Syntop(OP_SPILL, { argIImm(basketOffset[basketNum] + savNum), spilled }));
+                        savNum += basketElemX[basketNum];
                     }
                 }
             }
@@ -829,13 +830,14 @@ but only if this nested register will be used after this redefinition.
             {
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 {
-                    size_t savNum = nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size();
+                    size_t savNum = (nettoSpills[basketNum] - m_pool.usedCallee(basketNum).size()) * basketElemX[basketNum];
                     for (RegIdx toSav : m_pool.usedCallee(basketNum))
                     {
                         Arg spilled = argReg(basketNum, toSav);
                         if(basketNum == RB_VEC)
                             spilled.elemtype = TYPE_U8; // We actually don't care, just taking simplest type.
-                        newProg.push_back(Syntop(OP_UNSPILL, { spilled, argIImm(basketOffset[basketNum] + savNum++) }));
+                        newProg.push_back(Syntop(OP_UNSPILL, { spilled, argIImm(basketOffset[basketNum] + savNum) }));
+                        savNum += basketElemX[basketNum];
                     }
                 }
                 newProg.push_back(Syntop(OP_ADD, { backend->getSParg(a_func), backend->getSParg(a_func), argIImm(spAddAligned * 8) }));

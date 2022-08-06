@@ -31,8 +31,8 @@ struct ControlFlowBracket
 class FuncImpl : public Func
 {
 public:
-    FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-    static Func makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
+    FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
+    static Func makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
@@ -56,7 +56,7 @@ public:
     size_t provideLabel();
     enum {NOLABEL = -1};
 
-    inline Context GetContext() { return *(m_context->getOwner()); }
+    inline Context GetContext() { return m_context->getOwner(); }
 
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});

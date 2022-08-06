@@ -53,13 +53,13 @@ namespace loops
         int subArr[5];
         int mulArr[5];
         int divArr[5];
-        TEST_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
+        EXPECT_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
         for (size_t n = 0; n < 5; n++)
         {
-            TEST_EQ(A[n] + B[n], addArr[n]);
-            TEST_EQ(A[n] - B[n], subArr[n]);
-            TEST_EQ(A[n] * B[n], mulArr[n]);
-            TEST_EQ(A[n] / B[n], divArr[n]);
+            EXPECT_EQ(A[n] + B[n], addArr[n]);
+            EXPECT_EQ(A[n] - B[n], subArr[n]);
+            EXPECT_EQ(A[n] * B[n], mulArr[n]);
+            EXPECT_EQ(A[n] / B[n], divArr[n]);
         }
         });
 
