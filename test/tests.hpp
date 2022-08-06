@@ -70,6 +70,9 @@ private:
 };
 };
 
+//TODO(ch): Interesting solution for test substitution is class derivation
+//with using RTTI for taking name of class. Still not really easy to decide what to 
+// do with fixtures, but there is a thought to think.
 #define LTEST(funcname, ...)                                    \
 class funcname: public Test                                     \
 {                                                               \

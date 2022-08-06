@@ -97,6 +97,8 @@ public:
     void return_(int64_t retval);
     void return_(const IReg& retval);
 
+    void markConditionStart();
+
     IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
     inline IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
     {
@@ -111,6 +113,8 @@ public:
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
 private:
+    int m_conditionStart;
+    bool m_substConditionBypass;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
     std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)

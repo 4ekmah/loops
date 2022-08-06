@@ -179,6 +179,8 @@ FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_l
     , m_cmpopcode(IC_UNKNOWN)
     , m_directTranslation(false)
     , m_syntopStagesApplied(false)
+    , m_conditionStart(-1)
+    , m_substConditionBypass(false)
 {
     m_data.name = name;
     m_data.params.reserve(params.size());
@@ -305,6 +307,9 @@ IReg FuncImpl::const_(int64_t value)
 
 void FuncImpl::while_(const IReg& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
+    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
     size_t nextPos = m_data.program.size();
     size_t contLabel = provideLabel();
     size_t brekLabel = NOLABEL;
@@ -386,6 +391,9 @@ void FuncImpl::continue_()
 
 void FuncImpl::if_(const IReg& r)
 {
+    if (!m_substConditionBypass && ((m_conditionStart + 1) != m_data.program.size())) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
     int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
     if (jumptype == OP_JMP)
@@ -443,6 +451,10 @@ void FuncImpl::else_()
 
 void FuncImpl::subst_elif(const IReg& r)
 {
+    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
+    m_substConditionBypass = true;
     static int num = 0;
     Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
     m_data.program.pop_back();
@@ -476,6 +488,7 @@ void FuncImpl::subst_elif(const IReg& r)
     } while(elifRep != 0);
     m_data.program.push_back(conditionBackup);
     elif_(r);
+    m_substConditionBypass = false;
 }
 
 void FuncImpl::subst_else()
@@ -580,6 +593,11 @@ void FuncImpl::return_(const IReg& retval)
         throw std::runtime_error("Mixed return types");
     newiopNoret(OP_MOV, {argReg(RB_INT, Syntfunc::RETREG, this), retval});
     newiopNoret(OP_RET, {});
+}
+
+void FuncImpl::markConditionStart()
+{
+    m_conditionStart = m_data.program.size();
 }
 
 IReg FuncImpl::select(const IReg& cond, const IReg& truev, const IReg& falsev)

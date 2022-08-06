@@ -331,6 +331,11 @@ namespace loops
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 
+    __Loops_ConditionMarker_::__Loops_ConditionMarker_(Context* _CTX)
+    {
+        getImpl(getImpl(_CTX)->getCurrentFunc())->markConditionStart();
+    }
+
     __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
     {
         switch (_cftype)

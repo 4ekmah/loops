@@ -321,6 +321,12 @@ protected:
     Context* impl;
 };
 
+struct __Loops_ConditionMarker_
+{
+    explicit __Loops_ConditionMarker_(Context* _CTX);
+    operator bool() { return false; }
+};
+
 struct __Loops_CFScopeBracket_
 {
     enum CFType {IF, ELIF, ELSE, WHILE };
@@ -351,10 +357,13 @@ inline int64_t __loops_pack_2_valtype_(_Tp tocast)
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
 #define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(__loops_pack_2_valtype_(eltyp(x)), &__loops_ctx__) })
-#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
-#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
+#define IF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
+#define ELIF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
-#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
+#define WHILE_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
 #define BREAK_ __loops_ctx__.break_()
 #define CONTINUE_ __loops_ctx__.continue_()
 #define RETURN_(x) __loops_ctx__.return_(x)
