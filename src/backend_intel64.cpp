@@ -1049,7 +1049,7 @@ namespace loops
     {
         m_s2blookup = i64BTLookup;
         m_s2slookup = i64STLookup;
-        m_vectorRegisterSize = 256; // AVX2???
+        m_vectorRegisterBits = 256; // AVX2???
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
@@ -1362,7 +1362,7 @@ namespace loops
             regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
         size_t currOffset = 0;
         size_t xBasket[RB_AMOUNT] = {1,1};
-        xBasket[RB_VEC] = getVectorRegisterSize() / 64;
+        xBasket[RB_VEC] = getVectorRegisterBits() / 64;
         for(const Arg& arg : a_func.params)
         {
             Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);

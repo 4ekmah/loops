@@ -33,7 +33,6 @@ enum {
     OP_STORE,
 
     OP_MOV,
-    OP_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
     OP_XCHG,
 
     OP_ADD,
@@ -125,6 +124,7 @@ enum {
 //Aarch64-only operations:
     OP_ARM_CINC,
     OP_ARM_CNEG,
+    OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
 
     OP_NOINIT
 };
@@ -313,8 +313,8 @@ public:
     //TODO(ch): make next methods static:
     
     std::string getPlatformName() const;
-    size_t vectorRegisterSize() const;
-    template<typename _Tp> inline size_t vlanes() const { return vectorRegisterSize() / sizeof(_Tp); }
+    size_t vbytes() const; //size of vector register in bytes
+    template<typename _Tp> inline size_t vlanes() const { return vbytes() / sizeof(_Tp); }
     void compileAll();
 protected:
     Context(Context* a_impl): impl(a_impl) {}
@@ -580,17 +580,17 @@ static inline IReg& operator ^= (IReg& a, int64_t b)
 ///////////////////////////// vector operations ///////////////////////
 
 // load with zero/sign extension
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base)
 { return newiopV<_Tp>(VOP_LOAD, {base}); }
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int64_t offset)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 
 // cast and store
-template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r)
+template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, r}); }
-template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
+template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, offset, r}); }
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -669,7 +669,7 @@ template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
 template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p);
 
 struct exp_consts;
-exp_consts expInitConsts(Context CTX);
+exp_consts expInit(Context CTX);
 VReg<float> exp(const VReg<float>& x, const exp_consts& expt);
 
 template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -841,10 +841,7 @@ struct exp_consts
 {
     VReg<float> lo, hi, half, one, LOG2EF, C1, C2, p0, p1, p2, p3, p4, p5;
     VReg<int32_t> _7f;
-    exp_consts(VReg<float>&& a_lo, VReg<float>&& a_hi, VReg<float>&& a_half, VReg<float>&& a_one,
-                        VReg<float>&& a_LOG2EF, VReg<float>&& a_C1, VReg<float>&& a_C2, VReg<float>&& a_p0,
-                        VReg<float>&& a_p1, VReg<float>&& a_p2, VReg<float>&& a_p3, VReg<float>&& a_p4,
-                        VReg<float>&& a_p5, VReg<int32_t>&& a_7f);
+    exp_consts(Context CTX);
 };
 
 template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)

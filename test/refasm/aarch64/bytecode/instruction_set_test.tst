@@ -537,15 +537,15 @@ instruction_set_test()
    535 : neg.fp64       v0, v0                     
    536 : neg.fp64       v31, v0                    
    537 : neg.fp64       v0, v31                    
-   538 : movk           i0, 0, 16                  
-   539 : movk           i15, 0, 16                 
-   540 : movk           i0, 65535, 16              
-   541 : movk           i0, 0, 32                  
-   542 : movk           i15, 0, 32                 
-   543 : movk           i0, 65535, 32              
-   544 : movk           i0, 0, 48                  
-   545 : movk           i15, 0, 48                 
-   546 : movk           i0, 65535, 48              
+   538 : arm_movk       i0, 0, 16                  
+   539 : arm_movk       i15, 0, 16                 
+   540 : arm_movk       i0, 65535, 16              
+   541 : arm_movk       i0, 0, 32                  
+   542 : arm_movk       i15, 0, 32                 
+   543 : arm_movk       i0, 65535, 32              
+   544 : arm_movk       i0, 0, 48                  
+   545 : arm_movk       i15, 0, 48                 
+   546 : arm_movk       i0, 65535, 48              
    547 : broadcast.i8   v0, i0                     
    548 : broadcast.i8   v31, i0                    
    549 : broadcast.i8   v0, i15                    

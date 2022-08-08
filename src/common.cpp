@@ -327,7 +327,7 @@ namespace loops
     void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
-    size_t Context::vectorRegisterSize() const {return static_cast<ContextImpl*>(impl)->vectorRegisterSize(); }
+    size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
 
@@ -372,43 +372,28 @@ namespace loops
 
     __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
 
-    exp_consts::exp_consts(VReg<float>&& a_lo, VReg<float>&& a_hi, VReg<float>&& a_half, VReg<float>&& a_one,
-                        VReg<float>&& a_LOG2EF, VReg<float>&& a_C1, VReg<float>&& a_C2, VReg<float>&& a_p0,
-                        VReg<float>&& a_p1, VReg<float>&& a_p2, VReg<float>&& a_p3, VReg<float>&& a_p4,
-                        VReg<float>&& a_p5, VReg<int32_t>&& a_7f) :
-                                lo(static_cast<VReg<float>&&>(a_lo))
-                              , hi(static_cast<VReg<float>&&>(a_hi))
-                              , half(static_cast<VReg<float>&&>(a_half))
-                              , one(static_cast<VReg<float>&&>(a_one))
-                              , LOG2EF(static_cast<VReg<float>&&>(a_LOG2EF))
-                              , C1(static_cast<VReg<float>&&>(a_C1))
-                              , C2(static_cast<VReg<float>&&>(a_C2))
-                              , p0(static_cast<VReg<float>&&>(a_p0))
-                              , p1(static_cast<VReg<float>&&>(a_p1))
-                              , p2(static_cast<VReg<float>&&>(a_p2))
-                              , p3(static_cast<VReg<float>&&>(a_p3))
-                              , p4(static_cast<VReg<float>&&>(a_p4))
-                              , p5(static_cast<VReg<float>&&>(a_p5))
-                              , _7f(static_cast<VReg<int32_t>&&>(a_7f)) {}
-
-    exp_consts expInitConsts(Context CTX)
+    exp_consts::exp_consts(Context CTX)
     {
         USE_CONTEXT_(CTX);
-        return exp_consts(
-            VCONST_(float, -88.3762626647949f),
-            VCONST_(float, 88.3762626647949f),
-            VCONST_(float, 0.5f),
-            VCONST_(float, 1.f),
-            VCONST_(float, 1.44269504088896341f),
-            VCONST_(float, -0.693359375f),
-            VCONST_(float, 2.12194440e-4f),
-            VCONST_(float, 1.9875691500E-4f),
-            VCONST_(float, 1.3981999507E-3f),
-            VCONST_(float, 8.3334519073E-3f),
-            VCONST_(float, 4.1665795894E-2f),
-            VCONST_(float, 1.6666665459E-1f),
-            VCONST_(float, 5.0000001201E-1f),
-            VCONST_(int32_t, 0x7f));
+        vregHidCopy(lo    , VCONST_(float, -88.3762626647949f));
+        vregHidCopy(hi    , VCONST_(float, 88.3762626647949f));
+        vregHidCopy(half  , VCONST_(float, 0.5f));
+        vregHidCopy(one   , VCONST_(float, 1.f));
+        vregHidCopy(LOG2EF, VCONST_(float, 1.44269504088896341f));
+        vregHidCopy(C1    , VCONST_(float, -0.693359375f));
+        vregHidCopy(C2    , VCONST_(float, 2.12194440e-4f));
+        vregHidCopy(p0    , VCONST_(float, 1.9875691500E-4f));
+        vregHidCopy(p1    , VCONST_(float, 1.3981999507E-3f));
+        vregHidCopy(p2    , VCONST_(float, 8.3334519073E-3f));
+        vregHidCopy(p3    , VCONST_(float, 4.1665795894E-2f));
+        vregHidCopy(p4    , VCONST_(float, 1.6666665459E-1f));
+        vregHidCopy(p5    , VCONST_(float, 5.0000001201E-1f));
+        vregHidCopy(_7f   , VCONST_(int32_t, 0x7f));
+    }
+
+    exp_consts expInit(Context CTX)
+    {
+        return exp_consts(CTX);
     }
 
     VReg<float> exp(const VReg<float>& x, const exp_consts& expt)
@@ -497,8 +482,8 @@ namespace loops
     std::string ContextImpl::getPlatformName() const
     { return m_backend->name(); }
 
-    size_t ContextImpl::vectorRegisterSize() const
-    { return m_backend->getVectorRegisterSize() >> 3; }
+    size_t ContextImpl::vbytes() const
+    { return m_backend->getVectorRegisterBits() >> 3; }
 
     void ContextImpl::compileAll()
     {

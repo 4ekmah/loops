@@ -857,7 +857,7 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
         }
         else
             return SyT(AARCH64_MOV, { SAcop(0), SAcop(1) });
-    case (OP_MOVK):
+    case (OP_ARM_MOVK):
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
            (index[2].value == 16 || index[2].value == 32 || index[2].value == 48))
             return SyT(AARCH64_MOVK, { SAcop(0), SAcop(1), SAcopsar(2, 4, AF_NOPRINT)});
@@ -1188,7 +1188,7 @@ Aarch64Backend::Aarch64Backend()
 {
     m_s2blookup = a64BTLookup;
     m_s2slookup = a64STLookup;
-    m_vectorRegisterSize = 128;
+    m_vectorRegisterBits = 128;
     m_isLittleEndianInstructions = true;
     m_isLittleEndianOperands = false;
     m_isMonowidthInstruction = true;
@@ -1371,7 +1371,7 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
         regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
     size_t currOffset = 0;
     size_t xBasket[RB_AMOUNT] = {1,1};
-    xBasket[RB_VEC] = getVectorRegisterSize() / 64;
+    xBasket[RB_VEC] = getVectorRegisterBits() / 64;
     for(const Arg& arg : a_func.params)
     {
         Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
@@ -1580,7 +1580,7 @@ void AArch64BigImmediates::process(Syntfunc& a_processed) const
             newProg.push_back(Syntop(OP_MOV, { idest, argIImm(words[0], op[0].func) }));
             for(size_t wNum = 1; wNum < wordAmount; wNum++)
                 if((negative && words[wNum]!=-1) || (!negative && words[wNum]!=0))
-                    newProg.push_back(Syntop(OP_MOVK, { idest, argIImm(words[wNum], op[0].func), argIImm(wNum*16, op[0].func) }));
+                    newProg.push_back(Syntop(OP_ARM_MOVK, { idest, argIImm(words[wNum], op[0].func), argIImm(wNum*16, op[0].func) }));
             if(op[0].tag == Arg::VREG)
                 newProg.push_back(Syntop(VOP_BROADCAST, { op[0], idest}));
             break;

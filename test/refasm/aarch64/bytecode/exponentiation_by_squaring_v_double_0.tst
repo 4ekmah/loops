@@ -9,7 +9,7 @@ exponentiation_by_squaring_v_double_0(i0, i1, i2)
      7 : jmp_ge         1              
      8 : vld.fp64       v0, i0, i3     
      9 : mov            i18, 0         
-    10 : movk           i18, 16368, 48 
+    10 : arm_movk       i18, 16368, 48 
     11 : broadcast.fp64 v0, i18        
     12 : vst.fp64       i1, i3, v0     
     13 : add            i3, i3, 16     

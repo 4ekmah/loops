@@ -123,7 +123,6 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
     {OP_MOV,      "mov"},
-    {OP_MOVK,     "movk"},
     {OP_XCHG,     "xchg"},
     {OP_ADD,      "add"},
     {OP_MUL,      "mul"},
@@ -169,6 +168,7 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_X86_CQO,  "x86_cqo"},
     {OP_ARM_CINC, "arm_cinc"},
     {OP_ARM_CNEG, "arm_cneg"},
+    {OP_ARM_MOVK, "arm_movk"},
 };
 
 FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters

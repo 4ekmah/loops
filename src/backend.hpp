@@ -123,7 +123,7 @@ public:
     
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
-    inline int getVectorRegisterSize() const { return m_vectorRegisterSize; }  //in bits
+    inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
@@ -162,7 +162,7 @@ protected:
     }
 
     Allocator m_exeAlloc;
-    int m_vectorRegisterSize;
+    int m_vectorRegisterBits;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;

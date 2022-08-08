@@ -3,55 +3,55 @@ exp_f32(i0, i1, i2)
      1 : spill          30, v29         
      2 : spill          32, v30         
      3 : mov            i3, 49317       
-     4 : movk           i3, 49840, 16   
+     4 : arm_movk       i3, 49840, 16   
      5 : broadcast.fp32 v29, i3         
      6 : spill          28, v29         
      7 : mov            i3, 49317       
-     8 : movk           i3, 17072, 16   
+     8 : arm_movk       i3, 17072, 16   
      9 : broadcast.fp32 v29, i3         
     10 : spill          26, v29         
     11 : mov            i3, 0           
-    12 : movk           i3, 16128, 16   
+    12 : arm_movk       i3, 16128, 16   
     13 : broadcast.fp32 v29, i3         
     14 : spill          24, v29         
     15 : mov            i3, 0           
-    16 : movk           i3, 16256, 16   
+    16 : arm_movk       i3, 16256, 16   
     17 : broadcast.fp32 v29, i3         
     18 : spill          22, v29         
     19 : mov            i3, 43579       
-    20 : movk           i3, 16312, 16   
+    20 : arm_movk       i3, 16312, 16   
     21 : broadcast.fp32 v29, i3         
     22 : spill          2, v29          
     23 : mov            i3, 32768       
-    24 : movk           i3, 48945, 16   
+    24 : arm_movk       i3, 48945, 16   
     25 : broadcast.fp32 v29, i3         
     26 : spill          4, v29          
     27 : mov            i3, 32899       
-    28 : movk           i3, 14686, 16   
+    28 : arm_movk       i3, 14686, 16   
     29 : broadcast.fp32 v29, i3         
     30 : spill          6, v29          
     31 : mov            i3, 26983       
-    32 : movk           i3, 14672, 16   
+    32 : arm_movk       i3, 14672, 16   
     33 : broadcast.fp32 v29, i3         
     34 : spill          8, v29          
     35 : mov            i3, 17358       
-    36 : movk           i3, 15031, 16   
+    36 : arm_movk       i3, 15031, 16   
     37 : broadcast.fp32 v29, i3         
     38 : spill          10, v29         
     39 : mov            i3, 35080       
-    40 : movk           i3, 15368, 16   
+    40 : arm_movk       i3, 15368, 16   
     41 : broadcast.fp32 v29, i3         
     42 : spill          12, v29         
     43 : mov            i3, 43457       
-    44 : movk           i3, 15658, 16   
+    44 : arm_movk       i3, 15658, 16   
     45 : broadcast.fp32 v29, i3         
     46 : spill          14, v29         
     47 : mov            i3, 43690       
-    48 : movk           i3, 15914, 16   
+    48 : arm_movk       i3, 15914, 16   
     49 : broadcast.fp32 v29, i3         
     50 : spill          16, v29         
     51 : mov            i3, 0           
-    52 : movk           i3, 16128, 16   
+    52 : arm_movk       i3, 16128, 16   
     53 : broadcast.fp32 v29, i3         
     54 : spill          18, v29         
     55 : mov            v29, 127        

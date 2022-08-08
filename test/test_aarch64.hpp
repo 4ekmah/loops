@@ -47,7 +47,7 @@ LTEST(nullify_msb_lsb_v, {
         VReg<uint32_t> one  = VCONST_(uint32_t, 1);
         WHILE_(offset < n)
         {
-            VReg<uint32_t> in = loadvx<uint32_t>(iptr, offset);
+            VReg<uint32_t> in = loadvec<uint32_t>(iptr, offset);
             VReg<uint32_t> msb = in | ushift_right(in,1);
             msb |= ushift_right(msb,  2);
             msb |= ushift_right(msb,  4);
@@ -56,11 +56,11 @@ LTEST(nullify_msb_lsb_v, {
             msb += one;  //It's assumed, that 0x80000000 bit is switched off.
             msb = ushift_right(msb, 1);
             msb ^= in;
-            storevx(omptr, offset, msb);
+            storevec(omptr, offset, msb);
             VReg<uint32_t> lsb = in & ~(in - one);
             lsb ^= in;
-            storevx(olptr, offset, lsb);
-            offset += CTX.vectorRegisterSize();
+            storevec(olptr, offset, lsb);
+            offset += CTX.vbytes();
         }
         RETURN_();
     }
@@ -712,15 +712,15 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_NEG, { v31_2f , v0_2f });
     newiopNoret(VOP_NEG, { v0_2f , v31_2f });
 
-    newiopNoret(OP_MOVK, { x0 , argIImm(0, _f)     , argIImm(16, _f) });
-    newiopNoret(OP_MOVK, { x15, argIImm(0, _f)     , argIImm(16, _f) });
-    newiopNoret(OP_MOVK, { x0 , argIImm(0xffff, _f), argIImm(16, _f) });
-    newiopNoret(OP_MOVK, { x0 , argIImm(0, _f)     , argIImm(32, _f) });
-    newiopNoret(OP_MOVK, { x15, argIImm(0, _f)     , argIImm(32, _f) });
-    newiopNoret(OP_MOVK, { x0 , argIImm(0xffff, _f), argIImm(32, _f) });
-    newiopNoret(OP_MOVK, { x0 , argIImm(0, _f)     , argIImm(48, _f) });
-    newiopNoret(OP_MOVK, { x15, argIImm(0, _f)     , argIImm(48, _f) });
-    newiopNoret(OP_MOVK, { x0 , argIImm(0xffff, _f), argIImm(48, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0, _f)     , argIImm(16, _f) });
+    newiopNoret(OP_ARM_MOVK, { x15, argIImm(0, _f)     , argIImm(16, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0xffff, _f), argIImm(16, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0, _f)     , argIImm(32, _f) });
+    newiopNoret(OP_ARM_MOVK, { x15, argIImm(0, _f)     , argIImm(32, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0xffff, _f), argIImm(32, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0, _f)     , argIImm(48, _f) });
+    newiopNoret(OP_ARM_MOVK, { x15, argIImm(0, _f)     , argIImm(48, _f) });
+    newiopNoret(OP_ARM_MOVK, { x0 , argIImm(0xffff, _f), argIImm(48, _f) });
 
     newiopNoret(VOP_BROADCAST, { v0_16s, w0 });
     newiopNoret(VOP_BROADCAST, { v31_16s, w0 });

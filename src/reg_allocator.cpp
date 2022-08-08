@@ -628,7 +628,7 @@ but only if this nested register will be used after this redefinition.
         // minimizing prologue/epilogue overhead isn't so important.
 
         size_t basketElemX[RB_AMOUNT] = {1,1};
-        basketElemX[RB_VEC] = backend->getVectorRegisterSize() / 64;
+        basketElemX[RB_VEC] = backend->getVectorRegisterBits() / 64;
         
         std::vector<std::map<RegIdx, Arg> > unspilledRenaming[RB_AMOUNT];
         std::vector<std::map<RegIdx, Arg> > spilledRenaming[RB_AMOUNT];
@@ -920,7 +920,7 @@ but only if this nested register will be used after this redefinition.
                 paramsAmount[basketNum]++;
             }
             size_t basketElemX[RB_AMOUNT] = {1,1};
-            basketElemX[RB_VEC] = backend->getVectorRegisterSize() / 64;
+            basketElemX[RB_VEC] = backend->getVectorRegisterBits() / 64;
             for (size_t opnum = 0; opnum < a_processed.program.size(); opnum++)
             {
                 const Syntop& op = a_processed.program[opnum];

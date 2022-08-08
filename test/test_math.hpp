@@ -59,11 +59,11 @@ PTEST_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
         v_size *= sizeof(_Tp);
         WHILE_(offset < v_size)
         {
-            VReg<_Tp> in = loadvx<_Tp>(src, offset);
+            VReg<_Tp> in = loadvec<_Tp>(src, offset);
             VReg<_Tp> res = pow(in, p);
 
-            storevx(powdest, offset, res);
-            offset += CTX.vectorRegisterSize();
+            storevec(powdest, offset, res);
+            offset += CTX.vbytes();
         }
         RETURN_(0);
     }
@@ -99,13 +99,13 @@ LTEST(exp_f32, {
     USE_CONTEXT_(CTX);
     STARTFUNC_(TESTNAME, &dest, &src, &n)
     {
-        auto expc = expInitConsts(CTX);
+        auto expc = expInit(CTX);
         IReg offset = CONST_(0);
         WHILE_(n > 0)
         {
-            VReg<float> x = loadvx<float>(src,offset);
-            storevx(dest, offset, exp(x, expc));
-            offset += CTX.vectorRegisterSize();
+            VReg<float> x = loadvec<float>(src,offset);
+            storevec(dest, offset, exp(x, expc));
+            offset += CTX.vbytes();
             n -= CTX.vlanes<float>();
         }
         RETURN_();

@@ -42,6 +42,13 @@ namespace loops
         return static_cast<VReg<_Tp>&&>(ret);
     }
 
+    template<typename _Tp>
+    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src)
+    {
+        dest.func = src.func;
+        dest.idx = src.idx;
+    }
+
     inline Arg argReg(int basketNum, RegIdx idx, Func* impl = nullptr)
     {
         Arg res;
@@ -331,7 +338,7 @@ namespace loops
         void endFunc();
         Func getFunc(const std::string& name);
         std::string getPlatformName() const;
-        size_t vectorRegisterSize() const;
+        size_t vbytes() const;
         void compileAll();
 
         int m_refcount;
