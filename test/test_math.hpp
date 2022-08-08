@@ -115,13 +115,13 @@ LTEST(exp_f32, {
 LTESTexe(exp_f32, {
     typedef void (*exp_f32_f)(float* dest, const float* src, int n);
     exp_f32_f tested = reinterpret_cast<exp_f32_f>(EXEPTR);
-    const float ln15 = std::log(15);
+    const float ln15 = ::log(15);
     std::vector<float> src  = { 88.3762626647949f, -90, 1, 2, -15, 4.6, 23.1, -3, 13.7, -14.8, 18.2, 56, 22.12, 85.05, -12.6, -36.6,
                                 9.9, -12.5, 44, 1.7, 64.2, 34.8, -15.7, 55.5, 69, -34, ln15, 9, 0.2, 62.13, -74.5, -18.1 };
     std::vector<float> dest(src.size(), 0);
     tested(&dest[0], &src[0], src.size());
     for (size_t i = 0; i < src.size(); i++ )
-        EXPECT_NEAR(dest[i], ::exp(src[i]), 1.e-39f);
+        EXPECT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
     });
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 

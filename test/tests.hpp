@@ -35,10 +35,11 @@ public:
     template<typename T>
     inline bool expect_near(const T& tstd, const T& ref, const T& err)
     {
-        bool res = (std::abs(tstd - ref) <= err);
+        bool res = (::abs(tstd - ref) <= err);
         if (!res)
             (*m_out)<<"    Failed: distance between "<<tstd<<" and "<<ref<<" more than "<<err<<"."<<std::endl;
         return res;
+        
     }
 
     static std::string OSname();
