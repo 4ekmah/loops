@@ -107,8 +107,14 @@ public:
     void* compile(Context* a_ctx, Func* a_func);
     
     //Prologue and epilogue support
+    /*
+    getStackParameterLayout
+    Return offset-of-SP map of stack-passed parameters: parLayout[basketNum][idx used in a_func.params] = offset
+    It's assumed offset from SP just after function call(without prologue).
+    Offset measured not in bytes, each unit = 8 bytes. 
+    */
+    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
-    virtual size_t stackParamOffset(size_t alignedSPAdd) const = 0;
     virtual Arg getSParg(Func* funcimpl) const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
@@ -117,7 +123,7 @@ public:
     
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
-    inline int getVectorRegisterSize() const { return m_vectorRegisterSize; }  //in bits
+    inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
@@ -130,6 +136,7 @@ public:
     virtual void switchOnSpillStressMode() = 0;
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
+    const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
 private:
     mutable size_t m_s2sCurrentOffset; //TODO(ch): Do something with thread-safety.
 protected:
@@ -155,7 +162,7 @@ protected:
     }
 
     Allocator m_exeAlloc;
-    int m_vectorRegisterSize;
+    int m_vectorRegisterBits;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;
@@ -166,6 +173,7 @@ protected:
     std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
     std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
     std::vector<CompilerStagePtr> m_afterRegAllocStages;
+    std::vector<CompilerStagePtr> m_beforeRegAllocStages;
     std::string m_name;
 };
 };

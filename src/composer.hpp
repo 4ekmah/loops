@@ -110,7 +110,7 @@ namespace loops
             return res;
         }
 
-        enum {In = BinTranslation::Token::T_INPUT, Out = BinTranslation::Token::T_OUTPUT, IO = BinTranslation::Token::T_OUTPUT, InvIm = BinTranslation::Token::T_INVERT_IMM}; //TODO(ch): Use IO in table construction.
+        enum {In = BinTranslation::Token::T_INPUT, Out = BinTranslation::Token::T_OUTPUT, IO = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT, InvIm = BinTranslation::Token::T_INVERT_IMM}; //TODO(ch): Use IO in table construction.
     };
 };
 

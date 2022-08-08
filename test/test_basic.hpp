@@ -11,6 +11,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "tests.hpp"
 #include <iostream>
 #include <math.h>
+#include <stdexcept>
 #include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
@@ -31,7 +32,7 @@ LTESTexe(a_plus_b, {
     std::vector<int64_t> A = {3,2,4,2,3,4,1};
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
     for(size_t n = 0; n < A.size(); n++)
-        TEST_EQ(tested(A[n],B[n]), A[n]+B[n]);
+        EXPECT_EQ(tested(A[n],B[n]), A[n]+B[n]);
 });
 
 LTEST(min_max_scalar, {
@@ -81,9 +82,9 @@ LTESTexe(min_max_scalar, {
         if(v[rmaxpos] < v[num])
             rmaxpos = v[num];
     }
-    TEST_EQ(rmaxpos, maxpos);
-    TEST_EQ(rminpos, minpos);
-    TEST_EQ(retval, 0);
+    EXPECT_EQ(rmaxpos, maxpos);
+    EXPECT_EQ(rminpos, minpos);
+    EXPECT_EQ(retval, 0);
 });
 
 LTEST(min_max_select, {
@@ -128,9 +129,9 @@ LTESTexe(min_max_select, {
         if (v[rmaxpos] < v[num])
             rmaxpos = v[num];
     }
-    TEST_EQ(rmaxpos, maxpos);
-    TEST_EQ(rminpos, minpos);
-    TEST_EQ(retval, 0);
+    EXPECT_EQ(rmaxpos, maxpos);
+    EXPECT_EQ(rminpos, minpos);
+    EXPECT_EQ(retval, 0);
     });
 
 enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
@@ -199,23 +200,23 @@ LTEST(triangle_types, {
 LTESTexe(triangle_types, {
     typedef int (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
     triangle_types_f tested = reinterpret_cast<triangle_types_f>(EXEPTR);
-    TEST_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(1,2,-3), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(1,2,5), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(5,2,1), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(1,5,2), int(NOT_A_TRIANGLE));
-    TEST_EQ(tested(1,1,1), int(EQUILATERAL_TRIANGLE));
-    TEST_EQ(tested(1,1,2), int(ISOSCELES_TRIANGLE));
-    TEST_EQ(tested(1,2,1), int(ISOSCELES_TRIANGLE));
-    TEST_EQ(tested(2,1,1), int(ISOSCELES_TRIANGLE));
-    TEST_EQ(tested(3,4,5), int(RIGHT_TRIANGLE));
-    TEST_EQ(tested(5,4,3), int(RIGHT_TRIANGLE));
-    TEST_EQ(tested(3,5,4), int(RIGHT_TRIANGLE));
-    TEST_EQ(tested(5,6,9), int(OBTUSE_TRIANGLE));
-    TEST_EQ(tested(9,5,6), int(OBTUSE_TRIANGLE));
-    TEST_EQ(tested(5,9,6), int(OBTUSE_TRIANGLE));
-    TEST_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
+    EXPECT_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(1,2,-3), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(1,2,5), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(5,2,1), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(1,5,2), int(NOT_A_TRIANGLE));
+    EXPECT_EQ(tested(1,1,1), int(EQUILATERAL_TRIANGLE));
+    EXPECT_EQ(tested(1,1,2), int(ISOSCELES_TRIANGLE));
+    EXPECT_EQ(tested(1,2,1), int(ISOSCELES_TRIANGLE));
+    EXPECT_EQ(tested(2,1,1), int(ISOSCELES_TRIANGLE));
+    EXPECT_EQ(tested(3,4,5), int(RIGHT_TRIANGLE));
+    EXPECT_EQ(tested(5,4,3), int(RIGHT_TRIANGLE));
+    EXPECT_EQ(tested(3,5,4), int(RIGHT_TRIANGLE));
+    EXPECT_EQ(tested(5,6,9), int(OBTUSE_TRIANGLE));
+    EXPECT_EQ(tested(9,5,6), int(OBTUSE_TRIANGLE));
+    EXPECT_EQ(tested(5,9,6), int(OBTUSE_TRIANGLE));
+    EXPECT_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
 });
 
 LTEST(nonnegative_odd, {
@@ -249,8 +250,8 @@ LTESTexe(nonnegative_odd, {
     typedef int (*nonnegative_odd_f)(const int* ptr, int64_t n);
     nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(EXEPTR);
     std::vector<int> v = { 8, 2, -5, 7, 6 };
-    TEST_EQ(tested(&v[0], v.size()), 3);
-    TEST_EQ(tested(0, 0), -1);
+    EXPECT_EQ(tested(&v[0], v.size()), 3);
+    EXPECT_EQ(tested(0, 0), -1);
 });
 
 LTEST(all_loads_all_stores, {
@@ -372,7 +373,7 @@ LTESTexe(all_loads_all_stores, {
             case (loops::TYPE_U64): chck = AldrAstrTest<uint64_t>(v, res, siz, otyp); break;
             case (loops::TYPE_I64): chck = AldrAstrTest<int64_t>(v, res, siz, otyp); break;
             };
-            TEST_EQ(chck, true);
+            EXPECT_EQ(chck, true);
         }
     });
 
@@ -415,8 +416,8 @@ LTESTexe(nullify_msb_lsb, {
         remsb |= remsb >> 32;
         remsb = (remsb + 1) >> 1;
         remsb ^= tchk;
-        TEST_EQ(remsb, emsb);
-        TEST_EQ(relsb, elsb);
+        EXPECT_EQ(remsb, emsb);
+        EXPECT_EQ(relsb, elsb);
     }
     });
 
@@ -509,7 +510,39 @@ LTESTexe(bresenham, {
     BresenhamRef(&canvasRef[0], w, 9, 2, 9, 13, '5');
     BresenhamRef(&canvasRef[0], w, 14, 1, 14, 1, '6');
     for (int symbn = 0; symbn < w * h; symbn++)
-        TEST_EQ(canvas[symbn], canvasRef[symbn]);
+        EXPECT_EQ(canvas[symbn], canvasRef[symbn]);
     });
+
+//TODO(ch): Obviously, this test must be rewritten without generator, when test system will be rewritten.
+LTEST(compl_condition_diagnostic_failure, {  
+    STARTFUNC_(TESTNAME)
+    {
+        RETURN_(0);
+    }
+});
+LTESTexe(compl_condition_diagnostic_failure, {
+    bool gotAFailure = false;
+    try
+    {
+        USE_CONTEXT_(CTX);
+        STARTFUNC_("complconditionfailure")
+        {
+            IReg i = CONST_(1);
+            IReg j = CONST_(2);
+            IF_(i+1>j)
+            {
+                j = j + 1;
+            }
+            RETURN_(j);
+        }
+    }
+    catch (std::runtime_error err)
+    {
+        if(std::string("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.") == err.what())
+            gotAFailure = true;
+    };
+    EXPECT_EQ(gotAFailure, true);
+});
+
 };
 #endif//__LOOPS_TEST_BASIC_HPP__

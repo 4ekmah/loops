@@ -107,10 +107,10 @@ Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const s
 void Printer::printHeader(std::ostream& out, const Syntfunc& toPrint) const
 {
     out << toPrint.name << "(";
-    for (size_t argnum = 0; argnum + 1 < toPrint.params[RB_INT].size(); argnum++) //TODO(ch): support vector parameters
-        out << argReg(RB_INT, toPrint.params[RB_INT][argnum])  << ", ";
-    if (toPrint.params[RB_INT].size())
-        out<<argReg(RB_INT, toPrint.params[RB_INT].back());
+    for (size_t argnum = 0; argnum + 1 < toPrint.params.size(); argnum++)
+        out << toPrint.params[argnum]  << ", ";
+    if (toPrint.params.size())
+        out<< toPrint.params.back();
     out << ")" << std::endl;
 }
 

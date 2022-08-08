@@ -39,7 +39,7 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
-        str << "vld." << type_suffixes[_Tp];
+        str << "vst." << type_suffixes[_Tp];
     }},
     {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
@@ -53,8 +53,8 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_DIV, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "mul." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_MLA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "mla." << type_suffixes[op.args[0].elemtype];
+    {VOP_FMA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "fma." << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "sal." << type_suffixes[op.args[0].elemtype];
@@ -95,8 +95,17 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_EQ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "eq." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_CVTTZ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "cvttz." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    {VOP_TRUNC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "trunc." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_FLOOR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "floor." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_CAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cast." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "broadcast." << type_suffixes[op.args[0].elemtype];
     }},
     {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "store." << type_suffixes[op.args[0].value];
@@ -159,31 +168,33 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_X86_CQO,  "x86_cqo"},
     {OP_ARM_CINC, "arm_cinc"},
     {OP_ARM_CNEG, "arm_cneg"},
+    {OP_ARM_MOVK, "arm_movk"},
 };
 
-FuncImpl::FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params) : m_refcount(0)
-    , m_nextIdx{0, 0}
+FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
     , m_nextLabelIdx(0)
-    , m_context(getImpl(ctx))
+    , m_context(ctx)
     , m_returnType(RT_NOTDEFINED)
     , m_compiled(nullptr)
     , m_cmpopcode(IC_UNKNOWN)
     , m_directTranslation(false)
     , m_syntopStagesApplied(false)
+    , m_conditionStart(-1)
+    , m_substConditionBypass(false)
 {
     m_data.name = name;
-    m_data.params[RB_INT].reserve(params.size());  //TODO(ch): support vector parameters
+    m_data.params.reserve(params.size());
     for (IReg* parreg : params)
     {
         if(parreg->func != nullptr || parreg->idx != IReg::NOIDX)
             throw std::runtime_error("Parameter index is already initilized in some other function");
         parreg->func = this;
         parreg->idx = provideIdx(RB_INT);
-        m_data.params[RB_INT].emplace_back(parreg->idx);
+        m_data.params.emplace_back(*parreg);
     }
 }
 
-Func FuncImpl::makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params)
+Func FuncImpl::makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params)
 {
     return Func::make(new FuncImpl(name, ctx, params));
 }
@@ -204,20 +215,23 @@ void FuncImpl::applySyntopStages()
     {
         if (!m_directTranslation)
         {
+            auto beforeRegAlloc = m_context->getBackend()->getBeforeRegAllocStages();
+            for (CompilerStagePtr braStage : beforeRegAlloc)
+                braStage->process(m_data);
             if (m_cflowStack.size())
                 throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
                     m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, m_parameterRegistersO[basketNum], m_returnRegistersO[basketNum], m_callerSavedRegistersO[basketNum], m_calleeSavedRegistersO[basketNum]);
-            m_context->getRegisterAllocator()->process(this, m_data, m_nextIdx);
+            m_context->getRegisterAllocator()->process(this, m_data);
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
+                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
 
             controlBlocks2Jumps();
             auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
             for (CompilerStagePtr araStage : afterRegAlloc)
                 araStage->process(m_data);
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-                if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
-                    m_context->getRegisterAllocator()->getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
 
         }
         m_syntopStagesApplied = true;
@@ -293,6 +307,9 @@ IReg FuncImpl::const_(int64_t value)
 
 void FuncImpl::while_(const IReg& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
+    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
     size_t nextPos = m_data.program.size();
     size_t contLabel = provideLabel();
     size_t brekLabel = NOLABEL;
@@ -374,6 +391,9 @@ void FuncImpl::continue_()
 
 void FuncImpl::if_(const IReg& r)
 {
+    if (!m_substConditionBypass && ((m_conditionStart + 1) != m_data.program.size())) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
     int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
     if (jumptype == OP_JMP)
@@ -431,6 +451,10 @@ void FuncImpl::else_()
 
 void FuncImpl::subst_elif(const IReg& r)
 {
+    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
+        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
+    m_conditionStart = -1;
+    m_substConditionBypass = true;
     static int num = 0;
     Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
     m_data.program.pop_back();
@@ -464,6 +488,7 @@ void FuncImpl::subst_elif(const IReg& r)
     } while(elifRep != 0);
     m_data.program.push_back(conditionBackup);
     elif_(r);
+    m_substConditionBypass = false;
 }
 
 void FuncImpl::subst_else()
@@ -568,6 +593,11 @@ void FuncImpl::return_(const IReg& retval)
         throw std::runtime_error("Mixed return types");
     newiopNoret(OP_MOV, {argReg(RB_INT, Syntfunc::RETREG, this), retval});
     newiopNoret(OP_RET, {});
+}
+
+void FuncImpl::markConditionStart()
+{
+    m_conditionStart = m_data.program.size();
 }
 
 IReg FuncImpl::select(const IReg& cond, const IReg& truev, const IReg& falsev)

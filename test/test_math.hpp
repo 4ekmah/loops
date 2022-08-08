@@ -37,10 +37,10 @@ PTESTexe_1(exponentiation_by_squaring, int64_t, _p, {
     exponential_by_squaring_f tested = reinterpret_cast<exponential_by_squaring_f>(EXEPTR);
     std::vector<int> X = {3,-5,7,-3,2,0,-1};
     int resArr[7];
-    TEST_EQ(tested(&X[0], X.size(), resArr), (int64_t)(0));
+    EXPECT_EQ(tested(&X[0], X.size(), resArr), (int64_t)(0));
     for (size_t n = 0; n < X.size(); n++) {
         int tmp = static_cast<int>(::pow(X[n], _p));
-        TEST_EQ(resArr[n], tmp);
+        EXPECT_EQ(resArr[n], tmp);
     }
 });
 
@@ -48,6 +48,7 @@ PTESTfix_1(exponentiation_by_squaring, 0);
 PTESTfix_1(exponentiation_by_squaring, 1);
 PTESTfix_1(exponentiation_by_squaring, 9);
 
+#if __LOOPS_ARCH == __LOOPS_AARCH64
 PTEST_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
     IReg src, powdest, v_size;
     int p = _p;
@@ -58,11 +59,11 @@ PTEST_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
         v_size *= sizeof(_Tp);
         WHILE_(offset < v_size)
         {
-            VReg<_Tp> in = loadvx<_Tp>(src, offset);
+            VReg<_Tp> in = loadvec<_Tp>(src, offset);
             VReg<_Tp> res = pow(in, p);
 
-            storevx(powdest, offset, res);
-            offset += CTX.vectorRegisterSize();
+            storevec(powdest, offset, res);
+            offset += CTX.vbytes();
         }
         RETURN_(0);
     }
@@ -73,10 +74,10 @@ PTESTexe_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
     exponential_by_squaring_v tested = reinterpret_cast<exponential_by_squaring_v>(EXEPTR);
     std::vector<_Tp> v =   { 0, 1, 2, 3, 4, 5, 6, 7};
     std::vector<_Tp> res_pow = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    TEST_EQ(tested(&v[0], &res_pow[0], v.size()), (int)(0));
+    EXPECT_EQ(tested(&v[0], &res_pow[0], v.size()), (int)(0));
     for (size_t vnum = 0; vnum < v.size(); vnum++) {
         _Tp tmp = static_cast<int>(::pow(v[vnum], _p));
-        TEST_EQ(res_pow[vnum], tmp);
+        EXPECT_EQ(res_pow[vnum], tmp);
     }
 });
 
@@ -86,11 +87,43 @@ PTESTfix_2(exponentiation_by_squaring_v, uint32_t, 9);
 PTESTfix_2(exponentiation_by_squaring_v, int32_t, 0);
 PTESTfix_2(exponentiation_by_squaring_v, int32_t, 4);
 PTESTfix_2(exponentiation_by_squaring_v, int32_t, 9);
-// PTESTfix_2(exponentiation_by_squaring_v, float, 0);
+PTESTfix_2(exponentiation_by_squaring_v, float, 0);
 PTESTfix_2(exponentiation_by_squaring_v, float, 4);
 PTESTfix_2(exponentiation_by_squaring_v, float, 9);
-// PTESTfix_2(exponentiation_by_squaring_v, double, 0);
+PTESTfix_2(exponentiation_by_squaring_v, double, 0);
 PTESTfix_2(exponentiation_by_squaring_v, double, 4);
 PTESTfix_2(exponentiation_by_squaring_v, double, 9);
+
+LTEST(exp_f32, {
+    IReg dest, src, n;
+    USE_CONTEXT_(CTX);
+    STARTFUNC_(TESTNAME, &dest, &src, &n)
+    {
+        auto expc = expInit(CTX);
+        IReg offset = CONST_(0);
+        WHILE_(n > 0)
+        {
+            VReg<float> x = loadvec<float>(src,offset);
+            storevec(dest, offset, exp(x, expc));
+            offset += CTX.vbytes();
+            n -= CTX.vlanes<float>();
+        }
+        RETURN_();
+    }
+    });
+
+LTESTexe(exp_f32, {
+    typedef void (*exp_f32_f)(float* dest, const float* src, int n);
+    exp_f32_f tested = reinterpret_cast<exp_f32_f>(EXEPTR);
+    const float ln15 = ::log(15);
+    std::vector<float> src  = { 88.3762626647949f, -90, 1, 2, -15, 4.6, 23.1, -3, 13.7, -14.8, 18.2, 56, 22.12, 85.05, -12.6, -36.6,
+                                9.9, -12.5, 44, 1.7, 64.2, 34.8, -15.7, 55.5, 69, -34, ln15, 9, 0.2, 62.13, -74.5, -18.1 };
+    std::vector<float> dest(src.size(), 0);
+    tested(&dest[0], &src[0], src.size());
+    for (size_t i = 0; i < src.size(); i++ )
+        EXPECT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
+    });
+#endif //__LOOPS_ARCH == __LOOPS_AARCH64
+
 };
 #endif//__LOOPS_TEST_MATH_HPP__

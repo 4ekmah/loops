@@ -1,4 +1,4 @@
-erode_msb_lsb(i0, i1, i2)
+nullify_msb_lsb(i0, i1, i2)
      0 : sub       i4, i4, 8  
      1 : mov       i1, i7     
      2 : shr       i1, i1, 1  

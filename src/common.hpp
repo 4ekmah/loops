@@ -42,6 +42,13 @@ namespace loops
         return static_cast<VReg<_Tp>&&>(ret);
     }
 
+    template<typename _Tp>
+    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src)
+    {
+        dest.func = src.func;
+        dest.idx = src.idx;
+    }
+
     inline Arg argReg(int basketNum, RegIdx idx, Func* impl = nullptr)
     {
         Arg res;
@@ -305,10 +312,12 @@ namespace loops
     struct Syntfunc
     {
         std::vector<Syntop> program;
-        std::vector<RegIdx> params[RB_AMOUNT];
+        std::vector<Arg> params;
         std::string name;
+        int regAmount[RB_AMOUNT];
         enum {RETREG = size_t(-2)};
-        Syntfunc() {}
+        Syntfunc() : regAmount{0,0} {}
+        inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
     };
 
     class CompilerStage
@@ -329,18 +338,17 @@ namespace loops
         void endFunc();
         Func getFunc(const std::string& name);
         std::string getPlatformName() const;
-        size_t vectorRegisterSize() const;
+        size_t vbytes() const;
         void compileAll();
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
         inline Backend* getBackend() { return m_backend.get(); }
         inline RegisterAllocator* getRegisterAllocator() { return m_registerAllocator.get(); }
-        inline Context* getOwner() const { return m_owner; }
+        Context getOwner();
     private:
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
-        Context* m_owner;
         std::shared_ptr<Backend> m_backend;
         std::shared_ptr<RegisterAllocator> m_registerAllocator;
     };

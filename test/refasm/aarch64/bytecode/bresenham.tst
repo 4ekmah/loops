@@ -50,9 +50,9 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     48 : jmp_ne   3              
     49 : jmp      7              
     50 : label 3:                
-    51 : unspill  i20, 1         
-    52 : unspill  i21, 2         
-    53 : add      i18, i21, i20  
+    51 : unspill  i21, 1         
+    52 : unspill  i20, 2         
+    53 : add      i18, i20, i21  
     54 : mov      i20, i18       
     55 : spill    2, i20         
     56 : unspill  i20, 0         
@@ -66,9 +66,9 @@ bresenham(i0, i1, i2, i3, i4, i5, i6)
     64 : jmp_ne   5              
     65 : jmp      7              
     66 : label 5:                
-    67 : unspill  i20, 4         
-    68 : unspill  i21, 2         
-    69 : add      i18, i21, i20  
+    67 : unspill  i21, 4         
+    68 : unspill  i20, 2         
+    69 : add      i18, i20, i21  
     70 : mov      i20, i18       
     71 : spill    2, i20         
     72 : unspill  i20, 3         

@@ -44,7 +44,7 @@ namespace loops
         return (*this);
     }
 
-    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0) {}
+    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
     Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
     Arg::Arg(int64_t a_value, Context* ctx) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0)
     {
@@ -283,7 +283,9 @@ namespace loops
 
     Context::Context() : impl(nullptr)
     {
-        impl = new ContextImpl(this);
+        ContextImpl* _impl = new ContextImpl(this);
+        _impl->m_refcount = 1;
+        impl = _impl;
     }
 
     Context::Context(const Context& f) : impl(f.impl) { static_cast<ContextImpl*>(impl)->m_refcount++; }
@@ -325,9 +327,14 @@ namespace loops
     void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
-    size_t Context::vectorRegisterSize() const {return static_cast<ContextImpl*>(impl)->vectorRegisterSize(); }
+    size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
+
+    __Loops_ConditionMarker_::__Loops_ConditionMarker_(Context* _CTX)
+    {
+        getImpl(getImpl(_CTX)->getCurrentFunc())->markConditionStart();
+    }
 
     __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
     {
@@ -365,6 +372,52 @@ namespace loops
 
     __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
 
+    exp_consts::exp_consts(Context CTX)
+    {
+        USE_CONTEXT_(CTX);
+        vregHidCopy(lo    , VCONST_(float, -88.3762626647949f));
+        vregHidCopy(hi    , VCONST_(float, 88.3762626647949f));
+        vregHidCopy(half  , VCONST_(float, 0.5f));
+        vregHidCopy(one   , VCONST_(float, 1.f));
+        vregHidCopy(LOG2EF, VCONST_(float, 1.44269504088896341f));
+        vregHidCopy(C1    , VCONST_(float, -0.693359375f));
+        vregHidCopy(C2    , VCONST_(float, 2.12194440e-4f));
+        vregHidCopy(p0    , VCONST_(float, 1.9875691500E-4f));
+        vregHidCopy(p1    , VCONST_(float, 1.3981999507E-3f));
+        vregHidCopy(p2    , VCONST_(float, 8.3334519073E-3f));
+        vregHidCopy(p3    , VCONST_(float, 4.1665795894E-2f));
+        vregHidCopy(p4    , VCONST_(float, 1.6666665459E-1f));
+        vregHidCopy(p5    , VCONST_(float, 5.0000001201E-1f));
+        vregHidCopy(_7f   , VCONST_(int32_t, 0x7f));
+    }
+
+    exp_consts expInit(Context CTX)
+    {
+        return exp_consts(CTX);
+    }
+
+    VReg<float> exp(const VReg<float>& x, const exp_consts& expt)
+    {
+        VReg<float> vexp_x = min(x, expt.hi);
+        vexp_x = max(vexp_x, expt.lo);
+        VReg<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
+        VReg<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
+        vexp_fx = cast<float>(vexp_mm);
+        vexp_mm += expt._7f;
+        vexp_mm <<= 23;
+        vexp_x = fma(vexp_x, vexp_fx, expt.C1);
+        vexp_x = fma(vexp_x, vexp_fx, expt.C2);
+        VReg<float> vexp_z = vexp_x * vexp_x;
+        VReg<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
+        vexp_y = fma(expt.p2, vexp_y, vexp_x);
+        vexp_y = fma(expt.p3, vexp_y, vexp_x);
+        vexp_y = fma(expt.p4, vexp_y, vexp_x);
+        vexp_y = fma(expt.p5, vexp_y, vexp_x);
+        vexp_y = fma(vexp_x, vexp_y, vexp_z);
+        vexp_y += expt.one;
+        return vexp_y * reinterpret<float>(vexp_mm);
+    }
+
     Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
     Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
     {
@@ -395,7 +448,7 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_owner(owner), m_refcount(0) {
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0) {
 #if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
@@ -409,7 +462,7 @@ namespace loops
     {
         if(m_functionsStorage.find(name) != m_functionsStorage.end())
             throw std::runtime_error("Function is already registered.");  //TODO(ch): We need good exception class.
-        m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, m_owner, params)).first->second;
+        m_currentFunc = m_functionsStorage.emplace(name, FuncImpl::makeWrapper(name, this, params)).first->second;
     }
 
     void ContextImpl::endFunc()
@@ -429,8 +482,8 @@ namespace loops
     std::string ContextImpl::getPlatformName() const
     { return m_backend->name(); }
 
-    size_t ContextImpl::vectorRegisterSize() const
-    { return m_backend->getVectorRegisterSize() >> 3; }
+    size_t ContextImpl::vbytes() const
+    { return m_backend->getVectorRegisterBits() >> 3; }
 
     void ContextImpl::compileAll()
     {
@@ -466,4 +519,15 @@ namespace loops
         }
         alloc->protect2Execution(exebuf);
     }
+    Context ContextImpl::getOwner()
+    {
+        Assert(m_refcount>0);
+        //Trick to workaround abscence of makeWrapper function of Context as smartpointer.
+        //ContextImpl simulates Context(by self-referencing) and creates a smartpointer copy.
+        impl = this;
+        Context ret = (*this);
+        impl = nullptr;
+        return ret;
+    }
+
 }

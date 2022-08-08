@@ -50,7 +50,7 @@ enum Aarch64Reg
     R27  = 27,
     R28  = 28,
     FP   = 29,
-    LR   = 30, //TODO(ch): Decide if it's possible to use frame pointer as callee-saved register.
+    LR   = 30,
     SP   = 31
 };
 
@@ -154,7 +154,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-            //TODO(ch): Ldrsw also have many options to be added here. Literal loading, register shift or post/pre-indexing. Format isn't full now and hardcoded.
     case (AARCH64_LDRSW):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -224,22 +223,23 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         else if (index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0011100100, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, In) });
         break;
-    //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
     case (AARCH64_MOV):
         Assert(index.size() == 2);
         if (index[1].tag == Arg::IREG)
             return BiT({ BTsta(0x550,11), BTreg(1, 5, In), BTsta(0x1F ,11), BTreg(0, 5, Out) });
         else if (index[1].tag == Arg::IIMMEDIATE)
-        {
-            if(index[1].value >= 0)
-                return BiT({ BTsta(0x694,11), BTimm(1, 16), BTreg(0, 5, Out) });
-            else// if(index[1].value < 0)
-                return BiT({ BTsta(0b10010010100, 11), BTimm(1, 16, InvIm), BTreg(0, 5, Out) });
-        }
+            return BiT({ BTsta(0x694,11), BTimm(1, 16), BTreg(0, 5, Out) });
         else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
             return BiT({ BTsta(0b01001110101, 11), BTreg(1, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
-        //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
+    case (AARCH64_MOVN):
+        if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+            return BiT({ BTsta(0b10010010100, 11), BTimm(1, 16), BTreg(0, 5, Out) });
+        break;
+    case (AARCH64_MOVK):
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
+           index[2].value >= 1 && index[2].value <= 3)
+            return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, Out) });
     case (AARCH64_ADD):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -253,7 +253,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
     case (AARCH64_SUB):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -267,7 +266,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01101110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): Specialization: 64 registers.
     case (AARCH64_MUL):
         Assert(index.size() == 3);
         if(index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
@@ -279,7 +277,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): Specialization: 64 registers.
     case (AARCH64_SDIV):
         Assert(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
         if(index[2].tag == Arg::IREG)
@@ -357,7 +354,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-    //TODO(ch): Specialization is: 64 register, zero shift.
     case (AARCH64_CMP):
             Assert(index.size() == 2 && index[0].tag == Arg::IREG);
             if(index[1].tag == Arg::IREG)
@@ -443,10 +439,10 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             if(index[0].elemtype == TYPE_FP32 || index[0].elemtype == TYPE_FP64)
             {
                 uint64_t sizeStat = index[0].elemtype == TYPE_FP64 ? 1 : 0;
-                return BiT({ BTsta(0b010011100,9), BTsta(sizeStat,1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b110011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+                return BiT({ BTsta(0b010011100,9), BTsta(sizeStat,1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b110011, 6), BTreg(1, 5, In), BTreg(0, 5, IO) });
             }
             else if(index[0].elemtype == TYPE_FP16)
-                return BiT({ BTsta(0b01001110010, 11), BTreg(2, 5, In), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+                return BiT({ BTsta(0b01001110010, 11), BTreg(2, 5, In), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, IO) });
         }
         break;
     case (AARCH64_SHL):
@@ -481,12 +477,20 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b010011110,9), BTimm(2, 4), BTimm(3, 3), BTsta(0b000001,6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_MOVI):
-        if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE && isInteger(index[0].elemtype) && elemSize(index[0].elemtype) != 8)
+        if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE && elemSize(index[0].elemtype) != 8)
         {
             size_t elSize = elemSize(index[0].elemtype);
             int64_t cmodstat = elSize == 1 ? 0b1110 : (elSize == 2 ? 0b1000 : /*(elSize == 4 ?*/ 0b0000 /*: ...)*/);
             //TODO(ch):Reference mentions 64bit lanes. Try to implement this variation.
             return BiT({ BTsta(0b0100111100000, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_MVNI):
+        if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE && (index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32))
+        {
+            size_t elSize = elemSize(index[0].elemtype);
+            int64_t cmodstat = index[0].elemtype == TYPE_I16 ? 0b1000 : 0b0000;
+            return BiT({ BTsta(0b0110111100000, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_FCMGT):
@@ -572,6 +576,32 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 return BiT({ BTsta(0b0110111011111001101110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
+
+            
+    case (AARCH64_FCVTMS):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_FP64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_FP64 ? 1 : 0;
+                return BiT({ BTsta(0b010011100, 9), BTsta(sizeStat, 1), BTsta(0b100001101110, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_FP16)
+                return BiT({ BTsta(0b0100111001111001101110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_FCVTMU):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isUnsignedInteger(index[0].elemtype) && isFloat(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_FP64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_FP64 ? 1 : 0;
+                return BiT({ BTsta(0b011011100, 9), BTsta(sizeStat, 1), BTsta(0b100001101110, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_FP16)
+                return BiT({ BTsta(0b0110111001111001101110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
     case (AARCH64_SCVTF):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[1].elemtype) && isFloat(index[0].elemtype))
         {
@@ -594,6 +624,16 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             }
             else if(index[0].elemtype == TYPE_FP16)
                 return BiT({ BTsta(0b0110111001111001110110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_DUP):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        {
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t dupSizeStats[] = {WrongStat, 0b00001, 0b00010, WrongStat, 0b00100, WrongStat, WrongStat, WrongStat, 0b01000 };
+            uint64_t dupSizeStat = dupSizeStats[elemSize(index[0].elemtype)];
+            Assert(dupSizeStat != WrongStat);
+            return BiT({ BTsta(0b01001110000, 11), BTsta(dupSizeStat, 5), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
@@ -765,16 +805,55 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
     case (OP_MOV):
         if(index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE)
         {
-            int cond = index[1].value < 0 ? 7 : 8;
-            int bitNeed = msb64(std::abs(index[1].value));
-            if (bitNeed > cond)
+            uint64_t bitfield = static_cast<uint64_t>(index[1].value);
+            int tarOpcode = AARCH64_MOVI;
+            if(index[1].value < 0)
+            {
+                if(index[0].elemtype == TYPE_I8)
+                {
+                    if((~(bitfield & 0xFFFFFFFFFFFF0000)) == 0)
+                        bitfield &= 0xFF;
+                    else
+                        break;
+                }
+                else if(index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32)
+                {
+                    bitfield = ~bitfield;
+                    tarOpcode = AARCH64_MVNI;
+                }
+                else if(index[0].elemtype == TYPE_I64)
+                    break;
+            }
+            int bitNeed = msb64(bitfield);
+            if (bitNeed > 8)
                 break;
-            int64_t higher3 = (index[1].value & 0b11100000) >> 5;
-            int64_t lower5  = index[1].value & 0b00011111;
-            return SyT(AARCH64_MOVI, { SAcop(0), SAimm(lower5), SAimm(higher3) });
+            int64_t higher3 = (bitfield & 0b11100000) >> 5;
+            int64_t lower5  = bitfield & 0b00011111;
+            return SyT(tarOpcode, { SAcop(0), SAimm(lower5), SAimm(higher3) });
+        }
+        else if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+        {
+            uint64_t bitfield = static_cast<uint64_t>(index[1].value);
+            bool invert = false;
+            if(index[1].value < 0)
+            {
+                invert = true;
+                bitfield = ~bitfield;
+            }
+            int bitNeed = msb64(bitfield);
+            if (bitNeed > 16)
+                break;
+            if(invert)
+                return SyT(AARCH64_MOVN, { SAcop(0), SAimm(bitfield) });
+            else
+                return SyT(AARCH64_MOV, { SAcop(0), SAcop(1) });
         }
         else
             return SyT(AARCH64_MOV, { SAcop(0), SAcop(1) });
+    case (OP_ARM_MOVK):
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
+           (index[2].value == 16 || index[2].value == 32 || index[2].value == 48))
+            return SyT(AARCH64_MOVK, { SAcop(0), SAcop(1), SAcopsar(2, 4, AF_NOPRINT)});
     case (OP_ADD):    return SyT(AARCH64_ADD, { SAcop(0), SAcop(1), SAcop(2) });
     case (OP_SUB):    return SyT(AARCH64_SUB, { SAcop(0), SAcop(1), SAcop(2) });
     case (OP_MUL):    return SyT(AARCH64_MUL, { SAcop(0), SAcop(1), SAcop(2) });
@@ -900,10 +979,9 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
                 return SyT(AARCH64_NEG, { SAcop(0), SAcop(1) });
         }
         break;
-    case (VOP_MLA):
-        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG
-           && index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && isFloat(index[0].elemtype))
-            return SyT(AARCH64_FMLA, { SAcop(0), SAcop(1), SAcop(2) });
+    case (VOP_FMA):
+        if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[3].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && index[0].elemtype == index[3].elemtype && index[0].idx == index[1].idx && isFloat(index[0].elemtype))
+            return SyT(AARCH64_FMLA, { SAcop(0), SAcop(2), SAcop(3) });
         break;
     case (VOP_SAL):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&
@@ -1013,27 +1091,52 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-    case (VOP_CVTTZ):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
+    case (VOP_TRUNC):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isFloat(index[1].elemtype) && elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
         {
-            if(isFloat(index[1].elemtype))
-            {
-                if(index[0].elemtype == TYPE_I64 || index[0].elemtype == TYPE_I32 || index[0].elemtype == TYPE_I16)
-                    return SyT(AARCH64_FCVTZS, { SAcop(0), SAcop(1) });
-                else if(index[0].elemtype == TYPE_U64 || index[0].elemtype == TYPE_U32 || index[0].elemtype == TYPE_U16)
-                    return SyT(AARCH64_FCVTZU, { SAcop(0), SAcop(1) });
-            }
-            else if(isFloat(index[0].elemtype))
-            {
-                if(index[1].elemtype == TYPE_I64 || index[1].elemtype == TYPE_I32 || index[1].elemtype == TYPE_I16)
-                    return SyT(AARCH64_SCVTF, { SAcop(0), SAcop(1) });
-                else if(index[1].elemtype == TYPE_U64 || index[1].elemtype == TYPE_U32 || index[1].elemtype == TYPE_U16)
-                    return SyT(AARCH64_UCVTF, { SAcop(0), SAcop(1) });
-            }
+            if(isSignedInteger(index[0].elemtype))
+                return SyT(AARCH64_FCVTZS, { SAcop(0), SAcop(1) });
+            else if(isUnsignedInteger(index[0].elemtype))
+                return SyT(AARCH64_FCVTZU, { SAcop(0), SAcop(1) });
         }
         break;
-    case (OP_UNSPILL):  return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
-    case (OP_SPILL):    return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+    case (VOP_FLOOR):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isFloat(index[1].elemtype) && elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
+        {
+            if(isSignedInteger(index[0].elemtype))
+                return SyT(AARCH64_FCVTMS, { SAcop(0), SAcop(1) });
+            else if(isUnsignedInteger(index[0].elemtype))
+                return SyT(AARCH64_FCVTMU, { SAcop(0), SAcop(1) });
+        }
+        break;
+    case (VOP_CAST):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isFloat(index[0].elemtype) && elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
+        {
+            if(isSignedInteger(index[1].elemtype))
+                return SyT(AARCH64_SCVTF, { SAcop(0), SAcop(1) });
+            else if(isUnsignedInteger(index[1].elemtype))
+                return SyT(AARCH64_UCVTF, { SAcop(0), SAcop(1) });
+        }
+        break;
+    case (VOP_BROADCAST):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+            return SyT(AARCH64_DUP, { SAcop(0), SAcop(1) });
+    case (OP_UNSPILL):
+        if(index.size() == 2) 
+        {
+            if(index[0].tag == Arg::IREG) 
+                return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAreg(SP, AF_ADDRESS), SAcop(1) });
+            else if(index[0].tag == Arg::VREG) 
+                return SyT(AARCH64_LDR, { SAcop(0), SAreg(SP, AF_ADDRESS), SAcopsar(1,1) });
+        }
+    case (OP_SPILL):
+        if(index.size() == 2) 
+        {
+            if(index[1].tag == Arg::IREG) 
+                return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAreg(SP, AF_ADDRESS), SAcop(0) });
+            else if(index[1].tag == Arg::VREG) 
+                return SyT(AARCH64_STR, { SAcop(1), SAreg(SP, AF_ADDRESS), SAcopsar(0,1) });
+        }
     case (OP_JMP_NE):   return SyT(AARCH64_B_NE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //AArch64 supports only multiply-4 offsets,
     case (OP_JMP_EQ):   return SyT(AARCH64_B_EQ,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //so, for compactification, they are divided by 4.
     case (OP_JMP_LT):   return SyT(AARCH64_B_LT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
@@ -1048,6 +1151,20 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
     scs = false;
     return SyntopTranslation();
 }
+
+class AArch64BigImmediates : public CompilerStage
+{
+public:
+    AArch64BigImmediates(Backend* a_backend): m_backend(a_backend) {}
+    virtual void process(Syntfunc& a_processed) const override;
+    virtual ~AArch64BigImmediates() override {}
+    static CompilerStagePtr make(Backend* a_backend)
+    {
+        return std::static_pointer_cast<CompilerStage>(std::make_shared<AArch64BigImmediates>(a_backend));
+    }
+private:
+    Backend* m_backend;
+};
 
 class AArch64ARASnippets : public CompilerStage
 {
@@ -1064,23 +1181,41 @@ Aarch64Backend::Aarch64Backend()
 {
     m_s2blookup = a64BTLookup;
     m_s2slookup = a64STLookup;
-    m_vectorRegisterSize = 128;
+    m_vectorRegisterBits = 128;
     m_isLittleEndianInstructions = true;
     m_isLittleEndianOperands = false;
     m_isMonowidthInstruction = true;
     m_instructionWidth = 4;
     m_registersAmount = 7;
     m_name = "AArch64";
+    m_beforeRegAllocStages.push_back(AArch64BigImmediates::make(this));
     m_afterRegAllocStages.push_back(AArch64ARASnippets::make());
     m_parameterRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_callerSavedRegisters[RB_INT] = { XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 };
     m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 };
 
-    m_parameterRegisters[RB_VEC] = { };
-    m_returnRegisters[RB_VEC] = { };
-    m_callerSavedRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
-    m_calleeSavedRegisters[RB_VEC] = { };
+    m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7 };
+    m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_callerSavedRegisters[RB_VEC] = { Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15 };
+    m_calleeSavedRegisters[RB_VEC] = { Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
+}
+
+size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+{
+    switch (a_op.opcode)
+    {
+    case (OP_MOV):
+    case (VOP_FMA):
+    {
+        if (undefinedArgNums.count(1))
+            return 1;
+        break;
+    }
+    default:
+        break;
+    }
+    return Backend::reusingPreferences(a_op, undefinedArgNums);
 }
 
 size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
@@ -1089,6 +1224,15 @@ size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
         switch (a_op.opcode)
         {
         case (OP_MOD):
+            return 1;
+            break;
+        default:
+            break;
+        }
+    else if(basketNum == RB_VEC)
+        switch (a_op.opcode)
+        {
+        case (VOP_FMA):
             return 1;
             break;
         default:
@@ -1130,6 +1274,20 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
                 if (BinTranslation::Token::T_INPUT & flagmask)
                     return std::set<size_t>({1});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
+                    return std::set<size_t>({0});
+            }
+            break;
+        }
+        case (VOP_FMA):
+        {
+            Assert(a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG);
+            if(basketNum == RB_INT)
+                return std::set<size_t>({});
+            else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            {
+                if (BinTranslation::Token::T_INPUT & flagmask)
+                    return std::set<size_t>({1, 2, 3});
+                else if (BinTranslation::Token::T_OUTPUT & flagmask)
                     return std::set<size_t>({0});
             }
             break;
@@ -1199,14 +1357,33 @@ Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
     return result;
 }
 
+void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+{
+    size_t regPassed[RB_AMOUNT];
+    for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
+    size_t currOffset = 0;
+    size_t xBasket[RB_AMOUNT] = {1,1};
+    xBasket[RB_VEC] = getVectorRegisterBits() / 64;
+    for(const Arg& arg : a_func.params)
+    {
+        Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+        int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
+        if (regPassed[basketNum] > 0)
+        {
+            regPassed[basketNum]--;
+            continue;
+        }
+        if(currOffset%xBasket[basketNum])
+            currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
+        parLayout[basketNum][arg.idx] = currOffset;
+        currOffset+=xBasket[basketNum];
+    }
+}
+
 size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
 {
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
-}
-
-size_t Aarch64Backend::stackParamOffset(size_t alignedSPAdd) const
-{
-    return alignedSPAdd;
 }
 
 Arg Aarch64Backend::getSParg(Func* funcimpl) const
@@ -1227,6 +1404,8 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_STRH,  "strh" },
         {AARCH64_STRB,  "strb" },
         {AARCH64_MOV,   "mov"  },
+        {AARCH64_MOVN,  "movn" },
+        {AARCH64_MOVK,  "movk" },
         {AARCH64_ADD,   "add"  },
         {AARCH64_SUB,   "sub"  },
         {AARCH64_MUL,   "mul"  },
@@ -1255,6 +1434,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_USHR,  "ushr" },
         {AARCH64_SSHR,  "sshr" },
         {AARCH64_MOVI,  "movi" },
+        {AARCH64_MVNI,  "mvni" },
         {AARCH64_FCMGT, "fcmgt"},
         {AARCH64_FCMGE, "fcmge"},
         {AARCH64_FCMEQ, "fcmeq"},
@@ -1262,8 +1442,11 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_FMAX,  "fmax" },
         {AARCH64_FCVTZS,"fcvtzs"},
         {AARCH64_FCVTZU,"fcvtzu"},
+        {AARCH64_FCVTMS,"fcvtms"},
+        {AARCH64_FCVTMU,"fcvtmu"},
         {AARCH64_SCVTF, "scvtf"},
         {AARCH64_UCVTF, "ucvtf"},
+        {AARCH64_DUP,   "dup"},
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },
@@ -1338,6 +1521,68 @@ void Aarch64Backend::switchOnSpillStressMode()
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3 };
     m_callerSavedRegisters[RB_INT] = {};
     m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22 };
+
+    m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+    m_callerSavedRegisters[RB_VEC] = { };
+    m_calleeSavedRegisters[RB_VEC] = { Q29, Q30, Q31 };
+}
+
+void AArch64BigImmediates::process(Syntfunc& a_processed) const
+{
+    std::vector<Syntop> newProg;
+    newProg.reserve(2 * a_processed.program.size());
+    for (Syntop& op : a_processed.program)
+        switch (op.opcode)
+        {
+        case OP_MOV:
+        {
+            Assert(op.size() == 2);
+            if(op[1].tag != Arg::IIMMEDIATE)
+            {
+                newProg.push_back(op);
+                break;
+            }
+//            if(op[1].value == 0)   //Well, it looks like we cannot do it, since xor x0, x0, x0, when is just defined will "use" undefined register. Hmm...
+//            {                      //Looks like we need ARA stage or some Liveness Analysis modification. If and when will introduce
+//                int tarOpcode = op[0].tag == Arg::VREG ? VOP_XOR : OP_XOR;      // definition-without-assignment, it also will be good solution.
+//                newProg.push_back(Syntop(tarOpcode, { op[0], op[0], op[0] }));
+//                break;
+//            }
+            if(m_backend->isImmediateFit(op, 1))
+            {
+                newProg.push_back(op);
+                break;
+            }
+            size_t wordAmount = 4; //8byte
+            Arg idest = op[0];
+            if(idest.tag == Arg::VREG)
+            {
+                wordAmount = elemSize(op[0].elemtype)/2;
+                idest = argReg(RB_INT, a_processed.provideIdx(RB_INT), idest.func);
+            }
+            bool negative = (((op[0].tag == Arg::VREG && isSignedInteger(op[0].elemtype)) || op[0].tag == Arg::IREG ) && op[0].value < 0 );
+            std::vector<int64_t> words(wordAmount, negative ? -1: 0);
+            for(size_t wNum = wordAmount - 1; wNum > 0; wNum--)
+            {
+                int64_t word = (op[1].value >> (wNum*16))&0xFFFF;
+                if((negative && ((~word)&0xFFFF)) || (!negative && word))
+                    words[wNum] = word;
+            }
+            words[0] = negative ? ~((~op[1].value) & 0xFFFF) : (op[1].value & 0xFFFF);
+            newProg.push_back(Syntop(OP_MOV, { idest, argIImm(words[0], op[0].func) }));
+            for(size_t wNum = 1; wNum < wordAmount; wNum++)
+                if((negative && words[wNum]!=-1) || (!negative && words[wNum]!=0))
+                    newProg.push_back(Syntop(OP_ARM_MOVK, { idest, argIImm(words[wNum], op[0].func), argIImm(wNum*16, op[0].func) }));
+            if(op[0].tag == Arg::VREG)
+                newProg.push_back(Syntop(VOP_BROADCAST, { op[0], idest}));
+            break;
+        }
+        default:
+            newProg.push_back(op);
+            break;
+        }
+    a_processed.program = newProg;
 }
 
 void AArch64ARASnippets::process(Syntfunc& a_processed) const
@@ -1402,6 +1647,34 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
             newProg.push_back(Syntop(VOP_EQ , { op[0], op[1], op[2] }));
             newProg.push_back(Syntop(VOP_NOT, { op[0], op[0] }));
             break;
+        case VOP_FMA:
+        {
+            Assert(op.size() == 4 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG && op[0].elemtype == op[1].elemtype && op[0].elemtype == op[2].elemtype && op[0].elemtype == op[3].elemtype);
+            if(op[0].idx == op[1].idx)
+            {
+                newProg.push_back(op);
+                break;
+            }
+            bool unspill = false;
+            Arg placeholder = op[2];
+            if(op[0].idx == op[2].idx || op[0].idx == op[3].idx)
+            {
+                placeholder.idx = lsb64(~makeBitmask64({(size_t)(op[0].idx), size_t(op[1].idx), (size_t)(op[2].idx), (size_t)(op[3].idx)}));
+                newProg.push_back(Syntop(OP_SPILL, { 0, placeholder }));
+                newProg.push_back(Syntop(OP_MOV , { placeholder, op[0] }));
+                unspill = true;
+                if(op[0].idx == op[2].idx)
+                    op[2] = placeholder;
+                if(op[0].idx == op[3].idx)
+                    op[3] = placeholder;
+            }
+            if(op[0].idx != op[1].idx)
+                newProg.push_back(Syntop(OP_MOV , { op[0], op[1] }));
+            newProg.push_back(Syntop(VOP_FMA, { op[0], op[0], op[2], op[3] }));
+            if(unspill)
+                newProg.push_back(Syntop(OP_UNSPILL, { placeholder, 0 }));
+            break;
+        }
         default:
             newProg.push_back(op);
             break;

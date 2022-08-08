@@ -25,15 +25,26 @@ public:
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
     virtual std::vector<std::string> fixturesNames() const = 0;
     template<typename T>
-    inline bool test_eq(const T& tstd, const T& ref)
+    inline bool expect_eq(const T& tstd, const T& ref)
     {
         bool res = (tstd == ref);
         if (!res)
             (*m_out)<<"    Failed:"<<tstd<<"!="<<ref<<std::endl;
         return res;
     }
+    template<typename T>
+    inline bool expect_near(const T& tstd, const T& ref, const T& err)
+    {
+        bool res = (::abs(tstd - ref) <= err);
+        if (!res)
+            (*m_out)<<"    Failed: distance between "<<tstd<<" and "<<ref<<" more than "<<err<<"."<<std::endl;
+        return res;
+        
+    }
+
     static std::string OSname();
-#define TEST_EQ(a,b) if(!test_eq((a),(b))) return false;
+#define EXPECT_EQ(a,b) if(!expect_eq((a),(b))) return false;
+#define EXPECT_NEAR(a,b,err) if(!expect_near((a),(b),(err))) return false
 protected:
     Context CTX;
 private:
@@ -60,12 +71,15 @@ private:
 };
 };
 
+//TODO(ch): Interesting solution for test substitution is class derivation
+//with using RTTI for taking name of class. Still not really easy to decide what to 
+// do with fixtures, but there is a thought to think.
 #define LTEST(funcname, ...)                                    \
 class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         USE_CONTEXT_(CTX)                                       \
@@ -108,10 +122,11 @@ public:                                                         \
                                                      override   \
     { return m_fixturesNames;}                                  \
     virtual bool testExecution(const std::string& fixName)      \
+                                                        override\
     {                                                           \
         return (this->*m_executors[fixName])(CTX);              \
     }                                                           \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         for(auto generator : m_generators)                      \
             generator(CTX);                                     \
@@ -185,10 +200,11 @@ public:                                                         \
                                                      override   \
     { return m_fixturesNames;}                                  \
     virtual bool testExecution(const std::string& fixName)      \
+                                                        override\
     {                                                           \
         return (this->*m_executors[fixName])(CTX);              \
     }                                                           \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         for(auto generator : m_generators)                      \
             generator(CTX);                                     \
@@ -254,7 +270,7 @@ class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    virtual void generateCode()                                 \
+    virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
         CTX.startFunc(TESTNAME, {});                            \
@@ -263,7 +279,9 @@ public:                                                         \
         getImpl(&func)->setDirectTranslation(true);             \
         getImpl(&CTX)->endFunc();                               \
     }                                                           \
-    virtual bool testExecution(const std::string& fixName);     \
+    virtual bool testExecution(const std::string& fixName)      \
+                                                     override   \
+    { return true; }                                            \
     virtual std::vector<std::string> fixturesNames() const      \
                                                      override   \
     { return std::vector<std::string>(1, #funcname);}           \
@@ -276,16 +294,12 @@ public:                                                         \
         TestSuite::getInstance()->regTest<funcname>();          \
     };                                                          \
 };                                                              \
-bool funcname::testExecution(const std::string& fixName)        \
-{                                                               \
-    return true;                                                \
-}                                                               \
 funcname##_reg funcname##_reg_instance
 
 
 //Utils
 
-template<typename _Tp>
+template<typename _Tp>           //TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
 static inline void load2(const loops::IReg& dest, const loops::IReg& base)
 {
     using namespace loops;

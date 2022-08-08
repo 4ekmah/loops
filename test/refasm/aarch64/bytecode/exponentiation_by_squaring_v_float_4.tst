@@ -12,7 +12,7 @@ exponentiation_by_squaring_v_float_4(i0, i1, i2)
     10 : mul.fp32 v0, v0, v0   
     11 : mul.fp32 v0, v0, v0   
     12 : mov      v0, v0       
-    13 : vld.fp32 i1, i3, v0   
+    13 : vst.fp32 i1, i3, v0   
     14 : add      i3, i3, 16   
     15 : jmp      0            
     16 : label 1:              

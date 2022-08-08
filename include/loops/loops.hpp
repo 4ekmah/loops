@@ -59,8 +59,9 @@ enum {
     OP_FLOOR,
     OP_CEIL,
 
-    OP_SPILL,    //For service usage only
-    OP_UNSPILL,
+    //For service usage only
+    OP_SPILL,   //(stackPos, reg), stackPos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL, //(reg, stackPos)
 
     OP_JMP,
     OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
@@ -88,7 +89,7 @@ enum {
     VOP_MUL,
     VOP_DIV,
 //    VOP_MOD,
-    VOP_MLA,
+    VOP_FMA,
     VOP_SAL,
     VOP_SHL,
     VOP_SAR,
@@ -111,16 +112,19 @@ enum {
     
     VOP_ALL,
     VOP_ANY,
-    VOP_CVTTZ,
+    VOP_TRUNC,
+    VOP_FLOOR,
     VOP_CAST,
     VOP_REINTERPRET,
+    VOP_BROADCAST,
 
 //Intel-only operations:
     OP_X86_ADC, //Add with carry flag.
-    OP_X86_CQO, //TODO(ch): I don't think, that there will be need to direct use of this command, so it must be in some service sector, actually.
+    OP_X86_CQO,
 //Aarch64-only operations:
     OP_ARM_CINC,
     OP_ARM_CNEG,
+    OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
 
     OP_NOINIT
 };
@@ -309,12 +313,18 @@ public:
     //TODO(ch): make next methods static:
     
     std::string getPlatformName() const;
-    size_t vectorRegisterSize() const;
-    template<typename _Tp> inline size_t vlanes() const { return vectorRegisterSize() / sizeof(_Tp); }
+    size_t vbytes() const; //size of vector register in bytes
+    template<typename _Tp> inline size_t vlanes() const { return vbytes() / sizeof(_Tp); }
     void compileAll();
 protected:
     Context(Context* a_impl): impl(a_impl) {}
     Context* impl;
+};
+
+struct __Loops_ConditionMarker_
+{
+    explicit __Loops_ConditionMarker_(Context* _CTX);
+    operator bool() { return false; }
 };
 
 struct __Loops_CFScopeBracket_
@@ -335,14 +345,25 @@ struct __Loops_FuncScopeBracket_
     operator bool() { return false; }
 };
 
+template<typename _Tp>
+inline int64_t __loops_pack_2_valtype_(_Tp tocast)
+{
+    int64_t ret = 0;
+    *(reinterpret_cast<_Tp*>(&ret)) = tocast;
+    return ret;
+}
+
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
-#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(int64_t(x), &__loops_ctx__) })
-#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
-#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
+#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(__loops_pack_2_valtype_(eltyp(x)), &__loops_ctx__) })
+#define IF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
+#define ELIF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
-#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
+#define WHILE_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
+    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
 #define BREAK_ __loops_ctx__.break_()
 #define CONTINUE_ __loops_ctx__.continue_()
 #define RETURN_(x) __loops_ctx__.return_(x)
@@ -559,17 +580,17 @@ static inline IReg& operator ^= (IReg& a, int64_t b)
 ///////////////////////////// vector operations ///////////////////////
 
 // load with zero/sign extension
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base)
 { return newiopV<_Tp>(VOP_LOAD, {base}); }
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, const IReg& offset)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
-template<typename _Tp> VReg<_Tp> loadvx(const IReg& base, int64_t offset)
+template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 
 // cast and store
-template<typename _Tp> void storevx(const IReg& base, const VReg<_Tp>& r)
+template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, r}); }
-template<typename _Tp> void storevx(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
+template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, offset, r}); }
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -582,9 +603,8 @@ template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>
 { return newiopV<_Tp>(VOP_DIV, {a, b}); }
 template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
 { return newiopV<_Tp>(VOP_NEG, {a}); }
-template<typename _Tp> VReg<_Tp> mla(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
-{ newiopNoret(VOP_MLA, {a, b, c}); return a; }
-
+template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
+{ return newiopV<_Tp>(VOP_FMA, {a, b, c}); }
 
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
@@ -647,6 +667,11 @@ template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
 //
 template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p);
+
+struct exp_consts;
+exp_consts expInit(Context CTX);
+VReg<float> exp(const VReg<float>& x, const exp_consts& expt);
+
 template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
 { newiopAug(VOP_ADD, {Arg(a), Arg(a), Arg(b)}); return a; }
 template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -676,21 +701,48 @@ template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
 //template<typename _Tp> IReg any(VReg<_Tp>& a);
 
 // [TODO] need to add type conversion (including expansion etc.), type reinterpretation
-
-Context ExtractContext(const Arg& arg); 
-
-template<typename _Dp, typename _Tp> VReg<_Dp> cvtTz(const VReg<_Tp>& a)
-{ return newiopV<_Dp>(VOP_CVTTZ, {a}); }
-template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
+//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
+template<typename _Dp> VReg<_Dp> trunc(const VReg<f16_t>& a)  //Convert with rounding to zero
 {
-    VReg<_Dp> res;
-    res.func = a.func;
-    res.idx = a.idx;
-    return res;
+    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> trunc(const VReg<float>& a)  //Convert with rounding to zero
+{
+    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> trunc(const VReg<double>& a)
+{
+    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_TRUNC, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<f16_t>& a) //Convert with rounding to minus infinity
+{
+    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<float>& a) //Convert with rounding to minus infinity
+{
+    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
+}
+template<typename _Dp> VReg<_Dp> floor(const VReg<double>& a)
+{
+    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
+    return newiopV<_Dp>(VOP_FLOOR, {a});
 }
 
+template<typename _Dp, typename _Tp> VReg<_Dp> cast(const VReg<_Tp>& a)
+{ return newiopV<_Dp>(VOP_CAST, {a}); }
 
-//TODO(ch): These template implementation can be obviously moved to auxilary header:
+template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a);
+
+
+//TODO(ch): These template implementations can be obviously moved to auxilary header:
+
+Context ExtractContext(const Arg& arg);
+
 template<typename _Tp>
 VReg<_Tp>::VReg(const VReg<_Tp>& r)
 {
@@ -702,8 +754,10 @@ VReg<_Tp>::VReg(const VReg<_Tp>& r)
 template<typename _Tp>
 VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
 {
-    if (r.func == nullptr)
-        throw std::runtime_error("Cannot find motherfunction in registers.");
+    if (r.func != func)
+        throw std::runtime_error("Registers of different functions as arguments of one instruction.");
+    if (func == nullptr)
+        throw std::runtime_error("Null motherfunction.");
     newiopNoret(OP_MOV, {*this, r});
     return (*this);
 }
@@ -781,6 +835,21 @@ template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p)
     VReg<_Tp> ret = static_cast<VReg<_Tp>&&>(res);
     delete pres;
     return ret;
+}
+
+struct exp_consts
+{
+    VReg<float> lo, hi, half, one, LOG2EF, C1, C2, p0, p1, p2, p3, p4, p5;
+    VReg<int32_t> _7f;
+    exp_consts(Context CTX);
+};
+
+template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
+{
+    VReg<_Dp> res;
+    res.func = a.func;
+    res.idx = a.idx;
+    return res;
 }
 
 }

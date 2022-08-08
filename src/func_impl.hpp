@@ -31,8 +31,8 @@ struct ControlFlowBracket
 class FuncImpl : public Func
 {
 public:
-    FuncImpl(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
-    static Func makeWrapper(const std::string& name, Context* ctx, std::initializer_list<IReg*> params);
+    FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
+    static Func makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
 
     void call(std::initializer_list<int64_t> args) const;
     void* ptr();
@@ -46,17 +46,17 @@ public:
                                             const std::vector<size_t>&  a_calleeSavedRegisters);
     
     void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
-
+                                                        //Generally, we have to implement FuncImpl as a pipeline, where each creating output ofeach stage deletes input(doesn't keep it).
     void printBytecode(std::ostream& out);
     void printAssembly(std::ostream& out, int columns);
     std::string name() const {return m_data.name;}
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline RegIdx provideIdx(int basketNum) { return m_nextIdx[basketNum]++; }
+    inline RegIdx provideIdx(int basketNum) { return m_data.provideIdx(basketNum); }
     size_t provideLabel();
     enum {NOLABEL = -1};
 
-    inline Context GetContext() { return *(m_context->getOwner()); }
+    inline Context GetContext() { return m_context->getOwner(); }
 
     inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
@@ -97,6 +97,8 @@ public:
     void return_(int64_t retval);
     void return_(const IReg& retval);
 
+    void markConditionStart();
+
     IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
     inline IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
     {
@@ -111,11 +113,12 @@ public:
     
     int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
 private:
+    int m_conditionStart;
+    bool m_substConditionBypass;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc m_data;
     std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     ContextImpl* m_context;
-    int m_nextIdx[RB_AMOUNT];
     size_t m_nextLabelIdx;
     bool m_directTranslation;
     
@@ -127,7 +130,6 @@ private:
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
     bool m_syntopStagesApplied;
-
 
     int condition2jumptype(int cond);
 
