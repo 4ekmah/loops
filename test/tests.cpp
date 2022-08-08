@@ -10,12 +10,12 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <fstream>
 #include <sstream>
 #include <locale>
-#include <sys/stat.h> //TODO(ch): *nix-only.
+#include <sys/stat.h> //TODO(ch): *nix-only. Use winbase.h for Windows 
 
 namespace loops
 {
 
-inline bool fileexists(const std::string& name) //TODO(ch): need crossplatform solution
+inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttributes for windows
 {
   struct stat buffer;
   return (stat (name.c_str(), &buffer) == 0);

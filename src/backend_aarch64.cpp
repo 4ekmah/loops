@@ -50,7 +50,7 @@ enum Aarch64Reg
     R27  = 27,
     R28  = 28,
     FP   = 29,
-    LR   = 30, //TODO(ch): Decide if it's possible to use frame pointer as callee-saved register.
+    LR   = 30,
     SP   = 31
 };
 
@@ -154,7 +154,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-            //TODO(ch): Ldrsw also have many options to be added here. Literal loading, register shift or post/pre-indexing. Format isn't full now and hardcoded.
     case (AARCH64_LDRSW):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -224,7 +223,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         else if (index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0011100100, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, In) });
         break;
-    //TODO(ch): There is a lot variants of move: stack pointer mov, bitmask, inverted. There offered just a part of possibilities. Also, even register and wide immediate variants are specialized and hardcoded: Specialization is: 64 register.
     case (AARCH64_MOV):
         Assert(index.size() == 2);
         if (index[1].tag == Arg::IREG)
@@ -242,7 +240,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
            index[2].value >= 1 && index[2].value <= 3)
             return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, Out) });
-        //TODO(ch): This is specialized version of ADD: 64 bit only, noshift(for register).
     case (AARCH64_ADD):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -256,7 +253,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): This is specialized version of SUB: 64 bit only, noshift(for register).
     case (AARCH64_SUB):
         Assert(index.size() == 3);
         if (index[2].tag == Arg::IREG)
@@ -270,7 +266,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01101110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): Specialization: 64 registers.
     case (AARCH64_MUL):
         Assert(index.size() == 3);
         if(index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
@@ -282,7 +277,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-        //TODO(ch): Specialization: 64 registers.
     case (AARCH64_SDIV):
         Assert(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
         if(index[2].tag == Arg::IREG)
@@ -360,7 +354,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             }
         }
         break;
-    //TODO(ch): Specialization is: 64 register, zero shift.
     case (AARCH64_CMP):
             Assert(index.size() == 2 && index[0].tag == Arg::IREG);
             if(index[1].tag == Arg::IREG)

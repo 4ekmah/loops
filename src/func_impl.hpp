@@ -46,7 +46,7 @@ public:
                                             const std::vector<size_t>&  a_calleeSavedRegisters);
     
     void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
-
+                                                        //Generally, we have to implement FuncImpl as a pipeline, where each creating output ofeach stage deletes input(doesn't keep it).
     void printBytecode(std::ostream& out);
     void printAssembly(std::ostream& out, int columns);
     std::string name() const {return m_data.name;}

@@ -120,7 +120,7 @@ enum {
 
 //Intel-only operations:
     OP_X86_ADC, //Add with carry flag.
-    OP_X86_CQO, //TODO(ch): I don't think, that there will be need to direct use of this command, so it must be in some service sector, actually.
+    OP_X86_CQO,
 //Aarch64-only operations:
     OP_ARM_CINC,
     OP_ARM_CNEG,

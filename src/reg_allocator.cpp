@@ -1342,7 +1342,7 @@ but only if this nested register will be used after this redefinition.
     {
         if (regNum != Syntfunc::RETREG)
         {
-            if (!defined(basketNum, regNum)) //TODO(ch): Isn't it too strict?
+            if (!defined(basketNum, regNum))
                 throw std::runtime_error("Compile error: using uninitialized register");
             m_subintervals[basketNum][regNum].back().end = opnum;
         }
