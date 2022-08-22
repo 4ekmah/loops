@@ -11,6 +11,13 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <map>
 #include <list>
 #include <iostream>
+#include <math.h>
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#include <Windows.h>
+#else 
+#include <sys/time.h>
+#endif
+
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
 
 namespace loops
@@ -70,6 +77,53 @@ private:
     TestSuite(std::ostream& a_out = std::cout);
 };
 };
+
+struct Timer
+{
+    Timer() { reset(); }
+    void reset() {
+        min_time = gmean_time = timestamp = 0; niters = 0;
+    }
+    void start() {
+        timestamp = ticks();
+    }
+    void stop() {
+        double t = ticks() - timestamp;
+        min_time = niters == 0 || t < min_time ? t : min_time;
+        gmean_time += ::log(t);
+        niters++;
+    }
+    double gmean_ms() const {
+        return ::exp(gmean_time/(niters > 0 ? niters : 1));
+    }
+    double min_ms() const { return min_time; }
+    
+    double min_time, gmean_time, timestamp;
+    char buf[128];
+    int niters;
+    
+    static double ticks()
+    {
+    #if __LOOPS_OS == __LOOPS_WINDOWS
+        LARGE_INTEGER freq;
+        LARGE_INTEGER pc;
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&pc);
+
+        return pc.QuadPart * 1000.0 / freq.QuadPart;
+    #else 
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+    #endif
+    }
+    char* str()
+    {
+        sprintf(buf, "min=%.3gms, gmean=%.3gms", min_ms(), gmean_ms());
+        return buf;
+    }
+};
+
 
 //TODO(ch): Interesting solution for test substitution is class derivation
 //with using RTTI for taking name of class. Still not really easy to decide what to 

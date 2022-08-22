@@ -28,9 +28,23 @@ namespace loops
 
     IReg::IReg(const IReg& r)
     {
-        IReg selfval = newiop(OP_MOV, { r });
-        idx = selfval.idx;
-        func = selfval.func;
+        if(r.func != nullptr)
+        {
+            IReg selfval = newiop(OP_MOV, { r });
+            idx = selfval.idx;
+            func = selfval.func;
+        }
+        else
+        {
+            idx = NOIDX;
+            func = nullptr;
+        }
+    }
+
+    void IReg::rawcopy(const IReg& from)
+    {
+        func = from.func;
+        idx = from.idx;
     }
 
     IReg::IReg(IReg&& a) noexcept : func(a.func), idx(a.idx) {}
