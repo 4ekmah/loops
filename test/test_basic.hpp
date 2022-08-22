@@ -87,6 +87,10 @@ LTESTexe(min_max_scalar, {
     EXPECT_EQ(retval, 0);
 });
 
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min // Windows.h implements min and max as macro.
+#undef max //
+#endif
 LTEST(min_max_select, {
     using namespace loops;
     IReg ptr, n, minpos_addr, maxpos_addr;

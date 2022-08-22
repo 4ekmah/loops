@@ -20,14 +20,13 @@ nullify_msb_lsb(i0, i1, i2)
     18 : or  r9, rax    ; 49 09 c1     
     19 : add r9, #0x01  ; 49 83 c1 01  
     20 : shr r9, #0x01  ; 49 c1 e9 01  
-    21 : mov r9, r9     ; 4d 89 c9     
-    22 : xor r9, rcx    ; 49 31 c9     
-    23 : mov [r8], r9   ; 4d 89 08     
-    24 : mov r8, rcx    ; 49 89 c8     
-    25 : sub r8, #0x01  ; 49 83 e8 01  
-    26 : not r8         ; 49 f7 d0     
-    27 : and r8, rcx    ; 49 21 c8     
-    28 : xor r8, rcx    ; 49 31 c8     
-    29 : mov [rdx], r8  ; 4c 89 02     
-    30 : add rsp, #0x08 ; 48 83 c4 08  
-    31 : ret            ; c3           
+    21 : xor r9, rcx    ; 49 31 c9     
+    22 : mov [r8], r9   ; 4d 89 08     
+    23 : mov r8, rcx    ; 49 89 c8     
+    24 : sub r8, #0x01  ; 49 83 e8 01  
+    25 : not r8         ; 49 f7 d0     
+    26 : and r8, rcx    ; 49 21 c8     
+    27 : xor r8, rcx    ; 49 31 c8     
+    28 : mov [rdx], r8  ; 4c 89 02     
+    29 : add rsp, #0x08 ; 48 83 c4 08  
+    30 : ret            ; c3           
