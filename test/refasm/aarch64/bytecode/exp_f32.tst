@@ -65,67 +65,58 @@ exp_f32(i0, i1, i2)
     63 : min.fp32       v3, v3, v29     
     64 : unspill        v29, 28         
     65 : max.fp32       v3, v3, v29     
-    66 : mov            v3, v3          
-    67 : unspill        v29, 24         
-    68 : unspill        v30, 2          
-    69 : mov            v2, v29         
-    70 : fma.fp32       v2, v2, v3, v30 
-    71 : floor.fp32_i32 v2, v2          
-    72 : cast.i32_fp32  v1, v2          
-    73 : mov            v1, v1          
-    74 : unspill        v29, 20         
-    75 : add.i32        v2, v2, v29     
-    76 : sal.i32        v2, v2, 23      
-    77 : unspill        v29, 4          
+    66 : unspill        v29, 24         
+    67 : unspill        v30, 2          
+    68 : mov            v2, v29         
+    69 : fma.fp32       v2, v2, v3, v30 
+    70 : floor.fp32_i32 v2, v2          
+    71 : cast.i32_fp32  v1, v2          
+    72 : unspill        v29, 20         
+    73 : add.i32        v2, v2, v29     
+    74 : sal.i32        v2, v2, 23      
+    75 : unspill        v29, 4          
+    76 : fma.fp32       v3, v3, v1, v29 
+    77 : unspill        v29, 6          
     78 : fma.fp32       v3, v3, v1, v29 
-    79 : mov            v3, v3          
-    80 : unspill        v29, 6          
-    81 : fma.fp32       v3, v3, v1, v29 
-    82 : mov            v3, v3          
-    83 : mul.fp32       v1, v3, v3      
-    84 : unspill        v30, 8          
-    85 : unspill        v29, 10         
-    86 : mov            v0, v29         
-    87 : fma.fp32       v0, v0, v3, v30 
-    88 : unspill        v29, 12         
-    89 : spill          0, v1           
-    90 : mov            v1, v0          
-    91 : mov            v0, v29         
-    92 : fma.fp32       v0, v0, v1, v3  
-    93 : unspill        v1, 0           
-    94 : mov            v0, v0          
-    95 : unspill        v29, 14         
-    96 : spill          0, v1           
-    97 : mov            v1, v0          
-    98 : mov            v0, v29         
-    99 : fma.fp32       v0, v0, v1, v3  
-   100 : unspill        v1, 0           
-   101 : mov            v0, v0          
-   102 : unspill        v29, 16         
+    79 : mul.fp32       v1, v3, v3      
+    80 : unspill        v30, 8          
+    81 : unspill        v29, 10         
+    82 : mov            v0, v29         
+    83 : fma.fp32       v0, v0, v3, v30 
+    84 : unspill        v29, 12         
+    85 : spill          0, v1           
+    86 : mov            v1, v0          
+    87 : mov            v0, v29         
+    88 : fma.fp32       v0, v0, v1, v3  
+    89 : unspill        v1, 0           
+    90 : unspill        v29, 14         
+    91 : spill          0, v1           
+    92 : mov            v1, v0          
+    93 : mov            v0, v29         
+    94 : fma.fp32       v0, v0, v1, v3  
+    95 : unspill        v1, 0           
+    96 : unspill        v29, 16         
+    97 : spill          0, v1           
+    98 : mov            v1, v0          
+    99 : mov            v0, v29         
+   100 : fma.fp32       v0, v0, v1, v3  
+   101 : unspill        v1, 0           
+   102 : unspill        v29, 18         
    103 : spill          0, v1           
    104 : mov            v1, v0          
    105 : mov            v0, v29         
    106 : fma.fp32       v0, v0, v1, v3  
    107 : unspill        v1, 0           
-   108 : mov            v0, v0          
-   109 : unspill        v29, 18         
-   110 : spill          0, v1           
-   111 : mov            v1, v0          
-   112 : mov            v0, v29         
-   113 : fma.fp32       v0, v0, v1, v3  
-   114 : unspill        v1, 0           
-   115 : mov            v0, v0          
-   116 : fma.fp32       v3, v3, v0, v1  
-   117 : mov            v3, v3          
-   118 : unspill        v29, 22         
-   119 : add.fp32       v0, v3, v29     
-   120 : mul.fp32       v0, v0, v2      
-   121 : vst.fp32       i0, i3, v0      
-   122 : add            i3, i3, 16      
-   123 : sub            i2, i2, 4       
-   124 : jmp            0               
-   125 : label 1:                       
-   126 : unspill        v29, 30         
-   127 : unspill        v30, 32         
-   128 : add            i31, i31, 272   
-   129 : ret                            
+   108 : fma.fp32       v3, v3, v0, v1  
+   109 : unspill        v29, 22         
+   110 : add.fp32       v0, v3, v29     
+   111 : mul.fp32       v0, v0, v2      
+   112 : vst.fp32       i0, i3, v0      
+   113 : add            i3, i3, 16      
+   114 : sub            i2, i2, 4       
+   115 : jmp            0               
+   116 : label 1:                       
+   117 : unspill        v29, 30         
+   118 : unspill        v30, 32         
+   119 : add            i31, i31, 272   
+   120 : ret                            

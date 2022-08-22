@@ -32,8 +32,7 @@ nonnegative_odd(i0, i1)
     30 : label 3:                
     31 : mov      i0, 4          
     32 : div      i0, i3, i0     
-    33 : mov      i0, i0         
-    34 : unspill  i18, 1         
-    35 : unspill  i19, 2         
-    36 : add      i31, i31, 32   
-    37 : ret                     
+    33 : unspill  i18, 1         
+    34 : unspill  i19, 2         
+    35 : add      i31, i31, 32   
+    36 : ret                     

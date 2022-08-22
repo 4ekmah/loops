@@ -34,9 +34,8 @@ ten_args_to_sum(i0, i1, i2, i3, i4, i5, i6, i7, i8, i9)
     32 : ldr x20, [sp], #0x05 ; f4 17 40 f9  
     33 : mul x1, x20, x1      ; 81 7e 01 9b  
     34 : add x0, x0, x1       ; 00 00 01 8b  
-    35 : mov x0, x0           ; e0 03 00 aa  
-    36 : ldr x18, [sp], #0    ; f2 03 40 f9  
-    37 : ldr x19, [sp], #0x01 ; f3 07 40 f9  
-    38 : ldr x20, [sp], #0x02 ; f4 0b 40 f9  
-    39 : add sp, sp, #0x20    ; ff 83 00 91  
-    40 : ret x30              ; c0 03 5f d6  
+    35 : ldr x18, [sp], #0    ; f2 03 40 f9  
+    36 : ldr x19, [sp], #0x01 ; f3 07 40 f9  
+    37 : ldr x20, [sp], #0x02 ; f4 0b 40 f9  
+    38 : add sp, sp, #0x20    ; ff 83 00 91  
+    39 : ret x30              ; c0 03 5f d6  

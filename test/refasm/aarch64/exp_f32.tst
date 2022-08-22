@@ -58,72 +58,63 @@ exp_f32(i0, i1, i2)
     56 : str    v29.4s, [sp], #0x0a        ; fd 2b 80 3d  
     57 : mov    x3, #0                     ; 03 00 80 d2  
     58 : cmp    x2, #0                     ; 5f 00 00 f1  
-    59 : b.le   [124]                      ; 2d 08 00 54  
+    59 : b.le   [115]                      ; 0d 07 00 54  
     60 : ldr    v3.4s, x1, x3              ; 23 68 e3 3c  
     61 : ldr    v29.4s, [sp], #0x0d        ; fd 37 c0 3d  
     62 : fmin   v3.4s, v3.4s, v29.4s       ; 63 f4 bd 4e  
     63 : ldr    v29.4s, [sp], #0x0e        ; fd 3b c0 3d  
     64 : fmax   v3.4s, v3.4s, v29.4s       ; 63 f4 3d 4e  
-    65 : mov    v3.4s, v3.4s               ; 63 1c a3 4e  
-    66 : ldr    v29.4s, [sp], #0x0c        ; fd 33 c0 3d  
-    67 : ldr    v30.4s, [sp], #0x01        ; fe 07 c0 3d  
-    68 : mov    v2.4s, v29.4s              ; a2 1f bd 4e  
-    69 : fmla   v2.4s, v3.4s, v30.4s       ; 62 cc 3e 4e  
-    70 : fcvtms v2.4s, v2.4s               ; 42 b8 21 4e  
-    71 : scvtf  v1.4s, v2.4s               ; 41 d8 21 4e  
-    72 : mov    v1.4s, v1.4s               ; 21 1c a1 4e  
-    73 : ldr    v29.4s, [sp], #0x0a        ; fd 2b c0 3d  
-    74 : add    v2.4s, v2.4s, v29.4s       ; 42 84 bd 4e  
-    75 : shl    v2.4s, v2.4s, #0x06, #0x07 ; 42 54 37 4f  
-    76 : ldr    v29.4s, [sp], #0x02        ; fd 0b c0 3d  
+    65 : ldr    v29.4s, [sp], #0x0c        ; fd 33 c0 3d  
+    66 : ldr    v30.4s, [sp], #0x01        ; fe 07 c0 3d  
+    67 : mov    v2.4s, v29.4s              ; a2 1f bd 4e  
+    68 : fmla   v2.4s, v3.4s, v30.4s       ; 62 cc 3e 4e  
+    69 : fcvtms v2.4s, v2.4s               ; 42 b8 21 4e  
+    70 : scvtf  v1.4s, v2.4s               ; 41 d8 21 4e  
+    71 : ldr    v29.4s, [sp], #0x0a        ; fd 2b c0 3d  
+    72 : add    v2.4s, v2.4s, v29.4s       ; 42 84 bd 4e  
+    73 : shl    v2.4s, v2.4s, #0x06, #0x07 ; 42 54 37 4f  
+    74 : ldr    v29.4s, [sp], #0x02        ; fd 0b c0 3d  
+    75 : fmla   v3.4s, v1.4s, v29.4s       ; 23 cc 3d 4e  
+    76 : ldr    v29.4s, [sp], #0x03        ; fd 0f c0 3d  
     77 : fmla   v3.4s, v1.4s, v29.4s       ; 23 cc 3d 4e  
-    78 : mov    v3.4s, v3.4s               ; 63 1c a3 4e  
-    79 : ldr    v29.4s, [sp], #0x03        ; fd 0f c0 3d  
-    80 : fmla   v3.4s, v1.4s, v29.4s       ; 23 cc 3d 4e  
-    81 : mov    v3.4s, v3.4s               ; 63 1c a3 4e  
-    82 : fmul   v1.4s, v3.4s, v3.4s        ; 61 dc 23 6e  
-    83 : ldr    v30.4s, [sp], #0x04        ; fe 13 c0 3d  
-    84 : ldr    v29.4s, [sp], #0x05        ; fd 17 c0 3d  
-    85 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
-    86 : fmla   v0.4s, v3.4s, v30.4s       ; 60 cc 3e 4e  
-    87 : ldr    v29.4s, [sp], #0x06        ; fd 1b c0 3d  
-    88 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
-    89 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
-    90 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
-    91 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
-    92 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
-    93 : mov    v0.4s, v0.4s               ; 00 1c a0 4e  
-    94 : ldr    v29.4s, [sp], #0x07        ; fd 1f c0 3d  
-    95 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
-    96 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
-    97 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
-    98 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
-    99 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
-   100 : mov    v0.4s, v0.4s               ; 00 1c a0 4e  
-   101 : ldr    v29.4s, [sp], #0x08        ; fd 23 c0 3d  
+    78 : fmul   v1.4s, v3.4s, v3.4s        ; 61 dc 23 6e  
+    79 : ldr    v30.4s, [sp], #0x04        ; fe 13 c0 3d  
+    80 : ldr    v29.4s, [sp], #0x05        ; fd 17 c0 3d  
+    81 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
+    82 : fmla   v0.4s, v3.4s, v30.4s       ; 60 cc 3e 4e  
+    83 : ldr    v29.4s, [sp], #0x06        ; fd 1b c0 3d  
+    84 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
+    85 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
+    86 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
+    87 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
+    88 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
+    89 : ldr    v29.4s, [sp], #0x07        ; fd 1f c0 3d  
+    90 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
+    91 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
+    92 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
+    93 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
+    94 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
+    95 : ldr    v29.4s, [sp], #0x08        ; fd 23 c0 3d  
+    96 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
+    97 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
+    98 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
+    99 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
+   100 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
+   101 : ldr    v29.4s, [sp], #0x09        ; fd 27 c0 3d  
    102 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
    103 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
    104 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
    105 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
    106 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
-   107 : mov    v0.4s, v0.4s               ; 00 1c a0 4e  
-   108 : ldr    v29.4s, [sp], #0x09        ; fd 27 c0 3d  
-   109 : str    v1.4s, [sp], #0            ; e1 03 80 3d  
-   110 : mov    v1.4s, v0.4s               ; 01 1c a0 4e  
-   111 : mov    v0.4s, v29.4s              ; a0 1f bd 4e  
-   112 : fmla   v0.4s, v1.4s, v3.4s        ; 20 cc 23 4e  
-   113 : ldr    v1.4s, [sp], #0            ; e1 03 c0 3d  
-   114 : mov    v0.4s, v0.4s               ; 00 1c a0 4e  
-   115 : fmla   v3.4s, v0.4s, v1.4s        ; 03 cc 21 4e  
-   116 : mov    v3.4s, v3.4s               ; 63 1c a3 4e  
-   117 : ldr    v29.4s, [sp], #0x0b        ; fd 2f c0 3d  
-   118 : fadd   v0.4s, v3.4s, v29.4s       ; 60 d4 3d 4e  
-   119 : fmul   v0.4s, v0.4s, v2.4s        ; 00 dc 22 6e  
-   120 : str    v0.4s, x0, x3              ; 00 68 a3 3c  
-   121 : add    x3, x3, #0x10              ; 63 40 00 91  
-   122 : sub    x2, x2, #0x04              ; 42 10 00 d1  
-   123 : b      [58]                       ; bf ff ff 17  
-   124 : ldr    v29.16b, [sp], #0x0f       ; fd 3f c0 3d  
-   125 : ldr    v30.16b, [sp], #0x10       ; fe 43 c0 3d  
-   126 : add    sp, sp, #0x110             ; ff 43 04 91  
-   127 : ret    x30                        ; c0 03 5f d6  
+   107 : fmla   v3.4s, v0.4s, v1.4s        ; 03 cc 21 4e  
+   108 : ldr    v29.4s, [sp], #0x0b        ; fd 2f c0 3d  
+   109 : fadd   v0.4s, v3.4s, v29.4s       ; 60 d4 3d 4e  
+   110 : fmul   v0.4s, v0.4s, v2.4s        ; 00 dc 22 6e  
+   111 : str    v0.4s, x0, x3              ; 00 68 a3 3c  
+   112 : add    x3, x3, #0x10              ; 63 40 00 91  
+   113 : sub    x2, x2, #0x04              ; 42 10 00 d1  
+   114 : b      [58]                       ; c8 ff ff 17  
+   115 : ldr    v29.16b, [sp], #0x0f       ; fd 3f c0 3d  
+   116 : ldr    v30.16b, [sp], #0x10       ; fe 43 c0 3d  
+   117 : add    sp, sp, #0x110             ; ff 43 04 91  
+   118 : ret    x30                        ; c0 03 5f d6  
