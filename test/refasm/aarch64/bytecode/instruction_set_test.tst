@@ -558,3 +558,19 @@ instruction_set_test()
    556 : broadcast.i64  v0, i0                     
    557 : broadcast.i64  v31, i0                    
    558 : broadcast.i64  v0, i15                    
+   559 : vld_lane.i8    v0, i0, 0                  
+   560 : vld_lane.i8    v31, i0, 0                 
+   561 : vld_lane.i8    v0, i0, 15                 
+   562 : vld_lane.i8    v0, i15, 0                 
+   563 : vld_lane.i16   v0, i0, 0                  
+   564 : vld_lane.i16   v31, i0, 0                 
+   565 : vld_lane.i16   v0, i0, 7                  
+   566 : vld_lane.i16   v0, i15, 0                 
+   567 : vld_lane.i32   v0, i0, 0                  
+   568 : vld_lane.i32   v31, i0, 0                 
+   569 : vld_lane.i32   v0, i0, 3                  
+   570 : vld_lane.i32   v0, i15, 0                 
+   571 : vld_lane.i64   v0, i0, 0                  
+   572 : vld_lane.i64   v31, i0, 0                 
+   573 : vld_lane.i64   v0, i0, 1                  
+   574 : vld_lane.i64   v0, i15, 0                 

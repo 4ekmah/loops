@@ -734,6 +734,26 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_BROADCAST, { v0_2s, x0 });
     newiopNoret(VOP_BROADCAST, { v31_2s, x0 });
     newiopNoret(VOP_BROADCAST, { v0_2s, x15 });
+
+    newiopNoret(VOP_ARM_LD1, { v0_16s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v31_16s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_16s , x0, argIImm(15, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_16s , x15, argIImm(0, _f)});
+
+    newiopNoret(VOP_ARM_LD1, { v0_8s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v31_8s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_8s , x0, argIImm(7, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_8s , x15, argIImm(0, _f)});
+
+    newiopNoret(VOP_ARM_LD1, { v0_4s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v31_4s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_4s , x0, argIImm(3, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_4s , x15, argIImm(0, _f)});
+
+    newiopNoret(VOP_ARM_LD1, { v0_2s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v31_2s , x0, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_2s , x0, argIImm(1, _f)});
+    newiopNoret(VOP_ARM_LD1, { v0_2s , x15, argIImm(0, _f)});
 });
 
 };

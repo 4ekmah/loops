@@ -125,6 +125,7 @@ enum {
     OP_ARM_CINC,
     OP_ARM_CNEG,
     OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
+    VOP_ARM_LD1,
 
     OP_NOINIT
 };
@@ -586,6 +587,8 @@ template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
+template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
+{ return newiopV<_Tp>(VOP_ARM_LD1, {base, lane_index}); }
 
 // cast and store
 template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)

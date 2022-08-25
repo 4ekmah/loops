@@ -127,8 +127,8 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
         throw std::runtime_error("Binary translator: null writer pointer.");
-            bits->startInstruction();
-            uint64_t argmask = (uint64_t(1) << op.size()) - 1;
+    bits->startInstruction();
+    uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Token& det : m_compound)
     {
         uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
