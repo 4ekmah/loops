@@ -44,6 +44,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
         str << "vst." << type_suffixes[_Tp];
     }},
+    {VOP_ARM_ST1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vst_lane." << type_suffixes[op.args[1].elemtype];
+    }},
     {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
     }},

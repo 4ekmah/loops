@@ -662,6 +662,42 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b0, 1), BTsta(Q, 1), BTsta(0b00110101000000, 14), BTsta(opcode, 3), BTsta(S, 1), BTsta(size_field, 2), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
+    case (AARCH64_ST1):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG )
+        {
+            int esize = elemSize(index[0].elemtype); 
+            static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100}; 
+            int opcode = opcodes[esize];
+            Assert(opcode != -1);
+            int size_field = esize == 8 ? 1 : 0;
+            int S = 0;
+            int Q = 0;
+            if(esize == 8)
+            {
+                Q = index[1].value & 1;
+            }
+            else if(esize == 4)
+            {
+                Q = (index[1].value & 0b10) >> 1;
+                S = index[1].value & 1;
+            }
+            else if(esize == 2)
+            {
+                Q = (index[1].value & 0b100) >> 2;
+                S = (index[1].value & 0b10) >> 1;
+                size_field = size_field | ((index[1].value & 0b1) << 1);
+            }
+            else if(esize == 1)
+            {
+                Q = (index[1].value & 0b1000) >> 3;
+                S = (index[1].value & 0b100) >> 2;
+                size_field = index[1].value & 0b11;
+            }
+            else 
+                break;
+            return BiT({ BTsta(0b0, 1), BTsta(Q, 1), BTsta(0b00110100000000, 14), BTsta(opcode, 3), BTsta(S, 1), BTsta(size_field, 2), BTreg(2, 5, In), BTreg(0, 5, In) });
+        }
+        break;
     case (AARCH64_DUP):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
         {
@@ -958,11 +994,11 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
         break;
     case (VOP_ARM_LD1):
 
-        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
         {
             int lanes = 16 / elemSize(index[0].elemtype); //TODO(ch): use Backend::vectorSize instead of 16. 
-            if(index[2].value < lanes)
-                return SyT(AARCH64_LD1, { SAcop(0), SAcop(1), SAcop(2) });
+            if(index[1].value < lanes)
+                return SyT(AARCH64_LD1, { SAcop(0), SAcop(2), SAcop(1) });
         }
         break;
 
@@ -977,6 +1013,14 @@ SyntopTranslation a64STLookup(const Syntop& index, bool& scs)
         else if(index.size() == 2)
         {
             return SyT(AARCH64_STR, { SAcop(1), SAcop(0), SAimm(0) });
+        }
+        break;
+    case (VOP_ARM_ST1):
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
+        {
+            int lanes = 16 / elemSize(index[1].elemtype); //TODO(ch): use Backend::vectorSize instead of 16. 
+            if(index[2].value < lanes)
+                return SyT(AARCH64_ST1, { SAcop(1), SAcop(2), SAcop(0) });
         }
         break;
     case (VOP_ADD):
@@ -1493,6 +1537,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SCVTF, "scvtf"},
         {AARCH64_UCVTF, "ucvtf"},
         {AARCH64_LD1,   "ld1"},
+        {AARCH64_ST1,   "st1"},
         {AARCH64_DUP,   "dup"},
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
