@@ -46,9 +46,16 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
                 Assert(argt.srcArgnum < a_source.size());
                 Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = a_source.args[argt.srcArgnum];
-                toAdd.value >>= argt.fixed.value;
-                if((toAdd.value << argt.fixed.value) != a_source.args[argt.srcArgnum].value)
-                    throw std::runtime_error("Syntop translator: argument alignment error.");
+                if (argt.fixed.value >= 0){
+                    toAdd.value >>= argt.fixed.value;
+                    if((toAdd.value << argt.fixed.value) != a_source.args[argt.srcArgnum].value)
+                        throw std::runtime_error("Syntop translator: argument alignment error.");
+                }
+                else {
+                    toAdd.value <<= std::abs(argt.fixed.value);
+                    if((toAdd.value >> std::abs(argt.fixed.value)) != a_source.args[argt.srcArgnum].value)
+                        throw std::runtime_error("Syntop translator: argument alignment error.");
+                }
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
                 break;
@@ -73,7 +80,7 @@ size_t SyntopTranslation::targetArgNum(size_t a_srcnum) const
 bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
 {
     bool found;
-    SyntopTranslation s2s = m_s2slookup(a_op, found);
+    SyntopTranslation s2s = m_s2slookup(this, a_op, found);
     if (!found)
         return false;
     argnum = s2s.targetArgNum(argnum);
@@ -115,7 +122,7 @@ size_t Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
 {
     bool foundSynTr;
-    SyntopTranslation s2s = m_s2slookup(a_op, foundSynTr);
+    SyntopTranslation s2s = m_s2slookup(this, a_op, foundSynTr);
     std::set<size_t> result;
     if (!foundSynTr)
         return result;
@@ -223,7 +230,7 @@ BinTranslation BTLookup(const Syntop&, bool&)
     throw std::runtime_error("Binary translation table is not implemented.");
 }
 
-SyntopTranslation STLookup(const Syntop&, bool&)
+SyntopTranslation STLookup(const Backend*, const Syntop&, bool&)
 {
     throw std::runtime_error("Syntop translation table is not implemented.");
 }

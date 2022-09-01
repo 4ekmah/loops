@@ -62,6 +62,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_FMA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "fma." << type_suffixes[op.args[0].elemtype];
     }},
+    {VOP_ARM_EXT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "ext." << type_suffixes[op.args[0].elemtype];
+    }},
     {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "sal." << type_suffixes[op.args[0].elemtype];
     }},

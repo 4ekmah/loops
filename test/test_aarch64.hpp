@@ -774,6 +774,30 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_ARM_ST1, {  x0, v31_2s, argIImm(0, _f)});
     newiopNoret(VOP_ARM_ST1, {  x0, v0_2s, argIImm(1, _f)});
     newiopNoret(VOP_ARM_ST1, {  x15, v0_2s, argIImm(0, _f)});
+
+    newiopNoret(VOP_ARM_EXT, { v0_16s, v0_16s, v0_16s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v31_16s, v0_16s, v0_16s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_16s, v31_16s, v0_16s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_16s, v0_16s, v31_16s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_16s, v0_16s, v0_16s, argIImm(15, _f)});
+
+    newiopNoret(VOP_ARM_EXT, { v0_8s, v0_8s, v0_8s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v31_8s, v0_8s, v0_8s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_8s, v31_8s, v0_8s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_8s, v0_8s, v31_8s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_8s, v0_8s, v0_8s, argIImm(7, _f)});
+
+    newiopNoret(VOP_ARM_EXT, { v0_4s, v0_4s, v0_4s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v31_4s, v0_4s, v0_4s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_4s, v31_4s, v0_4s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_4s, v0_4s, v31_4s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_4s, v0_4s, v0_4s, argIImm(3, _f)});
+
+    newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v0_2s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v31_2s, v0_2s, v0_2s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_2s, v31_2s, v0_2s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v31_2s, argIImm(0, _f)});
+    newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v0_2s, argIImm(1, _f)});
 });
 
 };

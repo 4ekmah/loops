@@ -72,6 +72,7 @@ enum {
     AARCH64_UCVTF,
     AARCH64_LD1,
     AARCH64_ST1,
+    AARCH64_EXT,
     AARCH64_DUP,
     AARCH64_B,
     AARCH64_B_NE,

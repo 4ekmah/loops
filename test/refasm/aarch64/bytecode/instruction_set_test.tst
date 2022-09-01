@@ -590,3 +590,23 @@ instruction_set_test()
    588 : vst_lane.i64   i0, v31, 0                 
    589 : vst_lane.i64   i0, v0, 1                  
    590 : vst_lane.i64   i15, v0, 0                 
+   591 : ext.i8         v0, v0, v0, 0              
+   592 : ext.i8         v31, v0, v0, 0             
+   593 : ext.i8         v0, v31, v0, 0             
+   594 : ext.i8         v0, v0, v31, 0             
+   595 : ext.i8         v0, v0, v0, 15             
+   596 : ext.i16        v0, v0, v0, 0              
+   597 : ext.i16        v31, v0, v0, 0             
+   598 : ext.i16        v0, v31, v0, 0             
+   599 : ext.i16        v0, v0, v31, 0             
+   600 : ext.i16        v0, v0, v0, 7              
+   601 : ext.i32        v0, v0, v0, 0              
+   602 : ext.i32        v31, v0, v0, 0             
+   603 : ext.i32        v0, v31, v0, 0             
+   604 : ext.i32        v0, v0, v31, 0             
+   605 : ext.i32        v0, v0, v0, 3              
+   606 : ext.i64        v0, v0, v0, 0              
+   607 : ext.i64        v31, v0, v0, 0             
+   608 : ext.i64        v0, v31, v0, 0             
+   609 : ext.i64        v0, v0, v31, 0             
+   610 : ext.i64        v0, v0, v0, 1              

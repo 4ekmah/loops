@@ -127,6 +127,7 @@ enum {
     OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
     VOP_ARM_LD1,
     VOP_ARM_ST1,
+    VOP_ARM_EXT,
 
     OP_NOINIT
 };
@@ -611,6 +612,8 @@ template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
 { return newiopV<_Tp>(VOP_NEG, {a}); }
 template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
 { return newiopV<_Tp>(VOP_FMA, {a, b, c}); }
+template<typename _Tp> VReg<_Tp> ext(const VReg<_Tp>& n, const VReg<_Tp>& m, int64_t index)
+{ newiopNoret(VOP_ARM_EXT, {n, m, index}); }
 
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);

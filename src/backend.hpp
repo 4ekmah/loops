@@ -71,7 +71,7 @@ namespace SyntopTranslationConstruction
     }
     //SAcopshr is for copy original immediate argument and divide it by 2 <shft> times.
     //Used for immediate offsets values on Arm.
-    inline SyntopTranslation::ArgTranslation SAcopsar(size_t argnum, size_t shft, uint64_t flags = 0)
+    inline SyntopTranslation::ArgTranslation SAcopsar(size_t argnum, int64_t shft, uint64_t flags = 0)
     {
         SyntopTranslation::ArgTranslation res(argnum);
         res.fixed.value = shft;
@@ -124,6 +124,8 @@ public:
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
     inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
+    template<typename _Tp> inline size_t vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
+    inline size_t vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elemSize(elemtype); }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
@@ -145,7 +147,7 @@ protected:
     virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const = 0;
 
     BinTranslation(*m_s2blookup)(const Syntop&, bool&);
-    SyntopTranslation(*m_s2slookup)(const Syntop&, bool&);
+    SyntopTranslation(*m_s2slookup)(const Backend*, const Syntop&, bool&);
     inline BinTranslation lookS2b(const Syntop& index) const
     {
         bool NOTSUPPORTED;
@@ -156,7 +158,7 @@ protected:
     inline SyntopTranslation lookS2s(const Syntop& index) const
     {
         bool NOTSUPPORTED;
-        SyntopTranslation ret = m_s2slookup(index, NOTSUPPORTED);
+        SyntopTranslation ret = m_s2slookup(this, index, NOTSUPPORTED);
         Assert(NOTSUPPORTED);
         return ret;
     }
