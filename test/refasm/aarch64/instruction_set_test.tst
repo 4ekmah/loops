@@ -610,3 +610,18 @@ instruction_set_test()
    608 : ext    v0.2d, v31.2d, v0.2d, #0      ; e0 03 00 6e  
    609 : ext    v0.2d, v0.2d, v31.2d, #0      ; 00 00 1f 6e  
    610 : ext    v0.2d, v0.2d, v0.2d, #0x10    ; 00 00 00 6e  
+   611 : fmla   v0.4s, v0.4s, v0.4s, #0       ; 00 10 80 4f  
+   612 : fmla   v31.4s, v0.4s, v0.4s, #0      ; 1f 10 80 4f  
+   613 : fmla   v0.4s, v31.4s, v0.4s, #0      ; e0 13 80 4f  
+   614 : fmla   v0.4s, v0.4s, v31.4s, #0      ; 00 10 9f 4f  
+   615 : fmla   v0.4s, v0.4s, v0.4s, #0x03    ; 00 18 a0 4f  
+   616 : fmla   v0.2d, v0.2d, v0.2d, #0       ; 00 10 c0 4f  
+   617 : fmla   v31.2d, v0.2d, v0.2d, #0      ; 1f 10 c0 4f  
+   618 : fmla   v0.2d, v31.2d, v0.2d, #0      ; e0 13 c0 4f  
+   619 : fmla   v0.2d, v0.2d, v31.2d, #0      ; 00 10 df 4f  
+   620 : fmla   v0.2d, v0.2d, v0.2d, #0x01    ; 00 18 c0 4f  
+   621 : fmla   v0.8h, v0.8h, v0.8h, #0       ; 00 10 00 4f  
+   622 : fmla   v31.8h, v0.8h, v0.8h, #0      ; 1f 10 00 4f  
+   623 : fmla   v0.8h, v31.8h, v0.8h, #0      ; e0 13 00 4f  
+   624 : fmla   v0.8h, v0.8h, v15.8h, #0      ; 00 10 0f 4f  
+   625 : fmla   v0.8h, v0.8h, v0.8h, #0x07    ; 00 18 30 4f  

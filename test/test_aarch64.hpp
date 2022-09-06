@@ -111,6 +111,7 @@ LTESTcomposer(instruction_set_test, {
     VReg<int64_t> v0_2s = vregHid<int64_t>(0,_f);
     VReg<int64_t> v31_2s = vregHid<int64_t>(31,_f);
     VReg<f16_t> v0_8f = vregHid<f16_t>(0,_f);
+    VReg<f16_t> v15_8f = vregHid<f16_t>(15,_f);
     VReg<f16_t> v31_8f = vregHid<f16_t>(31,_f);
     VReg<float> v0_4f = vregHid<float>(0,_f);
     VReg<float> v31_4f = vregHid<float>(31,_f);
@@ -798,6 +799,24 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_ARM_EXT, { v0_2s, v31_2s, v0_2s, argIImm(0, _f)});
     newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v31_2s, argIImm(0, _f)});
     newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v0_2s, argIImm(1, _f)});
+
+    newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v31_4f, v31_4f, v0_4f, v0_4f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_4f, v0_4f, v31_4f, v0_4f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v31_4f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(3, _f)});
+
+    newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v31_2f, v31_2f, v0_2f, v0_2f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_2f, v0_2f, v31_2f, v0_2f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v31_2f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(1, _f)});
+
+    newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v31_8f, v31_8f, v0_8f, v0_8f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_8f, v0_8f, v31_8f, v0_8f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v15_8f, argIImm(0, _f)});
+    newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(7, _f)});
 });
 
 };

@@ -610,3 +610,18 @@ instruction_set_test()
    608 : ext.i64        v0, v31, v0, 0             
    609 : ext.i64        v0, v0, v31, 0             
    610 : ext.i64        v0, v0, v0, 1              
+   611 : fma.fp32       v0, v0, v0, v0, 0          
+   612 : fma.fp32       v31, v31, v0, v0, 0        
+   613 : fma.fp32       v0, v0, v31, v0, 0         
+   614 : fma.fp32       v0, v0, v0, v31, 0         
+   615 : fma.fp32       v0, v0, v0, v0, 3          
+   616 : fma.fp64       v0, v0, v0, v0, 0          
+   617 : fma.fp64       v31, v31, v0, v0, 0        
+   618 : fma.fp64       v0, v0, v31, v0, 0         
+   619 : fma.fp64       v0, v0, v0, v31, 0         
+   620 : fma.fp64       v0, v0, v0, v0, 1          
+   621 : fma.fp16       v0, v0, v0, v0, 0          
+   622 : fma.fp16       v31, v31, v0, v0, 0        
+   623 : fma.fp16       v0, v0, v31, v0, 0         
+   624 : fma.fp16       v0, v0, v0, v15, 0         
+   625 : fma.fp16       v0, v0, v0, v0, 7          
