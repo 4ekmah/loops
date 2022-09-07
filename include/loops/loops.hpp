@@ -615,7 +615,7 @@ template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, con
 template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c, int64_t index)
 { return newiopV<_Tp>(VOP_FMA, {a, b, c, index}); }
 template<typename _Tp> VReg<_Tp> ext(const VReg<_Tp>& n, const VReg<_Tp>& m, int64_t index)
-{ newiopNoret(VOP_ARM_EXT, {n, m, index}); }
+{ return newiopV<_Tp>(VOP_ARM_EXT, {n, m, index}); }
 
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
