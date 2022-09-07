@@ -37,9 +37,15 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
     }},
+    {VOP_ARM_LD1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vld_lane." << type_suffixes[op.args[0].elemtype];
+    }},
     {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
         str << "vst." << type_suffixes[_Tp];
+    }},
+    {VOP_ARM_ST1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vst_lane." << type_suffixes[op.args[1].elemtype];
     }},
     {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
@@ -55,6 +61,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_FMA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "fma." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_ARM_EXT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "ext." << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "sal." << type_suffixes[op.args[0].elemtype];

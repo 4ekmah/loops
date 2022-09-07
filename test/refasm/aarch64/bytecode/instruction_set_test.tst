@@ -558,3 +558,70 @@ instruction_set_test()
    556 : broadcast.i64  v0, i0                     
    557 : broadcast.i64  v31, i0                    
    558 : broadcast.i64  v0, i15                    
+   559 : vld_lane.i8    v0, 0, i0                  
+   560 : vld_lane.i8    v31, 0, i0                 
+   561 : vld_lane.i8    v0, 15, i0                 
+   562 : vld_lane.i8    v0, 0, i15                 
+   563 : vld_lane.i16   v0, 0, i0                  
+   564 : vld_lane.i16   v31, 0, i0                 
+   565 : vld_lane.i16   v0, 7, i0                  
+   566 : vld_lane.i16   v0, 0, i15                 
+   567 : vld_lane.i32   v0, 0, i0                  
+   568 : vld_lane.i32   v31, 0, i0                 
+   569 : vld_lane.i32   v0, 3, i0                  
+   570 : vld_lane.i32   v0, 0, i15                 
+   571 : vld_lane.i64   v0, 0, i0                  
+   572 : vld_lane.i64   v31, 0, i0                 
+   573 : vld_lane.i64   v0, 1, i0                  
+   574 : vld_lane.i64   v0, 0, i15                 
+   575 : vst_lane.i8    i0, v0, 0                  
+   576 : vst_lane.i8    i0, v31, 0                 
+   577 : vst_lane.i8    i0, v0, 15                 
+   578 : vst_lane.i8    i15, v0, 0                 
+   579 : vst_lane.i16   i0, v0, 0                  
+   580 : vst_lane.i16   i0, v31, 0                 
+   581 : vst_lane.i16   i0, v0, 7                  
+   582 : vst_lane.i16   i15, v0, 0                 
+   583 : vst_lane.i32   i0, v0, 0                  
+   584 : vst_lane.i32   i0, v31, 0                 
+   585 : vst_lane.i32   i0, v0, 3                  
+   586 : vst_lane.i32   i15, v0, 0                 
+   587 : vst_lane.i64   i0, v0, 0                  
+   588 : vst_lane.i64   i0, v31, 0                 
+   589 : vst_lane.i64   i0, v0, 1                  
+   590 : vst_lane.i64   i15, v0, 0                 
+   591 : ext.i8         v0, v0, v0, 0              
+   592 : ext.i8         v31, v0, v0, 0             
+   593 : ext.i8         v0, v31, v0, 0             
+   594 : ext.i8         v0, v0, v31, 0             
+   595 : ext.i8         v0, v0, v0, 15             
+   596 : ext.i16        v0, v0, v0, 0              
+   597 : ext.i16        v31, v0, v0, 0             
+   598 : ext.i16        v0, v31, v0, 0             
+   599 : ext.i16        v0, v0, v31, 0             
+   600 : ext.i16        v0, v0, v0, 7              
+   601 : ext.i32        v0, v0, v0, 0              
+   602 : ext.i32        v31, v0, v0, 0             
+   603 : ext.i32        v0, v31, v0, 0             
+   604 : ext.i32        v0, v0, v31, 0             
+   605 : ext.i32        v0, v0, v0, 3              
+   606 : ext.i64        v0, v0, v0, 0              
+   607 : ext.i64        v31, v0, v0, 0             
+   608 : ext.i64        v0, v31, v0, 0             
+   609 : ext.i64        v0, v0, v31, 0             
+   610 : ext.i64        v0, v0, v0, 1              
+   611 : fma.fp16       v0, v0, v0, v0, 0          
+   612 : fma.fp16       v31, v31, v0, v0, 0        
+   613 : fma.fp16       v0, v0, v31, v0, 0         
+   614 : fma.fp16       v0, v0, v0, v15, 0         
+   615 : fma.fp16       v0, v0, v0, v0, 7          
+   616 : fma.fp32       v0, v0, v0, v0, 0          
+   617 : fma.fp32       v31, v31, v0, v0, 0        
+   618 : fma.fp32       v0, v0, v31, v0, 0         
+   619 : fma.fp32       v0, v0, v0, v31, 0         
+   620 : fma.fp32       v0, v0, v0, v0, 3          
+   621 : fma.fp64       v0, v0, v0, v0, 0          
+   622 : fma.fp64       v31, v31, v0, v0, 0        
+   623 : fma.fp64       v0, v0, v31, v0, 0         
+   624 : fma.fp64       v0, v0, v0, v31, 0         
+   625 : fma.fp64       v0, v0, v0, v0, 1          

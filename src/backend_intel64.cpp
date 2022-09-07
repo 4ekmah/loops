@@ -911,7 +911,7 @@ namespace loops
         return BinTranslation();
     }
 
-    SyntopTranslation i64STLookup(const Syntop& index, bool& scs)
+    SyntopTranslation i64STLookup(const Backend* backend, const Syntop& index, bool& scs)
     {
         using namespace SyntopTranslationConstruction;
         scs = true;

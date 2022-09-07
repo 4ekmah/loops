@@ -103,8 +103,10 @@ BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
-    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED)
+    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMITIMM)
         throw std::runtime_error("Binary translator: wrong token constructor.");
+    if(tag == T_OMITIMM && fieldsize != 0) 
+        throw std::runtime_error("Binary translator: omit immediate must not have field width.");
 }
 
 BinTranslation::Token::Token(int tag, uint64_t val, size_t fieldsize):tag(tag)
@@ -127,8 +129,8 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if (bits == nullptr)
         throw std::runtime_error("Binary translator: null writer pointer.");
-            bits->startInstruction();
-            uint64_t argmask = (uint64_t(1) << op.size()) - 1;
+    bits->startInstruction();
+    uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Token& det : m_compound)
     {
         uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
@@ -154,6 +156,11 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_STATIC): break;
+        case (Token::T_OMITIMM):
+            if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
+                throw std::runtime_error("Binary translator: attempt to omit non-immediate argument.");
+            argmask = (argmask | pos) ^ pos;
+            break;
         default:
             throw std::runtime_error("Binary translator: unknown token type.");
         };
@@ -161,6 +168,8 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     Assert(argmask == 0);
     for (const Token& det : m_compound)
     {
+        if(det.tag == Token::T_OMITIMM)
+            continue;
         uint64_t piece = 0;
         switch (det.tag)
         {

@@ -125,6 +125,9 @@ enum {
     OP_ARM_CINC,
     OP_ARM_CNEG,
     OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
+    VOP_ARM_LD1,
+    VOP_ARM_ST1,
+    VOP_ARM_EXT,
 
     OP_NOINIT
 };
@@ -586,12 +589,16 @@ template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
+template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
+{ return newiopV<_Tp>(VOP_ARM_LD1, {base, lane_index}); }
 
 // cast and store
 template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, r}); }
 template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
 { newiopNoret(VOP_STORE, {base, offset, r}); }
+template<typename _Tp> void storelane(const IReg& base, const VReg<_Tp>& r, int64_t lane_index)
+{ newiopNoret(VOP_ARM_ST1, {base, r, lane_index}); }
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_ADD, {a, b}); }
@@ -605,6 +612,10 @@ template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
 { return newiopV<_Tp>(VOP_NEG, {a}); }
 template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
 { return newiopV<_Tp>(VOP_FMA, {a, b, c}); }
+template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c, int64_t index)
+{ return newiopV<_Tp>(VOP_FMA, {a, b, c, index}); }
+template<typename _Tp> VReg<_Tp> ext(const VReg<_Tp>& n, const VReg<_Tp>& m, int64_t index)
+{ return newiopV<_Tp>(VOP_ARM_EXT, {n, m, index}); }
 
 //template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
 //template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
