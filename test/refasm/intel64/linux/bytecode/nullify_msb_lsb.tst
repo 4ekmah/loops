@@ -20,14 +20,13 @@ nullify_msb_lsb(i0, i1, i2)
     18 : or        i1, i1, i0 
     19 : add       i1, i1, 1  
     20 : shr       i1, i1, 1  
-    21 : mov       i1, i1     
-    22 : xor       i1, i1, i7 
-    23 : store.u64 6, i2, i1  
-    24 : mov       i2, i7     
-    25 : sub       i2, i2, 1  
-    26 : not       i2, i2     
-    27 : and       i2, i2, i7 
-    28 : xor       i2, i2, i7 
-    29 : store.u64 6, i6, i2  
-    30 : add       i4, i4, 8  
-    31 : ret                  
+    21 : xor       i1, i1, i7 
+    22 : store.u64 6, i2, i1  
+    23 : mov       i2, i7     
+    24 : sub       i2, i2, 1  
+    25 : not       i2, i2     
+    26 : and       i2, i2, i7 
+    27 : xor       i2, i2, i7 
+    28 : store.u64 6, i6, i2  
+    29 : add       i4, i4, 8  
+    30 : ret                  

@@ -34,9 +34,8 @@ ten_args_to_sum(i0, i1, i2, i3, i4, i5, i6, i7, i8, i9)
     32 : unspill i20, 5       
     33 : mul     i1, i20, i1  
     34 : add     i0, i0, i1   
-    35 : mov     i0, i0       
-    36 : unspill i18, 0       
-    37 : unspill i19, 1       
-    38 : unspill i20, 2       
-    39 : add     i31, i31, 32 
-    40 : ret                  
+    35 : unspill i18, 0       
+    36 : unspill i19, 1       
+    37 : unspill i20, 2       
+    38 : add     i31, i31, 32 
+    39 : ret                  

@@ -196,6 +196,8 @@ struct IReg
     IReg(const IReg& r); //Must generate copy(mov) code
     IReg(IReg&& a) noexcept;
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
+    // IReg& operator=(const IReg&& r); //TODO(ch): implement version for temporary objects, which rewrite output of last operation with this->idx and reduces vitualRegisterAmount.
+    void rawcopy(const IReg& from);
 
     int idx;
     Func* func;

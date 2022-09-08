@@ -9,6 +9,9 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include "tests.hpp"
 #include <math.h>
+#if __LOOPS_ARCH == __LOOPS_AARCH64
+#include "arm_neon.h"
+#endif
 
 namespace loops
 {
@@ -135,19 +138,85 @@ void printData(T* data, int H, int W, int C) {
     }
 }
 
-void MaxPool(float* data, int H, int W, int C, float* result, int H0, int W0, int kh, int kw){
+void MaxPool(float* data, int H, int W, int C, float* result, int H0, int W0, int kh, int kw)
+{
+    int* tab = (int*)alloca(kh*kw*sizeof(tab[0]));
+    for (int i = 0; i < kh; i++)
+        for (int j = 0; j < kw; j++)
+            tab[i*kw + j] = i*W+j;
     for (int c = 0; c < C; c++)
     {
-        for (int y = 0; y < H0; y++) {
-            for (int x = 0; x < W0; x++) {
-                float tmp = data[(c*H*W)+(y*W+x)];
-                for (int hi = 0; hi < kh; hi++)
-                    for (int hj = 0; hj < kw; hj++)
-                    {
-                        tmp = std::max(tmp, data[(c*H*W)+(y*W+x)+(hi*W+hj)]);
-                    }
-                
+        for (int y = 0; y < H0; y++)
+        {
+            for (int x = 0; x < W0; x++)
+            {
+                const float* ptr = &data[(c*H*W)+(y*W+x)];
+                float tmp = *ptr;
+                for (int k = 1; k < kh*kw; k++)
+                    tmp = std::max(tmp, ptr[tab[k]]);
                 result[c*H0*W0+y*W0+x] = tmp;
+            }
+        }
+    }
+}
+
+void MaxPool_unroll4(float* data, int H, int W, int C, float* result, int H0, int W0, int kh, int kw)
+{
+    int* tab = (int*)alloca(kh*kw*sizeof(tab[0]));
+    for (int i = 0; i < kh; i++)
+        for (int j = 0; j < kw; j++)
+            tab[i*kw + j] = i*W+j;
+    for (int c = 0; c < C; c++)
+    {
+        for (int y = 0; y < H0; y++)
+        {
+            for (int x = 0; x < W0; x++)
+            {
+                const float* ptr = &data[(c*H*W)+(y*W+x)];
+                float tmp = *ptr;
+                int k = 0;
+                for (; k <= kh*kw - 4; k += 4) {
+                    tmp = std::max(tmp, ptr[tab[k]]);
+                    tmp = std::max(tmp, ptr[tab[k+1]]);
+                    tmp = std::max(tmp, ptr[tab[k+2]]);
+                    tmp = std::max(tmp, ptr[tab[k+3]]);
+                }
+                for (; k < kh*kw; k++)
+                    tmp = std::max(tmp, ptr[tab[k]]);
+                result[c*H0*W0+y*W0+x] = tmp;
+            }
+        }
+    }
+}
+
+void MaxPool_vec_unroll4(float* data, int H, int W, int C, float* result, int H0, int W0, int kh, int kw)
+{
+    int* tab = (int*)alloca(kh*kw*sizeof(tab[0]));
+    for (int i = 0; i < kh; i++)
+        for (int j = 0; j < kw; j++)
+            tab[i*kw + j] = i*W+j;
+    for (int c = 0; c < C; c++)
+    {
+        for (int y = 0; y < H0; y++)
+        {
+            for (int x = 0; x < W0; x += 4)
+            {
+                if (x + 4 > W0)
+                {
+                    x = W0 - 4;
+                }
+                const float* ptr = &data[(c*H*W)+(y*W+x)];
+                float32x4_t tmp = vld1q_f32(ptr);
+                int k = 0;
+                for (; k <= kh*kw - 4; k += 4) {
+                    tmp = vmaxq_f32(tmp, vld1q_f32(ptr + tab[k]));
+                    tmp = vmaxq_f32(tmp, vld1q_f32(ptr + tab[k+1]));
+                    tmp = vmaxq_f32(tmp, vld1q_f32(ptr + tab[k+2]));
+                    tmp = vmaxq_f32(tmp, vld1q_f32(ptr + tab[k+3]));
+                }
+                for (; k < kh*kw; k++)
+                    tmp = vmaxq_f32(tmp, vld1q_f32(ptr + tab[k]));
+                vst1q_f32(result + c*H0*W0+y*W0+x, tmp);
             }
         }
     }
@@ -158,59 +227,56 @@ PTEST_2(max_pool, int64_t, kh, int64_t, kw, {
     USE_CONTEXT_(CTX);
     STARTFUNC_(TESTNAME, &data, &H, &W, &C, &result, &H0, &W0)
     {
-        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
+        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, 
+            { 0, 1, 2, 3, 4, 5, 6, 7 }, 
+            { 0, 1, 2, 3, 4, 5, 6, 7 }, 
+            { 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }, 
+            { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 });
+
         IReg offset = CONST_(0);
         IReg c = CONST_(0);
         IReg check = W0 * sizeof(float);
-        // std::vector<std::vector<IReg> > offstab(kh, std::vector<IReg>(kw, IReg()));
-        // for(int i = 0; i < kh; i++ ) 
-        //     for(int j = 0; j < kh; j++)
-        //         offstab[i][j] = IReg((CONST_(i)*W+CONST_(j)) * sizeof(float);  
-        IReg offstab_0_0 = (0*W+0)* sizeof(float); 
-        IReg offstab_0_1 = (0*W+1)* sizeof(float); 
-        IReg offstab_0_2 = (0*W+2)* sizeof(float); 
-        IReg offstab_1_0 = (1*W+0)* sizeof(float); 
-        IReg offstab_1_1 = (1*W+1)* sizeof(float); 
-        IReg offstab_1_2 = (1*W+2)* sizeof(float); 
-        IReg offstab_2_0 = (2*W+0)* sizeof(float); 
-        IReg offstab_2_1 = (2*W+1)* sizeof(float); 
-        IReg offstab_2_2 = (2*W+2)* sizeof(float); 
+        std::vector<std::vector<IReg> > offstab(kh, std::vector<IReg>(kw, IReg()));
+        for(int i = 0; i < kh; i++ ) 
+            for(int j = 0; j < kw; j++)
+                offstab[i][j].rawcopy(IReg((CONST_(i)*W+CONST_(j)) * sizeof(float)));
         WHILE_(c < C)
         {
             IReg y = CONST_(0);
-            WHILE_(y < H0) {
+            IReg result_ = result + c * W0 * H0 * sizeof(float);
+            IReg data_ = data + c * W * H * sizeof(float);
+            WHILE_(y < H0) 
+            {
                 IReg x = CONST_(0);
-                IReg next_x = x + CTX.vbytes();
-                // IReg next_data += CTX.vbytes();
-                WHILE_(x < check) {
-                    IReg border = W * sizeof(float);
-                    IF_(next_x > border){
-                        x = x - (next_x - border);
-                        data = data - (next_x - border);
+                IReg next_x = CONST_(CTX.vbytes());
+                WHILE_(x < check) 
+                {
+                    IF_(next_x > check)
+                    {
+                        IReg corr = (next_x - check);
+                        x -= corr;
+                        next_x -= corr;
                     }
 
-                    IReg base_offset = (c*H*W* sizeof(float))+(y*W* sizeof(float)+x);
-                    VReg<float> tmp1 = max(loadvec<float>(data, offstab_0_0 ),
-                                           loadvec<float>(data, offstab_0_1 ));
-                    VReg<float> tmp2 = max(tmp1, loadvec<float>(data, offstab_0_2));
-                    VReg<float> tmp3 = max(tmp2, loadvec<float>(data, offstab_1_0));
-                    VReg<float> tmp4 = max(tmp3, loadvec<float>(data, offstab_1_1));
-                    VReg<float> tmp5 = max(tmp4, loadvec<float>(data, offstab_1_2));
-                    VReg<float> tmp6 = max(tmp5, loadvec<float>(data, offstab_2_0));
-                    VReg<float> tmp7 = max(tmp6, loadvec<float>(data, offstab_2_1));
-                    VReg<float> tmp8 = max(tmp7, loadvec<float>(data, offstab_2_2));
+                    IReg data__ = data_ + x;
+                    IReg result__ = result_ + x;
 
-                    storevec(result, (c*H0*W0* sizeof(float)+y*W0* sizeof(float)+x), tmp8);
-                    x = x + CTX.vbytes();
-                    data += CTX.vbytes();
+                    VReg<float> res = max(loadvec<float>(data__, offstab[0][0] ), loadvec<float>(data__, offstab[0][1] ));
+                    for(int i = 0; i < kh; i++ )
+                        for(int j = (i == 0 ? 2 : 0); j < kw; j++)
+                            res = max(res, loadvec<float>(data__, offstab[i][j] ));
+
+                    storevec(result__, res);
+                    x = next_x;
+                    next_x += CTX.vbytes();
                 }
-                y = y + 1;
-                // data += sizeof(float) * W;
+                y += 1;
+                result_ += W0 * sizeof(float);
+                data_ += W * sizeof(float);
             }
-            c = c + 1;
-            // data += sizeof(float) * W * H;
+            c += 1;
         }
-        RETURN_();
+        RETURN_(0);
     }
     });
 
@@ -219,46 +285,46 @@ PTESTexe_2(max_pool, int64_t, kh, int64_t, kw, {
     typedef void (*max_pool_f)(float* data, int H, int W, int C, float* result, int H0, int W0);
     max_pool_f tested = reinterpret_cast<max_pool_f>(EXEPTR);
 
-    int W = 9;
-    int H = 9;
-    int C = 3;
-    int H_W = W*H;
-    int H0 = H-kh+1;
-    int W0 = W-kw+1;
+    const int TESTITERATIONS = 30;
+    const int W = 200;
+    const int H = 200;
+    const int C = 32;
+    const int H0 = H-kh+1;
+    const int W0 = W-kw+1;
+    std::vector<float> inp(W*H*C, 0.f), out0(W0*H0*C, 0.f), out1(W0*H0*C, 0.f), out2(W0*H0*C, 0.f), out3(W0*H0*C, 0.f);
 
-    std::vector<float> storage(W*H*C, 0);
-    float* c = &(storage[0]);
+    for (int i = 0 ; i < C*H*W ; i++)
+        inp[i] = rand() % 1000;
 
-    for (int i = 0 ; i < C ; i++) {
-        float* HW = c + i * H_W;
-        for (int j = 0; j < H_W; j++) {
-            HW[j] = rand() % 1000;
-        }
+    Timer t0, t1, t2, t3;
+    for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+    {
+        t0.start();
+        tested(&inp[0], H, W, C, &out0[0], H0, W0);
+        t0.stop();
+        t1.start();
+        MaxPool(&inp[0], H, W, C, &out1[0], H0, W0, kh, kw);
+        t1.stop();
+        t2.start();
+        MaxPool_unroll4(&inp[0], H, W, C, &out2[0], H0, W0, kh, kw);
+        t2.stop();
+        t3.start();
+        MaxPool_vec_unroll4(&inp[0], H, W, C, &out3[0], H0, W0, kh, kw);
+        t3.stop();
     }
-    printData(c, H, W, C);
-
-    std::vector<float> result(H0*W0*C, 0);
-    float* c_out = &(result[0]);
-
-    MaxPool(c, H, W, C, c_out, H0, W0, kh, kw);
-    printData(c_out, H0, W0, C);
-
-    std::vector<float> result_vec(H0*W0*C, 0);
-    float* c_out_vec = &(result_vec[0]);
-
-    tested(c, H, W, C, c_out_vec, H0, W0);
-    printData(c_out_vec, H0, W0, C);
-
-    for(int channel = 0; channel < C; channel++) 
-        for(int row = 0; row<H0; row++) 
-            for(int col = 0; col<H0 ; col++)
-                // if(c_out[channel* W0 * H0 + row*W0 + col] != c_out_vec[channel* W0 * H0 + row*W0 + col])
-                //     std::cout<<"(Channel:"<< channel << ", Row:" << row << ", Col:" << col <<")|" << c_out[channel* W0 * H0 + row*W0 + col]<<"!="<<c_out_vec[channel* W0 * H0 + row*W0 + col]<<std::endl;
-                EXPECT_EQ(c_out[channel* W0 * H0 + row*W0 + col], c_out_vec[channel* W0 * H0 + row*W0 + col]);
-
+    printf("maxpool %dx%d. ref time: %s, ref time (unrolled): %s, ref time (vec-ed & unrolled): %s, loops time: %s\n", (int)kh, (int)kw, t1.str(), t2.str(), t3.str(), t0.str());
+    for(int i = 0; i < H0*W0*C; i++)
+    {
+        EXPECT_EQ(out0[i], out1[i]);
+        EXPECT_EQ(out0[i], out2[i]);
+        EXPECT_EQ(out0[i], out3[i]);
+    }
     });
 
 PTESTfix_2(max_pool, 3, 3);
+PTESTfix_2(max_pool, 5, 5);
+PTESTfix_2(max_pool, 9, 9);
+PTESTfix_2(max_pool, 13, 13);
 
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 

@@ -1750,6 +1750,15 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
     for (Syntop& op : a_processed.program)
         switch (op.opcode)
         {
+        case OP_MOV:
+            //This is not about snippets, its ommiting parasite self-assignments.
+            //TODO(ch): also kill UNSPILL and SPILL.
+            Assert(op.size() == 2); 
+            if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
+                (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
+                && op[0].idx == op[1].idx))
+                newProg.push_back(op);
+            break;
         case OP_MIN:
         case OP_MAX:
             Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);

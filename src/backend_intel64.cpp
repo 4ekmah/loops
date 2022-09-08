@@ -1514,6 +1514,14 @@ namespace loops
         for (Syntop& op : a_processed.program)
             switch (op.opcode)
             {
+            case OP_MOV:
+                //This is not about snippets, its ommiting parasite self-assignments.
+                Assert(op.size() == 2); 
+                if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
+                    (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
+                    && op[0].idx == op[1].idx))
+                    newProg.push_back(op);
+                break;
             case OP_AND:
             case OP_OR:
             case OP_XOR:

@@ -8,15 +8,13 @@ exponentiation_by_squaring_v_int32_t_4(i0, i1, i2)
      6 : cmp      i3, i2       
      7 : jmp_ge   1            
      8 : vld.i32  v0, i0, i3   
-     9 : mov      v0, v0       
+     9 : mul.i32  v0, v0, v0   
     10 : mul.i32  v0, v0, v0   
-    11 : mul.i32  v0, v0, v0   
-    12 : mov      v0, v0       
-    13 : vst.i32  i1, i3, v0   
-    14 : add      i3, i3, 16   
-    15 : jmp      0            
-    16 : label 1:              
-    17 : mov      i0, 0        
-    18 : unspill  i18, 0       
-    19 : add      i31, i31, 16 
-    20 : ret                   
+    11 : vst.i32  i1, i3, v0   
+    12 : add      i3, i3, 16   
+    13 : jmp      0            
+    14 : label 1:              
+    15 : mov      i0, 0        
+    16 : unspill  i18, 0       
+    17 : add      i31, i31, 16 
+    18 : ret                   
