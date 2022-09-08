@@ -1594,6 +1594,7 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
         {
         case OP_MOV:
             //This is not about snippets, its ommiting parasite self-assignments.
+            //TODO(ch): also kill UNSPILL and SPILL.
             Assert(op.size() == 2); 
             if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
                 (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))

@@ -718,7 +718,7 @@ but only if this nested register will be used after this redefinition.
                     }
                 }
                 op.spillPrefix += unspilledRenaming[basketNum][opnum].size();
-                op.spillPostfix += spilledRenaming[basketNum].size();
+                op.spillPostfix += spilledRenaming[basketNum][opnum].size();
             }
             const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
             size_t parametersStoodSpilled = 0; 
