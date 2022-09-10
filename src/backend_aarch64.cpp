@@ -532,6 +532,80 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b0110111100000, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
         }
         break;
+    case (AARCH64_CMHI):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isUnsignedInteger(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_U32 || index[1].elemtype == TYPE_U64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_U64 ? 1 : 0;
+                return BiT({ BTsta(0b011011101, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001101, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_U8 || index[1].elemtype == TYPE_U16)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_U16 ? 1 : 0;
+                return BiT({ BTsta(0b011011100, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001101, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+        }
+        break;
+    case (AARCH64_CMHS):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isUnsignedInteger(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_U32 || index[1].elemtype == TYPE_U64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_U64 ? 1 : 0;
+                return BiT({ BTsta(0b011011101, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_U8 || index[1].elemtype == TYPE_U16)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_U16 ? 1 : 0;
+                return BiT({ BTsta(0b011011100, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+        }
+        break;
+    case (AARCH64_CMGT):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_I32 || index[1].elemtype == TYPE_I64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I64 ? 1 : 0;
+                return BiT({ BTsta(0b010011101, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001101, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_I8 || index[1].elemtype == TYPE_I16)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I16 ? 1 : 0;
+                return BiT({ BTsta(0b010011100, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001101, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+        }
+        break;
+    case (AARCH64_CMGE):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_I32 || index[1].elemtype == TYPE_I64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I64 ? 1 : 0;
+                return BiT({ BTsta(0b010011101, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_I8 || index[1].elemtype == TYPE_I16)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I16 ? 1 : 0;
+                return BiT({ BTsta(0b010011100, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+        }
+        break;
+    case (AARCH64_CMEQ):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[1].elemtype))
+        {
+            if(index[1].elemtype == TYPE_I32 || index[1].elemtype == TYPE_I64)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I64 ? 1 : 0;
+                return BiT({ BTsta(0b011011101, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+            else if(index[1].elemtype == TYPE_I8 || index[1].elemtype == TYPE_I16)
+            {
+                uint64_t sizeStat = index[1].elemtype == TYPE_I16 ? 1 : 0;
+                return BiT({ BTsta(0b011011100, 9), BTsta(sizeStat, 1), BTsta(0b1, 1), BTreg(2, 5, In), BTsta(0b100011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            }
+        }
     case (AARCH64_FCMGT):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isFloat(index[1].elemtype))
         {
@@ -1228,6 +1302,20 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                                 index.opcode == VOP_EQ?*/AARCH64_FCMEQ ));
                 return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
+            else if(isUnsignedInteger(index[1].elemtype))
+            {
+                int taropcode = index.opcode == VOP_GT ? AARCH64_CMHI : (
+                              /*index.opcode == VOP_GE?*/AARCH64_CMHS );
+                return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            else if(isSignedInteger(index[1].elemtype))
+            {
+                int taropcode = index.opcode == VOP_GT ? AARCH64_CMGT : (
+                                index.opcode == VOP_GE ? AARCH64_CMGE : (
+                              /*index.opcode == VOP_NE ||
+                                index.opcode == VOP_EQ?*/AARCH64_CMEQ ));
+                return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
+            }
         }
         break;
     case (VOP_LT):
@@ -1238,6 +1326,12 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             {
                 int taropcode = index.opcode == VOP_LT ? AARCH64_FCMGT : (
                               /*index.opcode == VOP_LE?*/AARCH64_FCMGE );
+                return SyT(taropcode, { SAcop(0), SAcop(2), SAcop(1) });
+            }
+            else if(isSignedInteger(index[1].elemtype))
+            {
+                int taropcode = index.opcode == VOP_LT ? AARCH64_CMGT : (
+                              /*index.opcode == VOP_LE?*/AARCH64_CMGE );
                 return SyT(taropcode, { SAcop(0), SAcop(2), SAcop(1) });
             }
         }
@@ -1590,6 +1684,13 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SSHR,  "sshr" },
         {AARCH64_MOVI,  "movi" },
         {AARCH64_MVNI,  "mvni" },
+        {AARCH64_CMHI,  "cmhi"},
+        {AARCH64_CMHS,  "cmhs"},
+        {AARCH64_CMEQ,  "cmeq"},
+        {AARCH64_CMGE,  "cmge"},
+        {AARCH64_CMGT,  "cmgt"},
+        {AARCH64_CMLE,  "cmle"},
+        {AARCH64_CMLT,  "cmlt"},
         {AARCH64_FCMGT, "fcmgt"},
         {AARCH64_FCMGE, "fcmge"},
         {AARCH64_FCMEQ, "fcmeq"},
