@@ -236,10 +236,7 @@ PTEST_2(max_pool, int64_t, kh, int64_t, kw, {
         IReg offset = CONST_(0);
         IReg c = CONST_(0);
         IReg check = W0 * sizeof(float);
-        std::vector<std::vector<IReg> > offstab(kh, std::vector<IReg>(kw, IReg()));
-        for(int i = 0; i < kh; i++ ) 
-            for(int j = 0; j < kw; j++)
-                offstab[i][j].rawcopy(IReg((CONST_(i)*W+CONST_(j)) * sizeof(float)));
+
         WHILE_(c < C)
         {
             IReg y = CONST_(0);
@@ -261,10 +258,26 @@ PTEST_2(max_pool, int64_t, kh, int64_t, kw, {
                     IReg data__ = data_ + x;
                     IReg result__ = result_ + x;
 
-                    VReg<float> res = max(loadvec<float>(data__, offstab[0][0] ), loadvec<float>(data__, offstab[0][1] ));
-                    for(int i = 0; i < kh; i++ )
-                        for(int j = (i == 0 ? 2 : 0); j < kw; j++)
-                            res = max(res, loadvec<float>(data__, offstab[i][j] ));
+                    VReg<float> res = max(loadvec<float>(data__, 0), ext(loadvec<float>(data__, 0), loadvec<float>(data__, 4 * sizeof(float)), 1));
+                    
+                    for(int j = 2; j < kw; j++)
+                        if (j % 4 == 0) {
+                            res = max(res, loadvec<float>(data__, j * sizeof(float)));
+                        }
+                        else {
+                            res = max(res, ext(loadvec<float>(data__, (j / 4 * 4) * sizeof(float)), loadvec<float>(data__, (j / 4 * 4 + 4) * sizeof(float)), j % 4));
+                        }
+
+                    for(int i = 1; i < kh; i++ ){
+                        data__ += W * sizeof(float);
+                        for(int j = 0; j < kw; j++)
+                            if (j % 4 == 0) {
+                                res = max(res, loadvec<float>(data__, j * sizeof(float)));
+                            }
+                            else {
+                                res = max(res, ext(loadvec<float>(data__, (j / 4 * 4) * sizeof(float)), loadvec<float>(data__, (j / 4 * 4 + 4) * sizeof(float)), j % 4));
+                            }
+                    }
 
                     storevec(result__, res);
                     x = next_x;
@@ -303,20 +316,21 @@ PTESTexe_2(max_pool, int64_t, kh, int64_t, kw, {
         tested(&inp[0], H, W, C, &out0[0], H0, W0);
         t0.stop();
         t1.start();
-        MaxPool(&inp[0], H, W, C, &out1[0], H0, W0, kh, kw);
-        t1.stop();
-        t2.start();
-        MaxPool_unroll4(&inp[0], H, W, C, &out2[0], H0, W0, kh, kw);
-        t2.stop();
-        t3.start();
+        // MaxPool(&inp[0], H, W, C, &out1[0], H0, W0, kh, kw);
+        // t1.stop();
+        // t2.start();
+        // MaxPool_unroll4(&inp[0], H, W, C, &out2[0], H0, W0, kh, kw);
+        // t2.stop();
+        // t3.start();
         MaxPool_vec_unroll4(&inp[0], H, W, C, &out3[0], H0, W0, kh, kw);
         t3.stop();
     }
-    printf("maxpool %dx%d. ref time: %s, ref time (unrolled): %s, ref time (vec-ed & unrolled): %s, loops time: %s\n", (int)kh, (int)kw, t1.str(), t2.str(), t3.str(), t0.str());
+    // printf("maxpool %dx%d. ref time: %s, ref time (unrolled): %s, ref time (vec-ed & unrolled): %s, loops time: %s\n", (int)kh, (int)kw, t1.str(), t2.str(), t3.str(), t0.str());
+    printf("maxpool %dx%d. ref time (vec-ed & unrolled): %s, loops time: %s\n", (int)kh, (int)kw, t3.str(), t0.str());
     for(int i = 0; i < H0*W0*C; i++)
     {
-        EXPECT_EQ(out0[i], out1[i]);
-        EXPECT_EQ(out0[i], out2[i]);
+        // EXPECT_EQ(out0[i], out1[i]);
+        // EXPECT_EQ(out0[i], out2[i]);
         EXPECT_EQ(out0[i], out3[i]);
     }
     });
