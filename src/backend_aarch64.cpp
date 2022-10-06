@@ -931,14 +931,16 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             case (TYPE_I8):
                 return SyT(AARCH64_LDRSB, { SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
             case (TYPE_U16):
+            case (TYPE_FP16):
                 return SyT(AARCH64_LDRH, { SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
             case (TYPE_I16):
                 return SyT(AARCH64_LDRSH, { SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
             case (TYPE_U32):
+            case (TYPE_FP32):
                 return SyT(AARCH64_LDR, { SAimm(0, AF_NOPRINT), SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
             case (TYPE_I32):
                 return SyT(AARCH64_LDRSW, { SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
-            case (TYPE_U64): case (TYPE_I64):
+            case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAcop(2, AF_ADDRESS), SAimm(0) });
             };
         }
@@ -951,14 +953,16 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             case (TYPE_I8):
                 return SyT(AARCH64_LDRSB, { SAcop(0), SAcop(2, AF_ADDRESS), SAcop(3) });
             case (TYPE_U16):
+            case (TYPE_FP16):
                 return SyT(AARCH64_LDRH, { SAcop(0), SAcop(2, AF_ADDRESS), index[3].tag == Arg::IIMMEDIATE ? SAcopsar(3, 1) : SAcop(3) });
             case (TYPE_I16):
                 return SyT(AARCH64_LDRSH, { SAcop(0), SAcop(2, AF_ADDRESS), index[3].tag == Arg::IIMMEDIATE ? SAcopsar(3, 1) : SAcop(3) });
             case (TYPE_U32):
+            case (TYPE_FP32):
                 return SyT(AARCH64_LDR, { SAimm(0, AF_NOPRINT), SAcop(0), SAcop(2, AF_ADDRESS), index[3].tag == Arg::IIMMEDIATE ? SAcopsar(3, 2) : SAcop(3) });
             case (TYPE_I32):
                 return SyT(AARCH64_LDRSW, { SAcop(0), SAcop(2, AF_ADDRESS), index[3].tag == Arg::IIMMEDIATE ? SAcopsar(3, 2) : SAcop(3) });
-            case (TYPE_U64): case (TYPE_I64):
+            case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_LDR, { SAimm(1, AF_NOPRINT), SAcop(0), SAcop(2, AF_ADDRESS), index[3].tag == Arg::IIMMEDIATE ? SAcopsar(3, 3) : SAcop(3) });
             };
         }

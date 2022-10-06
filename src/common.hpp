@@ -43,7 +43,7 @@ namespace loops
     }
 
     template<typename _Tp>
-    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src)
+    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src) //TODO(ch): HidCopy isn't needed anymore, there is rawcopy.
     {
         dest.func = src.func;
         dest.idx = src.idx;

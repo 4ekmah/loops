@@ -8,7 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_TEST_AARCH64_HPP__
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
-#include "tests.hpp"
+#include "../tests.hpp"
 #include <iostream>
 
 namespace loops
