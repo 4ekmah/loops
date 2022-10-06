@@ -13,7 +13,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
 #include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
-#include "tests.hpp"
+#include "../tests.hpp"
 #include <iostream>
 
 namespace loops

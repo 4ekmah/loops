@@ -8,7 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_TEST_BASIC_HPP__
 
 #include "loops/loops.hpp"
-#include "tests.hpp"
+#include "../tests.hpp"
 #include <iostream>
 #include <math.h>
 #include <stdexcept>
