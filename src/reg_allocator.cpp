@@ -10,6 +10,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
+// #include <iostream> //DUBUGGG
 
 /*
 This file contains two consequently applied algorithms: liveness analysis and register
@@ -463,6 +464,7 @@ but only if this nested register will be used after this redefinition.
     //register parameters.
     void RegisterAllocator::process(FuncImpl* a_func, Syntfunc& a_processed)
     {
+        // a_func->printBytecode(std::cout);//DUBUGGG
         Backend* backend = m_owner->getBackend();
         m_pool.initRegisterPool();
         size_t snippetCausedSpills;

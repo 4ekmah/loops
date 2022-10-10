@@ -337,6 +337,7 @@ namespace loops
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
         void endFunc();
         Func getFunc(const std::string& name);
+        bool hasFunc(const std::string& name);
         std::string getPlatformName() const;
         size_t vbytes() const;
         void compileAll();

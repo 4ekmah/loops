@@ -705,3 +705,19 @@ instruction_set_test()
    703 : gt.u64         v31, v0, v0                
    704 : gt.u64         v0, v31, v0                
    705 : gt.u64         v0, v0, v31                
+   706 : getlane.u8     i0, v0, 0                  
+   707 : getlane.u8     i15, v0, 0                 
+   708 : getlane.u8     i0, v31, 0                 
+   709 : getlane.u8     i0, v0, 15                 
+   710 : getlane.u16    i0, v0, 0                  
+   711 : getlane.u16    i15, v0, 0                 
+   712 : getlane.u16    i0, v31, 0                 
+   713 : getlane.u16    i0, v0, 7                  
+   714 : getlane.u32    i0, v0, 0                  
+   715 : getlane.u32    i15, v0, 0                 
+   716 : getlane.u32    i0, v31, 0                 
+   717 : getlane.u32    i0, v0, 3                  
+   718 : getlane.u64    i0, v0, 0                  
+   719 : getlane.u64    i15, v0, 0                 
+   720 : getlane.u64    i0, v31, 0                 
+   721 : getlane.u64    i0, v0, 1                  

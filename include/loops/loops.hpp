@@ -128,6 +128,7 @@ enum {
     VOP_ARM_LD1,
     VOP_ARM_ST1,
     VOP_ARM_EXT,
+    VOP_GETLANE,
 
     OP_NOINIT
 };
@@ -282,6 +283,7 @@ public:
 
     void getFuncs(std::vector<Func>& funcs);
     Func getFunc(const std::string& name);
+    bool hasFunc(const std::string& name);
 
     /*
     //TODO(ch): Implement with RISC-V RVV
@@ -605,6 +607,10 @@ template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const
 template<typename _Tp> void storelane(const IReg& base, const VReg<_Tp>& r, int64_t lane_index)
 { newiopNoret(VOP_ARM_ST1, {base, r, lane_index}); }
 
+
+template<typename _Tp> IReg getlane(const VReg<_Tp>& r, int64_t lane_index)
+{ return newiop(VOP_GETLANE, {r, lane_index}); }
+
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_ADD, {a, b}); }
 template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -653,6 +659,7 @@ template<typename _Tp, typename _Sp> VReg<_Tp> ushift_left(const VReg<_Tp>& a, c
     return newiopV<_Tp>(VOP_SHL, {a, b});
 }
 
+//TODO(ch): VOP_AND must be applicable on Vector of elements of same size, not only same elements.
 template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_AND, {a, b}); }
 template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b)
