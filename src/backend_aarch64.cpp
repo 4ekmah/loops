@@ -827,6 +827,24 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b01001110000, 11), BTsta(dupSizeStat, 5), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
+    case (AARCH64_UMOV):
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
+          (index[1].elemtype == TYPE_U8   ||
+           index[1].elemtype == TYPE_FP16 || index[1].elemtype == TYPE_U16 ||
+           index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_U32 ||
+           index[1].elemtype == TYPE_FP64 || index[1].elemtype == TYPE_U64 || index[1].elemtype == TYPE_I64))
+        {
+            int elemsize = elemSize(index[1].elemtype);
+            uint64_t mainSta = elemsize == 8 ? 0b01001110000 : 0b00001110000;
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
+            uint64_t dupSizeSWidth= dupSizeSWidthes[elemsize];
+            Assert(dupSizeSWidth != WrongStat);
+            static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
+            uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
+            return BiT({ BTsta(mainSta, 11), BTimm(2,5 - dupSizeSWidth), BTsta(dupSizeStat, dupSizeSWidth),BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;    
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0x1, 5) });
@@ -974,11 +992,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             {
             case (TYPE_U8): case (TYPE_I8):
                 return SyT(AARCH64_STRB, { SAcop(2, AF_LOWER32), SAcop(1, AF_ADDRESS), SAimm(0) });
-            case (TYPE_U16): case (TYPE_I16):
+            case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
                 return SyT(AARCH64_STRH, { SAcop(2, AF_LOWER32), SAcop(1, AF_ADDRESS), SAimm(0) });
-            case (TYPE_U32): case (TYPE_I32):
+            case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
                 return SyT(AARCH64_STR, { SAimm(0, AF_NOPRINT), SAcop(2, AF_LOWER32), SAcop(1, AF_ADDRESS), SAimm(0) });
-            case (TYPE_U64): case (TYPE_I64):
+            case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(2), SAcop(1, AF_ADDRESS), SAimm(0) });
             };
         }
@@ -988,11 +1006,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             {
             case (TYPE_U8): case (TYPE_I8):
                 return SyT(AARCH64_STRB, { SAcop(3, AF_LOWER32), SAcop(1), SAcop(2) });
-            case (TYPE_U16): case (TYPE_I16):
+            case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
                 return SyT(AARCH64_STRH, { SAcop(3, AF_LOWER32), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 1) : SAcop(2) });
-            case (TYPE_U32): case (TYPE_I32):
+            case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
                 return SyT(AARCH64_STR, { SAimm(0), SAcop(3, AF_LOWER32), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 2) : SAcop(2) });
-            case (TYPE_U64): case (TYPE_I64):
+            case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_STR, { SAimm(1), SAcop(3), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 3) : SAcop(2) });
             };
         }
@@ -1332,6 +1350,12 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                               /*index.opcode == VOP_LE?*/AARCH64_FCMGE );
                 return SyT(taropcode, { SAcop(0), SAcop(2), SAcop(1) });
             }
+            else if(isUnsignedInteger(index[1].elemtype))
+            {
+                int taropcode = index.opcode == VOP_LT ? AARCH64_CMHI : (
+                              /*index.opcode == VOP_LE?*/AARCH64_CMHS );
+                return SyT(taropcode, { SAcop(0), SAcop(2), SAcop(1) });
+            }            
             else if(isSignedInteger(index[1].elemtype))
             {
                 int taropcode = index.opcode == VOP_LT ? AARCH64_CMGT : (
@@ -1370,6 +1394,14 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (VOP_BROADCAST):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
             return SyT(AARCH64_DUP, { SAcop(0), SAcop(1) });
+    case (VOP_GETLANE):
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
+          (index[1].elemtype == TYPE_U8   ||
+           index[1].elemtype == TYPE_FP16 || index[1].elemtype == TYPE_U16 ||
+           index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_U32 ||
+           index[1].elemtype == TYPE_FP64 || index[1].elemtype == TYPE_U64 || index[1].elemtype == TYPE_I64))
+            return SyT(AARCH64_UMOV, { SAcop(0), SAcop(1), SAcop(2)});
+        break;
     case (OP_UNSPILL):
         if(index.size() == 2) 
         {
@@ -1717,6 +1749,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_ST1,   "st1"},
         {AARCH64_EXT,   "ext"},
         {AARCH64_DUP,   "dup"},
+        {AARCH64_UMOV,  "umov"},
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },

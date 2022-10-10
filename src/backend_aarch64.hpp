@@ -81,6 +81,7 @@ enum {
     AARCH64_ST1,
     AARCH64_EXT,
     AARCH64_DUP,
+    AARCH64_UMOV,
     AARCH64_B,
     AARCH64_B_NE,
     AARCH64_B_EQ,

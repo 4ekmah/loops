@@ -705,3 +705,19 @@ instruction_set_test()
    703 : cmgt   v31.2d, v0.2d, v0.2d          ; 1f 34 e0 4e  
    704 : cmgt   v0.2d, v31.2d, v0.2d          ; e0 37 e0 4e  
    705 : cmgt   v0.2d, v0.2d, v31.2d          ; 00 34 ff 4e  
+   706 : umov   x0, v0.16b, #0                ; 00 3c 01 0e  
+   707 : umov   x15, v0.16b, #0               ; 0f 3c 01 0e  
+   708 : umov   x0, v31.16b, #0               ; e0 3f 01 0e  
+   709 : umov   x0, v0.16b, #0x0f             ; 00 3c 1f 0e  
+   710 : umov   x0, v0.8h, #0                 ; 00 3c 02 0e  
+   711 : umov   x15, v0.8h, #0                ; 0f 3c 02 0e  
+   712 : umov   x0, v31.8h, #0                ; e0 3f 02 0e  
+   713 : umov   x0, v0.8h, #0x07              ; 00 3c 1e 0e  
+   714 : umov   x0, v0.4s, #0                 ; 00 3c 04 0e  
+   715 : umov   x15, v0.4s, #0                ; 0f 3c 04 0e  
+   716 : umov   x0, v31.4s, #0                ; e0 3f 04 0e  
+   717 : umov   x0, v0.4s, #0x03              ; 00 3c 1c 0e  
+   718 : umov   x0, v0.2d, #0                 ; 00 3c 08 4e  
+   719 : umov   x15, v0.2d, #0                ; 0f 3c 08 4e  
+   720 : umov   x0, v31.2d, #0                ; e0 3f 08 4e  
+   721 : umov   x0, v0.2d, #0x01              ; 00 3c 18 4e  

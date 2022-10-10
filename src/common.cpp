@@ -325,6 +325,7 @@ namespace loops
     void Context::startFunc(const std::string& name, std::initializer_list<IReg*> params) { static_cast<ContextImpl*>(impl)->startFunc(name, params);    }
     void Context::endFunc() { static_cast<ContextImpl*>(impl)->endFunc(); }
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
+    bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
     IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
     void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
@@ -491,6 +492,12 @@ namespace loops
         if(found == m_functionsStorage.end()) 
             throw std::runtime_error("Cannot find function.");
         return found->second;
+    }
+
+    bool ContextImpl::hasFunc(const std::string& name)
+    {
+        auto found = m_functionsStorage.find(name);
+        return found != m_functionsStorage.end();
     }
     
     std::string ContextImpl::getPlatformName() const

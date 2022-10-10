@@ -902,6 +902,23 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GT, { v31_2u, v0_2s, v0_2s});
     newiopNoret(VOP_GT, { v0_2u, v31_2s, v0_2s});
     newiopNoret(VOP_GT, { v0_2u, v0_2s, v31_2s});
+    
+    newiopNoret(VOP_GETLANE, { x0,  v0_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x15, v0_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0, v31_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,  v0_16u, argIImm(15, _f) });
+    newiopNoret(VOP_GETLANE, { x0,   v0_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x15,  v0_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,  v31_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,   v0_8u, argIImm(7 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,   v0_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x15,  v0_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,  v31_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,   v0_4u, argIImm(3 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,   v0_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x15,  v0_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,  v31_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_GETLANE, { x0,   v0_2u, argIImm(1 , _f)});
 });
 
 };
