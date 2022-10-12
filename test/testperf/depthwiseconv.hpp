@@ -18,7 +18,7 @@ public:
 private:
     typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, int64_t padding_top, int64_t padding_left, int64_t padding_bottom, int64_t padding_right, int32_t* countingPatternPtr); //DUBUG: Delete counting template
     dwconv_t generate(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right);
-    enum { PADCOND = 1, INITDEST = 2, PREINCREMENT_IDXS = 4, PADSHIFTRES = 8 };
+    enum { PADCOND = 1, INITDEST = 2, PREINCREMENT_IDXS = 4, PADSHIFTRES = 8, MULTILINE = 16 };
     void fixedVolumeHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
                             const VReg<uint32_t>& WcondV, const std::vector<VReg<float> >& vkernel, IReg& x, 
                             IReg& base, const IReg& W, const IReg& result_rs, const IReg& padding_left,
@@ -29,6 +29,7 @@ private:
     bool compare(float* tocheck, float* ref, int C, int H, int W);
     Context CTX;
     std::ostream* out;
+    static const int RLinesAmount;
 };
 };
 
