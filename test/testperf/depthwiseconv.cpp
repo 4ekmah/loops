@@ -17,6 +17,9 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
+
+const int DepthwiseconvTest::RLinesAmount = 3;
+
 DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
 
 template<class T>
@@ -44,7 +47,6 @@ void DepthwiseconvTest::run()
 {
     const int TESTITERATIONS = 30;
     std::vector< std::vector<int> > fixtures = {
-        // {3, 3,  3, 10, 10, 0, 1, 0, 1}, //DUBUGGG
         {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
         {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
         {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
@@ -52,17 +54,16 @@ void DepthwiseconvTest::run()
         {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
         {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
         {9, 9,  32, 200, 200, 0, 1, 0, 1},
-        {9, 9, 256,  40,  40, 0, 1, 0, 1}
+        {9, 9, 256,  40,  40, 0, 1, 0, 1},
 
-
-        // {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
-        // {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
-        // {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
-        // {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
-        // {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
-        // {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
-        // {9, 9,  32, 200, 200, 0, 0, 0, 0},
-        // {9, 9, 256,  40,  40, 0, 0, 0, 0}
+        {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
+        {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
+        {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
+        {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
+        {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
+        {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
+        {9, 9,  32, 200, 200, 0, 0, 0, 0},
+        {9, 9, 256,  40,  40, 0, 0, 0, 0}
 //      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
     };
     for(auto fxt: fixtures)
@@ -76,6 +77,7 @@ void DepthwiseconvTest::run()
         const int padding_left = fxt[6];
         const int padding_bottom = fxt[7];
         const int padding_right = fxt[8];
+        bool padding = padding_top || padding_left || padding_bottom || padding_right;
         /*const*/ int H0 = H-kh+1+padding_top+padding_bottom;
         /*const*/ int W0 = W-kw+1+padding_left+padding_right;
         // if(W0%4)
@@ -97,30 +99,31 @@ void DepthwiseconvTest::run()
         float* optr = &(outdata[0]) + H0*W0*C; //DUBUGGG: Delete this index
         float* optrref = &(outdataref[0]);
         gendata(inptr, kptr, bptr,kh,kw, H, W, C);
-        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << std::endl;
+        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << (padding ? " with padding" : "") << std::endl;
         ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, kh, kw, padding_top, padding_left, padding_bottom, padding_right);
         int32_t countingPattern[] = {0,1,2,3};
         Timer t;
+        int ret;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
             t.start();
-            func(inptr, kptr, bptr, H, W, C, optr, H0, W0, padding_top, padding_left, padding_bottom, padding_right, countingPattern);
+            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, padding_top, padding_left, padding_bottom, padding_right, countingPattern);
             t.stop();
         }
+        // std::cout<<"DUBUGGG:"<< ret <<std::endl;// return;
         if(compare(optr, optrref, C, H0, W0))
             (*out)<<"    Optimized time = "<<t.str()<<std::endl;
         else
         {
-            printData(inptr, H, W);
-            printData(optrref, H0, W0);
-            printData(optr, H0, W0);
+            // printData(inptr + H*W, H, W);
+            // printData(optrref + H0*W0, H0, W0);
+            // printData(optr + H0*W0, H0, W0);
             return;
         }
     }
 }
 
 //#define HORIZONTAL_OFFSET
-#define RLINES_AMOUNT 3
 DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_)
 {
     std::string funcname = "depthwise_convolution_";
@@ -131,7 +134,6 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
     if(padver) funcname += "_padver";
     if(CTX.hasFunc(funcname))
         return (dwconv_t)(CTX.getFunc(funcname).ptr());
-    const int RLinesAmount = RLINES_AMOUNT; 
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<float>() + (kernelRegsAmount%CTX.vlanes<float>()?1:0);
     const int elemsize = sizeof(float);
@@ -151,7 +153,7 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                 horoff[kcol].rawcopy(CONST_(kcol*elemsize));
 #endif //HORIZONTAL_OFFSET
         IReg residX = W0 % CTX.vlanes<float>();
-        IReg xvectorend_ = W0 - residX; //Also it is halide trick condition
+        IReg xvectorend_ = padhor ? W0 - residX - padding_left : W0 - residX; //Also it is halide trick condition
         IReg hldx = W0 - CTX.vlanes<float>();
         IReg residL = H0 % RLinesAmount;
         IReg restL = CONST_(RLinesAmount) - residL;
@@ -288,14 +290,15 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                     x += CTX.vlanes<float>();
                 }
 #else// HORIZONTAL_OFFSET
+                IReg Wcond;
                 VReg<uint32_t> WcondV;
                 VReg<int32_t> idx_step;
                 if(padhor)
                 {
+                    Wcond.rawcopy(max(W - kw - 2, CONST_(0)));
                     WcondV.rawcopy(VReg<uint32_t>(W));
                     idx_step.rawcopy(VCONST_(int32_t, CTX.vlanes<float>()));
                 }
-                IReg Wcond = max(W - kw - 2, CONST_(0));
                 WHILE_(x < xvectorend)
                 {
                     IReg data__ = data_rs + (x << elemshift);
@@ -319,32 +322,58 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                                             padding_left, elemsize, kh, kw, 0);
                 }
 #endif// HORIZONTAL_OFFSET
-                // WHILE_(x < W0)
-                // {        
-                //     VReg<float> vres = vbias;
-                //     IReg data__ = data_rs + x * elemsize;
-                //     IReg kernel__ = kernel;
-                //     IReg kcol = CONST_(0);
-                //     IReg krowrest = CONST_(kh);
-                //     IReg istride = (W - (kw-1)) * elemsize;
-                //     //We are working here at ends of arrays and there possibility of reading/ writing end of
-                //     //page, thus it's better to not use loadlane and storelane instructions: 
-                //     //even if base+(lane + 1)*elemsize  is inside of valid memory, tail can be outside and 
-                //     //this can cause memory exception. So, we are using general load/store operation instead. 
-                //     WHILE_(krowrest > 0)
-                //     {
-                //         VReg<float> justloaded = load_<float>(data__);
-                //         VReg<float> w = load_<float>(kernel__);
-                //         vres = fma(vres, justloaded, w);
-                //         kernel__ += elemsize;
-                //         kcol = kcol + 1;
-                //         data__ = select(kcol == kw, data__ + istride, data__ + elemsize);
-                //         krowrest = select(kcol == kw, krowrest - 1, krowrest);
-                //         kcol = select(kcol == kw, 0, kcol);
-                //     }
-                //     store_<float>(result_rs + x * elemsize, getlane<float>(vres, 0));
-                //     x += 1;
-                // }                
+                IReg scalarend_;
+                IReg* scalarend;
+                if(padhor || padver)
+                {
+                    scalarend_.rawcopy(W0-padding_left);
+                    scalarend = &scalarend_;
+                }
+                else
+                    scalarend = &W0;
+                WHILE_(x < *scalarend)
+                {
+                    VReg<float> vres = vbias;
+                    IReg data__ = data_rs + x * elemsize;
+                    IReg kernel__ = kernel;
+                    IReg kcol = CONST_(0);
+                    IReg krow = CONST_(0);
+                    IReg istride = (W - (kw-1)) * elemsize;
+                    //We are working here at ends of arrays and there possibility of reading/ writing end of
+                    //page, thus it's better to not use loadlane and storelane instructions: 
+                    //even if base+(lane + 1)*elemsize  is inside of valid memory, tail can be outside and 
+                    //this can cause memory exception. So, we are using general load/store operation instead. 
+                    WHILE_(krow < kh)
+                    {
+                        if(padhor | padver)
+                        {
+                            IReg ex = x + kcol;
+                            IReg ey = y + krow;
+                            select(ex < 0, W, ex);
+                            select(ey < 0, H, ey);
+                            IF_(ex<W)
+                                IF_(ey<H)
+                                {
+                                    VReg<float> justloaded = load_<float>(data__);
+                                    VReg<float> w = load_<float>(kernel__);
+                                    vres = fma(vres, justloaded, w);
+                                }
+                        }
+                        else
+                        {
+                            VReg<float> justloaded = load_<float>(data__);
+                            VReg<float> w = load_<float>(kernel__);
+                            vres = fma(vres, justloaded, w);
+                        }
+                        kernel__ += elemsize;
+                        kcol = kcol + 1;
+                        data__ = select(kcol == kw, data__ + istride, data__ + elemsize);
+                        krow = select(kcol == kw, krow + 1, krow);
+                        kcol = select(kcol == kw, 0, kcol);
+                    }
+                    store_<float>(result_rs + (((padhor||padver) ? x + padding_left : x)<<elemshift), getlane<float>(vres, 0));
+                    x += 1;
+                }
                 y += 1;
             }
             data += H * W * elemsize;
