@@ -211,8 +211,11 @@ template<typename _Tp> struct VReg
 
     VReg() : idx(NOIDX), func(nullptr) {}
     VReg(const VReg<_Tp>& r);
+    VReg(const IReg& r);
     VReg(VReg<_Tp>&& a) noexcept : func(a.func), idx(a.idx) {}
     VReg<_Tp>& operator=(const VReg<_Tp>& r);
+    VReg<_Tp>& operator=(const IReg& r); //Be careful with types.
+    void rawcopy(const VReg<_Tp>& from);
 
     int idx;
     Func* func;
@@ -592,7 +595,7 @@ template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
-{ return newiopV<_Tp>(VOP_ARM_LD1, {base, lane_index}); }
+{ return newiopV<_Tp>(VOP_ARM_LD1, {lane_index, base}); }
 
 // cast and store
 template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
@@ -759,7 +762,23 @@ Context ExtractContext(const Arg& arg);
 template<typename _Tp>
 VReg<_Tp>::VReg(const VReg<_Tp>& r)
 {
-    VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
+    if(r.func != nullptr)
+    {
+        VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
+        idx = selfval.idx;
+        func = selfval.func;
+    }
+    else
+    {
+        idx = NOIDX;
+        func = nullptr;
+    }
+}
+
+template<typename _Tp>
+VReg<_Tp>::VReg(const IReg& r)
+{
+    VReg<_Tp> selfval = newiopV<_Tp>(VOP_BROADCAST, { r });
     idx = selfval.idx;
     func = selfval.func;
 }
@@ -773,6 +792,24 @@ VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
         throw std::runtime_error("Null motherfunction.");
     newiopNoret(OP_MOV, {*this, r});
     return (*this);
+}
+
+template<typename _Tp>
+VReg<_Tp>& VReg<_Tp>::operator=(const IReg& r)
+{
+    if (r.func != func)
+        throw std::runtime_error("Registers of different functions as arguments of one instruction.");
+    if (func == nullptr)
+        throw std::runtime_error("Null motherfunction.");
+    newiopNoret(VOP_BROADCAST, {*this, r});
+    return (*this);
+}
+
+template<typename _Tp>
+void VReg<_Tp>::rawcopy(const VReg<_Tp>& from)
+{
+    func = from.func;
+    idx = from.idx;
 }
 
 template<typename _Tp>
