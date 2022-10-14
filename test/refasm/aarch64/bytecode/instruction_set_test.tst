@@ -721,3 +721,7 @@ instruction_set_test()
    719 : getlane.u64    i15, v0, 0                 
    720 : getlane.u64    i0, v31, 0                 
    721 : getlane.u64    i0, v0, 1                  
+   722 : select         v0, v0, v0, v0             
+   723 : select         v31, v31, v0, v0           
+   724 : select         v0, v0, v31, v0            
+   725 : select         v0, v0, v0, v31            

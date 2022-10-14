@@ -124,6 +124,7 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
     std::string funcname = "depthwise_convolution_";
     const bool padver = (padding_top_ || padding_bottom_);
     const bool padhor = (padding_left_ || padding_right_);
+    int handlerFlags = (padhor ? PADHOR : 0) | (padver ? PADVER : 0); 
     funcname += std::to_string(kh) + "_" + std::to_string(kw);
     if(padhor) funcname += "_padhor";
     if(padver) funcname += "_padver";
@@ -198,9 +199,14 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                 IReg data_rs = data + W * elemsize * y; //TODO(ch): It's possible to rewrite via afterline increment.
                 IReg result_rs = result + W0 * elemsize * y;
                 IReg x = (padhor ? -padding_left : CONST_(0));
-                IReg Wcond;
-                VReg<uint32_t> WcondV;
+                IReg Wcond, Hcond;
+                VReg<uint32_t> WcondV, HcondV;
                 VReg<int32_t> idx_step;
+                if(padver)
+                {
+                    Hcond.rawcopy(max(H - kh - 2, CONST_(0)));
+                    HcondV.rawcopy(VReg<uint32_t>(H));   
+                }
                 if(padhor)
                 {
                     Wcond.rawcopy(max(W - kw - 2, CONST_(0)));
@@ -222,21 +228,35 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                     IReg data__ = data_rs + (x << elemshift);
                     if(padhor)
                     {
-                        IReg xcond = select(x < 0, Wcond, x);//DUBUGGG: just find unsigned comparisson.
-                        IF_(xcond<Wcond)
+                        IReg ycond, xcond, yi_;
+                        IReg* yi;
+                        if(padver)
                         {
-                            fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
+                            yi_.rawcopy(y - padding_bottom);
+                            yi = &yi_;
+                            ycond.rawcopy(select((*yi) < 0, Hcond, x));
+                            if(padhor)
+                            {
+                                xcond.rawcopy(select(ycond < Hcond, Wcond, x));
+                                xcond = select(x < 0, Wcond, x);
+                            }
+                        }
+                        else 
+                            xcond.rawcopy(select(x < 0, Wcond, x));
+                        IF_(padhor?xcond<Wcond:ycond<Hcond)
+                        {
+                            fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, *yi, x, data__, W, W0, result_rs, 
                                                 padding_left, elemsize, kh, kw, PADSHIFTRES | MULTILINE);
                             CONTINUE_;
                         }
                         ELSE_
                         {
-                            fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
-                                            padding_left, elemsize, kh, kw,  PADCOND | PADSHIFTRES | MULTILINE);
+                            fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, *yi, x, data__, W, W0, result_rs, 
+                                            padding_left, elemsize, kh, kw,  handlerFlags | PADSHIFTRES | MULTILINE);
                         }
                     }
                     else 
-                        fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
+                        fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, y, x, data__, W, W0, result_rs, 
                                             padding_left, elemsize, kh, kw, MULTILINE);
                 }
                 y += RLinesAmount;
@@ -332,9 +352,17 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                     x += CTX.vlanes<float>();
                 }
 #else// HORIZONTAL_OFFSET
-                IReg Wcond;
-                VReg<uint32_t> WcondV;
+                IReg Wcond, Hcond;
+                VReg<uint32_t> WcondV, HcondV;
                 VReg<int32_t> idx_step;
+                if(padver)
+                {//DUBUGGG: We need static dummy empty initizlizer
+                 //IReg IReg::noinit;
+                 //Than Hcond init wiil look like:
+                 //IReg Hcond = (padver ? max(H - kh - 2, CONST_(0)): IReg::noinit); 
+                    Hcond.rawcopy(max(H - kh - 2, CONST_(0)));
+                    HcondV.rawcopy(VReg<uint32_t>(H));   
+                }
                 if(padhor)
                 {
                     Wcond.rawcopy(max(W - kw - 2, CONST_(0)));
@@ -344,23 +372,40 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                 WHILE_(x < xvectorend)
                 {
                     IReg data__ = data_rs + (x << elemshift);
-                    if(padhor)
+                    if(padhor||padver)
                     {
-                        IReg xcond = select(x < 0, Wcond, x);//DUBUGGG: just find unsigned comparisson.
-                        IF_(xcond<Wcond)
+                        //DUBUGGG: Try to reuse rawcopy instead of pointer schemes.
+                        IReg ycond;
+                        IReg xcond;
+                        IReg yi_;
+                        IReg* yi;
+                        if(padver)
                         {
-                            fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
+                            yi_.rawcopy(y - padding_bottom);
+                            yi = &yi_;
+                            ycond.rawcopy(select((*yi) < 0, Hcond, x));
+                            if(padhor)
+                            {
+                                xcond.rawcopy(select(ycond < Hcond, Wcond, x)); //DUBUGGG: just find unsigned comparisson.
+                                xcond = select(x < 0, Wcond, x);
+                            }
+                        }
+                        else 
+                            xcond.rawcopy(select(x < 0, Wcond, x));
+                        IF_(padhor?xcond<Wcond:ycond<Hcond)
+                        {
+                            fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, *yi, x, data__, W, W0, result_rs, 
                                                 padding_left, elemsize, kh, kw, PADSHIFTRES);
                             CONTINUE_;
                         }
                         ELSE_
                         {
-                            fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
-                                            padding_left, elemsize, kh, kw,  PADCOND | PADSHIFTRES);
+                            fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, *yi, x, data__, W, W0, result_rs, 
+                                            padding_left, elemsize, kh, kw,  handlerFlags | PADSHIFTRES);
                         }
                     }
                     else 
-                        fixedVolumeHandler(vbias, countingPattern, idx_step, WcondV, vkernel, x, data__, W, W0, result_rs, 
+                        fixedVolumeHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, y, x, data__, W, W0, result_rs, 
                                             padding_left, elemsize, kh, kw, 0);
                 }
 #endif// HORIZONTAL_OFFSET
@@ -390,7 +435,7 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                         if(padhor | padver)
                         {
                             IReg ex = x + kcol;
-                            IReg ey = y + krow;
+                            IReg ey = (padver ? y : y - padding_top) + krow;
                             select(ex < 0, W, ex);
                             select(ey < 0, H, ey);
                             IF_(ex<W)
@@ -430,9 +475,10 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
 }
 
 void DepthwiseconvTest::fixedVolumeHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
-                                           const VReg<uint32_t>& WcondV, const std::vector<VReg<float> >& vkernel, IReg& x, 
+                                           const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV,  const std::vector<VReg<float> >& vkernel, IReg& yi, IReg& x, 
                                            IReg& base, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
                                            int elemsize, int kh, int kw,  int flags)
+
 {
     USE_CONTEXT_(CTX);
     int effectiveLines = (flags & MULTILINE ? RLinesAmount : 1); 
@@ -441,12 +487,15 @@ void DepthwiseconvTest::fixedVolumeHandler(const VReg<float>& vbias, const VReg<
         vres[rnum].rawcopy(VReg<float>(vbias)); 
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     VReg<int32_t> horIdxs;
-    int lvflags = flags&PADCOND;
-    if(flags&PADCOND) 
+    int lvflags = flags&(PADHOR|PADVER);
+    if(flags&PADHOR) 
     {
         horIdxs.rawcopy(VReg<int32_t>(x));//DUBUGGG: motivation to forbid broadcast via operator= or at least add explicit broadcast function.
         horIdxs += countingPattern;
     }
+    if(flags&PADVER)
+        horIdxs = select(VReg<uint32_t>(yi) < HcondV, horIdxs, reinterpret<int32_t>(WcondV));
+
     for(int lrow = 0; lrow < kh + effectiveLines - 1; lrow++) 
     {
         VReg<float> loadedHalf0_, loadedHalf1_;
@@ -484,8 +533,15 @@ void DepthwiseconvTest::fixedVolumeHandler(const VReg<float>& vbias, const VReg<
         if(lrow + 2 < kh + effectiveLines) //Not last loaded row
         {
             base += W * elemsize;
-            if(flags&PADCOND) 
+            if(flags&PADHOR)
+            {
                 horIdxs = countingPattern + VReg<int32_t>(x);
+                if(flags&PADVER)
+                {
+                    yi = yi + 1;
+                    horIdxs = select(VReg<uint32_t>(yi) < HcondV, horIdxs, reinterpret<int32_t>(WcondV));
+                }
+            }
         }
     }
     IReg roffset = ((flags&PADSHIFTRES) ? x + padding_left : x) << elemshift;
@@ -505,7 +561,7 @@ void DepthwiseconvTest::loadVector(const IReg& base, int64_t offset, VReg<float>
         dest.rawcopy(loadvec<float>(base, offset));
     else
         dest = loadvec<float>(base, offset);
-    if(flags&PADCOND)
+    if(flags&(PADHOR|PADVER))
     {
         if(flags&PREINCREMENT_IDXS)
             horIdxs += idx_step;

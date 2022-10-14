@@ -175,6 +175,7 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {VOP_OR,      "or"},
     {VOP_XOR,     "xor"},
     {VOP_NOT,     "not"},
+    {VOP_SELECT,  "select"},
     {OP_RET,      "ret"},
     {OP_X86_ADC,  "x86_adc"},
     {OP_X86_CQO,  "x86_cqo"},
