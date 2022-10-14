@@ -21,7 +21,7 @@ private:
     enum { PADCOND = 1, INITDEST = 2, PREINCREMENT_IDXS = 4, PADSHIFTRES = 8, MULTILINE = 16 };
     void fixedVolumeHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
                             const VReg<uint32_t>& WcondV, const std::vector<VReg<float> >& vkernel, IReg& x, 
-                            IReg& base, const IReg& W, const IReg& result_rs, const IReg& padding_left,
+                            IReg& base, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
                             int elemsize, int kh, int kw,  int flags);
     void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<int32_t>& idx_step, const VReg<uint32_t>& WcondV, int flags = 0);
     void gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C);
