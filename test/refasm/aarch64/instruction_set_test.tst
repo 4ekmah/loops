@@ -721,3 +721,7 @@ instruction_set_test()
    719 : umov   x15, v0.2d, #0                ; 0f 3c 08 4e  
    720 : umov   x0, v31.2d, #0                ; e0 3f 08 4e  
    721 : umov   x0, v0.2d, #0x01              ; 00 3c 18 4e  
+   722 : bsl    v0.16b, v0.16b, v0.16b        ; 00 1c 60 6e  
+   723 : bsl    v31.16b, v0.16b, v0.16b       ; 1f 1c 60 6e  
+   724 : bsl    v0.16b, v31.16b, v0.16b       ; e0 1f 60 6e  
+   725 : bsl    v0.16b, v0.16b, v31.16b       ; 00 1c 7f 6e  

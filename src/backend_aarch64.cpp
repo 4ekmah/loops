@@ -342,6 +342,10 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                  isInteger(index[0].elemtype))
             return BiT({ BTsta(0b0110111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
+    case (AARCH64_BSL):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+           elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && index[1].elemtype == index[2].elemtype)
+            return BiT({ BTsta(0b01101110011, 11), BTreg(2, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
     case (AARCH64_NEG):
         if (index.size() == 2)
         {
@@ -1300,6 +1304,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         }
         break;
     case (VOP_NOT):     return SyT(AARCH64_MVN, { SAcop(0), SAcop(1) });
+    case (VOP_SELECT): 
+        if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[3].tag == Arg::VREG &&
+           elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && index[0].elemtype == index[2].elemtype && index[0].elemtype == index[3].elemtype && index[0].idx == index[1].idx)
+            return SyT(AARCH64_BSL, { SAcop(0), SAcop(2), SAcop(3) });
+        break;
     case (VOP_MIN):
     case (VOP_MAX):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
@@ -1495,6 +1504,7 @@ size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<siz
     {
     case (OP_MOV):
     case (VOP_FMA):
+    case (VOP_SELECT):
     {
         if (undefinedArgNums.count(1))
             return 1;
@@ -1521,6 +1531,7 @@ size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
         switch (a_op.opcode)
         {
         case (VOP_FMA):
+        case (VOP_SELECT):
             if(a_op.size() == 5) 
                 return 2;
             if(a_op.size() == 4) 
@@ -1570,6 +1581,7 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             break;
         }
         case (VOP_FMA):
+        case (VOP_SELECT):
         {
             Assert((a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG) ||
                    (a_op.size() == 5 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG && a_op[4].tag == Arg::IIMMEDIATE));
@@ -1710,6 +1722,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_EOR,   "eor"  },
         {AARCH64_NEG,   "neg"  },
         {AARCH64_MVN,   "mvn"  },
+        {AARCH64_BSL,   "bsl"  },
         {AARCH64_CMP,   "cmp"  },
         {AARCH64_CSEL,  "csel" },
         {AARCH64_CINC,  "cinc" },
@@ -1960,6 +1973,7 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
             newProg.push_back(Syntop(VOP_NOT, { op[0], op[0] }));
             break;
         case VOP_FMA:
+        case VOP_SELECT:
         {
             Assert((op.size() == 4 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG) ||
                    (op.size() == 5 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG && op[4].tag == Arg::IIMMEDIATE));
@@ -1998,9 +2012,9 @@ void AArch64ARASnippets::process(Syntfunc& a_processed) const
             if(op[0].idx != op[1].idx)
                 newProg.push_back(Syntop(OP_MOV , { op[0], op[1] }));
             if(laneVersion)
-                newProg.push_back(Syntop(VOP_FMA, { op[0], op[0], op[2], op[3], op[4] }));
+                newProg.push_back(Syntop(op.opcode, { op[0], op[0], op[2], op[3], op[4] }));
             else
-                newProg.push_back(Syntop(VOP_FMA, { op[0], op[0], op[2], op[3] }));
+                newProg.push_back(Syntop(op.opcode, { op[0], op[0], op[2], op[3] }));
             if(unspillFp16)
                 newProg.push_back(Syntop(OP_UNSPILL, { placeholderfp16, 0 }));
             if(unspill)

@@ -919,6 +919,11 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GETLANE, { x15,  v0_2u, argIImm(0 , _f)});
     newiopNoret(VOP_GETLANE, { x0,  v31_2u, argIImm(0 , _f)});
     newiopNoret(VOP_GETLANE, { x0,   v0_2u, argIImm(1 , _f)});
+
+    newiopNoret(VOP_SELECT, { v0_16u, v0_16u, v0_16u,   v0_16u});
+    newiopNoret(VOP_SELECT, { v31_16u, v31_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_SELECT, { v0_16u, v0_16u, v31_16u,  v0_16u});
+    newiopNoret(VOP_SELECT, { v0_16u, v0_16u, v0_16u,  v31_16u});
 });
 
 };

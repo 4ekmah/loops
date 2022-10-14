@@ -109,6 +109,7 @@ enum {
     VOP_LE,
     VOP_NE,
     VOP_EQ,
+    VOP_SELECT,
     
     VOP_ALL,
     VOP_ANY,
@@ -681,7 +682,8 @@ template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator > (cons
 { return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GT, {a, b});}
 template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LT, {a, b});}
-//template<typename _Tp> VReg<_Tp> select(const VReg<_Tp>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse);
+template<typename _Tp> VReg<_Tp> select(const VReg<typename ElemTraits<_Tp>::masktype>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse)
+{ return newiopV<_Tp>(VOP_SELECT, {flag, iftrue, iffalse}); }
 template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_MAX, {a, b}); }
 template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
