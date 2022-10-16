@@ -23,7 +23,7 @@ private:
                             const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV,  const std::vector<VReg<float> >& vkernel, IReg& yi, IReg& x, 
                             IReg& base, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
                             int elemsize, int kh, int kw,  int flags);
-    void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<int32_t>& idx_step, const VReg<uint32_t>& WcondV, int flags = 0);
+    void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<int32_t>& idx_step, const VReg<uint32_t>& WcondV, int flags = 0);
     void gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C);
     void ref(float* data, float* kernel, float* bias, int H, int W, int C, float* result, int H0, int W0, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right);
     bool compare(float* tocheck, float* ref, int C, int H, int W);
