@@ -96,7 +96,9 @@ enum AArch64IC
     AARCH64_IC_NE = 0b0001,
     AARCH64_IC_LT = 0b1011,
     AARCH64_IC_GT = 0b1100,
+    AARCH64_IC_HI = 0b1000,
     AARCH64_IC_LE = 0b1101,
+    AARCH64_IC_LS = 0b1001,
     AARCH64_IC_GE = 0b1010,
     AARCH64_IC_MI = 0b0100,
     AARCH64_IC_PL = 0b0101,
@@ -116,14 +118,16 @@ bool encodeImmShift(int64_t shift, int etyp, uint64_t& immh, uint64_t& immb)
 
 static inline int ICbytecode2Aarch64(int ic)
 {
-    return ic == IC_NE ? AARCH64_IC_NE : (
-           ic == IC_EQ ? AARCH64_IC_EQ: (
-           ic == IC_GE ? AARCH64_IC_GE : (
-           ic == IC_LE ? AARCH64_IC_LE : (
-           ic == IC_GT ? AARCH64_IC_GT: (
-           ic == IC_LT ? AARCH64_IC_LT: (
-           ic == IC_S  ? AARCH64_IC_MI : (
-         /*ic == IC_NS?*/AARCH64_IC_PL /* : throw error*/)))))));
+    return ic == IC_NE  ? AARCH64_IC_NE : (
+           ic == IC_EQ  ? AARCH64_IC_EQ : (
+           ic == IC_GE  ? AARCH64_IC_GE : (
+           ic == IC_LE  ? AARCH64_IC_LE : (
+           ic == IC_ULE ? AARCH64_IC_LS : (
+           ic == IC_GT  ? AARCH64_IC_GT : (
+           ic == IC_UGT ? AARCH64_IC_HI : (
+           ic == IC_LT  ? AARCH64_IC_LT : (
+           ic == IC_S   ? AARCH64_IC_MI : (
+         /*ic == IC_NS?*/AARCH64_IC_PL /* : throw error*/)))))))));
 }
 
 static inline int invertAarch64IC(int ic) { return ic^0b1; }
@@ -851,12 +855,14 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;    
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
-    case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0x1, 5) });
-    case (AARCH64_B_EQ): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0x0, 5) });
-    case (AARCH64_B_LT): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0xB, 5) });
-    case (AARCH64_B_LE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0xD, 5) });
-    case (AARCH64_B_GT): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0xC, 5) });
-    case (AARCH64_B_GE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(0xA, 5) });
+    case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
+    case (AARCH64_B_EQ): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_EQ, 5) });
+    case (AARCH64_B_LT): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_LT, 5) });
+    case (AARCH64_B_LE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_LE, 5) });
+    case (AARCH64_B_LS): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_LS, 5) });
+    case (AARCH64_B_GT): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_GT, 5) });
+    case (AARCH64_B_HI): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_HI, 5) });
+    case (AARCH64_B_GE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_GE, 5) });
     case (AARCH64_RET): return BiT({ BTsta(0x3597C0, 22), BTreg(0, 5, In), BTsta(0x0,5) });
     default:
         break;
@@ -1431,7 +1437,9 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_JMP_EQ):   return SyT(AARCH64_B_EQ,{ SAcopsar(0, 2, AF_PRINTOFFSET) });  //so, for compactification, they are divided by 4.
     case (OP_JMP_LT):   return SyT(AARCH64_B_LT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
     case (OP_JMP_GT):   return SyT(AARCH64_B_GT,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP_UGT):  return SyT(AARCH64_B_HI,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
     case (OP_JMP_LE):   return SyT(AARCH64_B_LE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
+    case (OP_JMP_ULE):  return SyT(AARCH64_B_LS,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
     case (OP_JMP_GE):   return SyT(AARCH64_B_GE,{ SAcopsar(0, 2, AF_PRINTOFFSET) });
     case (OP_JMP):      return SyT(AARCH64_B,   { SAcopsar(0, 2, AF_PRINTOFFSET) });
     case (OP_RET):      return SyT(AARCH64_RET, { SAreg(LR) });
@@ -1610,7 +1618,9 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
         case (OP_JMP_EQ):
         case (OP_JMP_LT):
         case (OP_JMP_GT):
+        case (OP_JMP_UGT):
         case (OP_JMP_LE):
+        case (OP_JMP_ULE):
         case (OP_JMP_GE):
         case (OP_JMP):
         {
@@ -1768,8 +1778,10 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_B_EQ,  "b.eq" },
         {AARCH64_B_LT,  "b.lt" },
         {AARCH64_B_GT,  "b.gt" },
+        {AARCH64_B_HI,  "b.hi" },
         {AARCH64_B_GE,  "b.ge" },
         {AARCH64_B_LE,  "b.le" },
+        {AARCH64_B_LS,  "b.ls" },
         {AARCH64_RET,   "ret"  }});
     return ret;
 }
