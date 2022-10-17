@@ -19,9 +19,13 @@ private:
     typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, int64_t padding_top, int64_t padding_left, int64_t padding_bottom, int64_t padding_right, int32_t* countingPatternPtr); //DUBUG: Delete counting template
     dwconv_t generate(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right);
     enum { PADHOR = 1, PADVER = 2, INITDEST = 4, PREINCREMENT_IDXS = 8, PADSHIFTRES = 16, MULTILINE = 32 };
-    void fixedVolumeHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
+    void multilineHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
                             const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV,  const std::vector<VReg<float> >& vkernel, IReg& yi, IReg& x, 
                             IReg& base, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
+                            int elemsize, int kh, int kw,  int flags);
+    void onlylineHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
+                            const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV,  const IReg& kernel, IReg& yi, IReg& x, 
+                            IReg& base, const IReg& H, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
                             int elemsize, int kh, int kw,  int flags);
     void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<int32_t>& idx_step, const VReg<uint32_t>& WcondV, int flags = 0);
     void gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C);

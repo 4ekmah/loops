@@ -88,7 +88,9 @@ enum {
     AARCH64_B_EQ,
     AARCH64_B_LT,
     AARCH64_B_LE,
+    AARCH64_B_LS,
     AARCH64_B_GT,
+    AARCH64_B_HI,
     AARCH64_B_GE,
     AARCH64_RET
 };

@@ -160,7 +160,9 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_JMP_NE,   "jmp_ne"},
     {OP_JMP_GE,   "jmp_ge"},
     {OP_JMP_LE,   "jmp_le"},
+    {OP_JMP_ULE,  "jmp_ule"},
     {OP_JMP_GT,   "jmp_gt"},
+    {OP_JMP_UGT,  "jmp_ugt"},
     {OP_JMP_LT,   "jmp_gt"},
     {OP_SPILL,    "spill"},
     {OP_UNSPILL,  "unspill"},
@@ -758,14 +760,16 @@ void FuncImpl::controlBlocks2Jumps()
 
 int FuncImpl::condition2jumptype(int cond)
 {
-    return cond == IC_EQ ? OP_JMP_EQ : (
-           cond == IC_NE ? OP_JMP_NE : (
-           cond == IC_LT ? OP_JMP_LT : (
-           cond == IC_GT ? OP_JMP_GT : (
-           cond == IC_LE ? OP_JMP_LE : (
-           cond == IC_GE ? OP_JMP_GE : OP_JMP )))));
-         //cond == IC_S  ? OP_JMP_S  : (
-         //cond == IC_NS ? OP_JMP_NS : IC_UNKNOWN)))))));
+    return cond == IC_EQ  ? OP_JMP_EQ  : (
+           cond == IC_NE  ? OP_JMP_NE  : (
+           cond == IC_LT  ? OP_JMP_LT  : (
+           cond == IC_GT  ? OP_JMP_GT  : (
+           cond == IC_UGT ? OP_JMP_UGT : (
+           cond == IC_LE  ? OP_JMP_LE  : (
+           cond == IC_ULE ? OP_JMP_ULE : (
+           cond == IC_GE  ? OP_JMP_GE  : OP_JMP )))))));
+         //cond == IC_S   ? OP_JMP_S   : (
+         //cond == IC_NS  ? OP_JMP_NS  : IC_UNKNOWN)))))));
 }
 
 };

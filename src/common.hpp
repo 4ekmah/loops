@@ -148,7 +148,9 @@ namespace loops
         IC_NE,
         IC_LT,
         IC_GT,
+        IC_UGT,
         IC_LE,
+        IC_ULE,
         IC_GE,
         IC_S,
         IC_NS,
@@ -157,14 +159,16 @@ namespace loops
 
     inline int invertCondition(int condition)
     {
-        return condition == IC_EQ ? IC_NE : (
-               condition == IC_NE ? IC_EQ : (
-               condition == IC_LT ? IC_GE : (
-               condition == IC_GT ? IC_LE : (
-               condition == IC_LE ? IC_GT : (
-               condition == IC_GE ? IC_LT : (
-               condition == IC_S  ? IC_NS : (
-               condition == IC_NS ? IC_S  : IC_UNKNOWN)))))));
+        return condition == IC_EQ  ? IC_NE : (
+               condition == IC_NE  ? IC_EQ : (
+               condition == IC_LT  ? IC_GE : (
+               condition == IC_GT  ? IC_LE : (
+               condition == IC_UGT ? IC_ULE : (
+               condition == IC_LE  ? IC_GT : (
+               condition == IC_ULE ? IC_UGT : (
+               condition == IC_GE  ? IC_LT : (
+               condition == IC_S   ? IC_NS : (
+               condition == IC_NS  ? IC_S  : IC_UNKNOWN)))))))));
     }
 
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
