@@ -371,6 +371,23 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
 
 int main(int argc, char** argv)
 {
+    bool refNeeded = false;
+    bool loopsNeeded = false;
+    bool MNNNeeded = false;
+    Assert(argc > 1);
+    {
+        int i = 0;
+        while(argv[1][i]!='\0')
+        {
+            switch(argv[1][i])
+            {
+                case ('r'): refNeeded = true; break;
+                case ('l'): loopsNeeded = true; break;
+                case ('m'): MNNNeeded = true; break;
+            }
+            i++;
+        }
+    }
     const int TESTITERATIONS = 30;
     int64_t kh = 13;
     int64_t kw = 13;
@@ -403,46 +420,56 @@ int main(int argc, char** argv)
 
     minmaxpos_t f = reinterpret_cast<minmaxpos_t>(mmlfunc.ptr());
 
-    Timer tr;
-    for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+    std::cout<<"    Maxpooling " << kh << "x" << kw << std::endl;
+    if(refNeeded)
     {
-        tr.start();
-        MaxPool_vec_unroll4(&inp[0], H, W, C, &outR[0], H0, W0, kh, kw);
-        tr.stop();
-    }
-
-    Timer t;
-    for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
-    {
-        t.start();
-        int retval = f(&inp[0], H, W, C, &out0[0], H0, W0);
-        t.stop();
-    }
-
-    Timer tm;
-    {
-        std::vector<float> iRpck = repackData2block(&inp[0], W, H, C);
-        std::vector<float> oRpck(iRpck.size(),0);
+        Timer tr;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
-            int istride = 4*W*H;
-            int ostride = 4*W0*H0;
-            float* iptr = &iRpck[0] + getAlignedElement(&iRpck[0]);
-            float* optr = &oRpck[0] + getAlignedElement(&oRpck[0]);
-            tm.start();
-            for(int c = 0; c < C; c+=4)
-            {
-                poolingMax(iptr, W, H, optr, W0, H0, kw, kh);
-                iptr += istride;
-                optr += ostride;
-            }
-            tm.stop();
+            tr.start();
+            MaxPool_vec_unroll4(&inp[0], H, W, C, &outR[0], H0, W0, kh, kw);
+            tr.stop();
         }
-        outM = repackData2plain(&(oRpck[0]), W0, H0, C);
+        std::cout<<"    Ref time = " <<tr.str() <<std::endl;
     }
 
-    std::cout<<"    Maxpooling " << kh << "x" << kw <<". Ref time = "<<tr.str() <<". Optimized time = "<<t.str()<<std::endl;
-    std::cout<<"    MNN repacked time = "<<tm.str() <<std::endl;
+    if(loopsNeeded)
+    {
+        Timer t;
+        for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+        {
+            t.start();
+            int retval = f(&inp[0], H, W, C, &out0[0], H0, W0);
+            t.stop();
+        }
+        std::cout<<"    Loops time = " <<t.str() <<std::endl;
+    }
+
+    if(MNNNeeded)
+    {
+        Timer tm;
+        {
+            std::vector<float> iRpck = repackData2block(&inp[0], W, H, C);
+            std::vector<float> oRpck(iRpck.size(),0);
+            for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+            {
+                int istride = 4*W*H;
+                int ostride = 4*W0*H0;
+                float* iptr = &iRpck[0] + getAlignedElement(&iRpck[0]);
+                float* optr = &oRpck[0] + getAlignedElement(&oRpck[0]);
+                tm.start();
+                for(int c = 0; c < C; c+=4)
+                {
+                    poolingMax(iptr, W, H, optr, W0, H0, kw, kh);
+                    iptr += istride;
+                    optr += ostride;
+                }
+                tm.stop();
+            }
+            outM = repackData2plain(&(oRpck[0]), W0, H0, C);
+        }
+        std::cout<<"    MNN time = " <<tm.str() <<std::endl;
+    }
 
     // printData(&inp[0], H, W);
 
@@ -450,7 +477,7 @@ int main(int argc, char** argv)
     {
         // EXPECT_EQ(out0[i], out1[i]);
         // EXPECT_EQ(out0[i], out2[i]);
-        if(out0[i] != outM[i])
+        if(out0[i] != outM[i] || out0[i] != outR[i])
         {
             std::cout << "ERROR!!!" << i << std::endl;
             break;
