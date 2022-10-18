@@ -132,6 +132,7 @@ enum {
     VOP_ARM_ST1,
     VOP_ARM_EXT,
     VOP_GETLANE,
+    VOP_SETLANE,
 
     OP_NOINIT
 };
@@ -638,6 +639,8 @@ template<typename _Tp> VReg<_Tp> broadcast(const IReg& scalar)
 { return newiopV<_Tp>(VOP_BROADCAST, { scalar }); }
 template<typename _Tp> IReg getlane(const VReg<_Tp>& r, int64_t lane_index)
 { return newiop(VOP_GETLANE, {r, lane_index}); }
+template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const IReg& i)
+{ newiopNoret(VOP_SETLANE, {v, lane_index, i}); }
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_ADD, {a, b}); }

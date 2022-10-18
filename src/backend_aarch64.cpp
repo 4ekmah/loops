@@ -853,6 +853,19 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(mainSta, 11), BTimm(2,5 - dupSizeSWidth), BTsta(dupSizeStat, dupSizeSWidth),BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;    
+    case (AARCH64_INS):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+        {
+            int elemsize = elemSize(index[0].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
+            uint64_t dupSizeSWidth= dupSizeSWidthes[elemsize];
+            Assert(dupSizeSWidth != WrongStat);
+            static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
+            uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
+            return BiT({ BTsta(0b01001110000, 11), BTimm(1,5 - dupSizeSWidth), BTsta(dupSizeStat, dupSizeSWidth), BTsta(0b000111, 6), BTreg(2, 5, In), BTreg(0, 5, IO) });
+        }
+        break;    
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
@@ -1417,6 +1430,10 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
            index[1].elemtype == TYPE_FP64 || index[1].elemtype == TYPE_U64 || index[1].elemtype == TYPE_I64))
             return SyT(AARCH64_UMOV, { SAcop(0), SAcop(1), SAcop(2)});
         break;
+    case (VOP_SETLANE):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+            return SyT(AARCH64_INS, { SAcop(0), SAcop(1), SAcop(2) });
+        break;
     case (OP_UNSPILL):
         if(index.size() == 2) 
         {
@@ -1768,11 +1785,12 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_FCVTMU,"fcvtmu"},
         {AARCH64_SCVTF, "scvtf"},
         {AARCH64_UCVTF, "ucvtf"},
-        {AARCH64_LD1,   "ld1"},
-        {AARCH64_ST1,   "st1"},
-        {AARCH64_EXT,   "ext"},
-        {AARCH64_DUP,   "dup"},
-        {AARCH64_UMOV,  "umov"},
+        {AARCH64_LD1,   "ld1"  },
+        {AARCH64_ST1,   "st1"  },
+        {AARCH64_EXT,   "ext"  },
+        {AARCH64_DUP,   "dup"  },
+        {AARCH64_UMOV,  "umov" },
+        {AARCH64_INS,   "ins"  },
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },

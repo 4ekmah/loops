@@ -17,125 +17,40 @@ See https://github.com/vpisarev/loops/LICENSE
 
 namespace loops
 {
-const int DepthwiseconvTest::RLinesAmount = 3;
 
-DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
-
-template<class T>
-void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << data[i*W+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(15) << data[i*stride+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-void DepthwiseconvTest::run() 
+class DepthwiseconvGenerator
 {
-    const int TESTITERATIONS = 30;
-    std::vector< std::vector<int> > fixtures = {
-        {3, 3, 3, 10, 10, 0, 0, 0, 0},
-        {3, 3, 3, 10, 10, 1, 0, 0, 0},
-        {3, 3, 3, 10, 10, 0, 1, 0, 0},
-        {3, 3, 3, 10, 10, 0, 0, 1, 0},
-        {3, 3, 3, 10, 10, 0, 0, 0, 1},
-        {3, 3, 3, 10, 10, 1, 0, 1, 0},
-        {3, 3, 3, 10, 10, 0, 1, 0, 1},
-        {3, 3, 3, 10, 10, 1, 1, 1, 1},
-        {3, 3, 3, 9, 9, 0, 0, 0, 0},
-        {3, 3, 3, 9, 9, 1, 0, 0, 0},
-        {3, 3, 3, 9, 9, 0, 1, 0, 0},
-        {3, 3, 3, 9, 9, 0, 0, 1, 0},
-        {3, 3, 3, 9, 9, 0, 0, 0, 1},
-        {3, 3, 3, 9, 9, 1, 0, 1, 0},
-        {3, 3, 3, 9, 9, 0, 1, 0, 1},
-        {3, 3, 3, 9, 9, 1, 1, 1, 1},
+public:
+    DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
+    typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, int64_t padding_top, int64_t padding_left, int64_t padding_bottom, int64_t padding_right);
+    dwconv_t generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_);
+private:
+    bool m_done; 
+    Context CTX;
+    static const int RLinesAmount;
+    enum { PADHOR = 1, PADVER = 2, INITDEST = 4, PREINCREMENT_IDXS = 8, PADSHIFTRES = 16, MULTILINE = 32 };
+    void multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
+    void onlylineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
+    void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags = 0);
 
-        {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
-        {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
-        {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
-        {5, 5, 256,  40,  40, 0, 1, 0, 1}, 
-        {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
-        {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
-        {9, 9,  32, 200, 200, 0, 1, 0, 1},
-        {9, 9, 256,  40,  40, 0, 1, 0, 1},
+    //Common parameters and registers
+    int kh, kw, elemsize, elemshift;
+    IReg H, W, W0, kernel, padding_left;
+    std::vector<VReg<float> > vkernel;
+    VReg<int32_t> countingPattern, idx_step;
+    VReg<float> vbias;
+};
 
-        {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
-        {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
-        {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
-        {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
-        {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
-        {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
-        {9, 9,  32, 200, 200, 0, 0, 0, 0},
-        {9, 9, 256,  40,  40, 0, 0, 0, 0}
-//      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
-    };
-    for(auto fxt: fixtures)
-    {
-        int kh = fxt[0];
-        int kw = fxt[1];
-        const int C = fxt[2];
-        const int H = fxt[3];
-        const int W = fxt[4];
-        const int padding_top = fxt[5];
-        const int padding_left = fxt[6];
-        const int padding_bottom = fxt[7];
-        const int padding_right = fxt[8];
-        bool padding = padding_top || padding_left || padding_bottom || padding_right;
-        const int H0 = H-kh+1+padding_top+padding_bottom;
-        const int W0 = W-kw+1+padding_left+padding_right;
-
-        dwconv_t func = generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right);
-        std::vector<float> indata(W*H*C * 3, (float)555.0); //DUBUGGG: Delete this 3 and 555
-        std::vector<float> kernel(kw*kh*C, 0);
-        std::vector<float> bias(C, 0);        
-        std::vector<float> outdata(H0*W0*C * 3, 0); //DUBUGGG: Delete this 3.
-        std::vector<float> outdataref(H0*W0*C, 0);
-        float* inptr = &(indata[0]) + (W*H*C); //DUBUGGG: Delete this index
-        float* kptr = &(kernel[0]);
-        float* bptr = &(bias[0]);
-        float* optr = &(outdata[0]) + H0*W0*C; //DUBUGGG: Delete this index
-        float* optrref = &(outdataref[0]);
-        gendata(inptr, kptr, bptr,kh,kw, H, W, C);
-        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << (padding ? " with padding" : "") << std::endl;
-        ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, kh, kw, padding_top, padding_left, padding_bottom, padding_right);
-        int32_t countingPattern[] = {0,1,2,3};
-        Timer t;
-        int ret;
-        for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
-        {
-            t.start();
-            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, padding_top, padding_left, padding_bottom, padding_right, countingPattern);
-            t.stop();
-        }
-        // std::cout<<"DUBUGGG:"<< ret <<std::endl;// return;
-        if(compare(optr, optrref, C, H0, W0))
-            (*out)<<"    Optimized time = "<<t.str()<<std::endl;
-        else
-        {
-            // printData(inptr, H, W);
-            // printData(optrref, H0, W0);
-            // printData(optr, H0, W0);
-            return;
-        }
-    }
-}
+const int DepthwiseconvGenerator::RLinesAmount = 3;
 
 //#define HORIZONTAL_OFFSET
-DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_)
+DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_)
 {
+    if(m_done)
+        throw std::runtime_error("One generator object can create only one function. Create another generator.");
+    kh = kh_; kw = kw_;
+    elemsize = sizeof(float);
+    elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     std::string funcname = "depthwise_convolution_";
     const bool padver = (padding_top_ || padding_bottom_);
     const bool padhor = (padding_left_ || padding_right_);
@@ -145,19 +60,24 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
     if(padhor) funcname += "_padhor";
     if(padver) funcname += "_padver";
     if(CTX.hasFunc(funcname))
+    {
+        m_done = true;
         return (dwconv_t)(CTX.getFunc(funcname).ptr());
+    }
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<float>() + (kernelRegsAmount%CTX.vlanes<float>()?1:0);
-    const int elemsize = sizeof(float);
-    const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
-    IReg data, kernel, bias, H, W, C, result, H0, W0, padding_top, padding_left, padding_bottom, padding_right, countingPatternPtr;
+    vkernel.resize(kernelRegsAmount, VReg<float>());
+    IReg data, bias, C, result, H0, padding_top, padding_bottom, padding_right;
     USE_CONTEXT_(CTX);
-    STARTFUNC_(funcname, &data, &kernel, &bias, &H, &W, &C, &result, &H0, &W0, &padding_top, &padding_left, &padding_bottom, &padding_right, &countingPatternPtr)
+    STARTFUNC_(funcname, &data, &kernel, &bias, &H, &W, &C, &result, &H0, &W0, &padding_top, &padding_left, &padding_bottom, &padding_right)
     {
-        VReg<int32_t> countingPattern;
         if(padhor)
-            countingPattern.copyidx(loadvec<int32_t>(countingPatternPtr));
-        IReg channel = CONST_(0);
+        {
+            countingPattern.copyidx(VCONST_(int32_t, 0));
+            for(int lane = 1; lane < CTX.vlanes<float>(); lane++)
+                setlane(countingPattern, lane, CONST_(lane));
+            idx_step.copyidx(VCONST_(int32_t, CTX.vlanes<float>()));
+        }
         std::vector<IReg> horoff(kw, IReg());
 #ifdef HORIZONTAL_OFFSET
         for(int kcol = 0; kcol < kw; kcol++)
@@ -199,13 +119,12 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
             cmultiend = C - cmultiend;
         }
 
+        IReg channel = CONST_(0);
         WHILE_(channel < C)
         {
             IReg ymultiend = select(channel >= cmultiend, ymultiend_, H0); //End of region handled by multiline cycles
             IReg yvectorend = select(channel >= cvectorend, H0m1, H0); //End of region handled by only vector cycles
-            IReg ibias = load_<float>(bias);
-            VReg<float> vbias = broadcast<float>(ibias);
-            std::vector<VReg<float> > vkernel(kernelRegsAmount, VReg<float>());
+            vbias.copyidx(broadcast<float>(load_<float>(bias)));
             for(int kregnum = 0; kregnum < kernelRegsAmount; kregnum++)
                 vkernel[kregnum].copyidx(loadvec<float>(kernel, kregnum * CTX.vbytes()));
             IReg y = CONST_(0);
@@ -218,7 +137,6 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                 IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)) : IReg();
                 VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
                 VReg<uint32_t> HcondV = padver ? broadcast<uint32_t>(H) : VReg<uint32_t>();
-                VReg<int32_t> idx_step = padhor ? VCONST_(int32_t, CTX.vlanes<float>()) : VReg<int32_t>();
                 IReg multilineendx;
                 multilineendx.copyidx(padhor ? W0-padding_left : W0);
                 WHILE_(xi < multilineendx)
@@ -231,17 +149,16 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                         IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : xi;
                         IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                         {
-                            multilineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, yi, xi, data__, W, W0, result_rs, padding_left, elemsize, kh, kw, pshiftflag);
+                            multilineHandler(HcondV, WcondV, yi, xi, data__, result_rs, pshiftflag);
                             CONTINUE_;
                         }
-                        multilineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, yi, xi, data__, W, W0, result_rs, padding_left, elemsize, kh, kw,  handlerFlags | pshiftflag);
+                        multilineHandler(HcondV, WcondV, yi, xi, data__, result_rs, handlerFlags | pshiftflag);
                     }
                     else 
-                        multilineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, vkernel, y, xi,      data__, W, W0, result_rs, padding_left, elemsize, kh, kw, 0);
+                        multilineHandler(HcondV, WcondV, y, xi, data__, result_rs, 0);
                 }
                 y += RLinesAmount;
             }
-
             WHILE_(y < H0)
             {
                 IReg xvectorend = select( y >= yvectorend, xvectorend_, (padhor ? W0-padding_left : W0)); //x < xmiddle must be handled by scalar code, and x >= xmiddle by vector code
@@ -276,7 +193,6 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                 IReg Hcond = padver ? max(H - (kh - 1), CONST_(0)) : IReg();
                 VReg<uint32_t> HcondV = padver ? broadcast<uint32_t>(H) : VReg<uint32_t>();
                 VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
-                VReg<int32_t> idx_step = padhor ? VCONST_(int32_t, CTX.vlanes<float>()) : VReg<int32_t>();
                 WHILE_(xi < xvectorend)
                 {
                     IReg data__ = data_rs + (xi << elemshift);
@@ -287,16 +203,16 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                         xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): xi);
                         IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                         {
-                            onlylineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, kernel, yi, xi, data__, H, W, W0, result_rs, 
-                                                padding_left, elemsize, kh, kw, pshiftflag);
+                            onlylineHandler(HcondV, WcondV, yi, xi, data__, result_rs, 
+                                                pshiftflag);
                             CONTINUE_;
                         }
-                        onlylineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, kernel, yi, xi, data__, H, W, W0, result_rs, 
-                                        padding_left, elemsize, kh, kw,  handlerFlags | pshiftflag);
+                        onlylineHandler(HcondV, WcondV, yi, xi, data__, result_rs, 
+                                        handlerFlags | pshiftflag);
                     }
                     else 
-                        onlylineHandler(vbias, countingPattern, idx_step, HcondV, WcondV, kernel, y, xi, data__, H, W, W0, result_rs, 
-                                            padding_left, elemsize, kh, kw, 0);
+                        onlylineHandler(HcondV, WcondV, y, xi, data__, result_rs, 
+                                            0);
                 }
 #endif// HORIZONTAL_OFFSET
                 IReg scalarend;
@@ -327,7 +243,10 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                                 {
                                     VReg<float> justloaded = broadcast<float>(load_<float>(data__));
                                     VReg<float> w = broadcast<float>(load_<float>(kernel__));
-                                    vres = fma(vres, justloaded, w);
+                                    {
+                                        VReg<float> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                                        vres = fma(antiSpill, justloaded, w);
+                                    }
                                 }
                             }
                         }
@@ -335,7 +254,10 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
                         {
                             VReg<float> justloaded = broadcast<float>(load_<float>(data__));
                             VReg<float> w = broadcast<float>(load_<float>(kernel__));
-                            vres = fma(vres, justloaded, w);
+                            {
+                                VReg<float> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                                vres = fma(antiSpill, justloaded, w);
+                            }
                         }
                         kernel__ += elemsize;
                         kcol = kcol + 1;
@@ -357,14 +279,11 @@ DepthwiseconvTest::dwconv_t DepthwiseconvTest::generate(int kh, int kw, int padd
         }
         RETURN_(0);
     }
+    m_done = true;
     return (dwconv_t)(CTX.getFunc(funcname).ptr());
 }
 
-                                           
-void DepthwiseconvTest::multilineHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
-                                           const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV,  const std::vector<VReg<float> >& vkernel, IReg& yi, IReg& x, 
-                                           IReg& base, const IReg& W, const IReg& W0, const IReg& result_rs, const IReg& padding_left,
-                                           int elemsize, int kh, int kw,  int flags)
+void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)
 {
     USE_CONTEXT_(CTX);
     std::vector<VReg<float> > vres(RLinesAmount, VReg<float>());
@@ -382,9 +301,9 @@ void DepthwiseconvTest::multilineHandler(const VReg<float>& vbias, const VReg<in
             horIdxs = select(verMask, antiSpill, reinterpret<int32_t>(WcondV));
         }
         VReg<float> loadedHalf0, loadedHalf1;
-        loadVector(base, 0, loadedHalf0, horIdxs, verMask, idx_step, WcondV, INITDEST | lvflags);
+        loadVector(base, 0, loadedHalf0, horIdxs, verMask, WcondV, INITDEST | lvflags);
         if(kw > 1)
-            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, verMask, idx_step, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
+            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
 
         for(int kcol = 0; kcol < kw; kcol++) 
         {
@@ -396,7 +315,7 @@ void DepthwiseconvTest::multilineHandler(const VReg<float>& vbias, const VReg<in
                 loadedHalf0.copyidx(loadedHalf1);
                 loadedHalf1.copyidx(inter);
                 if(kcol + 1 < kw)
-                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, verMask, idx_step, WcondV, PREINCREMENT_IDXS | lvflags);
+                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, PREINCREMENT_IDXS | lvflags);
                 toAdd.copyidx(loadedHalf0);
             }
             else
@@ -428,10 +347,7 @@ void DepthwiseconvTest::multilineHandler(const VReg<float>& vbias, const VReg<in
     x += CTX.vlanes<float>();
 }
 
-void DepthwiseconvTest::onlylineHandler(const VReg<float>& vbias, const VReg<int32_t>& countingPattern, const VReg<int32_t>& idx_step,
-                                        const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, const IReg& kernel, IReg& yi, IReg& x,
-                                        IReg& base, const IReg& H, const IReg& W,const IReg& W0, const IReg& result_rs, const IReg& padding_left,
-                                        int elemsize, int kh, int kw,  int flags)
+void DepthwiseconvGenerator::onlylineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)
 {
     USE_CONTEXT_(CTX);
     VReg<float> vres = vbias;
@@ -454,9 +370,9 @@ void DepthwiseconvTest::onlylineHandler(const VReg<float>& vbias, const VReg<int
         VReg<uint32_t> dummy;
         VReg<int32_t> horIdxs = flags&PADHOR ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
         VReg<float> loadedHalf0, loadedHalf1;
-        loadVector(base, 0, loadedHalf0, horIdxs, dummy, idx_step, WcondV, INITDEST | lvflags);
+        loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
         if(kw > 1)
-            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, idx_step, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
+            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
 
         for(int kcol = 0; kcol < kw; kcol++) 
         {
@@ -469,13 +385,16 @@ void DepthwiseconvTest::onlylineHandler(const VReg<float>& vbias, const VReg<int
                 loadedHalf0.copyidx(loadedHalf1);
                 loadedHalf1.copyidx(interm);
                 if(kcol + 1 < kw)
-                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, idx_step, WcondV, PREINCREMENT_IDXS | lvflags);
+                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, PREINCREMENT_IDXS | lvflags);
                 toAdd.copyidx(loadedHalf0);
             }
             else
                 toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
             VReg<float> w = broadcast<float>(load_<float>(kptr));
-            vres = fma(vres, toAdd, w);
+            {
+                VReg<float> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                vres = fma(antiSpill, toAdd, w);
+            }
             kptr += elemsize;
         }
         base += W << elemshift;
@@ -488,7 +407,7 @@ void DepthwiseconvTest::onlylineHandler(const VReg<float>& vbias, const VReg<int
     x += CTX.vlanes<float>();
 }
 
-void DepthwiseconvTest::loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask,  const VReg<int32_t>& idx_step, const VReg<uint32_t>& WcondV, int flags)
+void DepthwiseconvGenerator::loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags)
 {
     USE_CONTEXT_(CTX);
     if(flags&INITDEST) 
@@ -512,6 +431,120 @@ void DepthwiseconvTest::loadVector(const IReg& base, int64_t offset, VReg<float>
     }
 }
 
+DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
+
+template<class T>
+void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << data[i*W+j];
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+template<class T>
+void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(15) << data[i*stride+j];
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+void DepthwiseconvTest::run() 
+{
+    const int TESTITERATIONS = 30;
+    std::vector< std::vector<int> > fixtures = {
+       {3, 3, 3, 10, 10, 0, 0, 0, 0},
+       {3, 3, 3, 10, 10, 1, 0, 0, 0},
+       {3, 3, 3, 10, 10, 0, 1, 0, 0},
+       {3, 3, 3, 10, 10, 0, 0, 1, 0},
+       {3, 3, 3, 10, 10, 0, 0, 0, 1},
+       {3, 3, 3, 10, 10, 1, 0, 1, 0},
+       {3, 3, 3, 10, 10, 0, 1, 0, 1},
+       {3, 3, 3, 10, 10, 1, 1, 1, 1},
+       {3, 3, 3, 9, 9, 0, 0, 0, 0},
+       {3, 3, 3, 9, 9, 1, 0, 0, 0},
+       {3, 3, 3, 9, 9, 0, 1, 0, 0},
+       {3, 3, 3, 9, 9, 0, 0, 1, 0},
+       {3, 3, 3, 9, 9, 0, 0, 0, 1},
+       {3, 3, 3, 9, 9, 1, 0, 1, 0},
+       {3, 3, 3, 9, 9, 0, 1, 0, 1},
+       {3, 3, 3, 9, 9, 1, 1, 1, 1},
+
+       {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
+       {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
+       {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
+       {5, 5, 256,  40,  40, 0, 1, 0, 1}, 
+       {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
+       {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
+       {9, 9,  32, 200, 200, 0, 1, 0, 1},
+       {9, 9, 256,  40,  40, 0, 1, 0, 1},
+
+       {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
+       {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
+       {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
+       {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
+       {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
+       {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
+       {9, 9,  32, 200, 200, 0, 0, 0, 0},
+       {9, 9, 256,  40,  40, 0, 0, 0, 0}
+//      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
+    };
+    for(auto fxt: fixtures)
+    {
+        int kh = fxt[0];
+        int kw = fxt[1];
+        const int C = fxt[2];
+        const int H = fxt[3];
+        const int W = fxt[4];
+        const int padding_top = fxt[5];
+        const int padding_left = fxt[6];
+        const int padding_bottom = fxt[7];
+        const int padding_right = fxt[8];
+        bool padding = padding_top || padding_left || padding_bottom || padding_right;
+        const int H0 = H-kh+1+padding_top+padding_bottom;
+        const int W0 = W-kw+1+padding_left+padding_right;
+
+        DepthwiseconvGenerator generator(CTX);
+        DepthwiseconvGenerator::dwconv_t func = generator.generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right);
+        std::vector<float> indata(W*H*C * 3, (float)555.0); //DUBUGGG: Delete this 3 and 555
+        std::vector<float> kernel(kw*kh*C, 0);
+        std::vector<float> bias(C, 0);        
+        std::vector<float> outdata(H0*W0*C * 3, 0); //DUBUGGG: Delete this 3.
+        std::vector<float> outdataref(H0*W0*C, 0);
+        float* inptr = &(indata[0]) + (W*H*C); //DUBUGGG: Delete this index
+        float* kptr = &(kernel[0]);
+        float* bptr = &(bias[0]);
+        float* optr = &(outdata[0]) + H0*W0*C; //DUBUGGG: Delete this index
+        float* optrref = &(outdataref[0]);
+        gendata(inptr, kptr, bptr,kh,kw, H, W, C);
+        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << (padding ? " with padding" : "") << std::endl;
+        ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, kh, kw, padding_top, padding_left, padding_bottom, padding_right);
+        Timer t;
+        int ret;
+        for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+        {
+            t.start();
+            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+            t.stop();
+        }
+        // std::cout<<"DUBUGGG:"<< ret <<std::endl;// return;
+        if(compare(optr, optrref, C, H0, W0))
+            (*out)<<"    Optimized time = "<<t.str()<<std::endl;
+        else
+        {
+            // printData(inptr, H, W);
+            // printData(optrref, H0, W0);
+            // printData(optr, H0, W0);
+            return;
+        }
+    }
+}
+                                          
 void DepthwiseconvTest::gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
