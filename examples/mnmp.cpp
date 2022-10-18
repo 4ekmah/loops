@@ -59,17 +59,26 @@ void MaxPool_vec_unroll4(float* data, int H, int W, int C, float* result, int H0
     }
 }
 
+size_t getAlignedElement(float* ptr)
+{
+    uint64_t num = *(uint64_t*)(&ptr);
+    size_t res = num%16;
+    Assert( res % 4 == 0);
+    return res / 4;	
+}
+
 std::vector<float> repackData2block(float* in, int W, int H, int C)
 {
     int Caligned = (C%4 ? C + 4 - (C%4):C);
-    std::vector<float> res(W*H*Caligned);
+    std::vector<float> res(W*H*Caligned + 16);
+    int alignment = getAlignedElement(&res[0]);
     for(int ch = 0; ch < C; ch++) 
         for(int y = 0; y < H; y++) 
             for(int x = 0; x < W; x++)
             {
                 int tch = ch / 4;
                 int tx = x*4 + ch%4; 
-                res[tch * W * H * 4 + y * W * 4 + tx] = in[ch*W*H + y * W + x];
+                res[tch * W * H * 4 + y * W * 4 + tx + alignment] = in[ch*W*H + y * W + x];
             }
     return res;
 }
@@ -77,13 +86,14 @@ std::vector<float> repackData2block(float* in, int W, int H, int C)
 std::vector<float> repackData2plain(float* in, int W, int H, int C)
 {
     std::vector<float> res(W*H*C);
+    int alignment = getAlignedElement(in);
     for(int ch = 0; ch < C; ch++) 
         for(int y = 0; y < H; y++) 
             for(int x = 0; x < W; x++)
             {
                 int tch = ch / 4;
                 int tx = x*4 + ch%4; 
-                res[ch*W*H + y * W + x] = in[tch * W * H * 4 + y * W * 4 + tx];
+                res[ch*W*H + y * W + x] = in[tch * W * H * 4 + y * W * 4 + tx + alignment];
             }
     return res;
 }
@@ -121,10 +131,10 @@ void poolingMax(const float *channelInput, int inputWidth, int inputHeight, floa
                 for (int kh = 0; kh < kernelHeight; kh++, kernelInput += inputStep4) {
                     const float *cursorInput = kernelInput;
                     for (int kw = 0; kw < kernelWidth; kw++, cursorInput += PACK) {
-                        max0 = vmaxq_f32(max0, vcvtq_f32_s32(vld1q_s32((int32_t*)cursorInput + 0 * strideWidth4)));
-                        max1 = vmaxq_f32(max1, vcvtq_f32_s32(vld1q_s32((int32_t*)cursorInput + 1 * strideWidth4)));
-                        max2 = vmaxq_f32(max2, vcvtq_f32_s32(vld1q_s32((int32_t*)cursorInput + 2 * strideWidth4)));
-                        max3 = vmaxq_f32(max3, vcvtq_f32_s32(vld1q_s32((int32_t*)cursorInput + 3 * strideWidth4)));
+                        max0 = vmaxq_f32(max0, vld1q_s32((int32_t*)cursorInput + 0 * strideWidth4));
+                        max1 = vmaxq_f32(max1, vld1q_s32((int32_t*)cursorInput + 1 * strideWidth4));
+                        max2 = vmaxq_f32(max2, vld1q_s32((int32_t*)cursorInput + 2 * strideWidth4));
+                        max3 = vmaxq_f32(max3, vld1q_s32((int32_t*)cursorInput + 3 * strideWidth4));
                     }
                 }
                 vst1q_f32(offsetOutput + PACK * 0, max0);
@@ -139,7 +149,7 @@ void poolingMax(const float *channelInput, int inputWidth, int inputHeight, floa
                 for (int kh = 0; kh < kernelHeight; kh++, kernelInput += inputStep4) {
                     const float *cursorInput = kernelInput;
                     for (int kw = 0; kw < kernelWidth; kw++, cursorInput += PACK) {
-                        max = vmaxq_f32(max, vcvtq_f32_s32(vld1q_s32((int32_t*)cursorInput)));
+                        max = vmaxq_f32(max, vld1q_s32((int32_t*)cursorInput));
                     }
                 }
                 vst1q_f32(offsetOutput, max);
@@ -376,9 +386,9 @@ int main(int argc, char** argv)
     mmlfunc.printAssembly(std::cout);
     std::cout << "======--FUNCTION-OUTPUT---=======" << std::endl;
 
-    int W = 10;
-    int H = 10;
-    const int C = 3;
+    int W = 200;
+    int H = 200;
+    const int C = 32;
     if ((W - kw + 1) % 4)
         W = ((W -kw + 1) / 4 + 1) * 4 + kw -1;
     // if ((H - kh + 1) % 3)
@@ -417,8 +427,8 @@ int main(int argc, char** argv)
         {
             int istride = 4*W*H;
             int ostride = 4*W0*H0;
-            float* iptr = &iRpck[0];
-            float* optr = &oRpck[0];
+            float* iptr = &iRpck[0] + getAlignedElement(&iRpck[0]);
+            float* optr = &oRpck[0] + getAlignedElement(&oRpck[0]);
             tm.start();
             for(int c = 0; c < C; c+=4)
             {
