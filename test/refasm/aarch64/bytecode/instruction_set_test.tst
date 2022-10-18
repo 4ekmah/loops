@@ -721,7 +721,23 @@ instruction_set_test()
    719 : getlane.u64    i15, v0, 0                 
    720 : getlane.u64    i0, v31, 0                 
    721 : getlane.u64    i0, v0, 1                  
-   722 : select         v0, v0, v0, v0             
-   723 : select         v31, v31, v0, v0           
-   724 : select         v0, v0, v31, v0            
-   725 : select         v0, v0, v0, v31            
+   722 : setlane.       v0, 0, i0                  
+   723 : setlane.       v31, 0, i0                 
+   724 : setlane.       v0, 15, i0                 
+   725 : setlane.       v0, 0, i15                 
+   726 : setlane.       v0, 0, i0                  
+   727 : setlane.       v31, 0, i0                 
+   728 : setlane.       v0, 7, i0                  
+   729 : setlane.       v0, 0, i15                 
+   730 : setlane.       v0, 0, i0                  
+   731 : setlane.       v31, 0, i0                 
+   732 : setlane.       v0, 3, i0                  
+   733 : setlane.       v0, 0, i15                 
+   734 : setlane.       v0, 0, i0                  
+   735 : setlane.       v31, 0, i0                 
+   736 : setlane.       v0, 1, i0                  
+   737 : setlane.       v0, 0, i15                 
+   738 : select         v0, v0, v0, v0             
+   739 : select         v31, v31, v0, v0           
+   740 : select         v0, v0, v31, v0            
+   741 : select         v0, v0, v0, v31            
