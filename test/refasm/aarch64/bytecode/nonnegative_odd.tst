@@ -1,7 +1,7 @@
 nonnegative_odd(i0, i1)
      0 : sub      i31, i31, 32   
-     1 : spill    1, i18         
-     2 : spill    2, i19         
+     1 : spill    2, i18         
+     2 : spill    3, i19         
      3 : mov      i2, 0          
      4 : mov      i3, -4         
      5 : mov      i18, 4         
@@ -32,7 +32,7 @@ nonnegative_odd(i0, i1)
     30 : label 3:                
     31 : mov      i0, 4          
     32 : div      i0, i3, i0     
-    33 : unspill  i18, 1         
-    34 : unspill  i19, 2         
+    33 : unspill  i18, 2         
+    34 : unspill  i19, 3         
     35 : add      i31, i31, 32   
     36 : ret                     

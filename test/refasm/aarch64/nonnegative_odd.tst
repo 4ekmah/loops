@@ -1,7 +1,7 @@
 nonnegative_odd(i0, i1)
      0 : sub   sp, sp, #0x20    ; ff 83 00 d1  
-     1 : str   x18, [sp], #0x01 ; f2 07 00 f9  
-     2 : str   x19, [sp], #0x02 ; f3 0b 00 f9  
+     1 : str   x18, [sp], #0x02 ; f2 0b 00 f9  
+     2 : str   x19, [sp], #0x03 ; f3 0f 00 f9  
      3 : mov   x2, #0           ; 02 00 80 d2  
      4 : movn  x3, #0x03        ; 63 00 80 92  
      5 : mov   x18, #0x04       ; 92 00 80 d2  
@@ -28,7 +28,7 @@ nonnegative_odd(i0, i1)
     26 : b     [7]              ; ed ff ff 17  
     27 : mov   x0, #0x04        ; 80 00 80 d2  
     28 : sdiv  x0, x3, x0       ; 60 0c c0 9a  
-    29 : ldr   x18, [sp], #0x01 ; f2 07 40 f9  
-    30 : ldr   x19, [sp], #0x02 ; f3 0b 40 f9  
+    29 : ldr   x18, [sp], #0x02 ; f2 0b 40 f9  
+    30 : ldr   x19, [sp], #0x03 ; f3 0f 40 f9  
     31 : add   sp, sp, #0x20    ; ff 83 00 91  
     32 : ret   x30              ; c0 03 5f d6  

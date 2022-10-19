@@ -1442,8 +1442,15 @@ Aarch64Backend::Aarch64Backend()
 
     m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7 };
     m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
+#if __LOOPS_OS == __LOOPS_MAC
     m_callerSavedRegisters[RB_VEC] = { Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15 };
     m_calleeSavedRegisters[RB_VEC] = { Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
+#elif __LOOPS_OS == __LOOPS_LINUX
+    m_callerSavedRegisters[RB_VEC] = { };
+    m_calleeSavedRegisters[RB_VEC] = { Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31 };
+#else
+#error Unsupported OS
+#endif
 }
 
 size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
