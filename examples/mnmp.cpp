@@ -365,8 +365,8 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
             c += 1;
         }
         RETURN_(0);
-        return CTX.getFunc("minmaxloc");
     }
+    return CTX.getFunc("minmaxloc");
 }
 
 int main(int argc, char** argv)

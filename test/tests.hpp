@@ -112,9 +112,9 @@ struct Timer
 
         return pc.QuadPart * 1000.0 / freq.QuadPart;
     #else 
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+        struct timespec tp;
+        clock_gettime(CLOCK_MONOTONIC, &tp);
+        return double(tp.tv_sec) * 1000.0 + double(tp.tv_nsec) / 1000000.0;
     #endif
     }
     char* str()

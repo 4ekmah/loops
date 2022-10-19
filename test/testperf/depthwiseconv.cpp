@@ -9,6 +9,7 @@ See https://github.com/vpisarev/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include <algorithm>
+#include <cstring>
 #include <vector>
 #include <iostream>
 #include <iomanip>
