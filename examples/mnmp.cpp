@@ -131,10 +131,10 @@ void poolingMax(const float *channelInput, int inputWidth, int inputHeight, floa
                 for (int kh = 0; kh < kernelHeight; kh++, kernelInput += inputStep4) {
                     const float *cursorInput = kernelInput;
                     for (int kw = 0; kw < kernelWidth; kw++, cursorInput += PACK) {
-                        max0 = vmaxq_f32(max0, vld1q_s32((int32_t*)cursorInput + 0 * strideWidth4));
-                        max1 = vmaxq_f32(max1, vld1q_s32((int32_t*)cursorInput + 1 * strideWidth4));
-                        max2 = vmaxq_f32(max2, vld1q_s32((int32_t*)cursorInput + 2 * strideWidth4));
-                        max3 = vmaxq_f32(max3, vld1q_s32((int32_t*)cursorInput + 3 * strideWidth4));
+                        max0 = vmaxq_f32(max0, vreinterpretq_f32_s32(vld1q_s32((int32_t*)cursorInput + 0 * strideWidth4)));
+                        max1 = vmaxq_f32(max1, vreinterpretq_f32_s32(vld1q_s32((int32_t*)cursorInput + 1 * strideWidth4)));
+                        max2 = vmaxq_f32(max2, vreinterpretq_f32_s32(vld1q_s32((int32_t*)cursorInput + 2 * strideWidth4)));
+                        max3 = vmaxq_f32(max3, vreinterpretq_f32_s32(vld1q_s32((int32_t*)cursorInput + 3 * strideWidth4)));
                     }
                 }
                 vst1q_f32(offsetOutput + PACK * 0, max0);
@@ -149,7 +149,7 @@ void poolingMax(const float *channelInput, int inputWidth, int inputHeight, floa
                 for (int kh = 0; kh < kernelHeight; kh++, kernelInput += inputStep4) {
                     const float *cursorInput = kernelInput;
                     for (int kw = 0; kw < kernelWidth; kw++, cursorInput += PACK) {
-                        max = vmaxq_f32(max, vld1q_s32((int32_t*)cursorInput));
+                        max = vmaxq_f32(max, vreinterpretq_f32_s32(vld1q_s32((int32_t*)cursorInput)));
                     }
                 }
                 vst1q_f32(offsetOutput, max);
@@ -435,14 +435,15 @@ int main(int argc, char** argv)
 
     if(loopsNeeded)
     {
-        Timer t;
-        for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+        Timer tl;
+        for(int testiter = 0; testiter < TESTITERATIONS*2; testiter++)
         {
-            t.start();
+            
+            tl.start();
             int retval = f(&inp[0], H, W, C, &out0[0], H0, W0);
-            t.stop();
+            tl.stop();
         }
-        std::cout<<"    Loops time = " <<t.str() <<std::endl;
+        std::cout<<"    Loops time = " <<tl.str() <<std::endl;
     }
 
     if(MNNNeeded)
