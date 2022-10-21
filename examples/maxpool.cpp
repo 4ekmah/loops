@@ -63,9 +63,11 @@ typedef int (*minmaxpos_t)(float* data, int H, int W, int C, float* result, int 
 // typedef int (*minmaxpos_t)(const int* ptr, int64_t n, int* minpos, int* maxpos);
 loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
 {
+    int elemsize = sizeof(float);
+    int elemshift = (elemsize == 8 ? 3 : (elemsize == 4 ? 2 : (elemsize == 2 ? 1 : 0)));  
     using namespace loops;
 
-    IReg data, H, W, C, result, H0, W0;
+    IReg data, H, W, C, result, H0, W0, debug_var;
     USE_CONTEXT_(CTX);
     STARTFUNC_("minmaxloc", &data, &H, &W, &C, &result, &H0, &W0)
     {
@@ -74,8 +76,8 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
         getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, 
             { 0, 1, 2, 3, 4, 5, 6, 7 }, 
             { 0, 1, 2, 3, 4, 5, 6, 7 }, 
-            { 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }, 
-            { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 });
+            { }, 
+            { 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 });
 
         IReg offset = CONST_(0);
         IReg c = CONST_(0);
@@ -87,131 +89,140 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
         IReg H0x3 = H0 - H0 % 3;
         IReg stride = W * sizeof(float);
         IReg stride0 = W0 * sizeof(float);
+        IReg WRest = W0 % CTX.vlanes<float>();
+        IReg Wcond = select(WRest != 0, W0 - CTX.vlanes<float>(), W0);
+        Wcond <<= elemshift;
         WHILE_(c < C)
         {
             IReg y = CONST_(0);
             IReg result_ = result + c * W0 * H0 * sizeof(float);
             IReg data_ = data + c * W * H * sizeof(float);
 
-            WHILE_(y < H0x3) 
+            if (kh > 2)
             {
-                IReg x = CONST_(0);
-
-                std::vector<std::vector<VReg<float> > > vertMaxes(3, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
-                for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                WHILE_(y < H0x3) 
                 {
-                    IReg vertMaxesPtr = data_ + vRegNum * CTX.vbytes();
-                    VReg<float> temp;
-                    vertMaxes[0][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
-                    vertMaxes[1][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride));
-                    vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
-                    
-                    if (kh == 3)
+                    IReg x = CONST_(0);
+
+                    std::vector<std::vector<VReg<float> > > vertMaxes(3, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
+                    for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
                     {
-                        vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                    }
-                    if (kh == 4)
-                    {
-                        vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], temp);
-                    }
-                    if (kh > 4)
-                    {
-                        vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], temp);
-                        for(int i = 4; i < kh; i++)
+                        IReg vertMaxesPtr = data_ + vRegNum * CTX.vbytes();
+                        VReg<float> temp;
+                        vertMaxes[0][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
+                        IReg offset = stride;
+                        vertMaxes[1][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                        vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+                        offset += stride;
+                        vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                        for(int row = 3; row < kh; row++)
                         {
-                            temp = loadvec<float>(vertMaxesPtr, stride * i);
-                            vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], temp);
+                            offset += stride;
+                            vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
                         }
+
+                        vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
+                        offset += stride;
+                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                        vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
+                        offset += stride;
+                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
                     }
-                    vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
-                    temp = loadvec<float>(vertMaxesPtr, stride * kh);
-                    vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], temp);
-                    vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
-                    temp = loadvec<float>(vertMaxesPtr, stride * (kh + 1));
-                    vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], temp);
 
-                }
-
-                WHILE_(x < check) 
-                {
-                    //TODO(ch): Restore halide trick here(is 3lines scheme, actually) 
-                    IReg result__ = result_ + x;
-                    int lastVRegNum = horVecsPerOut-1;
-
-                    IReg vertMaxesPtr = data_ + x + lastVRegNum * CTX.vbytes();
-                    VReg<float> temp;
-
-                    vertMaxes[0][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
-                    vertMaxes[1][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride));
-                    vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[1][lastVRegNum]);
-                    
-                    if (kh == 3)
+                    WHILE_(x < check) 
                     {
-                        vertMaxes[2][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                    }
-                    if (kh == 4)
-                    {
-                        vertMaxes[2][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                        vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);
-                    }
-                    if (kh > 4)
-                    {
-                        vertMaxes[2][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, stride * 2));
-                        temp.rawcopy(loadvec<float>(vertMaxesPtr, stride * 3));
-                        vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);
-                        for(int i = 4; i < kh; i++)
+                        IF_(x > Wcond)
                         {
-                            temp = loadvec<float>(vertMaxesPtr, stride * i);
-                            vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);
+                            x = Wcond;
+                            x -= (horVecsPerOut - 1) * CTX.vbytes();
+
+                            for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                            {
+                                IReg vertMaxesPtr = data_ + x + vRegNum * CTX.vbytes();
+                                VReg<float> temp;
+                                vertMaxes[0][vRegNum] = vertMaxes[0][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                                vertMaxes[0][vRegNum] = (loadvec<float>(vertMaxesPtr));
+                                IReg offset = stride;
+                                vertMaxes[1][vRegNum] = vertMaxes[1][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                                vertMaxes[1][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+                                vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+                                offset += stride;
+                                vertMaxes[2][vRegNum] = vertMaxes[2][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                                vertMaxes[2][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+                                for(int row = 3; row < kh; row++)
+                                {
+                                    offset += stride;
+                                    vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                                }
+
+                                vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
+                                offset += stride;
+                                vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                                vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
+                                offset += stride;
+                                vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                            }
+                        } 
+
+                        IReg result__ = result_ + x;
+                        int lastVRegNum = horVecsPerOut - 1;
+
+                        IReg vertMaxesPtr = data_ + x + lastVRegNum * CTX.vbytes();
+                        VReg<float> temp;
+
+                        vertMaxes[0][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
+                        IReg offset = stride;
+                        vertMaxes[1][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                        vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[1][lastVRegNum]);
+                        offset += stride;
+                        vertMaxes[2][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                        for(int row = 3; row < kh; row++)
+                        {
+                            offset += stride;
+                            vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], loadvec<float>(vertMaxesPtr, offset));
                         }
-                    }
-                    vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[2][lastVRegNum]);
-                    temp = loadvec<float>(vertMaxesPtr, stride * kh);
-                    vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);
-                    vertMaxes[1][lastVRegNum] = max(vertMaxes[1][lastVRegNum], vertMaxes[2][lastVRegNum]);
-                    temp = loadvec<float>(vertMaxesPtr, stride * (kh + 1));
-                    vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);               
 
-                    std::vector<VReg<float> > res(3, VReg<float>());
-                    for(int n = 0; n < 3; n++)
-                        res[n].rawcopy(max(vertMaxes[n][0], ext(vertMaxes[n][0], vertMaxes[n][1], 1)));
+                        vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[2][lastVRegNum]);
+                        offset += stride;
+                        vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], loadvec<float>(vertMaxesPtr, offset));
+                        vertMaxes[1][lastVRegNum] = max(vertMaxes[1][lastVRegNum], vertMaxes[2][lastVRegNum]);
+                        offset += stride;
+                        vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], loadvec<float>(vertMaxesPtr, offset));
 
-                    for(int i = 2; i < kw; i++ )
-                    {
+                        std::vector<VReg<float> > res(3, VReg<float>());
+                        for(int n = 0; n < 3; n++)
+                            res[n].rawcopy(max(vertMaxes[n][0], ext(vertMaxes[n][0], vertMaxes[n][1], 1)));
+
+                        for(int i = 2; i < kw; i++ )
+                        {
+                            for(int n = 0; n < 3; n++)
+                            {
+                                int vRegNum = i / 4;
+                                if (i % 4 == 0) 
+                                    res[n] = max(res[n], vertMaxes[n][vRegNum]);
+                                else
+                                    res[n] = max(res[n], ext(vertMaxes[n][vRegNum], vertMaxes[n][vRegNum+1], i % 4));
+                            }
+                        }
+
                         for(int n = 0; n < 3; n++)
                         {
-                            int vRegNum = i / 4;
-                            if (i % 4 == 0) 
-                                res[n] = max(res[n], vertMaxes[n][vRegNum]);
-                            else
-                                res[n] = max(res[n], ext(vertMaxes[n][vRegNum], vertMaxes[n][vRegNum+1], i % 4));
+                            for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                            {
+                                vertMaxes[n][vRegNum] = vertMaxes[n][vRegNum+1];
+                            }
                         }
+                        
+                        storevec(result__, res[0]);
+                        storevec(result__ + stride0, res[1]);
+                        storevec(result__ + 2 * stride0, res[2]);
+                        
+                        x += CTX.vbytes();
                     }
-
-                    for(int n = 0; n < 3; n++)
-                    {
-                        for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
-                        {
-                            vertMaxes[n][vRegNum] = vertMaxes[n][vRegNum+1];
-                        }
-                    }
-                    
-                    storevec(result__, res[0]);
-                    storevec(result__ + stride0, res[1]);
-                    storevec(result__ + 2 * stride0, res[2]);
-                    
-                    x += CTX.vbytes();
+                    y += 3;
+                    result_ += W0 * (3 * sizeof(float));
+                    data_ += W *  (3 * sizeof(float));
                 }
-                y += 3;
-                result_ += W0 * (3 * sizeof(float));
-                data_ += W *  (3 * sizeof(float));
             }
             WHILE_(y < H0) 
             {
@@ -230,8 +241,20 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                 
                 WHILE_(x < check) 
                 {
-                    //TODO(ch): Restore halide trick here(is 3lines scheme, actually) 
+                    IF_(x > Wcond)
+                    {
+                        x = Wcond;
+                        x -= (horVecsPerOut - 1) * CTX.vbytes();
 
+                        for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                        {
+                            IReg vertMaxesPtr = data_ + x + vRegNum * CTX.vbytes();
+                            vertMaxes[vRegNum] = vertMaxes[vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                            vertMaxes[vRegNum] = max(loadvec<float>(vertMaxesPtr, 0), loadvec<float>(vertMaxesPtr, stride));
+                            for(int i = 2; i < kh; i++)
+                                vertMaxes[vRegNum] = max(vertMaxes[vRegNum], loadvec<float>(vertMaxesPtr, (i * stride)));
+                        }
+                    } 
                     IReg data__ = data_ + x;
                     IReg result__ = result_ + x;
 
@@ -272,25 +295,25 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
 int main(int argc, char** argv)
 {
     const int TESTITERATIONS = 30;
-    int64_t kh = 13;
-    int64_t kw = 13;
+    int64_t kh = 3;
+    int64_t kw = 3;
     loops::Context CTX;
     loops::Func mmlfunc = genminmaxloc(CTX, kh, kw);
 
     std::cout << "--------MINMAXLOCEXAMPLE---------" << std::endl;
     std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
-    mmlfunc.printBytecode(std::cout);
+    // mmlfunc.printBytecode(std::cout);
     std::string platform = CTX.getPlatformName();
     std::transform(platform.begin(), platform.end(), platform.begin(), ::toupper);
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;
-    mmlfunc.printAssembly(std::cout);
+    // mmlfunc.printAssembly(std::cout);
     std::cout << "======--FUNCTION-OUTPUT---=======" << std::endl;
 
-    int W = 200;
-    int H = 200;
+    int W = 201;
+    int H = 201;
     const int C = 32;
-    if ((W - kw + 1) % 4)
-        W = ((W -kw + 1) / 4 + 1) * 4 + kw -1;
+    // if ((W - kw + 1) % 4)
+    //     W = ((W -kw + 1) / 4 + 1) * 4 + kw -1;
     // if ((H - kh + 1) % 3)
     //     H = ((H -kh + 1) / 3 + 1) * 3 + kh -1;
     const int H0 = H-kh+1;
@@ -304,12 +327,15 @@ int main(int argc, char** argv)
 
     MaxPool_vec_unroll4(&inp[0], H, W, C, &out3[0], H0, W0, kh, kw);
     Timer t;
+    int retval;
     for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
     {
         t.start();
-        int retval = f(&inp[0], H, W, C, &out0[0], H0, W0);
+        retval = f(&inp[0], H, W, C, &out0[0], H0, W0);
         t.stop();
     }
+
+    // std::cout << "DUBUGGG: " << retval << std::endl;
     std::cout<<"    Maxpooling " << kh << "x" << kw <<". Optimized time = "<<t.str()<<std::endl;
 
     // printData(&inp[0], H, W);
@@ -325,7 +351,7 @@ int main(int argc, char** argv)
     }
     // printData(&out3[0], H0, W0);
     // printData(&out0[0], H0, W0);
-    // std::cout << H0 << W0 << std::endl;
+    std::cout << H0 << " " << W0 << std::endl;
 
     return 0;
 }
