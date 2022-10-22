@@ -24,10 +24,11 @@ public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
     typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, int64_t padding_top, int64_t padding_left, int64_t padding_bottom, int64_t padding_right);
     dwconv_t generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_);
+    dwc_algs_limits calcAlgsLimits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
     Context CTX;
-    static const int RLinesAmount;
+    static const int MultiH;
     enum { PADHOR = 1, PADVER = 2, INITDEST = 4, PREINCREMENT_IDXS = 8, PADSHIFTRES = 16, MULTILINE = 32 };
     void multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
     void onlylineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
@@ -39,9 +40,45 @@ private:
     std::vector<VReg<float> > vkernel;
     VReg<int32_t> countingPattern, idx_step;
     VReg<float> vbias;
+
+    inline int upDiv(int numerator, int denominator);
+    inline int upMultipleOf(int numerator, int denominator); 
+    inline int downMultipleOf(int numerator, int denominator);
+    //Find such a minimum U, that for each u>=U
+    //inequality: u*ratio >= add is always correct 
+    inline int downBorder(int add, int ratio);
+    //Find such a maximum U, that for each u<U
+    //inequality: u*ratio < add is always correct 
+    inline int upperBorder(int add, int ratio);
+    //lower border for all c, satisfies inequality
+    //c*H*W + Y*W + X >= 0
+    inline int downC(int C, int H, int W, int y, int x);
+    //upper border for all c, satisfies inequality
+    //c*H*W + Y*W + X < C*W*H
+    inline int upperC(int C, int H, int W, int y, int x);
+    //lower border for all y, satisfies inequality
+    //Cf*H*W + (y + ys)*W + X >= 0
+    inline int downY(int C, int H, int W, int Cf, int ys, int x);
+    //upper border for all y, satisfies inequality
+    //Cf*H*W + (y + ys)*W + X < C*W*H
+    inline int upperY(int C, int H, int W, int Cf, int ys, int x);
+    //upper border for all y, satisfies inequality
+    //Cf*H*W + (y + ys)*W + X < C*W*H, where y is a multiple of M, started from y0:
+    //y = M * r + y0 
+    inline int upperY(int C, int H, int W, int Cf, int ys, int M, int y0, int x);
+    //lower border for all x, satisfies inequality
+    //Cf*H*W + Yf*W + x + xs  >= 0
+    inline int downX(int C, int H, int W, int Cf, int Yf, int xs);
+    //upper border for all y, satisfies inequality
+    //Cf*H*W + Yf*W + x + xf < C*W*H
+    inline int upperX(int C, int H, int W, int Cf, int Yf, int xs);
+    //upper border for all y, satisfies inequality
+    //Cf*H*W + Yf*W + x + xf < C*W*H, where x is a multiple of M, started from x0:
+    //y = M * r + y0 
+    inline int upperX(int C, int H, int W, int Cf, int Yf, int xs, int M, int x0);
 };
 
-const int DepthwiseconvGenerator::RLinesAmount = 3;
+const int DepthwiseconvGenerator::MultiH = 3;
 
 //#define HORIZONTAL_OFFSET
 DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_)
@@ -87,8 +124,8 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
         IReg residX = W0 % CTX.vlanes<float>();
         IReg xvectorend_ = padhor ? W0 - residX - padding_left : W0 - residX; //Also it is halide trick condition
         IReg hldx = padhor ? W0 - CTX.vlanes<float>() - padding_left : W0 - CTX.vlanes<float>();;
-        IReg residL = H0 % RLinesAmount;
-        IReg restL = CONST_(RLinesAmount) - residL;
+        IReg residL = H0 % MultiH;
+        IReg restL = CONST_(MultiH) - residL;
         IReg cmultiend = C;
         IReg cvectorend = select(residX == 0, C, C - 1); //End of region handled by only vector cycles
         IReg ymultiend_ = H0 - residL;
@@ -103,10 +140,10 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
             cmultiend = CONST_(0);
             ymultiend_ = CONST_(0);
         }
-        ELIF_(restL == RLinesAmount) // Means H0 % RLinesAmount == 0
+        ELIF_(restL == MultiH) // Means H0 % RLinesAmount == 0
         {
             cmultiend = select(residX == 0, C, C - 1);
-            ymultiend_ = select(residX == 0, ymultiend_, H0 - RLinesAmount);
+            ymultiend_ = select(residX == 0, ymultiend_, H0 - MultiH);
         }
         ELSE_
         {
@@ -133,7 +170,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
                 IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift); //TODO(ch): It's possible to rewrite via afterline increment.
                 IReg result_rs = result + (W0 << elemshift) * y;
                 IReg xi = padhor ? -padding_left : CONST_(0);
-                IReg Hcond = padver ? max(H - (kh + RLinesAmount - 2), CONST_(0)) : IReg(); 
+                IReg Hcond = padver ? max(H - (kh + MultiH - 2), CONST_(0)) : IReg(); 
                 IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)) : IReg();
                 VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
                 VReg<uint32_t> HcondV = padver ? broadcast<uint32_t>(H) : VReg<uint32_t>();
@@ -157,7 +194,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
                     else 
                         multilineHandler(HcondV, WcondV, y, xi, data__, result_rs, 0);
                 }
-                y += RLinesAmount;
+                y += MultiH;
             }
             WHILE_(y < H0)
             {
@@ -286,12 +323,12 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
 void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)
 {
     USE_CONTEXT_(CTX);
-    std::vector<VReg<float> > vres(RLinesAmount, VReg<float>());
-    for(int rnum = 0; rnum<RLinesAmount; rnum++)
+    std::vector<VReg<float> > vres(MultiH, VReg<float>());
+    for(int rnum = 0; rnum<MultiH; rnum++)
         vres[rnum].copyidx(VReg<float>(vbias)); 
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&(PADHOR|PADVER);
-    for(int lrow = 0; lrow < kh + RLinesAmount - 1; lrow++) 
+    for(int lrow = 0; lrow < kh + MultiH - 1; lrow++) 
     {
         VReg<int32_t> horIdxs = (flags&PADHOR) ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
         VReg<uint32_t> verMask = (flags&PADVER) ? broadcast<uint32_t>(yi) < HcondV : VReg<uint32_t>();
@@ -320,7 +357,7 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
             }
             else
                 toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
-            for(int lineNum = 0; lineNum < RLinesAmount; lineNum++)
+            for(int lineNum = 0; lineNum < MultiH; lineNum++)
             { 
                 const int krow = lrow - lineNum;
                 if(krow >= 0 && krow < kh)
@@ -330,7 +367,7 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
                 }
             }
         }
-        if(lrow + 2 < kh + RLinesAmount) //Not last loaded row
+        if(lrow + 2 < kh + MultiH) //Not last loaded row
         {
             base += W << elemshift;
             if(flags&PADVER)
@@ -338,10 +375,10 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
         }
     }
     IReg roffset = (flags&PADSHIFTRES? x + padding_left : x) << elemshift;
-    for(int lineNum = 0; lineNum < RLinesAmount; lineNum++)
+    for(int lineNum = 0; lineNum < MultiH; lineNum++)
     {
         storevec<float>(result_rs, roffset, vres[lineNum]);
-        if(lineNum + 1 < RLinesAmount)
+        if(lineNum + 1 < MultiH)
             roffset += W0 << elemshift;
     }
     x += CTX.vlanes<float>();
@@ -431,6 +468,136 @@ void DepthwiseconvGenerator::loadVector(const IReg& base, int64_t offset, VReg<f
     }
 }
 
+inline int DepthwiseconvGenerator::upDiv(int numerator, int denominator) 
+{
+    if(numerator < 0)
+        return -((-numerator)/denominator);
+    int res = numerator / denominator;
+    int back = res * denominator; 
+    return (numerator - back ? res + 1: res);
+}
+
+inline int DepthwiseconvGenerator::upMultipleOf(int numerator, int denominator) 
+{
+    if(numerator < 0)
+        return -downMultipleOf(-numerator, denominator);
+    int div = numerator / denominator;
+    int back = div * denominator; 
+    return (numerator - back ? back + denominator : back);
+}
+
+inline int DepthwiseconvGenerator::downMultipleOf(int numerator, int denominator) 
+{
+    if(numerator < 0)
+        return -upMultipleOf(-numerator, denominator);
+    numerator /= denominator;
+    numerator *= denominator;
+    return numerator;
+}
+
+inline int DepthwiseconvGenerator::downBorder(int add, int ratio)
+{
+    return upDiv(add, ratio);
+}
+
+inline int DepthwiseconvGenerator::upperBorder(int add, int ratio)
+{
+    return upDiv(add, ratio);
+}
+
+inline int DepthwiseconvGenerator::downC(int C, int H, int W, int y, int x)
+{
+    return downBorder(-y*W-x, H*W);
+}
+
+inline int DepthwiseconvGenerator::upperC(int C, int H, int W, int y, int x)
+{
+    return upperBorder(C*H*W - y*W - x, H*W);
+}
+
+inline int DepthwiseconvGenerator::downY(int C, int H, int W, int Cf, int ys, int x)
+{
+    Cf = std::max(Cf,0);
+    return downBorder(-Cf*H*W - x - ys * W, W);
+}
+
+inline int DepthwiseconvGenerator::upperY(int C, int H, int W, int Cf, int ys, int x)
+{
+    return upperBorder((C-Cf)*H*W - x - ys * W, W);
+}
+
+inline int DepthwiseconvGenerator::upperY(int C, int H, int W, int Cf, int ys, int M, int y0, int x)
+{
+    return M * upperBorder((C-Cf)*H*W - x - (ys + y0) * W, W * M) + y0;
+}
+
+inline int DepthwiseconvGenerator::downX(int C, int H, int W, int Cf, int Yf, int xs)
+{
+    Cf = std::max(Cf,0);
+    Yf = std::max(Yf,0);
+    return downBorder(-Cf*H*W - Yf * W - xs, 1);
+}
+
+inline int DepthwiseconvGenerator::upperX(int C, int H, int W, int Cf, int Yf, int xs)
+{
+    return upperBorder((C-Cf)*H*W - Yf * W - xs, 1);
+}
+
+inline int DepthwiseconvGenerator::upperX(int C, int H, int W, int Cf, int Yf, int xs, int M, int x0)
+{
+    return M * upperBorder((C-Cf)*H*W - Yf * W - xs - x0, M) + x0;
+}
+
+dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+{
+    //TODO(ch): Rewrite Cms, Yms and other **s to value, in which starts behviour, not the value, wher it behaviour is only behaviour. It would be simpler to work with.
+    //Reconsider one-line conditions and using of padding-top. There needed max/min functions on row's numbers and borders of rows - 0 and H. 
+    int Cms, Cme;
+    int lsimd = upMultipleOf(kw + CTX.vlanes<float>() - 2, CTX.vlanes<float>()) - 1;
+    int XlastMulti = (W0 - padding_left - CTX.vlanes<float>()) + lsimd;
+    if(H0 > CTX.vlanes<float>())
+    {
+        Cms = downC(C, H, W, -padding_top, -padding_left);
+        int YlastMulti = (downMultipleOf(W0, MultiH) - padding_top + kh + MultiH - 2);
+        Cme = upperC(C, H, W, YlastMulti, XlastMulti);
+    }
+    else
+    {
+        Cms = C + 1;
+        Cme = C;
+    }
+    int Xlast = downMultipleOf(W0-1, CTX.vlanes<float>()) + lsimd - padding_left;
+    int Cis = downC(C, H, W, 0, -padding_left);
+    int Cie = upperC(C, H, W, (H-1), Xlast);
+    if(Cie < (Cis - 1))
+    {
+        Cis = C + 1;
+        Cie = C;
+    }
+    int Yms = H0 + 1, Yme = 0;
+    if(Cms < C + 1)
+    {
+        Yms = downY(C, H, W, Cms - 1, -padding_top, -padding_left);
+        Yme = upperY(C, H, W, Cme, MultiH + kh - padding_top - 2, MultiH, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
+    }
+    int Yis = H0 + 1, Yie = 0;
+    if(Cis < C + 1)
+    {
+        Yis = (padding_left == 0) ? 0 : downY(C, H, W, Cis - 1, -padding_top, -padding_left);
+        if ((H - 1) * W + Xlast < (C-Cie)*H*W)
+            Yie = H0;
+        else
+            Yie = std::max(0, upperY(C, H, W, Cie, kh - 1 - padding_top, Xlast));
+    }
+    int Xis = W0, Xie = 0;
+    if(Yis < H0)
+    {
+        Xis = downX(C, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
+        Xie = upperX(C, H, W, Cie, std::min(Yie - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<float>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+    }
+    return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
+}
+
 DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
 
 template<class T>
@@ -457,41 +624,81 @@ void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.
 void DepthwiseconvTest::run() 
 {
     const int TESTITERATIONS = 30;
+
+    std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
+        {{3, 3, 3, 10, 10, 0, 0, 0, 0}, {0, 2, 0, 2, 0, 6, 0, 7, 0, 4}},
+        {{3, 3, 3, 10, 10, 1, 0, 1, 0}, {1, 2, 0, 2, 1, 6, 0, 8, 0, 4}},
+        {{3, 3, 3, 10, 10, 0, 1, 0, 1}, {1, 2, 1, 2, 1, 6, 1, 7, 1, 4}},
+        {{3, 3, 3, 10, 10, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 6, 2, 8, 1, 4}},
+        {{3, 3, 1, 10, 10, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 6, 0, 7, 0, 4}},
+        {{3, 3, 1, 10, 10, 1, 0, 1, 0}, {1, 0, 0, 0, 1, 7, 0, 8, 0, 4}},
+        {{3, 3, 1, 10, 10, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 7, 1, 7, 1, 4}},
+        {{3, 3, 1, 10, 10, 1, 1, 1, 1}, {1, 0, 1, 0, 2, 8, 2,  8, 1, 4}},
+        {{3, 3, 1, 1, 1, 1, 1, 1, 1},   {2, 1, 2, 1, 2, 0, 2, 0, 1, 0}},
+        {{3, 3, 100, 1, 1, 1, 1, 1, 1}, {101, 100, 1, 94, 2, 0, 2, 0, 1, 0}}
+        };
+    for(auto fxt: limitsFixtures)
+    {
+        int kh = fxt.first[0];
+        int kw = fxt.first[1];
+        const int C = fxt.first[2];
+        const int H = fxt.first[3];
+        const int W = fxt.first[4];
+        const int padding_top = fxt.first[5];
+        const int padding_left = fxt.first[6];
+        const int padding_bottom = fxt.first[7];
+        const int padding_right = fxt.first[8];
+        const dwc_algs_limits ref(fxt.second[0], fxt.second[1], fxt.second[2], fxt.second[3], fxt.second[4], fxt.second[5], fxt.second[6], fxt.second[7], fxt.second[8], fxt.second[9]);
+        bool padding = padding_top || padding_left || padding_bottom || padding_right;
+        const int H0 = H-kh+1+padding_top+padding_bottom;
+        const int W0 = W-kw+1+padding_left+padding_right;
+
+        DepthwiseconvGenerator generator(CTX);
+        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
+        dwc_algs_limits tocheck = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+        if(!compare_alg_limits(tocheck, ref))
+            return;
+    }
+
     std::vector< std::vector<int> > fixtures = {
-       {3, 3, 3, 10, 10, 0, 0, 0, 0},
-       {3, 3, 3, 10, 10, 1, 0, 0, 0},
-       {3, 3, 3, 10, 10, 0, 1, 0, 0},
-       {3, 3, 3, 10, 10, 0, 0, 1, 0},
-       {3, 3, 3, 10, 10, 0, 0, 0, 1},
-       {3, 3, 3, 10, 10, 1, 0, 1, 0},
-       {3, 3, 3, 10, 10, 0, 1, 0, 1},
-       {3, 3, 3, 10, 10, 1, 1, 1, 1},
-       {3, 3, 3, 9, 9, 0, 0, 0, 0},
-       {3, 3, 3, 9, 9, 1, 0, 0, 0},
-       {3, 3, 3, 9, 9, 0, 1, 0, 0},
-       {3, 3, 3, 9, 9, 0, 0, 1, 0},
-       {3, 3, 3, 9, 9, 0, 0, 0, 1},
-       {3, 3, 3, 9, 9, 1, 0, 1, 0},
-       {3, 3, 3, 9, 9, 0, 1, 0, 1},
-       {3, 3, 3, 9, 9, 1, 1, 1, 1},
+        {5, 5, 1632, 7, 7, 2, 2, 2, 2},
+        {3, 3, 32, 112, 112, 1, 1, 1, 1},
+        {3, 3, 192, 56, 56, 1, 1, 1, 1},
 
-       {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
-       {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
-       {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
-       {5, 5, 256,  40,  40, 0, 1, 0, 1}, 
-       {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
-       {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
-       {9, 9,  32, 200, 200, 0, 1, 0, 1},
-       {9, 9, 256,  40,  40, 0, 1, 0, 1},
+        {3, 3, 3, 10, 10, 0, 0, 0, 0},
+        {3, 3, 3, 10, 10, 1, 0, 0, 0},
+        {3, 3, 3, 10, 10, 0, 1, 0, 0},
+        {3, 3, 3, 10, 10, 0, 0, 1, 0},
+        {3, 3, 3, 10, 10, 0, 0, 0, 1},
+        {3, 3, 3, 10, 10, 1, 0, 1, 0},
+        {3, 3, 3, 10, 10, 0, 1, 0, 1},
+        {3, 3, 3, 10, 10, 1, 1, 1, 1},
+        {3, 3, 3, 9, 9, 0, 0, 0, 0},
+        {3, 3, 3, 9, 9, 1, 0, 0, 0},
+        {3, 3, 3, 9, 9, 0, 1, 0, 0},
+        {3, 3, 3, 9, 9, 0, 0, 1, 0},
+        {3, 3, 3, 9, 9, 0, 0, 0, 1},
+        {3, 3, 3, 9, 9, 1, 0, 1, 0},
+        {3, 3, 3, 9, 9, 0, 1, 0, 1},
+        {3, 3, 3, 9, 9, 1, 1, 1, 1},
 
-       {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
-       {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
-       {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
-       {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
-       {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
-       {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
-       {9, 9,  32, 200, 200, 0, 0, 0, 0},
-       {9, 9, 256,  40,  40, 0, 0, 0, 0}
+        {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
+        {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
+        {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
+        {5, 5, 256,  40,  40, 0, 1, 0, 1}, 
+        {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
+        {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
+        {9, 9,  32, 200, 200, 0, 1, 0, 1},
+        {9, 9, 256,  40,  40, 0, 1, 0, 1},
+
+        {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
+        {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
+        {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
+        {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
+        {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
+        {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
+        {9, 9,  32, 200, 200, 0, 0, 0, 0},
+        {9, 9, 256,  40,  40, 0, 0, 0, 0}
 //      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
     };
     for(auto fxt: fixtures)
@@ -638,5 +845,22 @@ bool DepthwiseconvTest::compare(float* tocheck, float* ref, int C, int H, int W)
             }
     return true;
 }
+
+bool DepthwiseconvTest::compare_alg_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference)
+{
+    bool res = true;
+    if(tocheck.Cms != reference.Cms) {std::cout<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
+    if(tocheck.Cme != reference.Cme) {std::cout<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
+    if(tocheck.Cis != reference.Cis) {std::cout<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
+    if(tocheck.Cie != reference.Cie) {std::cout<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
+    if(tocheck.Yms != reference.Yms) {std::cout<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
+    if(tocheck.Yme != reference.Yme) {std::cout<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
+    if(tocheck.Yis != reference.Yis) {std::cout<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
+    if(tocheck.Yie != reference.Yie) {std::cout<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
+    if(tocheck.Xis != reference.Xis) {std::cout<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
+    if(tocheck.Xie != reference.Xie) {std::cout<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
+    return res; 
+}
+
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
