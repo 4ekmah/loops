@@ -8,13 +8,13 @@ See https://github.com/vpisarev/loops/LICENSE
 #define __LOOPS_TEST_BASIC_HPP__
 
 #include "loops/loops.hpp"
-#include "../tests.hpp"
+#include "tests.hpp"
 #include <iostream>
 #include <math.h>
 #include <stdexcept>
-#include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
+#include "src/common.hpp"
+#include "src/func_impl.hpp"
+#include "src/reg_allocator.hpp"
 
 namespace loops
 {

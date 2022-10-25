@@ -10,10 +10,10 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
-#include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
-#include "../tests.hpp"
+#include "src/common.hpp"
+#include "src/func_impl.hpp"
+#include "src/reg_allocator.hpp"
+#include "tests.hpp"
 #include <iostream>
 
 namespace loops

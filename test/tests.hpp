@@ -18,7 +18,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <sys/time.h>
 #endif
 
-#include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
+#include "src/func_impl.hpp"
 
 namespace loops
 {

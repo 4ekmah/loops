@@ -8,7 +8,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #include <iostream>
 #include "tests.hpp"
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
-#include "testperf/depthwiseconv.hpp"
+#include "testperf/dwctest.hpp"
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 
 //TODO(ch): create normal class for performance testing and integrate it in general testing system, please.

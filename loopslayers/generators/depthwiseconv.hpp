@@ -4,9 +4,11 @@ Distributed under Apache 2 license.
 See https://github.com/vpisarev/loops/LICENSE
 */
 //TODO(ch): See https://github.com/vpisarev/loops/LICENSE -> https://github.com/4ekmah/loops/LICENSE
-#include "depthwiseconv.hpp"
-#if __LOOPS_ARCH == __LOOPS_AARCH64
 
+#ifndef __LOOPS_DEPTHWISECONV_HPP__
+#define __LOOPS_DEPTHWISECONV_HPP__
+
+#if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "loops/loops.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -22,15 +24,14 @@ namespace loops
 class DepthwiseconvGenerator
 {
 public:
-    enum {ACT_NONE, ACT_RELU, ACT_RELU6, ACT_LRELU};
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
     typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, dwc_algs_limits* algsLimits);
     dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
-    dwc_algs_limits calcAlgsLimits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
+    dwc_algs_limits calc_dwc_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
     Context CTX;
-    static const int MultiH;
+    enum { MULTI_H = 3 };
     enum { PADHOR = 1, PADVER = 2, INITDEST = 4, PREINCREMENT_IDXS = 8, PADSHIFTRES = 16, MULTILINE = 32 };
     void multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
     void onlylineHandler(const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
@@ -81,8 +82,6 @@ private:
     //y = M * r + y0 
     inline int upperX(int C, int H, int W, int Cf, int Yf, int xs, int M, int x0);
 };
-
-const int DepthwiseconvGenerator::MultiH = 3;
 
 //#define HORIZONTAL_OFFSET
 DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
@@ -172,7 +171,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
                         IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift);
                         IReg result_rs = result + (W0 << elemshift) * y;
                         IReg xi = CONST_(-padding_left);
-                        IReg Hcond = padver ? max(H - (kh + MultiH - 2), CONST_(0)) : IReg(); 
+                        IReg Hcond = padver ? max(H - (kh + MULTI_H - 2), CONST_(0)) : IReg(); 
                         IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)) : IReg();
                         VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
                         VReg<uint32_t> HcondV = padver ? broadcast<uint32_t>(H) : VReg<uint32_t>();
@@ -197,7 +196,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
                             else 
                                 multilineHandler(HcondV, WcondV, y, xi, data__, result_rs, 0);
                         }
-                        y += MultiH;
+                        y += MULTI_H;
                     }
                     yonelineEnd = H0;
                 }
@@ -311,12 +310,12 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
 void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)
 {
     USE_CONTEXT_(CTX);
-    std::vector<VReg<float> > vres(MultiH, VReg<float>());
-    for(int rnum = 0; rnum<MultiH; rnum++)
+    std::vector<VReg<float> > vres(MULTI_H, VReg<float>());
+    for(int rnum = 0; rnum<MULTI_H; rnum++)
         vres[rnum].copyidx(VReg<float>(vbias)); 
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&(PADHOR|PADVER);
-    for(int lrow = 0; lrow < kh + MultiH - 1; lrow++) 
+    for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
     {
         VReg<int32_t> horIdxs = (flags&PADHOR) ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
         VReg<uint32_t> verMask = (flags&PADVER) ? broadcast<uint32_t>(yi) < HcondV : VReg<uint32_t>();
@@ -345,7 +344,7 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
             }
             else
                 toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
-            for(int lineNum = 0; lineNum < MultiH; lineNum++)
+            for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
             { 
                 const int krow = lrow - lineNum;
                 if(krow >= 0 && krow < kh)
@@ -355,7 +354,7 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
                 }
             }
         }
-        if(lrow + 2 < kh + MultiH) //Not last loaded row
+        if(lrow + 2 < kh + MULTI_H) //Not last loaded row
         {
             base += W << elemshift;
             if(flags&PADVER)
@@ -367,10 +366,10 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
     IReg W0_;
     W0_.copyidx(outdiffW ? (outdiffW > 0 ? W+outdiffW: W-(-outdiffW)): W); //TODO(ch): fix it in interface of loops(there must be ability to add and sub negaitve numbers).
     IReg offstride = W0_ << elemshift;
-    for(int lineNum = 0; lineNum < MultiH; lineNum++)
+    for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
     {
         storevec<float>(result_rs, roffset, activationFunction(vres[lineNum]));
-        if(lineNum + 1 < MultiH)
+        if(lineNum + 1 < MULTI_H)
             roffset += offstride;
     }
     x += CTX.vlanes<float>();
@@ -554,17 +553,15 @@ inline int DepthwiseconvGenerator::upperX(int C, int H, int W, int Cf, int Yf, i
     return M * upperBorder((C-Cf)*H*W - Yf * W - xs - x0, M) + x0;
 }
 
-dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+dwc_algs_limits DepthwiseconvGenerator::calc_dwc_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
 {
-    //TODO(ch): Rewrite Cms, Yms and other **s to value, in which starts behviour, not the value, wher it behaviour is only behaviour. It would be simpler to work with.
-    //Reconsider one-line conditions and using of padding-top. There needed max/min functions on row's numbers and borders of rows - 0 and H. 
     int Cms, Cme;
     int lsimd = upMultipleOf(kw + CTX.vlanes<float>() - 2, CTX.vlanes<float>()) - 1;
     int XlastMulti = (W0 - padding_left - CTX.vlanes<float>()) + lsimd;
     if(W0 > CTX.vlanes<float>())
     {
         Cms = downC(C, H, W, -padding_top, -padding_left);
-        int YlastMulti = (downMultipleOf(W0, MultiH) - padding_top + kh + MultiH - 2);
+        int YlastMulti = (downMultipleOf(W0, MULTI_H) - padding_top + kh + MULTI_H - 2);
         Cme = upperC(C, H, W, YlastMulti, XlastMulti);
     }
     else
@@ -584,7 +581,7 @@ dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int 
     if(Cms < C + 1)
     {
         Yms = downY(C, H, W, Cms - 1, -padding_top, -padding_left);
-        Yme = upperY(C, H, W, Cme, MultiH + kh - padding_top - 2, MultiH, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
+        Yme = upperY(C, H, W, Cme, MULTI_H + kh - padding_top - 2, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
     }
     int Yis = H0 + 1, Yie = H0;
     if(Cis < C + 1)
@@ -603,317 +600,9 @@ dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int 
     }
     return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
 }
-
-DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
-
-template<class T>
-void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << data[i*W+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(15) << data[i*stride+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-void DepthwiseconvTest::run() 
-{
-    const int TESTITERATIONS = 30;
-
-    std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
-        {{3, 3, 3, 10, 3, 0, 0, 0, 0}, {4, 3, 0, 2, 9, 8, 0, 6, 0, 0}},
-
-
-        {{3, 3, 3, 10, 10, 0, 0, 0, 0}, {0, 2, 0, 2, 0, 6, 0, 7, 0, 4}},
-        {{3, 3, 3, 10, 10, 1, 0, 1, 0}, {1, 2, 0, 2, 1, 6, 0, 8, 0, 4}},
-        {{3, 3, 3, 10, 10, 0, 1, 0, 1}, {1, 2, 1, 2, 1, 6, 1, 7, 1, 4}},
-        {{3, 3, 3, 10, 10, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 6, 2, 8, 1, 4}},
-        {{3, 3, 1, 10, 10, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 6, 0, 7, 0, 4}},
-        {{3, 3, 1, 10, 10, 1, 0, 1, 0}, {1, 0, 0, 0, 1, 7, 0, 8, 0, 4}},
-        {{3, 3, 1, 10, 10, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 7, 1, 7, 1, 4}},
-        {{3, 3, 1, 10, 10, 1, 1, 1, 1}, {1, 0, 1, 0, 2, 8, 2,  8, 1, 4}},
-        {{3, 3, 1, 1, 1, 1, 1, 1, 1},   {2, 1, 2, 1, 2, 1, 2, 1, 1, 1}},
-        {{3, 3, 100, 1, 1, 1, 1, 1, 1}, {101, 100, 1, 94, 2, 1, 2, 0, 1, 1}}
-        };
-    for(auto fxt: limitsFixtures)
-    {
-        int kh = fxt.first[0];
-        int kw = fxt.first[1];
-        const int C = fxt.first[2];
-        const int H = fxt.first[3];
-        const int W = fxt.first[4];
-        const int padding_top = fxt.first[5];
-        const int padding_left = fxt.first[6];
-        const int padding_bottom = fxt.first[7];
-        const int padding_right = fxt.first[8];
-        const dwc_algs_limits ref(fxt.second[0], fxt.second[1], fxt.second[2], fxt.second[3], fxt.second[4], fxt.second[5], fxt.second[6], fxt.second[7], fxt.second[8], fxt.second[9]);
-        const int H0 = H-kh+1+padding_top+padding_bottom;
-        const int W0 = W-kw+1+padding_left+padding_right;
-
-        DepthwiseconvGenerator generator(CTX);
-        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-        dwc_algs_limits tocheck = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
-        if(!compare_alg_limits(tocheck, ref))
-            return;
-    }
-    enum {PERF, REGRESS};
-    enum {SMALL_ALPHA, BIG_ALPHA};
-    std::vector< std::vector<int> > fixtures = {
-        {3, 3, 3, 10, 10, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 1, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 0, 1, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 0, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 0, 0, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 1, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 0, 1, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10, 10, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 1, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 0, 1, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 0, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 0, 0, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 1, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 0, 1, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3,  9,  9, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {3, 3, 3, 10,  3, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-
-        {5, 5, 256,  40,  40, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {7, 7, 256,  40,  40, 3, 3, 3, 3, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {9, 9, 256,  40,  40, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {5, 5, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {7, 7, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {9, 9, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {5, 5, 256,  39,  39, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {7, 7, 256,  39,  39, 3, 3, 3, 3, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-        {5, 5, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {7, 7, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
-        {9, 9, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
-
-        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_RELU, SMALL_ALPHA, REGRESS},
-        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_RELU6, SMALL_ALPHA, REGRESS},
-        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_LRELU, SMALL_ALPHA, REGRESS},
-        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_LRELU, BIG_ALPHA, REGRESS},
-
-
-        {5, 5, 1632, 7, 7, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
-        {3, 3, 32, 112, 112, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
-        {3, 3, 192, 56, 56, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
-
-//      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
-    };
-    for(auto fxt: fixtures)
-    {
-        int kh = fxt[0];
-        int kw = fxt[1];
-        const int C = fxt[2];
-        const int H = fxt[3];
-        const int W = fxt[4];
-        const int padding_top = fxt[5];
-        const int padding_left = fxt[6];
-        const int padding_bottom = fxt[7];
-        const int padding_right = fxt[8];
-        const int activation = fxt[9];
-        const float alpha = fxt[10] == BIG_ALPHA ? 1.25 : 0.25;
-        bool perf = (fxt[11] == PERF);
-        const int H0 = H-kh+1+padding_top+padding_bottom;
-        const int W0 = W-kw+1+padding_left+padding_right;
-
-        const float empty_value = kh * kw * 2000 + 1;
-        DepthwiseconvGenerator generator(CTX);
-        dwc_algs_limits algsLimits = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
-
-        DepthwiseconvGenerator::dwconv_t func = generator.generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
-        std::vector<float> indata(W*H*C);
-        std::vector<float> kernel(kw*kh*C, 0);
-        std::vector<float> bias(C, 0);        
-        std::vector<float> outdata(H0*W0*C * 3, empty_value);
-        std::vector<float> outdataref(H0*W0*C, 0);
-        float* inptr = &(indata[0]);
-        float* kptr = &(kernel[0]);
-        float* bptr = &(bias[0]);
-        float* optr = &(outdata[0]) + H0*W0*C;
-        float* optrref = &(outdataref[0]);
-        gendata(inptr, kptr, bptr,kh,kw, H, W, C);
-        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-        ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
-        if(perf)
-        {
-            Timer t;
-            int ret;
-            for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
-            {
-                t.start();
-                ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
-                t.stop();
-            }
-            if(compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
-                (*out)<<"    Optimized time = "<<t.str()<<std::endl;
-            else
-                return;
-        }
-        else
-        {
-            int ret;
-            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
-            if(!compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
-            {
-                (*out)<<"    FAILED!"<<std::endl;
-                return;
-            }
-        }
-    }
-}
-                                          
-void DepthwiseconvTest::gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C)
-{
-    for (int i = 0 ; i < C*H*W ; i++)
-        data[i] = (rand() % 10000)/5000.0f - 1;
-    for (int i = 0 ; i < C*kw*kh ; i++)
-        kernel[i] = (rand() % 10000)/2500.0f - 2;
-    for (int i = 0 ; i < C ; i++)
-        bias[i] = (rand() % 10000)/2500.0f - 2;
-}
-
-void DepthwiseconvTest::ref(float* data, float* kernel, float* bias, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)
-{
-    std::vector<float> padded;
-    {
-        const int WP = (W+padding_left+padding_right);
-        const int HP = (H+padding_top+padding_bottom);
-        padded.resize(WP*HP*C, 0);
-        for(int ch = 0; ch < C; ch++)
-        {
-            float* dest_ = &(padded[WP*HP*ch]);
-            float* data_ = &(data[W*H*ch]);
-            for(int nprow = 0; nprow < H; nprow++)
-            {
-                float* dest = dest_ + (nprow + padding_top) * WP + padding_left;
-                memcpy(dest, data_ + W * nprow, W * sizeof(float));
-            }
-        }
-        W = WP;
-        H = HP;
-        data = &padded[0];
-    }
-    std::vector<int> koffsets(kh*kw, 0);
-    for(int r = 0; r < kh; r++)
-        for(int c = 0; c < kw; c++)
-            koffsets[r*kw + c] = W * r + c;
-    for(int c = 0; c < C; c++)
-    {
-        float* ker = kernel + c * kw * kh;
-        float* inL = data + c * W * H;
-        float* resL = result + c * W0 * H0;
-        float32x4_t b = vdupq_n_f32(bias[c]);
-        for(int i = 0; i < H0; i++) 
-        {
-            float* inR = inL + i * W;
-            float* resR = resL + i * W0;
-            for(int j = 0; j < W0; j++)
-            {
-                float* inC = inR + j;
-                float* resC = resR + j;
-                float32x4_t res = b;
-                for(int k = 0; k < kh * kw; k++)
-                {
-                    int krow = k/kw;
-                    int kcol = k - krow * kw;
-                    float32x4_t toAdd = vdupq_n_f32(inC[koffsets[k]]);
-                    float32x4_t weight = vdupq_n_f32(ker[k]);
-                    res = vfmaq_f32(res, toAdd, weight);
-                }
-                switch(activation_type)
-                {
-                    case(DepthwiseconvGenerator::ACT_NONE): break;
-                    case(DepthwiseconvGenerator::ACT_RELU): res = vmaxq_f32(res, vdupq_n_f32(0)); break;
-                    case(DepthwiseconvGenerator::ACT_RELU6): res = vmaxq_f32(vminq_f32(res, vdupq_n_f32(6)), vdupq_n_f32(0)); break;
-                    case(DepthwiseconvGenerator::ACT_LRELU):
-                        res = alpha == 1 ? res :
-                              alpha <  1 ? vmaxq_f32(vmulq_f32(res, vdupq_n_f32(alpha)), res) : 
-                                           vminq_f32(vmulq_f32(res, vdupq_n_f32(alpha)), res);
-                    break;
-                    defaout: throw std::runtime_error("Unknown activation");
-                };                
-                float res_ = vgetq_lane_f32(res, 0);
-                // res_ = (res_ > 0 ? res_ : (res_ * alpha));
-                *resC = res_;
-            }
-        }
-    }
-}
-
-bool DepthwiseconvTest::compare(float* tocheck, float* ref, int C, int H, int W, float empty_value)
-{
-    for(int k = 0; k < C; k++)
-        for(int i = 0; i < H; i++)
-            for(int j = 0; j < W; j++)
-                if(tocheck[(k * H + i) * W + j] != empty_value) 
-                {
-                    (*out)<<"    Memory writing violation at output ["<< -(C - k) <<", "<< i <<", "<< j<<"]"<<std::endl;
-                    return false;
-                }
-    for(int k = 0; k < C; k++)
-        for(int i = 0; i < H; i++)
-            for(int j = 0; j < W; j++)
-                if(tocheck[2*C*W*H+(k * H + i) * W + j] != empty_value) 
-                {
-                    (*out)<<"    Memory writing violation at output ["<< C + k <<", "<< i <<", "<< j<<"]"<<std::endl;
-                    return false;
-                }
-    tocheck += C*H*W;
-    float maxdiff = 0;
-    for(int k = 0; k < C; k++)
-        for(int i = 0; i < H; i++)
-            for(int j = 0; j < W; j++)
-            {
-                float tchk = tocheck[(k * H + i) * W + j];
-                float r = ref[(k * H + i) * W + j];
-                if(tchk != r)
-                {
-                    float absErr = std::abs(tchk - r);
-                    float relErr = absErr / std::abs(r);
-                    (*out)<<"    Result non-equal to reference at ["<< k <<", "<< i <<", "<< j<<"]"<<std::endl;
-                    (*out)<<"        Result got:"<< tchk <<std::endl;
-                    (*out)<<"        Reference:"<< r <<std::endl;
-                    (*out)<<"        Absolute error:"<< absErr <<std::endl;
-                    (*out)<<"        Relative error:"<< relErr <<std::endl;
-                    return false;
-                }
-            }
-    return true;
-}
-
-bool DepthwiseconvTest::compare_alg_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference)
-{
-    bool res = true;
-    if(tocheck.Cms != reference.Cms) {std::cout<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
-    if(tocheck.Cme != reference.Cme) {std::cout<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
-    if(tocheck.Cis != reference.Cis) {std::cout<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
-    if(tocheck.Cie != reference.Cie) {std::cout<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
-    if(tocheck.Yms != reference.Yms) {std::cout<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
-    if(tocheck.Yme != reference.Yme) {std::cout<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
-    if(tocheck.Yis != reference.Yis) {std::cout<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
-    if(tocheck.Yie != reference.Yie) {std::cout<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
-    if(tocheck.Xis != reference.Xis) {std::cout<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
-    if(tocheck.Xie != reference.Xie) {std::cout<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
-    return res; 
-}
-
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
-
+#endif //__LOOPS_DEPTHWISECONV_HPP__
 
 // #ifdef HORIZONTAL_OFFSET
 //         std::vector<IReg> horoff(kw, IReg());

@@ -7,7 +7,7 @@ See https://github.com/vpisarev/loops/LICENSE
 #ifndef __LOOPS_TEST_MATH_HPP__
 #define __LOOPS_TEST_MATH_HPP__
 
-#include "../tests.hpp"
+#include "tests.hpp"
 #include <math.h>
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "arm_neon.h"
