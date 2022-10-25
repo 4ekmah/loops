@@ -705,3 +705,39 @@ instruction_set_test()
    703 : cmgt   v31.2d, v0.2d, v0.2d          ; 1f 34 e0 4e  
    704 : cmgt   v0.2d, v31.2d, v0.2d          ; e0 37 e0 4e  
    705 : cmgt   v0.2d, v0.2d, v31.2d          ; 00 34 ff 4e  
+   706 : umov   x0, v0.16b, #0                ; 00 3c 01 0e  
+   707 : umov   x15, v0.16b, #0               ; 0f 3c 01 0e  
+   708 : umov   x0, v31.16b, #0               ; e0 3f 01 0e  
+   709 : umov   x0, v0.16b, #0x0f             ; 00 3c 1f 0e  
+   710 : umov   x0, v0.8h, #0                 ; 00 3c 02 0e  
+   711 : umov   x15, v0.8h, #0                ; 0f 3c 02 0e  
+   712 : umov   x0, v31.8h, #0                ; e0 3f 02 0e  
+   713 : umov   x0, v0.8h, #0x07              ; 00 3c 1e 0e  
+   714 : umov   x0, v0.4s, #0                 ; 00 3c 04 0e  
+   715 : umov   x15, v0.4s, #0                ; 0f 3c 04 0e  
+   716 : umov   x0, v31.4s, #0                ; e0 3f 04 0e  
+   717 : umov   x0, v0.4s, #0x03              ; 00 3c 1c 0e  
+   718 : umov   x0, v0.2d, #0                 ; 00 3c 08 4e  
+   719 : umov   x15, v0.2d, #0                ; 0f 3c 08 4e  
+   720 : umov   x0, v31.2d, #0                ; e0 3f 08 4e  
+   721 : umov   x0, v0.2d, #0x01              ; 00 3c 18 4e  
+   722 : ins    v0.16b, #0, x0                ; 00 1c 01 4e  
+   723 : ins    v31.16b, #0, x0               ; 1f 1c 01 4e  
+   724 : ins    v0.16b, #0x0f, x0             ; 00 1c 1f 4e  
+   725 : ins    v0.16b, #0, x15               ; e0 1d 01 4e  
+   726 : ins    v0.8h, #0, x0                 ; 00 1c 02 4e  
+   727 : ins    v31.8h, #0, x0                ; 1f 1c 02 4e  
+   728 : ins    v0.8h, #0x07, x0              ; 00 1c 1e 4e  
+   729 : ins    v0.8h, #0, x15                ; e0 1d 02 4e  
+   730 : ins    v0.4s, #0, x0                 ; 00 1c 04 4e  
+   731 : ins    v31.4s, #0, x0                ; 1f 1c 04 4e  
+   732 : ins    v0.4s, #0x03, x0              ; 00 1c 1c 4e  
+   733 : ins    v0.4s, #0, x15                ; e0 1d 04 4e  
+   734 : ins    v0.2d, #0, x0                 ; 00 1c 08 4e  
+   735 : ins    v31.2d, #0, x0                ; 1f 1c 08 4e  
+   736 : ins    v0.2d, #0x01, x0              ; 00 1c 18 4e  
+   737 : ins    v0.2d, #0, x15                ; e0 1d 08 4e  
+   738 : bsl    v0.16b, v0.16b, v0.16b        ; 00 1c 60 6e  
+   739 : bsl    v31.16b, v0.16b, v0.16b       ; 1f 1c 60 6e  
+   740 : bsl    v0.16b, v31.16b, v0.16b       ; e0 1f 60 6e  
+   741 : bsl    v0.16b, v0.16b, v31.16b       ; 00 1c 7f 6e  

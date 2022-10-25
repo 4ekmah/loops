@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #ifndef __LOOPS_TEST_MATH_HPP__
@@ -236,7 +236,10 @@ PTEST_2(max_pool, int64_t, kh, int64_t, kw, {
         IReg offset = CONST_(0);
         IReg c = CONST_(0);
         IReg check = W0 * sizeof(float);
-
+        std::vector<std::vector<IReg> > offstab(kh, std::vector<IReg>(kw, IReg()));
+        for(int i = 0; i < kh; i++ ) 
+            for(int j = 0; j < kw; j++)
+                offstab[i][j].copyidx(IReg((CONST_(i)*W+CONST_(j)) * sizeof(float)));
         WHILE_(c < C)
         {
             IReg y = CONST_(0);

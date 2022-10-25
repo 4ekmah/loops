@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "func_impl.hpp"
@@ -46,6 +46,12 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_ARM_ST1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vst_lane." << type_suffixes[op.args[1].elemtype];
+    }},
+    {VOP_GETLANE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "getlane." << type_suffixes[op.args[1].elemtype];
+    }},
+    {VOP_SETLANE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "setlane." << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
@@ -157,7 +163,9 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_JMP_NE,   "jmp_ne"},
     {OP_JMP_GE,   "jmp_ge"},
     {OP_JMP_LE,   "jmp_le"},
+    {OP_JMP_ULE,  "jmp_ule"},
     {OP_JMP_GT,   "jmp_gt"},
+    {OP_JMP_UGT,  "jmp_ugt"},
     {OP_JMP_LT,   "jmp_gt"},
     {OP_SPILL,    "spill"},
     {OP_UNSPILL,  "unspill"},
@@ -172,6 +180,7 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {VOP_OR,      "or"},
     {VOP_XOR,     "xor"},
     {VOP_NOT,     "not"},
+    {VOP_SELECT,  "select"},
     {OP_RET,      "ret"},
     {OP_X86_ADC,  "x86_adc"},
     {OP_X86_CQO,  "x86_cqo"},
@@ -754,14 +763,16 @@ void FuncImpl::controlBlocks2Jumps()
 
 int FuncImpl::condition2jumptype(int cond)
 {
-    return cond == IC_EQ ? OP_JMP_EQ : (
-           cond == IC_NE ? OP_JMP_NE : (
-           cond == IC_LT ? OP_JMP_LT : (
-           cond == IC_GT ? OP_JMP_GT : (
-           cond == IC_LE ? OP_JMP_LE : (
-           cond == IC_GE ? OP_JMP_GE : OP_JMP )))));
-         //cond == IC_S  ? OP_JMP_S  : (
-         //cond == IC_NS ? OP_JMP_NS : IC_UNKNOWN)))))));
+    return cond == IC_EQ  ? OP_JMP_EQ  : (
+           cond == IC_NE  ? OP_JMP_NE  : (
+           cond == IC_LT  ? OP_JMP_LT  : (
+           cond == IC_GT  ? OP_JMP_GT  : (
+           cond == IC_UGT ? OP_JMP_UGT : (
+           cond == IC_LE  ? OP_JMP_LE  : (
+           cond == IC_ULE ? OP_JMP_ULE : (
+           cond == IC_GE  ? OP_JMP_GE  : OP_JMP )))))));
+         //cond == IC_S   ? OP_JMP_S   : (
+         //cond == IC_NS  ? OP_JMP_NS  : IC_UNKNOWN)))))));
 }
 
 };

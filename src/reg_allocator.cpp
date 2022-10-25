@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include <algorithm>
@@ -1007,6 +1007,10 @@ but only if this nested register will be used after this redefinition.
                     break;
                 }
             }
+            int alignx = 1;
+            for(int bex : basketElemX) 
+                alignx = std::max(alignx, bex);
+            m_snippetCausedSpills += m_snippetCausedSpills % alignx ? alignx - m_snippetCausedSpills % alignx : 0; 
         }
 
         { //2.) Expanding intervals, which are crossing loops borders.
