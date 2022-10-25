@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
@@ -41,8 +41,10 @@ namespace loops
         }
     }
 
-    void IReg::rawcopy(const IReg& from)
+    void IReg::copyidx(const IReg& from)
     {
+        if(func != nullptr && func != from.func)
+            throw std::runtime_error("Registers of different functions in idx assignment.");
         func = from.func;
         idx = from.idx;
     }
@@ -252,6 +254,20 @@ namespace loops
         newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
+    IReg ule(const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = IC_ULE;
+        newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg ule(const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_ULE;
+        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
     IReg operator >= (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
@@ -266,6 +282,13 @@ namespace loops
         newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
+    IReg uge(const IReg& a, const IReg& b) //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
+    { return ule(b,a); }
+    IReg uge(const IReg& a, int64_t b) //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
+    {
+        USE_CONTEXT_(ExtractContext(a));
+        return ule(CONST_(b),a);
+    }
     IReg operator > (const IReg& a, const IReg& b)
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
@@ -277,6 +300,20 @@ namespace loops
     {
         FuncImpl* fnc = FuncImpl::verifyArgs({ a });
         fnc->m_cmpopcode = IC_GT;
+        newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg ugt(const IReg& a, const IReg& b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
+        fnc->m_cmpopcode = IC_UGT;
+        newiopNoret(OP_CMP, {a, b});
+        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+    IReg ugt(const IReg& a, int64_t b)
+    {
+        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
+        fnc->m_cmpopcode = IC_UGT;
         newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
     }
@@ -293,6 +330,15 @@ namespace loops
         fnc->m_cmpopcode = IC_LT;
         newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
         return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
+    }
+
+    IReg ult(const IReg& a, const IReg& b)  //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
+    { return ugt(b,a); }
+
+    IReg ult(const IReg& a, int64_t b)  //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
+    {
+        USE_CONTEXT_(ExtractContext(a));
+        return ugt(CONST_(b),a);
     }
 
     Context::Context() : impl(nullptr)
@@ -325,6 +371,7 @@ namespace loops
     void Context::startFunc(const std::string& name, std::initializer_list<IReg*> params) { static_cast<ContextImpl*>(impl)->startFunc(name, params);    }
     void Context::endFunc() { static_cast<ContextImpl*>(impl)->endFunc(); }
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
+    bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
     IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
     void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
@@ -491,6 +538,12 @@ namespace loops
         if(found == m_functionsStorage.end()) 
             throw std::runtime_error("Cannot find function.");
         return found->second;
+    }
+
+    bool ContextImpl::hasFunc(const std::string& name)
+    {
+        auto found = m_functionsStorage.find(name);
+        return found != m_functionsStorage.end();
     }
     
     std::string ContextImpl::getPlatformName() const

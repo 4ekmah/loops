@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #ifndef __LOOPS_BACKEND_AARCH64_HPP__
@@ -41,6 +41,7 @@ enum {
     AARCH64_ORR,
     AARCH64_EOR,
     AARCH64_MVN,
+    AARCH64_BSL,
     AARCH64_NEG,
     AARCH64_FMIN,
     AARCH64_FMAX,
@@ -81,12 +82,16 @@ enum {
     AARCH64_ST1,
     AARCH64_EXT,
     AARCH64_DUP,
+    AARCH64_UMOV,
+    AARCH64_INS,
     AARCH64_B,
     AARCH64_B_NE,
     AARCH64_B_EQ,
     AARCH64_B_LT,
     AARCH64_B_LE,
+    AARCH64_B_LS,
     AARCH64_B_GT,
+    AARCH64_B_HI,
     AARCH64_B_GE,
     AARCH64_RET
 };

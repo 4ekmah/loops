@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 #ifndef __LOOPS_COMMON_HPP__
 #define __LOOPS_COMMON_HPP__
@@ -43,7 +43,7 @@ namespace loops
     }
 
     template<typename _Tp>
-    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src)
+    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src) //TODO(ch): HidCopy isn't needed anymore, there is rawcopy.
     {
         dest.func = src.func;
         dest.idx = src.idx;
@@ -148,7 +148,9 @@ namespace loops
         IC_NE,
         IC_LT,
         IC_GT,
+        IC_UGT,
         IC_LE,
+        IC_ULE,
         IC_GE,
         IC_S,
         IC_NS,
@@ -157,14 +159,16 @@ namespace loops
 
     inline int invertCondition(int condition)
     {
-        return condition == IC_EQ ? IC_NE : (
-               condition == IC_NE ? IC_EQ : (
-               condition == IC_LT ? IC_GE : (
-               condition == IC_GT ? IC_LE : (
-               condition == IC_LE ? IC_GT : (
-               condition == IC_GE ? IC_LT : (
-               condition == IC_S  ? IC_NS : (
-               condition == IC_NS ? IC_S  : IC_UNKNOWN)))))));
+        return condition == IC_EQ  ? IC_NE : (
+               condition == IC_NE  ? IC_EQ : (
+               condition == IC_LT  ? IC_GE : (
+               condition == IC_GT  ? IC_LE : (
+               condition == IC_UGT ? IC_ULE : (
+               condition == IC_LE  ? IC_GT : (
+               condition == IC_ULE ? IC_UGT : (
+               condition == IC_GE  ? IC_LT : (
+               condition == IC_S   ? IC_NS : (
+               condition == IC_NS  ? IC_S  : IC_UNKNOWN)))))))));
     }
 
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
@@ -337,6 +341,7 @@ namespace loops
         void startFunc(const std::string& name, std::initializer_list<IReg*> params);
         void endFunc();
         Func getFunc(const std::string& name);
+        bool hasFunc(const std::string& name);
         std::string getPlatformName() const;
         size_t vbytes() const;
         void compileAll();

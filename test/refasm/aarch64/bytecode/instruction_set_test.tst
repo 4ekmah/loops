@@ -86,10 +86,10 @@ instruction_set_test()
     84 : select         i0, 1, i0, i0              
     85 : select         i0, 2, i0, i0              
     86 : select         i0, 3, i0, i0              
-    87 : select         i0, 4, i0, i0              
-    88 : select         i0, 5, i0, i0              
-    89 : select         i0, 6, i0, i0              
-    90 : select         i0, 7, i0, i0              
+    87 : select         i0, 5, i0, i0              
+    88 : select         i0, 7, i0, i0              
+    89 : select         i0, 8, i0, i0              
+    90 : select         i0, 9, i0, i0              
     91 : select         i15, 0, i0, i0             
     92 : select         i0, 0, i15, i0             
     93 : select         i0, 0, i0, i15             
@@ -97,20 +97,20 @@ instruction_set_test()
     95 : arm_cinc       i0, i0, 1                  
     96 : arm_cinc       i0, i0, 2                  
     97 : arm_cinc       i0, i0, 3                  
-    98 : arm_cinc       i0, i0, 4                  
-    99 : arm_cinc       i0, i0, 5                  
-   100 : arm_cinc       i0, i0, 6                  
-   101 : arm_cinc       i0, i0, 7                  
+    98 : arm_cinc       i0, i0, 5                  
+    99 : arm_cinc       i0, i0, 7                  
+   100 : arm_cinc       i0, i0, 8                  
+   101 : arm_cinc       i0, i0, 9                  
    102 : arm_cinc       i15, i0, 0                 
    103 : arm_cinc       i0, i15, 0                 
    104 : arm_cneg       i0, i0, 0                  
    105 : arm_cneg       i0, i0, 1                  
    106 : arm_cneg       i0, i0, 2                  
    107 : arm_cneg       i0, i0, 3                  
-   108 : arm_cneg       i0, i0, 4                  
-   109 : arm_cneg       i0, i0, 5                  
-   110 : arm_cneg       i0, i0, 6                  
-   111 : arm_cneg       i0, i0, 7                  
+   108 : arm_cneg       i0, i0, 5                  
+   109 : arm_cneg       i0, i0, 7                  
+   110 : arm_cneg       i0, i0, 8                  
+   111 : arm_cneg       i0, i0, 9                  
    112 : arm_cneg       i15, i0, 0                 
    113 : arm_cneg       i0, i15, 0                 
    114 : sar            i0, i0, 63                 
@@ -705,3 +705,39 @@ instruction_set_test()
    703 : gt.u64         v31, v0, v0                
    704 : gt.u64         v0, v31, v0                
    705 : gt.u64         v0, v0, v31                
+   706 : getlane.u8     i0, v0, 0                  
+   707 : getlane.u8     i15, v0, 0                 
+   708 : getlane.u8     i0, v31, 0                 
+   709 : getlane.u8     i0, v0, 15                 
+   710 : getlane.u16    i0, v0, 0                  
+   711 : getlane.u16    i15, v0, 0                 
+   712 : getlane.u16    i0, v31, 0                 
+   713 : getlane.u16    i0, v0, 7                  
+   714 : getlane.u32    i0, v0, 0                  
+   715 : getlane.u32    i15, v0, 0                 
+   716 : getlane.u32    i0, v31, 0                 
+   717 : getlane.u32    i0, v0, 3                  
+   718 : getlane.u64    i0, v0, 0                  
+   719 : getlane.u64    i15, v0, 0                 
+   720 : getlane.u64    i0, v31, 0                 
+   721 : getlane.u64    i0, v0, 1                  
+   722 : setlane.       v0, 0, i0                  
+   723 : setlane.       v31, 0, i0                 
+   724 : setlane.       v0, 15, i0                 
+   725 : setlane.       v0, 0, i15                 
+   726 : setlane.       v0, 0, i0                  
+   727 : setlane.       v31, 0, i0                 
+   728 : setlane.       v0, 7, i0                  
+   729 : setlane.       v0, 0, i15                 
+   730 : setlane.       v0, 0, i0                  
+   731 : setlane.       v31, 0, i0                 
+   732 : setlane.       v0, 3, i0                  
+   733 : setlane.       v0, 0, i15                 
+   734 : setlane.       v0, 0, i0                  
+   735 : setlane.       v31, 0, i0                 
+   736 : setlane.       v0, 1, i0                  
+   737 : setlane.       v0, 0, i15                 
+   738 : select         v0, v0, v0, v0             
+   739 : select         v31, v31, v0, v0           
+   740 : select         v0, v0, v31, v0            
+   741 : select         v0, v0, v0, v31            

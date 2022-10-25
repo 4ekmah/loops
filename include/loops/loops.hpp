@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #ifndef __LOOPS_LOOPS_HPP__
@@ -65,9 +65,11 @@ enum {
 
     OP_JMP,
     OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
+    OP_JMP_UGT,
     OP_JMP_GE,
     OP_JMP_LT,
     OP_JMP_LE,
+    OP_JMP_ULE,
     OP_JMP_NE,
     OP_JMP_EQ,
     OP_RET,
@@ -109,6 +111,7 @@ enum {
     VOP_LE,
     VOP_NE,
     VOP_EQ,
+    VOP_SELECT,
     
     VOP_ALL,
     VOP_ANY,
@@ -128,6 +131,8 @@ enum {
     VOP_ARM_LD1,
     VOP_ARM_ST1,
     VOP_ARM_EXT,
+    VOP_GETLANE,
+    VOP_SETLANE,
 
     OP_NOINIT
 };
@@ -197,7 +202,14 @@ struct IReg
     IReg(IReg&& a) noexcept;
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
     // IReg& operator=(const IReg&& r); //TODO(ch): implement version for temporary objects, which rewrite output of last operation with this->idx and reduces vitualRegisterAmount.
-    void rawcopy(const IReg& from);
+    /*
+    copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
+    Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
+    Two most obvious usages are late initializtion for registers are elements of dynamic arrays and register 
+    aliases(sometimes it's convinient to use different variables in one expression accordingly to current
+    generation situation.) 
+    */   
+    void copyidx(const IReg& from);
 
     int idx;
     Func* func;
@@ -213,6 +225,14 @@ template<typename _Tp> struct VReg
     VReg(const VReg<_Tp>& r);
     VReg(VReg<_Tp>&& a) noexcept : func(a.func), idx(a.idx) {}
     VReg<_Tp>& operator=(const VReg<_Tp>& r);
+     /*
+    copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
+    Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
+    Two most obvious usages are late initializtion for registers are elements of dynamic arrays and register 
+    aliases(sometimes it's convinient to use different variables in one expression accordingly to current
+    generation situation.) 
+    */   
+    void copyidx(const VReg<_Tp>& from);
 
     int idx;
     Func* func;
@@ -279,6 +299,7 @@ public:
 
     void getFuncs(std::vector<Func>& funcs);
     Func getFunc(const std::string& name);
+    bool hasFunc(const std::string& name);
 
     /*
     //TODO(ch): Implement with RISC-V RVV
@@ -518,16 +539,28 @@ IReg operator != (const IReg& a, int64_t b);
 static inline IReg operator != (int64_t a, const IReg& b) { return b != a; }
 IReg operator <= (const IReg& a, const IReg& b);
 IReg operator <= (const IReg& a, int64_t b);
+IReg ule(const IReg& a, const IReg& b);
+IReg ule(const IReg& a, int64_t b);
 IReg operator >= (const IReg& a, const IReg& b);
 IReg operator >= (const IReg& a, int64_t b);
+IReg uge(const IReg& a, const IReg& b);
+IReg uge(const IReg& a, int64_t b);
 IReg operator > (const IReg& a, const IReg& b);
 IReg operator > (const IReg& a, int64_t b);
+IReg ugt(const IReg& a, const IReg& b);
+IReg ugt(const IReg& a, int64_t b);
 IReg operator < (const IReg& a, const IReg& b);
 IReg operator < (const IReg& a, int64_t b);
+IReg ult(const IReg& a, const IReg& b);
+IReg ult(const IReg& a, int64_t b);
 static inline IReg operator <= (int64_t a, const IReg& b) { return b >= a; }
+static inline IReg ule(int64_t a, const IReg& b) { return uge(b,a); }
 static inline IReg operator >= (int64_t a, const IReg& b) { return b <= a; }
+static inline IReg uge(int64_t a, const IReg& b) { return ule(b, a);}
 static inline IReg operator > (int64_t a, const IReg& b) { return b < a; }
+static inline IReg ugt(int64_t a, const IReg& b) { return ult(b,a);}
 static inline IReg operator < (int64_t a, const IReg& b) { return b > a; }
+static inline IReg ult(int64_t a, const IReg& b) {return ugt(b,a);}
 IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
 IReg select(const IReg& cond, int64_t truev, const IReg& falsev);
 IReg select(const IReg& cond, const IReg& truev, int64_t falsev);
@@ -592,7 +625,7 @@ template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
 template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
-{ return newiopV<_Tp>(VOP_ARM_LD1, {base, lane_index}); }
+{ return newiopV<_Tp>(VOP_ARM_LD1, {lane_index, base}); }
 
 // cast and store
 template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
@@ -601,6 +634,13 @@ template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const
 { newiopNoret(VOP_STORE, {base, offset, r}); }
 template<typename _Tp> void storelane(const IReg& base, const VReg<_Tp>& r, int64_t lane_index)
 { newiopNoret(VOP_ARM_ST1, {base, r, lane_index}); }
+
+template<typename _Tp> VReg<_Tp> broadcast(const IReg& scalar)
+{ return newiopV<_Tp>(VOP_BROADCAST, { scalar }); }
+template<typename _Tp> IReg getlane(const VReg<_Tp>& r, int64_t lane_index)
+{ return newiop(VOP_GETLANE, {r, lane_index}); }
+template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const IReg& i)
+{ newiopNoret(VOP_SETLANE, {v, lane_index, i}); }
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_ADD, {a, b}); }
@@ -650,6 +690,7 @@ template<typename _Tp, typename _Sp> VReg<_Tp> ushift_left(const VReg<_Tp>& a, c
     return newiopV<_Tp>(VOP_SHL, {a, b});
 }
 
+//TODO(ch): VOP_AND must be applicable on Vector of elements of same size, not only same elements.
 template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_AND, {a, b}); }
 template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -671,7 +712,8 @@ template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator > (cons
 { return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GT, {a, b});}
 template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LT, {a, b});}
-//template<typename _Tp> VReg<_Tp> select(const VReg<_Tp>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse);
+template<typename _Tp> VReg<_Tp> select(const VReg<typename ElemTraits<_Tp>::masktype>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse)
+{ return newiopV<_Tp>(VOP_SELECT, {flag, iftrue, iffalse}); }
 template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_MAX, {a, b}); }
 template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
@@ -759,9 +801,17 @@ Context ExtractContext(const Arg& arg);
 template<typename _Tp>
 VReg<_Tp>::VReg(const VReg<_Tp>& r)
 {
-    VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
-    idx = selfval.idx;
-    func = selfval.func;
+    if(r.func != nullptr)
+    {
+        VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
+        idx = selfval.idx;
+        func = selfval.func;
+    }
+    else
+    {
+        idx = NOIDX;
+        func = nullptr;
+    }
 }
 
 template<typename _Tp>
@@ -773,6 +823,15 @@ VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
         throw std::runtime_error("Null motherfunction.");
     newiopNoret(OP_MOV, {*this, r});
     return (*this);
+}
+
+template<typename _Tp>
+void VReg<_Tp>::copyidx(const VReg<_Tp>& from)
+{
+    if(func != nullptr && func != from.func)
+        throw std::runtime_error("Registers of different functions in idx assignment.");
+    func = from.func;
+    idx = from.idx;
 }
 
 template<typename _Tp>

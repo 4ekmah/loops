@@ -1,7 +1,7 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
 
 #ifndef __LOOPS_TEST_INTEL64_HPP__
@@ -10,9 +10,9 @@ See https://github.com/vpisarev/loops/LICENSE
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
-#include "../src/common.hpp"        //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/func_impl.hpp"     //TODO(ch): .. in path is bad practice. Configure project
-#include "../src/reg_allocator.hpp" //TODO(ch): .. in path is bad practice. Configure project
+#include "src/common.hpp"
+#include "src/func_impl.hpp"
+#include "src/reg_allocator.hpp"
 #include "tests.hpp"
 #include <iostream>
 
