@@ -9,13 +9,13 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "loops/loops.hpp"
+#include "loopslayers/loopslayers.h"
 #include <algorithm>
 #include <cstddef>
 #include <vector>
 #include <iostream>
 #include <iomanip>
 #include "arm_neon.h"
-#include "../test/tests.hpp"
 
 namespace loops
 {
@@ -24,8 +24,7 @@ class DepthwiseconvGenerator
 {
 public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
-    typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, dwc_algs_limits* algsLimits);
-    dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
+    dwconv_f32_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
     dwc_algs_limits calc_dwc_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
@@ -83,7 +82,7 @@ private:
 };
 
 //#define HORIZONTAL_OFFSET
-DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
+dwconv_f32_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
 {
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
@@ -108,7 +107,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
     if(CTX.hasFunc(funcname))
     {
         m_done = true;
-        return (dwconv_t)(CTX.getFunc(funcname).ptr());
+        return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
     }
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<float>() + (kernelRegsAmount%CTX.vlanes<float>()?1:0);
@@ -303,7 +302,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
         RETURN_(0);
     }
     m_done = true;
-    return (dwconv_t)(CTX.getFunc(funcname).ptr());
+    return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
 }
 
 void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)

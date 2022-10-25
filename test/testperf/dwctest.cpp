@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "loopslayers/loopslayers.h"
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #include <iostream>
 #include <iomanip>
