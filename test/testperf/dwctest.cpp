@@ -1,9 +1,8 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
-//TODO(ch): See https://github.com/vpisarev/loops/LICENSE -> https://github.com/4ekmah/loops/LICENSE
 #include "dwctest.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 

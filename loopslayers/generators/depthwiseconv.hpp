@@ -1,9 +1,8 @@
 /*
 This is a part of Loops project.
 Distributed under Apache 2 license.
-See https://github.com/vpisarev/loops/LICENSE
+See https://github.com/4ekmah/loops/LICENSE
 */
-//TODO(ch): See https://github.com/vpisarev/loops/LICENSE -> https://github.com/4ekmah/loops/LICENSE
 
 #ifndef __LOOPS_DEPTHWISECONV_HPP__
 #define __LOOPS_DEPTHWISECONV_HPP__
