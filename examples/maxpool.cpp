@@ -59,6 +59,67 @@ void MaxPool_vec_unroll4(float* data, int H, int W, int C, float* result, int H0
     }
 }
 
+void multilineInit(int& horVecsPerOut, const loops::IReg& data, const loops::IReg& x, std::vector<std::vector<loops::VReg<float>>>& vertMaxes, const loops::IReg& stride, int64_t& kh, int& init)
+{
+    using namespace loops;
+    USE_CONTEXT_(ExtractContext(data));
+    for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+    {
+        IReg vertMaxesPtr = data + x + vRegNum * ExtractContext(data).vbytes();
+        VReg<float> temp;
+        IReg offset = stride;
+        if (init == 1)
+        {
+            vertMaxes[0][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
+            vertMaxes[1][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+            vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+            offset += stride;
+            vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+        }
+        else
+        {
+            vertMaxes[0][vRegNum] = vertMaxes[0][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+            vertMaxes[0][vRegNum] = (loadvec<float>(vertMaxesPtr));
+            vertMaxes[1][vRegNum] = vertMaxes[1][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+            vertMaxes[1][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+            vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+            offset += stride;
+            vertMaxes[2][vRegNum] = vertMaxes[2][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+            vertMaxes[2][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+        }
+
+        for(int row = 3; row < kh; row++)
+        {
+            offset += stride;
+            vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+        }
+
+        vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
+        offset += stride;
+        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+        vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
+        offset += stride;
+        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+    }
+}
+
+void multilineInitLast(int lastVRegNum, std::vector<std::vector<loops::VReg<float>>>& vertMaxes, const loops::IReg& stride, int64_t kh, const loops::IReg& vertMaxesPtr)
+{
+    using namespace loops;
+    USE_CONTEXT_(ExtractContext(stride));
+    vertMaxes[0][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
+    IReg offset = stride;
+    vertMaxes[1][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+    vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[1][lastVRegNum]);
+    offset += stride;
+    vertMaxes[2][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+    for(int row = 3; row < kh; row++)
+    {
+        offset += stride;
+        vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], loadvec<float>(vertMaxesPtr, offset));
+    }
+}
+
 typedef int (*minmaxpos_t)(float* data, int H, int W, int C, float* result, int H0, int W0);
 // typedef int (*minmaxpos_t)(const int* ptr, int64_t n, int* minpos, int* maxpos);
 loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
@@ -105,29 +166,32 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                     IReg x = CONST_(0);
 
                     std::vector<std::vector<VReg<float> > > vertMaxes(3, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
-                    for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
-                    {
-                        IReg vertMaxesPtr = data_ + vRegNum * CTX.vbytes();
-                        VReg<float> temp;
-                        vertMaxes[0][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
-                        IReg offset = stride;
-                        vertMaxes[1][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
-                        vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
-                        offset += stride;
-                        vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
-                        for(int row = 3; row < kh; row++)
-                        {
-                            offset += stride;
-                            vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                        }
+                    vertMaxes.resize(3, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
+                    int init = 1;
+                    multilineInit(horVecsPerOut, data_, x, vertMaxes, stride, kh, init);
+                    // for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                    // {
+                    //     IReg vertMaxesPtr = data_ + vRegNum * CTX.vbytes();
+                    //     VReg<float> temp;
+                    //     vertMaxes[0][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
+                    //     IReg offset = stride;
+                    //     vertMaxes[1][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                    //     vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+                    //     offset += stride;
+                    //     vertMaxes[2][vRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
+                    //     for(int row = 3; row < kh; row++)
+                    //     {
+                    //         offset += stride;
+                    //         vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                    //     }
 
-                        vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
-                        offset += stride;
-                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                        vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
-                        offset += stride;
-                        vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                    }
+                    //     vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
+                    //     offset += stride;
+                    //     vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                    //     vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
+                    //     offset += stride;
+                    //     vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                    // }
 
                     WHILE_(x < check) 
                     {
@@ -135,33 +199,34 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                         {
                             x = Wcond;
                             x -= (horVecsPerOut - 1) * CTX.vbytes();
+                            init = 0;
+                            multilineInit(horVecsPerOut, data_, x, vertMaxes, stride, kh, init);
+                            // for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
+                            // {
+                            //     IReg vertMaxesPtr = data_ + x + vRegNum * CTX.vbytes();
+                            //     VReg<float> temp;
+                            //     vertMaxes[0][vRegNum] = vertMaxes[0][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                            //     vertMaxes[0][vRegNum] = (loadvec<float>(vertMaxesPtr));
+                            //     IReg offset = stride;
+                            //     vertMaxes[1][vRegNum] = vertMaxes[1][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                            //     vertMaxes[1][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+                            //     vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
+                            //     offset += stride;
+                            //     vertMaxes[2][vRegNum] = vertMaxes[2][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+                            //     vertMaxes[2][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
+                            //     for(int row = 3; row < kh; row++)
+                            //     {
+                            //         offset += stride;
+                            //         vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                            //     }
 
-                            for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
-                            {
-                                IReg vertMaxesPtr = data_ + x + vRegNum * CTX.vbytes();
-                                VReg<float> temp;
-                                vertMaxes[0][vRegNum] = vertMaxes[0][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
-                                vertMaxes[0][vRegNum] = (loadvec<float>(vertMaxesPtr));
-                                IReg offset = stride;
-                                vertMaxes[1][vRegNum] = vertMaxes[1][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
-                                vertMaxes[1][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
-                                vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[1][vRegNum]);
-                                offset += stride;
-                                vertMaxes[2][vRegNum] = vertMaxes[2][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
-                                vertMaxes[2][vRegNum] = (loadvec<float>(vertMaxesPtr, offset));
-                                for(int row = 3; row < kh; row++)
-                                {
-                                    offset += stride;
-                                    vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                                }
-
-                                vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
-                                offset += stride;
-                                vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                                vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
-                                offset += stride;
-                                vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
-                            }
+                            //     vertMaxes[0][vRegNum] = max(vertMaxes[0][vRegNum], vertMaxes[2][vRegNum]);
+                            //     offset += stride;
+                            //     vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                            //     vertMaxes[1][vRegNum] = max(vertMaxes[1][vRegNum], vertMaxes[2][vRegNum]);
+                            //     offset += stride;
+                            //     vertMaxes[2][vRegNum] = max(vertMaxes[2][vRegNum], loadvec<float>(vertMaxesPtr, offset));
+                            // }
                         } 
 
                         IReg result__ = result_ + x;
@@ -170,6 +235,7 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                         IReg vertMaxesPtr = data_ + x + lastVRegNum * CTX.vbytes();
                         VReg<float> temp;
 
+                        // multilineInitLast(lastVRegNum, vertMaxes, stride, kh, vertMaxesPtr);
                         vertMaxes[0][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr));
                         IReg offset = stride;
                         vertMaxes[1][lastVRegNum].rawcopy(loadvec<float>(vertMaxesPtr, offset));
@@ -224,8 +290,10 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                     data_ += W *  (3 * sizeof(float));
                 }
             }
+            
             WHILE_(y < H0) 
             {
+                // RETURN_(0);
                 IReg x = CONST_(0);
 
                 int horVecsPerOut = (kw + 3)/4 + ((kw + 3)%4?1:0);
@@ -287,6 +355,8 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
             }
             c += 1;
         }
+        IReg t = CONST_(0);
+        // example_1(t);
         RETURN_(0);
         return CTX.getFunc("minmaxloc");
     }
@@ -302,15 +372,15 @@ int main(int argc, char** argv)
 
     std::cout << "--------MINMAXLOCEXAMPLE---------" << std::endl;
     std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
-    // mmlfunc.printBytecode(std::cout);
+    mmlfunc.printBytecode(std::cout);
     std::string platform = CTX.getPlatformName();
     std::transform(platform.begin(), platform.end(), platform.begin(), ::toupper);
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;
     // mmlfunc.printAssembly(std::cout);
     std::cout << "======--FUNCTION-OUTPUT---=======" << std::endl;
 
-    int W = 201;
-    int H = 201;
+    int W = 200;
+    int H = 200;
     const int C = 32;
     // if ((W - kw + 1) % 4)
     //     W = ((W -kw + 1) / 4 + 1) * 4 + kw -1;
@@ -335,7 +405,7 @@ int main(int argc, char** argv)
         t.stop();
     }
 
-    // std::cout << "DUBUGGG: " << retval << std::endl;
+    std::cout << "DUBUGGG: " << retval << std::endl;
     std::cout<<"    Maxpooling " << kh << "x" << kw <<". Optimized time = "<<t.str()<<std::endl;
 
     // printData(&inp[0], H, W);
