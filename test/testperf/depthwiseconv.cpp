@@ -22,9 +22,10 @@ namespace loops
 class DepthwiseconvGenerator
 {
 public:
+    enum {ACT_NONE, ACT_RELU, ACT_RELU6, ACT_LRELU};
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
     typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, dwc_algs_limits* algsLimits);
-    dwconv_t generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_);
+    dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
     dwc_algs_limits calcAlgsLimits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
@@ -36,11 +37,13 @@ private:
     void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags = 0);
 
     //Common parameters and registers
-    int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right;
+    int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right, activation_type;
     IReg H, W, kernel, W0;
+    float alpha;
     std::vector<VReg<float> > vkernel;
     VReg<int32_t> countingPattern, idx_step;
-    VReg<float> vbias;
+    VReg<float> vbias, valpha;
+    VReg<float> activationFunction(VReg<float>& res);
 
     inline int upDiv(int numerator, int denominator);
     inline int upMultipleOf(int numerator, int denominator); 
@@ -82,7 +85,7 @@ private:
 const int DepthwiseconvGenerator::MultiH = 3;
 
 //#define HORIZONTAL_OFFSET
-DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_)
+DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
 {
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
@@ -90,12 +93,20 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
     elemsize = sizeof(float);
     elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     padding_top = padding_top_; padding_left = padding_left_; padding_bottom = padding_bottom_; padding_right = padding_right_;
+    activation_type = activation_type_;
+    alpha = alpha_;
+    if(alpha == 1) 
+        activation_type = ACT_NONE;
     std::string funcname = "depthwise_convolution_kH";
     const bool padver = (padding_top || padding_bottom);
     const bool padhor = (padding_left || padding_right);
     int handlerFlags = (padhor ? PADHOR : 0) | (padver ? PADVER : 0); 
     int pshiftflag = (padhor ? PADSHIFTRES : 0);
     funcname += std::to_string(kh) + "_kW" + std::to_string(kw) + "_pT" + std::to_string(padding_top) + "_pL" + std::to_string(padding_left) + "_pB" + std::to_string(padding_bottom) + "_pR" + std::to_string(padding_right);
+    if(activation_type != ACT_NONE) 
+        funcname += activation_type == ACT_RELU ? "_Relu" : 
+                   (activation_type == ACT_RELU6 ? "_Relu6" : 
+                   (/*activation_type == ACT_LRELU ?*/ (alpha < 1 ? "_LRelu" : "_LReluRev")/* : "")*/));
     if(CTX.hasFunc(funcname))
     {
         m_done = true;
@@ -104,10 +115,14 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<float>() + (kernelRegsAmount%CTX.vlanes<float>()?1:0);
     vkernel.resize(kernelRegsAmount, VReg<float>());
-    IReg data, bias, C, H0, result, algsLimits;
+    IReg data, bias, C, result, H0, algsLimits;
     USE_CONTEXT_(CTX);
     STARTFUNC_(funcname, &data, &kernel, &bias, &H, &W, &C, &result, &H0, &W0, &algsLimits)
     {
+        if(activation_type == ACT_LRELU)
+        {
+            valpha.copyidx(VCONST_(float, alpha));
+        }
         if(padhor)
         {
             countingPattern.copyidx(VCONST_(int32_t, 0));
@@ -274,7 +289,7 @@ DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int k
                                 kcol = select(kcol == kw, 0, kcol);
                             }
                             IReg roffset = (((padhor||padver) ? xi + padding_left : xi) << elemshift);
-                            store_<float>(result_rs + roffset, getlane<float>(vres, 0));
+                            store_<float>(result_rs + roffset, getlane<float>(activationFunction(vres), 0));
                             xi += 1;
                         }
                     }
@@ -354,7 +369,7 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
     IReg offstride = W0_ << elemshift;
     for(int lineNum = 0; lineNum < MultiH; lineNum++)
     {
-        storevec<float>(result_rs, roffset, vres[lineNum]);
+        storevec<float>(result_rs, roffset, activationFunction(vres[lineNum]));
         if(lineNum + 1 < MultiH)
             roffset += offstride;
     }
@@ -417,7 +432,7 @@ void DepthwiseconvGenerator::onlylineHandler(const VReg<uint32_t>& WcondV, IReg&
         krow += 1;
     }
     IReg roffset = (flags&PADSHIFTRES? x + padding_left : x) << elemshift;
-    storevec<float>(result_rs, roffset, vres);
+    storevec<float>(result_rs, roffset, activationFunction(vres));
     x += CTX.vlanes<float>();
 }
 
@@ -443,6 +458,20 @@ void DepthwiseconvGenerator::loadVector(const IReg& base, int64_t offset, VReg<f
             dest = reinterpret<float>( mask & reinterpret<uint32_t>(dest));
         }
     }
+}
+
+VReg<float> DepthwiseconvGenerator::activationFunction(VReg<float>& res)
+{
+    USE_CONTEXT_(CTX);
+    switch(activation_type)
+    {
+        case(ACT_NONE): return static_cast<VReg<float>&&>(res); break;
+        case(ACT_RELU): return static_cast<VReg<float>&&>(max(res, VCONST_(float, 0))); break;
+        case(ACT_RELU6): return static_cast<VReg<float>&&>(max(min(res, VCONST_(float, 6)),VCONST_(float, 0))); break;
+        case(ACT_LRELU): return static_cast<VReg<float>&&>(alpha < 1 ? max(res,res * valpha) : min(res,res * valpha) ); break;
+        defaout: throw std::runtime_error("Unknown activation");
+    };
+    return VReg<float>();
 }
 
 inline int DepthwiseconvGenerator::upDiv(int numerator, int denominator) 
@@ -532,7 +561,7 @@ dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int 
     int Cms, Cme;
     int lsimd = upMultipleOf(kw + CTX.vlanes<float>() - 2, CTX.vlanes<float>()) - 1;
     int XlastMulti = (W0 - padding_left - CTX.vlanes<float>()) + lsimd;
-    if(H0 > CTX.vlanes<float>())
+    if(W0 > CTX.vlanes<float>())
     {
         Cms = downC(C, H, W, -padding_top, -padding_left);
         int YlastMulti = (downMultipleOf(W0, MultiH) - padding_top + kh + MultiH - 2);
@@ -551,13 +580,13 @@ dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int 
         Cis = C + 1;
         Cie = C;
     }
-    int Yms = H0 + 1, Yme = 0;
+    int Yms = H0 + 1, Yme = H0;
     if(Cms < C + 1)
     {
         Yms = downY(C, H, W, Cms - 1, -padding_top, -padding_left);
         Yme = upperY(C, H, W, Cme, MultiH + kh - padding_top - 2, MultiH, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
     }
-    int Yis = H0 + 1, Yie = 0;
+    int Yis = H0 + 1, Yie = H0;
     if(Cis < C + 1)
     {
         Yis = (padding_left == 0) ? 0 : downY(C, H, W, Cis - 1, -padding_top, -padding_left);
@@ -566,7 +595,7 @@ dwc_algs_limits DepthwiseconvGenerator::calcAlgsLimits(int C, int W, int H, int 
         else
             Yie = std::max(0, upperY(C, H, W, Cie, kh - 1 - padding_top, Xlast));
     }
-    int Xis = W0, Xie = 0;
+    int Xis = W0, Xie = W0;
     if(Yis < H0)
     {
         Xis = downX(C, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
@@ -602,80 +631,86 @@ void DepthwiseconvTest::run()
 {
     const int TESTITERATIONS = 30;
 
-    // std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
-    //     {{3, 3, 3, 10, 10, 0, 0, 0, 0}, {0, 2, 0, 2, 0, 6, 0, 7, 0, 4}},
-    //     {{3, 3, 3, 10, 10, 1, 0, 1, 0}, {1, 2, 0, 2, 1, 6, 0, 8, 0, 4}},
-    //     {{3, 3, 3, 10, 10, 0, 1, 0, 1}, {1, 2, 1, 2, 1, 6, 1, 7, 1, 4}},
-    //     {{3, 3, 3, 10, 10, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 6, 2, 8, 1, 4}},
-    //     {{3, 3, 1, 10, 10, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 6, 0, 7, 0, 4}},
-    //     {{3, 3, 1, 10, 10, 1, 0, 1, 0}, {1, 0, 0, 0, 1, 7, 0, 8, 0, 4}},
-    //     {{3, 3, 1, 10, 10, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 7, 1, 7, 1, 4}},
-    //     {{3, 3, 1, 10, 10, 1, 1, 1, 1}, {1, 0, 1, 0, 2, 8, 2,  8, 1, 4}},
-    //     {{3, 3, 1, 1, 1, 1, 1, 1, 1},   {2, 1, 2, 1, 2, 0, 2, 0, 1, 0}},
-    //     {{3, 3, 100, 1, 1, 1, 1, 1, 1}, {101, 100, 1, 94, 2, 0, 2, 0, 1, 0}}
-    //     };
-    // for(auto fxt: limitsFixtures)
-    // {
-    //     int kh = fxt.first[0];
-    //     int kw = fxt.first[1];
-    //     const int C = fxt.first[2];
-    //     const int H = fxt.first[3];
-    //     const int W = fxt.first[4];
-    //     const int padding_top = fxt.first[5];
-    //     const int padding_left = fxt.first[6];
-    //     const int padding_bottom = fxt.first[7];
-    //     const int padding_right = fxt.first[8];
-    //     const dwc_algs_limits ref(fxt.second[0], fxt.second[1], fxt.second[2], fxt.second[3], fxt.second[4], fxt.second[5], fxt.second[6], fxt.second[7], fxt.second[8], fxt.second[9]);
-    //     bool padding = padding_top || padding_left || padding_bottom || padding_right;
-    //     const int H0 = H-kh+1+padding_top+padding_bottom;
-    //     const int W0 = W-kw+1+padding_left+padding_right;
+    std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
+        {{3, 3, 3, 10, 3, 0, 0, 0, 0}, {4, 3, 0, 2, 9, 8, 0, 6, 0, 0}},
 
-    //     DepthwiseconvGenerator generator(CTX);
-    //     (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-    //     dwc_algs_limits tocheck = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
-    //     if(!compare_alg_limits(tocheck, ref))
-    //         return;
-    // }
 
+        {{3, 3, 3, 10, 10, 0, 0, 0, 0}, {0, 2, 0, 2, 0, 6, 0, 7, 0, 4}},
+        {{3, 3, 3, 10, 10, 1, 0, 1, 0}, {1, 2, 0, 2, 1, 6, 0, 8, 0, 4}},
+        {{3, 3, 3, 10, 10, 0, 1, 0, 1}, {1, 2, 1, 2, 1, 6, 1, 7, 1, 4}},
+        {{3, 3, 3, 10, 10, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 6, 2, 8, 1, 4}},
+        {{3, 3, 1, 10, 10, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 6, 0, 7, 0, 4}},
+        {{3, 3, 1, 10, 10, 1, 0, 1, 0}, {1, 0, 0, 0, 1, 7, 0, 8, 0, 4}},
+        {{3, 3, 1, 10, 10, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 7, 1, 7, 1, 4}},
+        {{3, 3, 1, 10, 10, 1, 1, 1, 1}, {1, 0, 1, 0, 2, 8, 2,  8, 1, 4}},
+        {{3, 3, 1, 1, 1, 1, 1, 1, 1},   {2, 1, 2, 1, 2, 1, 2, 1, 1, 1}},
+        {{3, 3, 100, 1, 1, 1, 1, 1, 1}, {101, 100, 1, 94, 2, 1, 2, 0, 1, 1}}
+        };
+    for(auto fxt: limitsFixtures)
+    {
+        int kh = fxt.first[0];
+        int kw = fxt.first[1];
+        const int C = fxt.first[2];
+        const int H = fxt.first[3];
+        const int W = fxt.first[4];
+        const int padding_top = fxt.first[5];
+        const int padding_left = fxt.first[6];
+        const int padding_bottom = fxt.first[7];
+        const int padding_right = fxt.first[8];
+        const dwc_algs_limits ref(fxt.second[0], fxt.second[1], fxt.second[2], fxt.second[3], fxt.second[4], fxt.second[5], fxt.second[6], fxt.second[7], fxt.second[8], fxt.second[9]);
+        const int H0 = H-kh+1+padding_top+padding_bottom;
+        const int W0 = W-kw+1+padding_left+padding_right;
+
+        DepthwiseconvGenerator generator(CTX);
+        (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
+        dwc_algs_limits tocheck = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+        if(!compare_alg_limits(tocheck, ref))
+            return;
+    }
+    enum {PERF, REGRESS};
+    enum {SMALL_ALPHA, BIG_ALPHA};
     std::vector< std::vector<int> > fixtures = {
-        {5, 5, 1632, 7, 7, 2, 2, 2, 2},
-        {3, 3, 32, 112, 112, 1, 1, 1, 1},
-        {3, 3, 192, 56, 56, 1, 1, 1, 1},
+        {3, 3, 3, 10, 10, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 1, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 0, 1, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 0, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 0, 0, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 1, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 0, 1, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10, 10, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 1, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 0, 1, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 0, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 0, 0, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 1, 0, 1, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 0, 1, 0, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3,  9,  9, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {3, 3, 3, 10,  3, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
 
-        {3, 3, 3, 10, 10, 0, 0, 0, 0},
-        {3, 3, 3, 10, 10, 1, 0, 0, 0},
-        {3, 3, 3, 10, 10, 0, 1, 0, 0},
-        {3, 3, 3, 10, 10, 0, 0, 1, 0},
-        {3, 3, 3, 10, 10, 0, 0, 0, 1},
-        {3, 3, 3, 10, 10, 1, 0, 1, 0},
-        {3, 3, 3, 10, 10, 0, 1, 0, 1},
-        {3, 3, 3, 10, 10, 1, 1, 1, 1},
-        {3, 3, 3, 9, 9, 0, 0, 0, 0},
-        {3, 3, 3, 9, 9, 1, 0, 0, 0},
-        {3, 3, 3, 9, 9, 0, 1, 0, 0},
-        {3, 3, 3, 9, 9, 0, 0, 1, 0},
-        {3, 3, 3, 9, 9, 0, 0, 0, 1},
-        {3, 3, 3, 9, 9, 1, 0, 1, 0},
-        {3, 3, 3, 9, 9, 0, 1, 0, 1},
-        {3, 3, 3, 9, 9, 1, 1, 1, 1},
+        {5, 5, 256,  40,  40, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {7, 7, 256,  40,  40, 3, 3, 3, 3, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {9, 9, 256,  40,  40, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {5, 5, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {7, 7, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {9, 9, 256,  40,  40, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {5, 5, 256,  39,  39, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {7, 7, 256,  39,  39, 3, 3, 3, 3, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
+        {5, 5, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {7, 7, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS}, 
+        {9, 9, 256,  39,  39, 0, 0, 0, 0, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, REGRESS},
 
-        {3, 3,  32, 200, 200, 0, 1, 0, 1}, 
-        {3, 3, 256,  40,  40, 0, 1, 0, 1}, 
-        {5, 5,  32, 200, 200, 0, 1, 0, 1}, 
-        {5, 5, 256,  40,  40, 0, 1, 0, 1}, 
-        {7, 7,  32, 200, 200, 0, 1, 0, 1}, 
-        {7, 7, 256,  40,  40, 0, 1, 0, 1}, 
-        {9, 9,  32, 200, 200, 0, 1, 0, 1},
-        {9, 9, 256,  40,  40, 0, 1, 0, 1},
+        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_RELU, SMALL_ALPHA, REGRESS},
+        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_RELU6, SMALL_ALPHA, REGRESS},
+        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_LRELU, SMALL_ALPHA, REGRESS},
+        {9, 9, 256,  39,  39, 5, 5, 5, 5, DepthwiseconvGenerator::ACT_LRELU, BIG_ALPHA, REGRESS},
 
-        {3, 3,  32, 200, 200, 0, 0, 0, 0}, 
-        {3, 3, 256,  40,  40, 0, 0, 0, 0}, 
-        {5, 5,  32, 200, 200, 0, 0, 0, 0}, 
-        {5, 5, 256,  40,  40, 0, 0, 0, 0}, 
-        {7, 7,  32, 200, 200, 0, 0, 0, 0}, 
-        {7, 7, 256,  40,  40, 0, 0, 0, 0}, 
-        {9, 9,  32, 200, 200, 0, 0, 0, 0},
-        {9, 9, 256,  40,  40, 0, 0, 0, 0}
+
+        {5, 5, 1632, 7, 7, 2, 2, 2, 2, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
+        {3, 3, 32, 112, 112, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
+        {3, 3, 192, 56, 56, 1, 1, 1, 1, DepthwiseconvGenerator::ACT_NONE, SMALL_ALPHA, PERF},
+
 //      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
     };
     for(auto fxt: fixtures)
@@ -689,7 +724,9 @@ void DepthwiseconvTest::run()
         const int padding_left = fxt[6];
         const int padding_bottom = fxt[7];
         const int padding_right = fxt[8];
-        bool padding = padding_top || padding_left || padding_bottom || padding_right;
+        const int activation = fxt[9];
+        const float alpha = fxt[10] == BIG_ALPHA ? 1.25 : 0.25;
+        bool perf = (fxt[11] == PERF);
         const int H0 = H-kh+1+padding_top+padding_bottom;
         const int W0 = W-kw+1+padding_left+padding_right;
 
@@ -697,7 +734,7 @@ void DepthwiseconvTest::run()
         DepthwiseconvGenerator generator(CTX);
         dwc_algs_limits algsLimits = generator.calcAlgsLimits(C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
 
-        DepthwiseconvGenerator::dwconv_t func = generator.generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right);
+        DepthwiseconvGenerator::dwconv_t func = generator.generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
         std::vector<float> indata(W*H*C);
         std::vector<float> kernel(kw*kh*C, 0);
         std::vector<float> bias(C, 0);        
@@ -710,33 +747,46 @@ void DepthwiseconvTest::run()
         float* optrref = &(outdataref[0]);
         gendata(inptr, kptr, bptr,kh,kw, H, W, C);
         (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-        ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, kh, kw, padding_top, padding_left, padding_bottom, padding_right);
-        Timer t;
-        int ret;
-        for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+        ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
+        if(perf)
         {
-            t.start();
-            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
-            t.stop();
+            Timer t;
+            int ret;
+            for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
+            {
+                t.start();
+                ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
+                t.stop();
+            }
+            if(compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
+                (*out)<<"    Optimized time = "<<t.str()<<std::endl;
+            else
+                return;
         }
-        if(compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
-            (*out)<<"    Optimized time = "<<t.str()<<std::endl;
         else
-            return;
+        {
+            int ret;
+            ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
+            if(!compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
+            {
+                (*out)<<"    FAILED!"<<std::endl;
+                return;
+            }
+        }
     }
 }
                                           
 void DepthwiseconvTest::gendata(float* data, float* kernel, float* bias, int kh, int kw, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
-        data[i] = rand() % 1000;
+        data[i] = (rand() % 10000)/5000.0f - 1;
     for (int i = 0 ; i < C*kw*kh ; i++)
         kernel[i] = (rand() % 10000)/2500.0f - 2;
     for (int i = 0 ; i < C ; i++)
         bias[i] = (rand() % 10000)/2500.0f - 2;
 }
 
-void DepthwiseconvTest::ref(float* data, float* kernel, float* bias, int H, int W, int C, float* result, int H0, int W0, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right)
+void DepthwiseconvTest::ref(float* data, float* kernel, float* bias, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)
 {
     std::vector<float> padded;
     {
@@ -784,7 +834,20 @@ void DepthwiseconvTest::ref(float* data, float* kernel, float* bias, int H, int 
                     float32x4_t weight = vdupq_n_f32(ker[k]);
                     res = vfmaq_f32(res, toAdd, weight);
                 }
+                switch(activation_type)
+                {
+                    case(DepthwiseconvGenerator::ACT_NONE): break;
+                    case(DepthwiseconvGenerator::ACT_RELU): res = vmaxq_f32(res, vdupq_n_f32(0)); break;
+                    case(DepthwiseconvGenerator::ACT_RELU6): res = vmaxq_f32(vminq_f32(res, vdupq_n_f32(6)), vdupq_n_f32(0)); break;
+                    case(DepthwiseconvGenerator::ACT_LRELU):
+                        res = alpha == 1 ? res :
+                              alpha <  1 ? vmaxq_f32(vmulq_f32(res, vdupq_n_f32(alpha)), res) : 
+                                           vminq_f32(vmulq_f32(res, vdupq_n_f32(alpha)), res);
+                    break;
+                    defaout: throw std::runtime_error("Unknown activation");
+                };                
                 float res_ = vgetq_lane_f32(res, 0);
+                // res_ = (res_ > 0 ? res_ : (res_ * alpha));
                 *resC = res_;
             }
         }
