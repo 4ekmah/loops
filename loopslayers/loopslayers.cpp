@@ -19,7 +19,7 @@ dwconv_f32_t generate_dwc_f32(int kh, int kw, int padding_top, int padding_left,
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 || kh * kw > 39*39 || 
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
-    return loops::DepthwiseconvGenerator(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha);
+    return (dwconv_f32_t)loops::DepthwiseconvGenerator(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha);
 #endif 
 }
 

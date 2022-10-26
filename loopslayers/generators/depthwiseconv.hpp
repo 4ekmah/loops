@@ -9,13 +9,13 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "loops/loops.hpp"
-#include "loopslayers/loopslayers.h"
 #include <algorithm>
 #include <cstddef>
 #include <vector>
 #include <iostream>
 #include <iomanip>
 #include "arm_neon.h"
+#include "../test/tests.hpp"
 
 namespace loops
 {
@@ -24,7 +24,8 @@ class DepthwiseconvGenerator
 {
 public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
-    dwconv_f32_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
+    typedef int64_t (*dwconv_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, dwc_algs_limits* algsLimits);
+    dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
     dwc_algs_limits calc_dwc_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
@@ -41,7 +42,7 @@ private:
     float alpha;
     std::vector<VReg<float> > vkernel;
     VReg<int32_t> countingPattern, idx_step;
-    VReg<float> vbias, valpha;
+    VReg<float> vbias, valpha, v0, v6;
     VReg<float> activationFunction(VReg<float>& res);
 
     inline int upDiv(int numerator, int denominator);
@@ -81,8 +82,7 @@ private:
     inline int upperX(int C, int H, int W, int Cf, int Yf, int xs, int M, int x0);
 };
 
-//#define HORIZONTAL_OFFSET
-dwconv_f32_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
+DepthwiseconvGenerator::dwconv_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
 {
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
@@ -107,7 +107,7 @@ dwconv_f32_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_
     if(CTX.hasFunc(funcname))
     {
         m_done = true;
-        return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
+        return (dwconv_t)(CTX.getFunc(funcname).ptr());
     }
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<float>() + (kernelRegsAmount%CTX.vlanes<float>()?1:0);
@@ -116,10 +116,19 @@ dwconv_f32_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_
     USE_CONTEXT_(CTX);
     STARTFUNC_(funcname, &data, &kernel, &bias, &H, &W, &C, &result, &H0, &W0, &algsLimits)
     {
-        if(activation_type == ACT_LRELU)
+        switch(activation_type)
         {
+        case (ACT_RELU):
+            v0.copyidx(VCONST_(float, 0));
+            break;
+        case (ACT_RELU6):
+            v0.copyidx(VCONST_(float, 0));
+            v6.copyidx(VCONST_(float, 6));
+            break;
+        case (ACT_LRELU):
             valpha.copyidx(VCONST_(float, alpha));
-        }
+            break;
+        };
         if(padhor)
         {
             countingPattern.copyidx(VCONST_(int32_t, 0));
@@ -302,7 +311,7 @@ dwconv_f32_t DepthwiseconvGenerator::generate(int kh_, int kw_, int padding_top_
         RETURN_(0);
     }
     m_done = true;
-    return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
+    return (dwconv_t)(CTX.getFunc(funcname).ptr());
 }
 
 void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags)
@@ -311,52 +320,77 @@ void DepthwiseconvGenerator::multilineHandler(const VReg<uint32_t>& HcondV, cons
     std::vector<VReg<float> > vres(MULTI_H, VReg<float>());
     for(int rnum = 0; rnum<MULTI_H; rnum++)
         vres[rnum].copyidx(VReg<float>(vbias)); 
-    const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&(PADHOR|PADVER);
-    for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
-    {
-        VReg<int32_t> horIdxs = (flags&PADHOR) ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
-        VReg<uint32_t> verMask = (flags&PADVER) ? broadcast<uint32_t>(yi) < HcondV : VReg<uint32_t>();
-        if((flags&PADVER)&&(flags&PADHOR))
+    if(kw < 4 && !(flags&(PADHOR|PADVER)))
+    {//For 3x3 case approach with loading vectors one-by-one uses less operations.(*In central part of picture)
+        for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
         {
-            VReg<int32_t> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
-            horIdxs = select(verMask, antiSpill, reinterpret<int32_t>(WcondV));
-        }
-        VReg<float> loadedHalf0, loadedHalf1;
-        loadVector(base, 0, loadedHalf0, horIdxs, verMask, WcondV, INITDEST | lvflags);
-        if(kw > 1)
-            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
-
-        for(int kcol = 0; kcol < kw; kcol++) 
-        {
-            VReg<float> toAdd;
-            if(kcol%CTX.vlanes<float>() == 0 && kcol > 0)
+            for(int kcol = 0; kcol < kw; kcol++)
             {
-                VReg<float> inter;
-                inter.copyidx(loadedHalf0);
-                loadedHalf0.copyidx(loadedHalf1);
-                loadedHalf1.copyidx(inter);
-                if(kcol + 1 < kw)
-                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, PREINCREMENT_IDXS | lvflags);
-                toAdd.copyidx(loadedHalf0);
-            }
-            else
-                toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
-            for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
-            { 
-                const int krow = lrow - lineNum;
-                if(krow >= 0 && krow < kh)
-                {
-                    const int kerelemnum = krow*kw + kcol;
-                    vres[lineNum] = fma(vres[lineNum], toAdd, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
+                VReg<float> loaded = loadvec<float>(base);
+                if(kcol + 1 < kw) 
+                    base += elemsize;
+                for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
+                { 
+                    const int krow = lrow - lineNum;
+                    if(krow >= 0 && krow < kh)
+                    {
+                        const int kerelemnum = krow*kw + kcol;
+                        vres[lineNum] = fma(vres[lineNum], loaded, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
+                    }
                 }
             }
+            if(lrow + 2 < kh + MULTI_H) //Not last loaded row
+                base += (W<<elemshift) - ((kw-1)*elemsize);
         }
-        if(lrow + 2 < kh + MULTI_H) //Not last loaded row
+    }
+    else
+    {
+        for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
         {
-            base += W << elemshift;
-            if(flags&PADVER)
-                yi += 1;
+            VReg<int32_t> horIdxs = (flags&PADHOR) ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
+            VReg<uint32_t> verMask = (flags&PADVER) ? broadcast<uint32_t>(yi) < HcondV : VReg<uint32_t>();
+            if((flags&PADVER)&&(flags&PADHOR))
+            {
+                VReg<int32_t> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
+                horIdxs = select(verMask, antiSpill, reinterpret<int32_t>(WcondV));
+            }
+            VReg<float> loadedHalf0, loadedHalf1;
+            loadVector(base, 0, loadedHalf0, horIdxs, verMask, WcondV, INITDEST | lvflags);
+            if(kw > 1)
+                loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
+
+            for(int kcol = 0; kcol < kw; kcol++) 
+            {
+                VReg<float> toAdd;
+                if(kcol%CTX.vlanes<float>() == 0 && kcol > 0)
+                {
+                    VReg<float> inter;
+                    inter.copyidx(loadedHalf0);
+                    loadedHalf0.copyidx(loadedHalf1);
+                    loadedHalf1.copyidx(inter);
+                    if(kcol + 1 < kw)
+                        loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, PREINCREMENT_IDXS | lvflags);
+                    toAdd.copyidx(loadedHalf0);
+                }
+                else
+                    toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
+                for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
+                { 
+                    const int krow = lrow - lineNum;
+                    if(krow >= 0 && krow < kh)
+                    {
+                        const int kerelemnum = krow*kw + kcol;
+                        vres[lineNum] = fma(vres[lineNum], toAdd, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
+                    }
+                }
+            }
+            if(lrow + 2 < kh + MULTI_H) //Not last loaded row
+            {
+                base += W << elemshift;
+                if(flags&PADVER)
+                    yi += 1;
+            }
         }
     }
     IReg roffset = (flags&PADSHIFTRES? x + padding_left : x) << elemshift;
@@ -377,56 +411,74 @@ void DepthwiseconvGenerator::onlylineHandler(const VReg<uint32_t>& WcondV, IReg&
 {
     USE_CONTEXT_(CTX);
     VReg<float> vres = vbias;
-    const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&PADHOR;
     IReg krow = CONST_(0);
-    WHILE_(krow<kh)
+    if(kw < 4 && !(flags&(PADHOR|PADVER)))
+    {//For 3x3 case approach with loading vectors one-by-one uses less operations.(*In central part of picture)
+        for(int krow = 0; krow < kh; krow++) 
+        {
+            for(int kcol = 0; kcol < kw; kcol++)
+            {
+                const int kerelemnum = krow*kw + kcol;
+                VReg<float> loaded = loadvec<float>(base);
+                if(kcol + 1 < kw) 
+                    base += elemsize;
+                vres = fma(vres, loaded, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
+            }
+            if(krow + 1 < kh) //Not last loaded row
+                base += (W<<elemshift) - ((kw-1)*elemsize);
+        }
+    }
+    else
     {
-        if(flags&PADVER)
+        WHILE_(krow<kh)
         {
-            IF_(uge(yi,H))
+            if(flags&PADVER)
             {
-                base += W << elemshift;
-                yi += 1;
-                krow += 1;
-                CONTINUE_;
+                IF_(uge(yi,H))
+                {
+                    base += W << elemshift;
+                    yi += 1;
+                    krow += 1;
+                    CONTINUE_;
+                }
             }
-        }
-        IReg kptr = kernel + krow * (kw * elemsize);
-        VReg<uint32_t> dummy;
-        VReg<int32_t> horIdxs = flags&PADHOR ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
-        VReg<float> loadedHalf0, loadedHalf1;
-        loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
-        if(kw > 1)
-            loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
+            IReg kptr = kernel + krow * (kw * elemsize);
+            VReg<uint32_t> dummy;
+            VReg<int32_t> horIdxs = flags&PADHOR ? broadcast<int32_t>(x) + countingPattern : VReg<int32_t>();
+            VReg<float> loadedHalf0, loadedHalf1;
+            loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
+            if(kw > 1)
+                loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
 
-        for(int kcol = 0; kcol < kw; kcol++) 
-        {
-            VReg<float> spliced;
-            VReg<float> toAdd;
-            if(kcol%CTX.vlanes<float>() == 0 && kcol > 0)
+            for(int kcol = 0; kcol < kw; kcol++) 
             {
-                VReg<float> interm;
-                interm.copyidx(loadedHalf0);
-                loadedHalf0.copyidx(loadedHalf1);
-                loadedHalf1.copyidx(interm);
-                if(kcol + 1 < kw)
-                    loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, PREINCREMENT_IDXS | lvflags);
-                toAdd.copyidx(loadedHalf0);
+                VReg<float> spliced;
+                VReg<float> toAdd;
+                if(kcol%CTX.vlanes<float>() == 0 && kcol > 0)
+                {
+                    VReg<float> interm;
+                    interm.copyidx(loadedHalf0);
+                    loadedHalf0.copyidx(loadedHalf1);
+                    loadedHalf1.copyidx(interm);
+                    if(kcol + 1 < kw)
+                        loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, PREINCREMENT_IDXS | lvflags);
+                    toAdd.copyidx(loadedHalf0);
+                }
+                else
+                    toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
+                VReg<float> w = broadcast<float>(load_<float>(kptr));
+                {
+                    VReg<float> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                    vres = fma(antiSpill, toAdd, w);
+                }
+                kptr += elemsize;
             }
-            else
-                toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<float>()));
-            VReg<float> w = broadcast<float>(load_<float>(kptr));
-            {
-                VReg<float> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
-                vres = fma(antiSpill, toAdd, w);
-            }
-            kptr += elemsize;
+            base += W << elemshift;
+            if(flags&PADVER)
+                yi += 1;
+            krow += 1;
         }
-        base += W << elemshift;
-        if(flags&PADVER)
-            yi += 1;
-        krow += 1;
     }
     IReg roffset = (flags&PADSHIFTRES? x + padding_left : x) << elemshift;
     storevec<float>(result_rs, roffset, activationFunction(vres));
@@ -463,8 +515,8 @@ VReg<float> DepthwiseconvGenerator::activationFunction(VReg<float>& res)
     switch(activation_type)
     {
         case(ACT_NONE): return static_cast<VReg<float>&&>(res); break;
-        case(ACT_RELU): return static_cast<VReg<float>&&>(max(res, VCONST_(float, 0))); break;
-        case(ACT_RELU6): return static_cast<VReg<float>&&>(max(min(res, VCONST_(float, 6)),VCONST_(float, 0))); break;
+        case(ACT_RELU): return static_cast<VReg<float>&&>(max(res, v0)); break;
+        case(ACT_RELU6): return static_cast<VReg<float>&&>(max(min(res, v6),v0)); break;
         case(ACT_LRELU): return static_cast<VReg<float>&&>(alpha < 1 ? max(res,res * valpha) : min(res,res * valpha) ); break;
         defaout: throw std::runtime_error("Unknown activation");
     };
@@ -601,34 +653,3 @@ dwc_algs_limits DepthwiseconvGenerator::calc_dwc_algs_limits(int C, int W, int H
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 #endif //__LOOPS_DEPTHWISECONV_HPP__
-
-// #ifdef HORIZONTAL_OFFSET
-//         std::vector<IReg> horoff(kw, IReg());
-//         for(int kcol = 0; kcol < kw; kcol++)
-//             if(kcol%CTX.vlanes<float>())
-//                 horoff[kcol].rawcopy(CONST_(kcol<<elemshift));
-// #endif //HORIZONTAL_OFFSET
-// #ifdef HORIZONTAL_OFFSET
-//                 WHILE_(xi < xme)
-//                 {
-//                     IReg data__ = data_rs + (xi << elemshift);
-//                     VReg<float> vres = vbias;
-//                     for(int krow = 0; krow < kh; krow++) 
-//                     {
-//                         for(int kcol = 0; kcol < kw; kcol++) 
-//                         {
-//                             const int kerelemnum = krow*kw + kcol;
-//                             VReg<float> justloaded;
-//                             if(kcol%CTX.vlanes<float>())
-//                                 justloaded.rawcopy(loadvec<float>(data__, horoff[kcol]));
-//                             else
-//                                 justloaded.rawcopy(loadvec<float>(data__, kcol*elemsize));
-//                             vres = fma(vres, justloaded, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
-//                         }
-//                         if(krow + 1 < kh)
-//                             data__ += W << elemshift;
-//                     }
-//                     storevec<float>(result_rs, xi << elemshift, vres);
-//                     xi += CTX.vlanes<float>();
-//                 }
-// #else// HORIZONTAL_OFFSET
