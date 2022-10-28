@@ -21,6 +21,18 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
+template<typename _Tp> struct DWCGenTraits {};
+
+template<> struct DWCGenTraits<float> {
+    typedef dwconv_f32_t dwconv_t;
+    inline static std::string typestring(){return "fp32";}
+};
+
+template<> struct DWCGenTraits<f16_t> {
+    typedef dwconv_f16_t dwconv_t;
+    inline static std::string typestring(){return "fp16";}
+};
+
 template<typename _Tp>
 class DepthwiseconvGenerator
 {
@@ -28,7 +40,7 @@ class DepthwiseconvGenerator
     typedef typename ElemTraits<_Tp>::countertype intC;
 public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
-    dwconv_f32_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
+    typename DWCGenTraits<_Tp>::dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
     dwc_algs_limits calc_dwc_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
@@ -126,7 +138,7 @@ private:
 };
 
 template<typename _Tp>
-dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
+typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
 {
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
@@ -138,11 +150,12 @@ dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding
     alpha = alpha_;
     if(alpha == 1) 
         activation_type = ACT_NONE;
-    std::string funcname = "depthwise_convolution_kH";
+    std::string funcname = std::string("depthwise_convolution")+DWCGenTraits<_Tp>::typestring()+"_kH";
     const bool padver = (padding_top || padding_bottom);
     const bool padhor = (padding_left || padding_right);
     int handlerFlags = (padhor ? PADHOR : 0) | (padver ? PADVER : 0); 
     int pshiftflag = (padhor ? PADSHIFTRES : 0);
+    
     funcname += std::to_string(kh) + "_kW" + std::to_string(kw) + "_pT" + std::to_string(padding_top) + "_pL" + std::to_string(padding_left) + "_pB" + std::to_string(padding_bottom) + "_pR" + std::to_string(padding_right);
     if(activation_type != ACT_NONE) 
         funcname += activation_type == ACT_RELU ? "_Relu" : 
@@ -151,7 +164,7 @@ dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding
     if(CTX.hasFunc(funcname))
     {
         m_done = true;
-        return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
+        return (typename DWCGenTraits<_Tp>::dwconv_t)(CTX.getFunc(funcname).ptr());
     }
     size_t kernelRegsAmount = kh*kw;
     kernelRegsAmount = kernelRegsAmount/CTX.vlanes<_Tp>() + (kernelRegsAmount%CTX.vlanes<_Tp>()?1:0);
@@ -223,7 +236,7 @@ dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding
                         IReg result_rs = result + (W0 << elemshift) * y;
                         IReg xi = CONST_(-padding_left);
                         IReg Hcond = padver ? max(H - (kh + MULTI_H - 2), CONST_(0)) : IReg(); 
-                        IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)) : IReg();
+                        IReg Wcond = padhor ? max(W - (kw + CTX.vlanes<_Tp>() - 2), CONST_(0)) : IReg();
                         VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
                         VReg<uintM> HcondV = padver ? broadcast<uintM>(H) : VReg<uintM>();
                         IReg multilineendx;
@@ -267,7 +280,7 @@ dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding
                     {
                         IF_(xi == xis)
                         {
-                            IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)): IReg();
+                            IReg Wcond = padhor ? max(W - (kw + CTX.vlanes<_Tp>() - 2), CONST_(0)): IReg();
                             IReg Hcond = padver ? max(H - (kh - 1), CONST_(0)) : IReg();
                             VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
                             WHILE_(xi < xie)
@@ -355,7 +368,7 @@ dwconv_f32_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding
         RETURN_(0);
     }
     m_done = true;
-    return (dwconv_f32_t)(CTX.getFunc(funcname).ptr());
+    return (typename DWCGenTraits<_Tp>::dwconv_t)(CTX.getFunc(funcname).ptr());
 }
 
 template<typename _Tp>

@@ -86,6 +86,28 @@ template<> struct DWCTestTraits<f16_t> {
     { return generate_dwc_f16(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha); }
 };
 
+template<class T>
+void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << DWCTestTraits<T>::tflt(data[i*W+j]);
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+template<class T>
+void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(15) << DWCTestTraits<T>::tflt(data[i*stride+j]);
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
 DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out)
 { impl = new DepthwiseconvTestImpl(aCTX, a_out); }
 
@@ -104,6 +126,13 @@ void DepthwiseconvTestImpl::gendata(_Tp* data, _Tp* kernel, _Tp* bias, int kh, i
         kernel[i] = _Tp((rand() % 10000)/2500.0f - 2);
     for (int i = 0 ; i < C ; i++)
         bias[i] = _Tp((rand() % 10000)/2500.0f - 2);
+//DUBUGGG
+    // for (int i = 0 ; i < C*H*W ; i++)
+    //     data[i] = _Tp((rand() % 200) - 100);
+    // for (int i = 0 ; i < C*kw*kh ; i++)
+    //     kernel[i] = _Tp(1);
+    // for (int i = 0 ; i < C ; i++)
+    //     bias[i] = _Tp(0);
 }
 
 template<typename _Tp>
@@ -165,7 +194,7 @@ void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W,
                               alpha <  1 ? DWCTestTraits<_Tp>::max(DWCTestTraits<_Tp>::mul(res, DWCTestTraits<_Tp>::dup(_Tp(alpha))), res) : 
                                            DWCTestTraits<_Tp>::min(DWCTestTraits<_Tp>::mul(res, DWCTestTraits<_Tp>::dup(_Tp(alpha))), res);
                     break;
-                    defaout: throw std::runtime_error("Unknown activation");
+                    default: throw std::runtime_error("Unknown activation");
                 };                
                 _Tp res_ = DWCTestTraits<_Tp>::vget0(res);
                 *resC = res_;
@@ -283,7 +312,7 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     _Tp* optr = &(outdata[0]) + H0*W0*C;
     _Tp* optrref = &(outdataref[0]);
     gendata(inptr, kptr, bptr,kh,kw, H, W, C);
-    (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
+    (*out) << "Depthwise convolution "<<(fxt[0]==TYPE_FP16?"FP16 ":"FP32 ")<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
     ref(inptr, kptr, bptr, H, W, C, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
     if(perf)
     {
@@ -298,14 +327,21 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
         if(compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
             (*out)<<"    Optimized time = "<<t.str()<<std::endl;
         else
+        {
+            (*out)<<"    FAILED!"<<std::endl;
             return false;
+        }
     }
     else
     {
         int ret;
         ret = func(inptr, kptr, bptr, H, W, C, optr, H0, W0, &algsLimits);
+        // std::cout<<"DUBUGret = "<< ret << std::endl;
         if(!compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
         {
+            printData(inptr, H, W); //DUBUGGG
+            printData(optrref, H0, W0);
+            printData(optr, H0, W0);
             (*out)<<"    FAILED!"<<std::endl;
             return false;
         }
@@ -313,27 +349,6 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     return true;
 }
 
-template<class T>
-void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << data[i*W+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(15) << data[i*stride+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
 void DepthwiseconvTestImpl::run() 
 {
     std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
@@ -371,39 +386,39 @@ void DepthwiseconvTestImpl::run()
             return;
     }
     std::vector<std::vector<int> > fixtures = {
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  40,  40, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  40,  40, 3, 3, 3, 3, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  40,  40, 5, 5, 5, 5, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  39,  39, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  39,  39, 3, 3, 3, 3, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_RELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_RELU6, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_LRELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_LRELU, BIG_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 1, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3,  9,  9, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 5, 5, 256,  40,  40, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 7, 7, 256,  40,  40, 3, 3, 3, 3, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  40,  40, 5, 5, 5, 5, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 5, 5, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 7, 7, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  40,  40, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 5, 5, 256,  39,  39, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 7, 7, 256,  39,  39, 3, 3, 3, 3, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 5, 5, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 7, 7, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_RELU, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_RELU6, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_LRELU, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, ACT_LRELU, BIG_ALPHA, REGRESS},
 
         {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, ACT_NONE, SMALL_ALPHA, REGRESS},
