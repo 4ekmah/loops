@@ -223,13 +223,13 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
 
             IReg y = CONST_(0);
             IReg yonelineEnd = select(yms > y, yms , H0); //SIMD + scalar.
+            for(int kregnum = 0; kregnum < kernelRegsAmount; kregnum++)
+                vkernel[kregnum].copyidx(loadvec<_Tp>(kernel, kregnum * CTX.vbytes()));
 
             WHILE_(y < H0)
             {
                 IF_(y == yms)
                 {
-                    for(int kregnum = 0; kregnum < kernelRegsAmount; kregnum++)
-                        vkernel[kregnum].copyidx(loadvec<_Tp>(kernel, kregnum * CTX.vbytes()));
                     WHILE_(y < yme)
                     {
                         IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift);
@@ -266,14 +266,12 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                 }
                 WHILE_(y < yonelineEnd)
                 {
-                    IReg xis = select(y < yis, Xis, 0);
-                    IReg xie = select(y >= yie, Xie, 0);
-                    if(padding_left) { xis-=padding_left; xie-=padding_left;}
                     IReg xi = CONST_(-padding_left);
                     IReg W0mpl;
                     W0mpl.copyidx(padding_left? W0 - padding_left: W0);
+                    IReg xis = select(y < yis, Xis, xi);
+                    IReg xie = select(y >= yie, Xie, W0mpl);
                     IReg scalarEnd = select(xis > xi, xis, W0mpl);
-
                     IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift);
                     IReg result_rs = result + (W0 << elemshift) * y;
                     WHILE_(xi < W0mpl)
@@ -590,10 +588,10 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int C, int W, 
     int Cms, Cme;
     int lsimd = upMultipleOf(kw + CTX.vlanes<_Tp>() - 2, CTX.vlanes<_Tp>()) - 1;
     int XlastMulti = (W0 - padding_left - CTX.vlanes<_Tp>()) + lsimd;
-    if(W0 > CTX.vlanes<_Tp>())
+    if(W0 >= CTX.vlanes<_Tp>())
     {
         Cms = downC(C, H, W, -padding_top, -padding_left);
-        int YlastMulti = (downMultipleOf(W0, MULTI_H) - padding_top + kh + MULTI_H - 2);
+        int YlastMulti = (downMultipleOf(H0, MULTI_H) - padding_top + kh + MULTI_H - 2);
         Cme = upperC(C, H, W, YlastMulti, XlastMulti);
     }
     else
@@ -604,6 +602,8 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int C, int W, 
     int Xlast = downMultipleOf(W0-1, CTX.vlanes<_Tp>()) + lsimd - padding_left;
     int Cis = downC(C, H, W, 0, -padding_left);
     int Cie = upperC(C, H, W, (H-1), Xlast);
+    int Cie_write = upperC(C, H0, W0, (H0-1), upMultipleOf(W0, CTX.vlanes<_Tp>()) - 1);
+    Cie = std::min(Cie, Cie_write);
     if(Cie < (Cis - 1))
     {
         Cis = C + 1;
@@ -623,12 +623,16 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int C, int W, 
             Yie = H0;
         else
             Yie = std::max(0, upperY(C, H, W, Cie, kh - 1 - padding_top, Xlast));
+        int Yie_write = upperY(C, H0, W0, Cie, 0, upMultipleOf(W0, CTX.vlanes<_Tp>()) - 1);
+        Yie = std::min(Yie, Yie_write);
     }
     int Xis = W0, Xie = W0;
     if(Yis < H0)
     {
         Xis = downX(C, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
         Xie = upperX(C, H, W, Cie, std::min(Yie - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        int Xie_write = upperX(C, H0, W0, Cie, Yie, CTX.vlanes<_Tp>() - 1, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        Xie = std::min(Xie, Xie_write);
     }
     return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
 }
