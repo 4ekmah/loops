@@ -258,7 +258,7 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                 IReg stride = W * sizeof(float);
                 std::vector<VReg<float> > vertMaxes(horVecsPerOut, VReg<float>());
                 int init = 1;
-                onelineInit(horVecsPerOut, data, x, vertMaxes, stride, kh, init);
+                onelineInit(horVecsPerOut, data_, x, vertMaxes, stride, kh, init);
                 
                 WHILE_(x < check) 
                 {
@@ -268,7 +268,7 @@ loops::Func genminmaxloc(loops::Context& CTX, int64_t kh, int64_t kw)
                         x -= (horVecsPerOut - 1) * CTX.vbytes();
 
                         init = 0;
-                        onelineInit(horVecsPerOut, data, x, vertMaxes, stride, kh, init);
+                        onelineInit(horVecsPerOut, data_, x, vertMaxes, stride, kh, init);
                     } 
                     IReg data__ = data_ + x;
                     IReg result__ = result_ + x;
