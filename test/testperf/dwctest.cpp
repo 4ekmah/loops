@@ -58,7 +58,7 @@ template<> struct DWCTestTraits<float> {
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); }
     static inline float tflt(ftype a) { return a; }
     static inline void calc_dwc_algs_limits(struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
-    { calc_dwc_algs_limits_f32(out, C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);}
+    { calc_dwc_algs_limits_f32(out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right);}
     static inline dwconv_t generate_dwc(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
     { return generate_dwc_f32(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha); }
 };
@@ -81,7 +81,7 @@ template<> struct DWCTestTraits<f16_t> {
     static inline bool cmp_ne(ftype a, ftype b) { return (f16_t2armf16(a)!=f16_t2armf16(b)); }
     static inline float tflt(ftype a) { return f16_t2armf16(a); }
     static inline void calc_dwc_algs_limits(struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
-    { calc_dwc_algs_limits_f16(out, C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);}
+    { calc_dwc_algs_limits_f16(out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right);}
     static inline dwconv_t generate_dwc(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
     { return generate_dwc_f16(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha); }
 };
@@ -370,7 +370,7 @@ void DepthwiseconvTestImpl::run()
 
         (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
         dwc_algs_limits tocheck;
-        calc_dwc_algs_limits_f32(&tocheck, C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+        calc_dwc_algs_limits_f32(&tocheck, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
         if(!compare_alg_limits(tocheck, ref))
             return;
     }
