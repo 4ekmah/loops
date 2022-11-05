@@ -94,3 +94,9 @@ void calc_dwc_algs_limits_f16(dwc_algs_limits* out, int C, int H, int W, int kh,
         return;
 #endif
 }
+
+bool good_alg_limits(struct dwc_algs_limits* out)
+{
+    return out->Cms != 0 || out->Cme != 0 || out->Cis != 0 || out->Cie != 0 || out->Yms != 0 ||
+           out->Yme != 0 || out->Yis != 0 || out->Yie != 0 || out->Xis != 0 || out->Xie != 0;
+}
