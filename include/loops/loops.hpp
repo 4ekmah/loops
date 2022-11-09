@@ -18,6 +18,7 @@ namespace loops
 {
 
 struct f16_t {
+    f16_t();
     explicit f16_t(float x);
     uint16_t bits;
 };
@@ -141,56 +142,67 @@ template<typename _Tp> struct ElemTraits {};
 template<> struct ElemTraits<uint8_t> {
     typedef uint8_t elemtype;
     typedef uint8_t masktype;
+    typedef int8_t countertype;
     enum { depth = TYPE_U8, elemsize=1 };
 };
 template<> struct ElemTraits<int8_t> {
     typedef int8_t elemtype;
     typedef uint8_t masktype;
+    typedef int8_t countertype;
     enum { depth = TYPE_I8, elemsize=1 };
 };
 template<> struct ElemTraits<uint16_t> {
     typedef uint16_t elemtype;
     typedef uint16_t masktype;
+    typedef int16_t countertype;
     enum { depth = TYPE_U16, elemsize=2 };
 };
 template<> struct ElemTraits<int16_t> {
     typedef int16_t elemtype;
     typedef uint16_t masktype;
+    typedef int16_t countertype;
     enum { depth = TYPE_I16, elemsize=2 };
 };
 template<> struct ElemTraits<uint32_t> {
     typedef uint32_t elemtype;
     typedef uint32_t masktype;
+    typedef int32_t countertype;
     enum { depth = TYPE_U32, elemsize=4 };
 };
 template<> struct ElemTraits<int32_t> {
     typedef int32_t elemtype;
     typedef uint32_t masktype;
+    typedef int32_t countertype;
     enum { depth = TYPE_I32, elemsize=4 };
 };
 template<> struct ElemTraits<uint64_t> {
     typedef uint64_t elemtype;
     typedef uint64_t masktype;
+    typedef int64_t countertype;
     enum { depth = TYPE_U64, elemsize=8 };
 };
 template<> struct ElemTraits<int64_t> {
     typedef int64_t elemtype;
     typedef uint64_t masktype;
+    typedef int64_t countertype;
     enum { depth = TYPE_I64, elemsize=8 };
 };
 template<> struct ElemTraits<f16_t> {
     typedef float elemtype;
     typedef uint16_t masktype;
+    typedef int16_t countertype;
     enum { depth = TYPE_FP16, elemsize=2 };
 };
 template<> struct ElemTraits<float> {
     typedef float elemtype;
     typedef uint32_t masktype;
+    typedef int32_t countertype;
     enum { depth = TYPE_FP32, elemsize=4 };
 };
 template<> struct ElemTraits<double> {
     typedef double elemtype;
     typedef uint64_t masktype;
+    typedef int64_t countertype;
     enum { depth = TYPE_FP64, elemsize=8 };
 };
 

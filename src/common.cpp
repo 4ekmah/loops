@@ -17,10 +17,13 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
+    f16_t::f16_t() : bits(0){}
+
     f16_t::f16_t(float x)
     {
-    #if __LOOPS_ARCH == __LOOPS_INTEL64 && __LOOPS_OS == __LOOPS_MAC
-        (*(reinterpret_cast<__fp16*>(*bits))) = __fp16(x);
+    #if __LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC
+        __fp16 _x = x;
+        bits = *(reinterpret_cast<uint16_t*>(&_x));
     #endif
     }
 
