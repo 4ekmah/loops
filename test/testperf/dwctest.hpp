@@ -13,7 +13,7 @@ namespace loops
 class DepthwiseconvTest
 {
 public:
-    DepthwiseconvTest(Context aCTX, std::ostream* a_out);
+    DepthwiseconvTest(std::ostream* a_out);
     virtual ~DepthwiseconvTest();
     virtual void run();
 protected:

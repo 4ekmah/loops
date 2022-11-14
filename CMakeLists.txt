@@ -60,4 +60,15 @@ foreach(example_fn ${examples})
 	set_target_properties(${example_target} PROPERTIES FOLDER Examples)
 endforeach()
 
-              
+#TODO(ch): configure warning policies 
+# if (MSVC)
+#     target_compile_options(loops PRIVATE /W4 /WX)
+#     target_compile_options(loopslayers PRIVATE /W4 /WX)
+#     target_compile_options(testregress PRIVATE /W4 /WX)
+#     target_compile_options(testperf PRIVATE /W4 /WX)
+# else()
+#     target_compile_options(loops PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(loopslayers PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(testperf PRIVATE -Wall -Wextra -Wpedantic -Werror)
+# endif()

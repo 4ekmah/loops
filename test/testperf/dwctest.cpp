@@ -24,8 +24,11 @@ namespace loops
 class DepthwiseconvTestImpl : public DepthwiseconvTest
 {
 public:
-    DepthwiseconvTestImpl(Context aCTX, std::ostream* a_out): DepthwiseconvTest(), CTX(aCTX), out(a_out) {}
-    virtual ~DepthwiseconvTestImpl() {};
+    DepthwiseconvTestImpl(std::ostream* a_out): DepthwiseconvTest(), out(a_out)
+    {
+        CTX = (Context*)create_context();
+    }
+    virtual ~DepthwiseconvTestImpl() {free_context(CTX);};
     virtual void run();
 private:
     template<typename _Tp>
@@ -42,7 +45,7 @@ private:
     bool handleFixtureMultithread(const std::vector<int>& fxt);
     enum {PERF, REGRESS};
     enum {SMALL_ALPHA, BIG_ALPHA};
-    Context CTX;
+    Context* CTX;
     std::ostream* out;
 }; 
 
@@ -60,10 +63,10 @@ template<> struct DWCTestTraits<float> {
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f32(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); }
     static inline float tflt(ftype a) { return a; }
-    static inline void calc_dwc_algs_limits(struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
-    { calc_dwc_algs_limits_f32(out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);}
-    static inline dwconv_t generate_dwc(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
-    { return generate_dwc_f32(kh, kw, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1, activation_type, alpha); }
+    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+    { calc_dwc_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);}
+    static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
+    { return generate_dwc_f32(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1, activation_type, alpha); }
     static inline int padded_ksize(int kh, int kw, Context& CTX)
     {
         int padded_ksize = kw*kh;
@@ -89,10 +92,10 @@ template<> struct DWCTestTraits<f16_t> {
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f16(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (f16_t2armf16(a)!=f16_t2armf16(b)); }
     static inline float tflt(ftype a) { return f16_t2armf16(a); }
-    static inline void calc_dwc_algs_limits(struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
-    { calc_dwc_algs_limits_f16(out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);}
-    static inline dwconv_t generate_dwc(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
-    { return generate_dwc_f16(kh, kw, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1, activation_type, alpha); }
+    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+    { calc_dwc_algs_limits_f16(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);}
+    static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha)
+    { return generate_dwc_f16(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1, activation_type, alpha); }
     static inline int padded_ksize(int kh, int kw, Context& CTX)
     {
         int padded_ksize = kw*kh;
@@ -123,8 +126,8 @@ void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.
     std::cout << std::endl;
 }
 
-DepthwiseconvTest::DepthwiseconvTest(Context aCTX, std::ostream* a_out)
-{ impl = new DepthwiseconvTestImpl(aCTX, a_out); }
+DepthwiseconvTest::DepthwiseconvTest(std::ostream* a_out)
+{ impl = new DepthwiseconvTestImpl(a_out); }
 
 DepthwiseconvTest::~DepthwiseconvTest()
 { delete impl; }
@@ -139,7 +142,7 @@ void DepthwiseconvTestImpl::gendata(_Tp* data, _Tp* kernel, _Tp* bias, int kh, i
         data[i] = _Tp((rand() % 10000)/5000.0f - 1);
     for (int ch = 0 ; ch < C ; ch++)
         for (int i = 0 ; i < kw*kh ; i++)
-            kernel[DWCTestTraits<_Tp>::padded_ksize(kh, kw, CTX) * ch + i] = _Tp((rand() % 10000)/2500.0f - 2);
+            kernel[DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX) * ch + i] = _Tp((rand() % 10000)/2500.0f - 2);
     for (int i = 0 ; i < C ; i++)
         bias[i] = _Tp((rand() % 10000)/2500.0f - 2);
 }
@@ -172,7 +175,7 @@ void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W,
             koffsets[r*kw + c] = W * r + c;
     for(int c = 0; c < C; c++)
     {
-        _Tp* ker = kernel + c * DWCTestTraits<_Tp>::padded_ksize(kh, kw, CTX);
+        _Tp* ker = kernel + c * DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX);
         _Tp* inL = data + c * W * H;
         _Tp* resL = result + c * W0 * H0;
         typename DWCTestTraits<_Tp>::neon_ftype b = DWCTestTraits<_Tp>::dup(bias[c]);
@@ -309,11 +312,11 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
 
     const _Tp empty_value(kh * kw * 2000 + 1);
     dwc_algs_limits algs_limits;
-    DWCTestTraits<_Tp>::calc_dwc_algs_limits(&algs_limits, NC, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+    DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits, NC, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
 
-    typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
+    typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
     std::vector<_Tp> indata(W*H*NC);
-    std::vector<_Tp> kernel(C*DWCTestTraits<_Tp>::padded_ksize(kh, kw, CTX), _Tp(0));
+    std::vector<_Tp> kernel(C*DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX), _Tp(0));
     std::vector<_Tp> bias(C, _Tp(0));
     std::vector<_Tp> outdata(H0*W0*NC * 3, empty_value);
     std::vector<_Tp> outdataref(H0*W0*NC, _Tp(0));
@@ -409,14 +412,14 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     int NCtask_ = NC / threads;
     int tailTaskNum = NC % threads;
     dwc_algs_limits algs_limits_;
-    DWCTestTraits<_Tp>::calc_dwc_algs_limits(&algs_limits_, tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+    DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits_, tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
     dwc_algs_limits algs_limitis_tail;
     if(tailTaskNum)
-        DWCTestTraits<_Tp>::calc_dwc_algs_limits(&algs_limitis_tail, NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+        DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limitis_tail, NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
 
-    typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
+    typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
     std::vector<_Tp> indata(W*H*NC);
-    std::vector<_Tp> kernel(C * DWCTestTraits<_Tp>::padded_ksize(kh, kw, CTX), _Tp(0));
+    std::vector<_Tp> kernel(C * DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX), _Tp(0));
     std::vector<_Tp> bias(C, _Tp(0));
     std::vector<_Tp> outdataref(H0*W0*NC, _Tp(0));
     _Tp* inptr = &(indata[0]);
@@ -509,7 +512,7 @@ void DepthwiseconvTestImpl::run()
 
         (*out) << "Depthwise convolution "<<kh<<"x"<<kw<<", NC = "<< NC << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
         dwc_algs_limits tocheck;
-        calc_dwc_algs_limits_f32(&tocheck, NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);
+        calc_dwc_algs_limits_f32(CTX, &tocheck, NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, 1, 1, 1, 1);
         if(!compare_algs_limits(tocheck, ref))
             return;
     }
