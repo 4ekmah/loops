@@ -44,6 +44,9 @@ add_executable(testperf ${testperf_hdrs} ${testperf_srcs} ${loopslayers_hdrs}
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/include")
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/test")
 target_link_libraries(testperf loops loopslayers "-lpthread")
+if (NOT MSVC)
+    target_compile_options(testperf PRIVATE "-march=armv8.2-a+fp16+dotprod")
+endif()
 
 if (MSVC)
     set_target_properties(testperf PROPERTIES COMPILE_FLAGS /DLOOPS_TEST_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/test\\")
