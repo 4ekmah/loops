@@ -11,20 +11,87 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
+#include <math.h>
 #include <map>
 #include <stack>
 #include <cstring>
 
 namespace loops
 {
+
+    /*
+    Next three functions are taken from FP16 library.
+    Link: https://github.com/Maratyszcza/FP16
+    */
+
+    //License:
+    /* 
+    The MIT License (MIT)
+
+    Copyright (c) 2017 Facebook Inc.
+    Copyright (c) 2017 Georgia Institute of Technology
+    Copyright 2019 Google LLC
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    */    
+    static inline float fp32_from_bits(uint32_t w) 
+    {
+        union {
+            uint32_t as_bits;
+            float as_value;
+        } fp32 = { w };
+        return fp32.as_value;
+    }
+
+    static inline uint32_t fp32_to_bits(float f) {
+        union {
+            float as_value;
+            uint32_t as_bits;
+        } fp32 = { f };
+        return fp32.as_bits;
+    }
+
+    static inline uint16_t fp16_ieee_from_fp32_value(float f) {
+    #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
+        const float scale_to_inf = 0x1.0p+112f;
+        const float scale_to_zero = 0x1.0p-110f;
+    #else
+        const float scale_to_inf = fp32_from_bits(UINT32_C(0x77800000));
+        const float scale_to_zero = fp32_from_bits(UINT32_C(0x08800000));
+    #endif
+        float base = (fabsf(f) * scale_to_inf) * scale_to_zero;
+
+        const uint32_t w = fp32_to_bits(f);
+        const uint32_t shl1_w = w + w;
+        const uint32_t sign = w & UINT32_C(0x80000000);
+        uint32_t bias = shl1_w & UINT32_C(0xFF000000);
+        if (bias < UINT32_C(0x71000000)) {
+            bias = UINT32_C(0x71000000);
+        }
+
+        base = fp32_from_bits((bias >> 1) + UINT32_C(0x07800000)) + base;
+        const uint32_t bits = fp32_to_bits(base);
+        const uint32_t exp_bits = (bits >> 13) & UINT32_C(0x00007C00);
+        const uint32_t mantissa_bits = bits & UINT32_C(0x00000FFF);
+        const uint32_t nonsign = exp_bits + mantissa_bits;
+        return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
+    }
+
     f16_t::f16_t() : bits(0){}
 
     f16_t::f16_t(float x)
     {
+        
     #if __LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC
         __fp16 _x = x;
         bits = *(reinterpret_cast<uint16_t*>(&_x));
-    #endif
+    #else
+        bits = fp16_ieee_from_fp32_value(x);
+    #endif 
     }
 
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
