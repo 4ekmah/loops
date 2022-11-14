@@ -17,9 +17,10 @@ namespace loops
     {
     public:
         Allocator(){};
+        ~Allocator();
         uint8_t* allocate(size_t size);
-        uint8_t* expand(uint8_t* buffer, size_t size);
         void protect2Execution(uint8_t* a_buffer);
+        void free(uint8_t* a_buffer);
     private:
         std::unordered_map<uint8_t*, size_t> m_table; //[ptr] = size
     };

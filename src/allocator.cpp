@@ -61,6 +61,17 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
         throw std::runtime_error("Memory protection failure.");
     sys_icache_invalidate(a_buffer, m_table[a_buffer]);
 }
+
+void Allocator::free(uint8_t* a_buffer)
+{
+    auto found = m_table.find(a_buffer);
+    if(found != m_table.end())
+    {
+        munmap(a_buffer, found->second);
+        m_table.erase(found);
+    }
+}
+
 #elif __LOOPS_OS == __LOOPS_WINDOWS
     uint8_t* Allocator::allocate(size_t size)
     {
@@ -82,6 +93,16 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
             throw std::runtime_error("Memory protection failure.");
         if (!FlushInstructionCache(GetCurrentProcess(), a_buffer, m_table[a_buffer]))
             throw std::runtime_error("Memory cache flushing failure.");
+    }
+
+    void Allocator::free(uint8_t* a_buffer)
+    {
+        auto found = m_table.find(a_buffer);
+        if(found != m_table.end())
+        {
+            VirtualFree(LPVOID(a_buffer), found->second,  MEM_RELEASE);
+            m_table.erase(found);
+        }
     }
 #elif __LOOPS_OS == __LOOPS_LINUX
 uint8_t* Allocator::allocate(size_t size)
@@ -122,14 +143,23 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
     __builtin___clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
 #endif
 }
-    
+
+void Allocator::free(uint8_t* a_buffer)
+{
+    auto found = m_table.find(a_buffer);
+    if(found != m_table.end())
+    {
+        munmap(a_buffer, found->second);
+        m_table.erase(found);
+    }
+}
 #else
 #error Unknown OS
 #endif
 
-uint8_t* Allocator::expand(uint8_t* buffer, size_t size)
+Allocator::~Allocator()
 {
-    throw std::runtime_error("Allocator: not implemented.");
+    while(m_table.begin() != m_table.end())
+        free(m_table.begin()->first);
 }
-
 };

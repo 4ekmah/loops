@@ -44,6 +44,9 @@ add_executable(testperf ${testperf_hdrs} ${testperf_srcs} ${loopslayers_hdrs}
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/include")
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/test")
 target_link_libraries(testperf loops loopslayers "-lpthread")
+if (NOT MSVC)
+    target_compile_options(testperf PRIVATE "-march=armv8.2-a+fp16+dotprod")
+endif()
 
 if (MSVC)
     set_target_properties(testperf PROPERTIES COMPILE_FLAGS /DLOOPS_TEST_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/test\\")
@@ -60,4 +63,15 @@ foreach(example_fn ${examples})
 	set_target_properties(${example_target} PROPERTIES FOLDER Examples)
 endforeach()
 
-              
+#TODO(ch): configure warning policies 
+# if (MSVC)
+#     target_compile_options(loops PRIVATE /W4 /WX)
+#     target_compile_options(loopslayers PRIVATE /W4 /WX)
+#     target_compile_options(testregress PRIVATE /W4 /WX)
+#     target_compile_options(testperf PRIVATE /W4 /WX)
+# else()
+#     target_compile_options(loops PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(loopslayers PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
+#     target_compile_options(testperf PRIVATE -Wall -Wextra -Wpedantic -Werror)
+# endif()

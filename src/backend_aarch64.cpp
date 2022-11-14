@@ -535,7 +535,6 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_MVNI):
         if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE && (index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32))
         {
-            size_t elSize = elemSize(index[0].elemtype);
             int64_t cmodstat = index[0].elemtype == TYPE_I16 ? 0b1000 : 0b0000;
             return BiT({ BTsta(0b0110111100000, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
         }
@@ -1573,10 +1572,6 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
     //TODO(ch): This specialized version of function must disappear after introducing snippets.
     //They will give info about used registers, like now instructions answers.
     //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
-
-    uint64_t actualRegs;
-    uint64_t inRegs;
-    uint64_t outRegs;
     switch (a_op.opcode)
     {
         case (OP_MIN):
@@ -1664,7 +1659,7 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
 
 Syntfunc Aarch64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
 {
-    m_retReg = Syntfunc::RETREG;
+    m_retReg = (int)Syntfunc::RETREG;
     m_labelMap.clear();//labels offsets from start.
     m_labelRefMap.clear(); // label referenes map is needed to calculate and put in relative offsets after
     Syntfunc result = Backend::bytecode2Target(a_bcfunc);
@@ -1835,7 +1830,7 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
         switch (arg.tag)
         {
             case Arg::IREG:
-                if(arg.idx == Syntfunc::RETREG)
+                if(arg.idx == (int)Syntfunc::RETREG)
                     out << "xR";
                 else if(arg.idx == 31)
                     out << "sp";

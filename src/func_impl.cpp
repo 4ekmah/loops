@@ -601,7 +601,7 @@ void FuncImpl::return_(int64_t retval)
 {
     if (m_returnType == RT_VOID)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, { argReg(RB_INT, Syntfunc::RETREG, this), Arg(retval) });
+    newiopNoret(OP_MOV, { argReg(RB_INT, (int)Syntfunc::RETREG, this), Arg(retval) });
     newiopNoret(OP_RET, {});
 }
 
@@ -609,7 +609,7 @@ void FuncImpl::return_(const IReg& retval)
 {
     if (m_returnType == RT_VOID)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, {argReg(RB_INT, Syntfunc::RETREG, this), retval});
+    newiopNoret(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG, this), retval});
     newiopNoret(OP_RET, {});
 }
 

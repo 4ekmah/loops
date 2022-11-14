@@ -124,8 +124,8 @@ public:
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
     inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
-    template<typename _Tp> inline size_t vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
-    inline size_t vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elemSize(elemtype); }
+    template<typename _Tp> inline int vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
+    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elemSize(elemtype); }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
