@@ -39,13 +39,13 @@ extern "C" {
     //which is obviously needed because kernel and bias arrays still have C channels and data part can start with
     //channel, which does not corresponds to 0 channel of kernel and bias.
     typedef int64_t (*dwconv_f32_t)(float* data, float* kernel, float* bias, int64_t H, int64_t W, int64_t C, int64_t NC, int64_t kCS, float* result, int64_t H0, int64_t W0, struct dwc_algs_limits* algsLimits);
-    dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_x, int stride_y, int dilation_x, int dilation_y, int activation_type, float alpha);
-    void calc_dwc_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_x, int stride_y, int dilation_x, int dilation_y);
+    dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha);
+    void calc_dwc_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
 
     typedef void* fp16_ptr; //TODO(ch): IMPORTANT Choose correct fp16* pointer instead of void*. 
     typedef int64_t (*dwconv_f16_t)(fp16_ptr data, fp16_ptr kernel, fp16_ptr bias, int64_t H, int64_t W, int64_t C, int64_t NC, int64_t kCS, fp16_ptr result, int64_t H0, int64_t W0, struct dwc_algs_limits* algsLimits);
-    dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_x, int stride_y, int dilation_x, int dilation_y, int activation_type, float alpha);
-    void calc_dwc_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_x, int stride_y, int dilation_x, int dilation_y);
+    dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha);
+    void calc_dwc_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
 
     bool good_alg_limits(struct dwc_algs_limits* out);
 #ifdef __cplusplus

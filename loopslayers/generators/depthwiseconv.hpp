@@ -40,8 +40,8 @@ class DepthwiseconvGenerator
     typedef typename ElemTraits<_Tp>::countertype intC;
 public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
-    typename DWCGenTraits<_Tp>::dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
-    dwc_algs_limits calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
+    typename DWCGenTraits<_Tp>::dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha);
+    dwc_algs_limits calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x);
 private:
     bool m_done; 
     Context CTX;
@@ -50,9 +50,10 @@ private:
     void multilineHandler(const VReg<uintM>& HcondV, const VReg<uintM>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
     void onlylineHandler(const VReg<uintM>& WcondV, IReg& yi, IReg& x, IReg& base, const IReg& result_rs, int flags);
     void loadVector(const IReg& base, int64_t offset, VReg<_Tp>& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags = 0);
+    IReg effective_const_mul(const IReg& m1, int m2);
 
     //Common parameters and registers
-    int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right, activation_type;
+    int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type;
     IReg H, W, kernel, W0;
     float alpha;
     std::vector<VReg<_Tp> > vkernel;
@@ -101,23 +102,23 @@ private:
     inline int upperC(int C, int H, int W, int y, int x)
     { return upperBorder(C*H*W - y*W - x, H*W);}
     //lower border for all y, satisfies inequality
-    //Cf*H*W + (y + ys)*W + X >= 0
-    inline int downY(int C, int H, int W, int Cf, int ys, int x)
+    //Cf*H*W + (y * stride_y + ys)*W + X >= 0, where y is a multiple of M
+    inline int downY(int C, int H, int W, int Cf, int stride_y, int ys, int x)
     {
         Cf = std::max(Cf,0);
-        return downBorder(-Cf*H*W - x - ys * W, W);
+        return downBorder(-Cf*H*W-x-ys*W, W * stride_y);
     }
     //upper border for all y, satisfies inequality
-    //Cf*H*W + (y + ys)*W + X < C*W*H
-    inline int upperY(int C, int H, int W, int Cf, int ys, int x)
+    //Cf*H*W + (y*stride_y + ys)*W + X < C*W*H
+    inline int upperY(int C, int H, int W, int Cf, int stride_y, int ys, int x)
     {
-        return upperBorder((C-Cf)*H*W - x - ys * W, W);
+        return Cf < C ? upperBorder((C-Cf)*H*W - x - ys * W, W * stride_y) : 0;
     }
     //upper border for all y, satisfies inequality
-    //Cf*H*W + (y + ys)*W + X < C*W*H, where y is a multiple of M, started from y0:
+    //Cf*H*W + (y*stride_y + ys)*W + X < C*W*H, where y is a multiple of M, started from y0:
     //y = M * r + y0 
-    inline int upperY(int C, int H, int W, int Cf, int ys, int M, int y0, int x)
-    { return M * upperBorder((C-Cf)*H*W - x - (ys + y0) * W, W * M) + y0; }
+    inline int upperY(int C, int H, int W, int Cf, int stride_y, int ys, int M, int y0, int x)
+    { return Cf < C ? M * upperBorder((C-Cf)*H*W - x - (ys + y0) * W, W * M * stride_y) + y0 : 0; }
     //lower border for all x, satisfies inequality
     //Cf*H*W + Yf*W + x + xs  >= 0
     inline int downX(int C, int H, int W, int Cf, int Yf, int xs)
@@ -129,16 +130,16 @@ private:
     //upper border for all y, satisfies inequality
     //Cf*H*W + Yf*W + x + xf < C*W*H
     inline int upperX(int C, int H, int W, int Cf, int Yf, int xs)
-    { return upperBorder((C-Cf)*H*W - Yf * W - xs, 1); }
+    { return (Cf < C && Yf < H) ? upperBorder((C-Cf)*H*W - Yf * W - xs, 1) : 0; }
     //upper border for all y, satisfies inequality
     //Cf*H*W + Yf*W + x + xf < C*W*H, where x is a multiple of M, started from x0:
     //y = M * r + y0 
     inline int upperX(int C, int H, int W, int Cf, int Yf, int xs, int M, int x0)
-    { return M * upperBorder((C-Cf)*H*W - Yf * W - xs - x0, M) + x0; }
+    { return (Cf < C && Yf < H) ? M * upperBorder((C-Cf)*H*W - Yf * W - xs - x0, M) + x0: 0 ;}
 };
 
 template<typename _Tp>
-typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int activation_type_, float alpha_)
+typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int stride_y_, int stride_x_, int activation_type_, float alpha_)
 {
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
@@ -146,6 +147,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
     elemsize = sizeof(_Tp);
     elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     padding_top = padding_top_; padding_left = padding_left_; padding_bottom = padding_bottom_; padding_right = padding_right_;
+    stride_y = stride_y_; stride_x = stride_x_;
     activation_type = activation_type_;
     alpha = alpha_;
     if(alpha == 1) 
@@ -157,6 +159,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
     int pshiftflag = (padhor ? PADSHIFTRES : 0);
     
     funcname += std::to_string(kh) + "_kW" + std::to_string(kw) + "_pT" + std::to_string(padding_top) + "_pL" + std::to_string(padding_left) + "_pB" + std::to_string(padding_bottom) + "_pR" + std::to_string(padding_right);
+    funcname += std::string("_strY") + std::to_string(stride_y) + std::string("_strX") + std::to_string(stride_x);
     if(activation_type != ACT_NONE) 
         funcname += activation_type == ACT_RELU ? "_Relu" : 
                    (activation_type == ACT_RELU6 ? "_Relu6" : 
@@ -265,7 +268,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             else 
                                 multilineHandler(HcondV, WcondV, y, xi, data__, result_rs, 0);
                         }
-                        y += MULTI_H;
+                        y += MULTI_H * stride_y;
                     }
                     yonelineEnd = H0;
                 }
@@ -277,7 +280,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                     IReg xis = select(y < yis, Xis, xi);
                     IReg xie = select(y >= yie, Xie, W0mpl);
                     IReg scalarEnd = select(xis > xi, xis, W0mpl);
-                    IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift);
+                    IReg data_rs = data + effective_const_mul(W * (padver ? y - padding_top: y), elemsize*stride_y);
                     IReg result_rs = result + (W0 << elemshift) * y;
                     WHILE_(xi < W0mpl)
                     {
@@ -359,7 +362,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             xi += 1;
                         }
                     }
-                    y += 1;
+                    y += stride_y;
                 }
             }
             data += H * W << elemshift;
@@ -410,8 +413,19 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
     }
     else
     {
-        for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
+        for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++)
         {
+            bool current_line_is_needed = false;
+            int stride_multiplier = 1;
+            for(int lineNum = 0; lineNum < MULTI_H; lineNum++) 
+                if(lrow >= lineNum * stride_y && lrow < lineNum * stride_y + kh)
+                {
+                    if(lrow + 1 == lineNum * stride_y + kh && stride_y > kh)
+                        stride_multiplier = stride_y - kh + 1;
+                    current_line_is_needed = true;
+                }
+            if(!current_line_is_needed)
+                continue;
             VReg<intC> horIdxs = (flags&PADHOR) ? broadcast<intC>(x) + countingPattern : VReg<intC>();
             VReg<uintM> verMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
             if((flags&PADVER)&&(flags&PADHOR))
@@ -441,7 +455,7 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                     toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<_Tp>()));
                 for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
                 { 
-                    const int krow = lrow - lineNum;
+                    const int krow = lrow - lineNum * stride_y;
                     if(krow >= 0 && krow < kh)
                     {
                         const int kerelemnum = krow*kw + kcol;
@@ -449,11 +463,11 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                     }
                 }
             }
-            if(lrow + 2 < kh + MULTI_H) //Not last loaded row
+            if(lrow + 1 != (MULTI_H - 1) * stride_y + kh) //Not last loaded row
             {
-                base += W << elemshift;
+                base += effective_const_mul(W, elemsize * stride_multiplier);
                 if(flags&PADVER)
-                    yi += 1;
+                    yi += stride_multiplier;
             }
         }
     }
@@ -576,6 +590,25 @@ void DepthwiseconvGenerator<_Tp>::loadVector(const IReg& base, int64_t offset, V
 }
 
 template<typename _Tp>
+IReg DepthwiseconvGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
+{
+    if(m2 == 1)
+        return m1;
+    else if(m2>0 && (((m2 - 1) & m2) == 0))
+    {
+        int degree = -1;
+        while(m2 > 0) 
+        {
+            degree++;
+            m2 >>= 1;
+        }
+        return m1 << degree;
+    }
+    else
+        return m1*m2;
+}
+
+template<typename _Tp>
 VReg<_Tp> DepthwiseconvGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
 {
     USE_CONTEXT_(CTX);
@@ -591,7 +624,7 @@ VReg<_Tp> DepthwiseconvGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
 }
 
 template<typename _Tp>
-dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
 {
     int Cms, Cme;
     int lsimd = upMultipleOf(kw + CTX.vlanes<_Tp>() - 2, CTX.vlanes<_Tp>()) - 1;
@@ -599,13 +632,15 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     if(W0 >= CTX.vlanes<_Tp>())
     {
         Cms = downC(NC, H, W, -padding_top, -padding_left);
-        int YlastMulti = (downMultipleOf(H0, MULTI_H) - padding_top + kh + MULTI_H - 2);
+        int YlastMulti = (downMultipleOf(H0 - 1, MULTI_H) + (MULTI_H - 1)) * stride_y - (stride_y - 1) - padding_top + kh - 1;
         Cme = upperC(NC, H, W, YlastMulti, XlastMulti);
+        int Cme_write = upperC(NC, H0, W0, downMultipleOf(H0 - 1, MULTI_H) + (MULTI_H - 1), W0 - 1);
+        Cme = std::min(Cme, Cme_write);
     }
     else
     {
         Cms = NC + 1;
-        Cme = NC;
+        Cme = 0;
     }
     int Xlast = downMultipleOf(W0-1, CTX.vlanes<_Tp>()) + lsimd - padding_left;
     int Cis = downC(NC, H, W, 0, -padding_left);
@@ -615,31 +650,31 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     if(Cie < (Cis - 1))
     {
         Cis = NC + 1;
-        Cie = NC;
+        Cie = 0;
     }
-    int Yms = H0 + 1, Yme = H0;
+    int Yms = H0 + 1, Yme = 0;
     if(Cms < NC + 1)
     {
-        Yms = downY(NC, H, W, Cms - 1, -padding_top, -padding_left);
-        Yme = upperY(NC, H, W, Cme, MULTI_H + kh - padding_top - 2, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
+        Yms = downY(NC, H, W, Cms - 1, stride_y, -padding_top, -padding_left);
+        Yme = upperY(NC, H, W, Cme, stride_y, (MULTI_H - 1) * stride_y + kh - padding_top - 1, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
     }
-    int Yis = H0 + 1, Yie = H0;
+    int Yis = H0 + 1, Yie = 0;
     if(Cis < NC + 1)
     {
-        Yis = (padding_left == 0) ? 0 : downY(NC, H, W, Cis - 1, -padding_top, -padding_left);
+        Yis = (padding_left == 0) ? 0 : downY(NC, H, W, Cis - 1, stride_y, -padding_top, -padding_left);
         if ((H - 1) * W + Xlast < (NC-Cie)*H*W)
             Yie = H0;
         else
-            Yie = std::max(0, upperY(NC, H, W, Cie, kh - 1 - padding_top, Xlast));
-        int Yie_write = upperY(NC, H0, W0, Cie, 0, upMultipleOf(W0, CTX.vlanes<_Tp>()) - 1);
+            Yie = std::max(0, upperY(NC, H, W, Cie, stride_y, kh - 1 - padding_top, Xlast));
+        int Yie_write = upperY(NC, H0, W0, Cie, 1, 0, upMultipleOf(W0, CTX.vlanes<_Tp>()) - 1);
         Yie = std::min(Yie, Yie_write);
     }
-    int Xis = W0, Xie = W0;
-    if(Yis < H0)
+    int Xis = W0 + 1, Xie = 0;
+    if(Yis < H0 + 1)
     {
-        Xis = downX(NC, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
-        Xie = upperX(NC, H, W, Cie, std::min(Yie - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
-        int Xie_write = upperX(NC, H0, W0, Cie, Yie, CTX.vlanes<_Tp>() - 1, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        Xis = downX(NC, H, W, Cis-1, (Yis - 1) * stride_y - padding_top, -padding_left);
+        Xie = upperX(NC, H, W, Cie, std::min(Yie * stride_y - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        int Xie_write = upperX(NC, H0, W0, Cie, Yie * stride_y, CTX.vlanes<_Tp>() - 1, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
         Xie = std::min(Xie, Xie_write);
     }
     return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
