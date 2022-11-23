@@ -34,7 +34,7 @@ private:
     template<typename _Tp>
     void gendata(_Tp* data, _Tp* kernel, _Tp* bias, int kh, int kw, int H, int W, int C);
     template<typename _Tp>
-    void ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W, int C, _Tp* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type);
+    void ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W, int C, _Tp* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type);
     template<typename _Tp>
     dwc_algs_limits ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
     template<typename _Tp>
@@ -66,7 +66,7 @@ template<> struct DWCTestTraits<float> {
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); }
     static inline float tflt(ftype a) { return a; }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
-    { calc_dwc_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_x, stride_y, 1, 1);}
+    { calc_dwc_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);}
     static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
     { return generate_dwc_f32(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1, activation_type, alpha); }
     static inline int padded_ksize(int kh, int kw, Context& CTX)
@@ -150,7 +150,7 @@ void DepthwiseconvTestImpl::gendata(_Tp* data, _Tp* kernel, _Tp* bias, int kh, i
 }
 
 template<typename _Tp>
-void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W, int C, _Tp* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)
+void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W, int C, _Tp* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type)
 {
     std::vector<_Tp> padded;
     {
@@ -183,11 +183,11 @@ void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W,
         typename DWCTestTraits<_Tp>::neon_ftype b = DWCTestTraits<_Tp>::dup(bias[c]);
         for(int i = 0; i < H0; i++) 
         {
-            _Tp* inR = inL + i * W;
+            _Tp* inR = inL + i * W * stride_y;
             _Tp* resR = resL + i * W0;
             for(int j = 0; j < W0; j++)
             {
-                _Tp* inC = inR + j;
+                _Tp* inC = inR + j * stride_x;
                 _Tp* resC = resR + j;
                 typename DWCTestTraits<_Tp>::neon_ftype res = b;
                 for(int k = 0; k < kh * kw; k++)
@@ -244,11 +244,16 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
     for(int ch = 0; ch < NC; ch++)
         for(int orow = 0; orow < H0; orow++)
         {
-            bool goodstartM = (ch * H * W + (orow - padding_top) * W - padding_left) >= 0;
+            bool goodstartM = (ch * H * W + (orow * stride_y - padding_top) * W - padding_left) >= 0;
             bool endMBroken = false; 
             for(int mrow = orow; mrow < orow + MultiH; mrow++)
             {
-                for(int krow = mrow; krow < mrow + kh; krow++)
+                if((ch*H0*W0 + mrow * W0 + (W0 - 1)) >= NC * H0 * W0)
+                {
+                    endMBroken = true;
+                    break;
+                }
+                for(int krow = mrow * stride_y; krow < mrow * stride_y + kh; krow++)
                     if((ch*H*W + (krow - padding_top) * W + lastloadedM - padding_left) >= NC * H * W) 
                     {
                         endMBroken = true;
@@ -260,12 +265,10 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
             map_good_end_M[ch][orow] = !endMBroken;
             for(int col = 0; col < W0; col++)
             {
-                int minY = std::max(orow - padding_top, 0);
+                int minY = std::max(orow * stride_y - padding_top, 0);
                 int minX = col - padding_left;
                 int maxY = std::min(minY + kh - 1, H - 1);
-                int maxX = (kw - 1 + lanes - 1);
-                maxX = (maxX + 1) % lanes ? ((maxX + 1)/lanes + 1) * lanes - 1 : maxX;
-                maxX += minX;
+                int maxX = minX + lsimd;
                 map_good_start_I[ch][orow][col] = (ch * H * W + minY * W + minX >= 0);
                 map_good_end_I[ch][orow][col] = (ch * H * W + maxY * W + maxX < NC*H*W) &&
                                                 (ch *H0 *W0 + orow * W0 + col + lanes - 1 < NC*H0*W0);
@@ -312,9 +315,7 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
                     Cms = NC;
             }
             if(map_good_end_M_num[ch] != -1)
-            {
-                Cme = ((map_good_end_M_num[ch]/MultiH + 1) * MultiH == H0) ? ch + 1 : ch;
-            }
+                Cme = ((map_good_end_M_num[ch]/MultiH + 1) * MultiH >= H0) ? ch + 1 : ch;
         }
         int start_row_I = H0 + 1;
         int start_full_row_I = H0 + 1;
@@ -337,6 +338,7 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
         Yms = Cms > 0 ? map_good_start_M_num[Cms - 1] : 0;
         Yme = (Cme < NC && map_good_end_M_num[Cme] != -1) ? ((Cme == Cms - 1) ? ((map_good_end_M_num[Cme] - Yms)/MultiH + 1)*MultiH + Yms: (map_good_end_M_num[Cme]/MultiH + 1)*MultiH) : 0;
     }
+
     if(Cis < NC + 1)
     {
         int start_full_row_I = H0 + 1;
@@ -484,7 +486,7 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     _Tp* optr = &(outdata[0]) + H0*W0*NC;
     _Tp* optrref = &(outdataref[0]);
     gendata(inptr, kptr, bptr,kh,kw, H, W, NC);
-    ref(inptr, kptr, bptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
+    ref(inptr, kptr, bptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation);
     if(perf)
     {
         Timer t;
@@ -603,7 +605,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     _Tp* bptr = &(bias[0]);
     _Tp* optrref = &(outdataref[0]);
     gendata(inptr, kptr, bptr,kh,kw, H, W, NC);
-    ref(inptr, kptr, bptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
+    ref(inptr, kptr, bptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation);
 
     //First, separate calls of threads and checking portions of results
     int NC0 = 0;
@@ -672,6 +674,18 @@ void DepthwiseconvTestImpl::run()
         {3, 3, 1, 10, 10, 1, 1, 1, 1, 1, 1},
         {3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1},
         {3, 3, 100, 1, 1, 1, 1, 1, 1, 1, 1},
+
+        {3, 3, 3, 10, 3, 0, 0, 0, 0, 2, 1},
+        {3, 3, 3, 3, 10, 0, 0, 0, 0, 2, 1},
+        {5, 5, 3, 10, 12, 0, 0, 0, 0, 2, 1},
+        {3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1},
+        {3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1},
+        {3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1},
+        {3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1},
+        {3, 3, 1, 10, 10, 0, 0, 0, 0, 2, 1},
+        {3, 3, 1, 10, 10, 1, 0, 1, 0, 2, 1},
+        {3, 3, 1, 10, 10, 0, 1, 0, 1, 2, 1},
+        {3, 3, 1, 10, 10, 1, 1, 1, 1, 2, 1},
         };
 //      {kh,kw, NC, H, W, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x}
 
@@ -709,31 +723,42 @@ void DepthwiseconvTestImpl::run()
         {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 3, 3, 3,  9,  9, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  40,  40, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  40,  40, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  40,  40, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  39,  39, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  39,  39, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 5, 5, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 7, 7, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_RELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_RELU6, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP16, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1,  ACT_RELU, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_RELU6, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
 
         {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
@@ -743,31 +768,42 @@ void DepthwiseconvTestImpl::run()
         {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 3, 10, 10, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 3, 3, 3,  9,  9, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 3, 10,  3, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 5, 5, 256,  40,  40, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 7, 7, 256,  40,  40, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  40,  40, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 5, 5, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 7, 7, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  40,  40, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 5, 5, 256,  39,  39, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 7, 7, 256,  39,  39, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 5, 5, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 7, 7, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_RELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_RELU6, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
-        {TYPE_FP32, 9, 9, 256,  39,  39, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1,  ACT_RELU, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_RELU6, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
 
         {TYPE_FP16, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
         {TYPE_FP16, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},

@@ -103,8 +103,6 @@ void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, i
        padding_left < 0 ||
        padding_bottom < 0 ||
        padding_right < 0 ||
-       stride_x != 1 ||
-       stride_y != 1 ||
        dilation_x != 1 ||
        dilation_y != 1 ||
        kh * kw > 39*39)

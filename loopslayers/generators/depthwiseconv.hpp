@@ -16,7 +16,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iostream>
 #include <iomanip>
 #include "arm_neon.h"
-#include "../test/tests.hpp"
+#include "../test/tests.hpp" //TODO(ch): Delete "..".
+#include "../src/common.hpp"
 
 namespace loops
 {
@@ -233,17 +234,16 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
             IReg yonelineEnd = select(yms > y, yms , H0); //SIMD + scalar.
             for(int kregnum = 0; kregnum < kernelRegsAmount; kregnum++)
                 vkernel[kregnum].copyidx(loadvec<_Tp>(kernel, kregnum * CTX.vbytes()));
-
             WHILE_(y < H0)
             {
                 IF_(y == yms)
                 {
                     WHILE_(y < yme)
                     {
-                        IReg data_rs = data + ((W * (padver ? y - padding_top: y)) << elemshift);
+                        IReg data_rs = data + W * (padver ? (effective_const_mul(y, stride_y) - padding_top) << elemshift: effective_const_mul(y, elemsize*stride_y));
                         IReg result_rs = result + (W0 << elemshift) * y;
                         IReg xi = CONST_(-padding_left);
-                        IReg Hcond = padver ? max(H - (kh + MULTI_H - 2), CONST_(0)) : IReg(); 
+                        IReg Hcond = padver ? max(H - ((MULTI_H - 1) * stride_y + kh - 1), CONST_(0)) : IReg(); 
                         IReg Wcond = padhor ? max(W - (kw + CTX.vlanes<_Tp>() - 2), CONST_(0)) : IReg();
                         VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
                         VReg<uintM> HcondV = padver ? broadcast<uintM>(H) : VReg<uintM>();
@@ -256,7 +256,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             IReg data__ = data_rs + (xi << elemshift);
                             if(padhor||padver)
                             {
-                                IReg yi = padver ? y - padding_top : IReg();
+                                IReg yi = padver ? effective_const_mul(y, stride_y) - padding_top : IReg();
                                 IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : xi;
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 {
@@ -268,7 +268,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             else 
                                 multilineHandler(HcondV, WcondV, y, xi, data__, result_rs, 0);
                         }
-                        y += MULTI_H * stride_y;
+                        y += MULTI_H;
                     }
                     yonelineEnd = H0;
                 }
@@ -280,8 +280,9 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                     IReg xis = select(y < yis, Xis, xi);
                     IReg xie = select(y >= yie, Xie, W0mpl);
                     IReg scalarEnd = select(xis > xi, xis, W0mpl);
-                    IReg data_rs = data + effective_const_mul(W * (padver ? y - padding_top: y), elemsize*stride_y);
+                    IReg data_rs = data + W * (padver ? (effective_const_mul(y, stride_y) - padding_top) << elemshift: effective_const_mul(y, elemsize*stride_y));
                     IReg result_rs = result + (W0 << elemshift) * y;
+
                     WHILE_(xi < W0mpl)
                     {
                         IF_(xi == xis)
@@ -294,7 +295,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 IReg data__ = data_rs + (xi << elemshift);
                                 if(padhor||padver)
                                 {
-                                    IReg yi = padver ? y - padding_top : IReg();
+                                    IReg yi = padver ? effective_const_mul(y, stride_y) - padding_top : IReg();
                                     IReg xcond;
                                     xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): xi);
                                     IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
@@ -326,7 +327,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 if(padhor||padver)
                                 {
                                     IReg ex = xi + kcol;
-                                    IReg ey = (padver ? y - padding_top : y) + krow;
+                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : y) + krow;
                                     select(ex < 0, W, ex);
                                     select(ey < 0, H, ey);
                                     IF_(ult(ex,W))
@@ -358,11 +359,11 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 kcol = select(kcol == kw, 0, kcol);
                             }
                             IReg roffset = (((padhor||padver) ? xi + padding_left : xi) << elemshift);
-                            store_<_Tp>(result_rs + roffset, getlane<_Tp>(activationFunction(vres), 0));
+                            store_<_Tp>(result_rs + roffset, getlane<_Tp>(activationFunction(vres), 0)); 
                             xi += 1;
                         }
                     }
-                    y += stride_y;
+                    y += 1;
                 }
             }
             data += H * W << elemshift;
@@ -390,8 +391,19 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
     int lvflags = flags&(PADHOR|PADVER);
     if(kw < 4 && !(flags&(PADHOR|PADVER)))
     {//For 3x3 case approach with loading vectors one-by-one uses less operations.(*In central part of picture)
-        for(int lrow = 0; lrow < kh + MULTI_H - 1; lrow++) 
+        for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++) 
         {
+            bool current_line_is_needed = false;
+            int stride_multiplier = 1;
+            for(int lineNum = 0; lineNum < MULTI_H; lineNum++) 
+                if(lrow >= lineNum * stride_y && lrow < lineNum * stride_y + kh)
+                {
+                    if(lrow + 1 == lineNum * stride_y + kh && stride_y > kh)
+                        stride_multiplier = stride_y - kh + 1;
+                    current_line_is_needed = true;
+                }
+            if(!current_line_is_needed)
+                continue;
             for(int kcol = 0; kcol < kw; kcol++)
             {
                 VReg<_Tp> loaded = loadvec<_Tp>(base);
@@ -399,7 +411,7 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                     base += elemsize;
                 for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
                 { 
-                    const int krow = lrow - lineNum;
+                    const int krow = lrow - lineNum * stride_y;
                     if(krow >= 0 && krow < kh)
                     {
                         const int kerelemnum = krow*kw + kcol;
@@ -407,7 +419,7 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                     }
                 }
             }
-            if(lrow + 2 < kh + MULTI_H) //Not last loaded row
+            if(lrow + 1 != (MULTI_H - 1) * stride_y + kh) //Not last loaded row
                 base += (W<<elemshift) - ((kw-1)*elemsize);
         }
     }
@@ -644,7 +656,7 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     }
     int Xlast = downMultipleOf(W0-1, CTX.vlanes<_Tp>()) + lsimd - padding_left;
     int Cis = downC(NC, H, W, 0, -padding_left);
-    int Cie = upperC(NC, H, W, (H-1), Xlast);
+    int Cie = upperC(NC, H, W, std::min((int)((H0-1)*stride_y + kh - 1), H - 1), Xlast);
     int Cie_write = upperC(NC, H0, W0, (H0-1), upMultipleOf(W0, CTX.vlanes<_Tp>()) - 1);
     Cie = std::min(Cie, Cie_write);
     if(Cie < (Cis - 1))
@@ -657,6 +669,8 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     {
         Yms = downY(NC, H, W, Cms - 1, stride_y, -padding_top, -padding_left);
         Yme = upperY(NC, H, W, Cme, stride_y, (MULTI_H - 1) * stride_y + kh - padding_top - 1, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
+        int Yme_write = upperY(NC, H0, W0, Cme, 1, (MULTI_H - 1), MULTI_H, ((Cms - 1) == Cme ? Yms : 0), W0 - 1);
+        Yme = std::min(Yme, Yme_write);
     }
     int Yis = H0 + 1, Yie = 0;
     if(Cis < NC + 1)
@@ -674,7 +688,7 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     {
         Xis = downX(NC, H, W, Cis-1, (Yis - 1) * stride_y - padding_top, -padding_left);
         Xie = upperX(NC, H, W, Cie, std::min(Yie * stride_y - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
-        int Xie_write = upperX(NC, H0, W0, Cie, Yie * stride_y, CTX.vlanes<_Tp>() - 1, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        int Xie_write = upperX(NC, H0, W0, Cie, Yie, CTX.vlanes<_Tp>() - 1, CTX.vlanes<_Tp>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
         Xie = std::min(Xie, Xie_write);
     }
     return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
