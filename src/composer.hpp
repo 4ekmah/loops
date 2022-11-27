@@ -53,7 +53,7 @@ namespace loops
         struct Token
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
-            enum {T_STATIC, T_REG, T_IMMEDIATE, T_ADDRESS, T_OFFSET, T_STACKOFFSET, T_SPILLED, T_OMITIMM};
+            enum {T_STATIC, T_REG, T_IMMEDIATE, T_ADDRESS, T_OFFSET, T_STACKOFFSET, T_SPILLED, T_OMIT};
             enum {T_INPUT = 1, T_OUTPUT = 2, T_INVERT_IMM = 4};
             Token(int tag, size_t fieldsize);
             Token(int tag, uint64_t val, size_t fieldsize);
@@ -82,7 +82,7 @@ namespace loops
 
         inline BinTranslation::Token BTomm(uint64_t arVecNum)
         {
-            BinTranslation::Token res(BinTranslation::Token::T_OMITIMM, 0);
+            BinTranslation::Token res(BinTranslation::Token::T_OMIT, 0);
             res.arVecNum = arVecNum;
             return res; 
         }

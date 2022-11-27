@@ -28,6 +28,7 @@ dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top
 #if __LOOPS_ARCH != __LOOPS_AARCH64
         return 0;
 #else
+//DUBUGGG : add try/catch for handling possible generation inabilities
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
        kh * kw > 39*39 || dilation_x != 1 || dilation_y != 1 ||

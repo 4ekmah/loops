@@ -103,9 +103,9 @@ BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
-    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMITIMM)
+    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMIT)
         throw std::runtime_error("Binary translator: wrong token constructor.");
-    if(tag == T_OMITIMM && fieldsize != 0) 
+    if(tag == T_OMIT && fieldsize != 0) 
         throw std::runtime_error("Binary translator: omit immediate must not have field width.");
 }
 
@@ -156,9 +156,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_STATIC): break;
-        case (Token::T_OMITIMM):
-            if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Binary translator: attempt to omit non-immediate argument.");
+        case (Token::T_OMIT):
             argmask = (argmask | pos) ^ pos;
             break;
         default:
@@ -168,7 +166,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     Assert(argmask == 0);
     for (const Token& det : m_compound)
     {
-        if(det.tag == Token::T_OMITIMM)
+        if(det.tag == Token::T_OMIT)
             continue;
         uint64_t piece = 0;
         switch (det.tag)

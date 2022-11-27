@@ -129,8 +129,9 @@ enum {
     OP_ARM_CINC,
     OP_ARM_CNEG,
     OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
-    VOP_ARM_LD1,
+    VOP_ARM_LD1,   //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
     VOP_ARM_ST1,
+    VOP_ARM_LD2,
     VOP_ARM_EXT,
     VOP_GETLANE,
     VOP_SETLANE,
@@ -409,6 +410,8 @@ inline int64_t __loops_pack_2_valtype_(_Tp tocast)
 IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+//Appoint new idx to register arguments from regsn_to_init list and return appointed idxs.
+std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init);
 void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 template<typename _Tp> inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
@@ -638,6 +641,17 @@ template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
 { return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
 template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
 { return newiopV<_Tp>(VOP_ARM_LD1, {lane_index, base}); }
+//TODO(ch): find a way to delete next warning:
+//WARNING! It's assumed here, that res1 and res2 are not initialized yet.
+template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IReg& base)
+{
+    if(res1.func || res2.func)
+        throw std::runtime_error("Load deinterleave doesn't support initilized results registers yet.");
+    std::vector<int> idxs = newiopNoret_initregs(VOP_ARM_LD2, {res1, res2, base}, {0,1});
+    res1.func = res2.func = base.func;
+    res1.idx = idxs[0];
+    res2.idx = idxs[1];
+}
 
 // cast and store
 template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)

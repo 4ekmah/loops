@@ -473,7 +473,6 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
         (*out)<<"    ALGS_LIMITS CHECK FAILED!"<<std::endl;
         return false;
     }
-
     typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation, alpha);
     std::vector<_Tp> indata(W*H*NC);
     std::vector<_Tp> kernel(C*DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX), _Tp(0));

@@ -201,6 +201,11 @@ namespace loops
         FuncImpl::verifyArgs(args)->newiopNoret(opcode, args, tryImmList);
     }
 
+    std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init)
+    {
+        return FuncImpl::verifyArgs(args)->newiopNoret_initregs(opcode, args, regsn_to_init);
+    }
+
     void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
     {
         FuncImpl::verifyArgs(args)->newiopNoret(opcode, depth, args, tryImmList);

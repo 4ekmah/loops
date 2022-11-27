@@ -195,7 +195,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
             countingPattern.copyidx(VCONST_(intC, 0));
             for(int lane = 1; lane < CTX.vlanes<_Tp>(); lane++)
                 setlane(countingPattern, lane, CONST_(lane));
-            idx_step.copyidx(VCONST_(intC, CTX.vlanes<_Tp>()));
+            idx_step.copyidx(VCONST_(intC, (kw <= 3 ? 1 : CTX.vlanes<_Tp>())));
         }
         IReg Cms = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cms));
         IReg Cme = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cme));
@@ -389,9 +389,10 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
     for(int rnum = 0; rnum<MULTI_H; rnum++)
         vres[rnum].copyidx(VReg<_Tp>(vbias)); 
     int lvflags = flags&(PADHOR|PADVER);
-    if(kw < 4 && !(flags&(PADHOR|PADVER)))
-    {//For 3x3 case approach with loading vectors one-by-one uses less operations.(*In central part of picture)
-        for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++) 
+
+    if(kw <= 3 && stride_x == 1)
+    {//Code without using exts.
+        for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++)
         {
             bool current_line_is_needed = false;
             int stride_multiplier = 1;
@@ -404,27 +405,39 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                 }
             if(!current_line_is_needed)
                 continue;
-            for(int kcol = 0; kcol < kw; kcol++)
+            VReg<intC> horIdxs = (flags&PADHOR) ? broadcast<intC>(x) + countingPattern : VReg<intC>();
+            VReg<uintM> verMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
+            if((flags&PADVER)&&(flags&PADHOR))
             {
-                VReg<_Tp> loaded = loadvec<_Tp>(base);
-                if(kcol + 1 < kw) 
-                    base += elemsize;
+                VReg<intC> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
+                horIdxs = select(verMask, antiSpill, reinterpret<intC>(WcondV));
+            }
+            for(int kcol = 0; kcol < kw; kcol++) 
+            {
+                VReg<_Tp> toAdd;
+                loadVector(base, 0, toAdd, horIdxs, verMask, WcondV, (kcol ? PREINCREMENT_IDXS : 0) | INITDEST | lvflags);
                 for(int lineNum = 0; lineNum < MULTI_H; lineNum++)
                 { 
                     const int krow = lrow - lineNum * stride_y;
                     if(krow >= 0 && krow < kh)
                     {
                         const int kerelemnum = krow*kw + kcol;
-                        vres[lineNum] = fma(vres[lineNum], loaded, vkernel[kerelemnum/CTX.vlanes<_Tp>()], kerelemnum%CTX.vlanes<_Tp>());
+                        vres[lineNum] = fma(vres[lineNum], toAdd, vkernel[kerelemnum/CTX.vlanes<_Tp>()], kerelemnum%CTX.vlanes<_Tp>());
                     }
                 }
+                if(kcol + 1 < kw) 
+                    base += elemsize;
             }
             if(lrow + 1 != (MULTI_H - 1) * stride_y + kh) //Not last loaded row
-                base += (W<<elemshift) - ((kw-1)*elemsize);
+            {
+                base += (effective_const_mul(W, stride_multiplier) - (kw - 1)) << elemshift;
+                if(flags&PADVER)
+                    yi += stride_multiplier;
+            }
         }
     }
-    else
-    {
+    else if(stride_x == 1)
+    {//Code uses exts for doing lesser loads.
         for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++)
         {
             bool current_line_is_needed = false;
@@ -449,7 +462,6 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
             loadVector(base, 0, loadedHalf0, horIdxs, verMask, WcondV, INITDEST | lvflags);
             if(kw > 1)
                 loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, verMask, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
-
             for(int kcol = 0; kcol < kw; kcol++) 
             {
                 VReg<_Tp> toAdd;
@@ -503,73 +515,148 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
     USE_CONTEXT_(CTX);
     VReg<_Tp> vres = vbias;
     int lvflags = flags&PADHOR;
-    IReg krow = CONST_(0);
-    if(kw < 4 && !(flags&(PADHOR|PADVER)))
-    {//For 3x3 case approach with loading vectors one-by-one uses less operations.(*In central part of picture)
-        for(int krow = 0; krow < kh; krow++) 
-        {
-            for(int kcol = 0; kcol < kw; kcol++)
+    if(!(flags&(PADHOR|PADVER))) 
+    {//To generate code without vertical check loop
+        if(kw <= 3 && stride_x == 1)
+        {//Code without using exts. 
+            for(int krow = 0; krow < kh; krow++) 
             {
-                const int kerelemnum = krow*kw + kcol;
-                VReg<_Tp> loaded = loadvec<_Tp>(base);
-                if(kcol + 1 < kw) 
-                    base += elemsize;
-                vres = fma(vres, loaded, vkernel[kerelemnum/CTX.vlanes<_Tp>()], kerelemnum%CTX.vlanes<_Tp>());
+                for(int kcol = 0; kcol < kw; kcol++)
+                {
+                    const int kerelemnum = krow*kw + kcol;
+                    VReg<_Tp> loaded = loadvec<_Tp>(base);
+                    if(kcol + 1 < kw) 
+                        base += elemsize;
+                    vres = fma(vres, loaded, vkernel[kerelemnum/CTX.vlanes<_Tp>()], kerelemnum%CTX.vlanes<_Tp>());
+                }
+                if(krow + 1 < kh) //Not last loaded row
+                    base += (W<<elemshift) - ((kw-1)*elemsize);
             }
-            if(krow + 1 < kh) //Not last loaded row
-                base += (W<<elemshift) - ((kw-1)*elemsize);
+        }
+        else if(stride_x == 1)
+        {//Code uses exts for doing lesser loads.
+            for(int krow = 0; krow < kh; krow++) 
+            {
+                VReg<uintM> dummy;
+                VReg<intC> dummy2;
+                VReg<_Tp> loadedHalf0, loadedHalf1;
+                loadVector(base, 0, loadedHalf0, dummy2, dummy, WcondV, INITDEST);
+                if(kw > 1)
+                    loadVector(base, CTX.vbytes(), loadedHalf1, dummy2, dummy, WcondV, INITDEST);
+                for(int kcol = 0; kcol < kw; kcol++)
+                {
+                    VReg<_Tp> spliced;
+                    VReg<_Tp> toAdd;
+                    if(kcol%CTX.vlanes<_Tp>() == 0 && kcol > 0)
+                    {
+                        VReg<_Tp> interm;
+                        interm.copyidx(loadedHalf0);
+                        loadedHalf0.copyidx(loadedHalf1);
+                        loadedHalf1.copyidx(interm);
+                        if(kcol + 1 < kw)
+                            loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, dummy2, dummy, WcondV, 0);
+                        toAdd.copyidx(loadedHalf0);
+                    }
+                    else
+                        toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<_Tp>()));
+                    const int kerelemnum = krow*kw + kcol;
+                    vres = fma(vres, toAdd, vkernel[kerelemnum/CTX.vlanes<_Tp>()], kerelemnum%CTX.vlanes<_Tp>());
+                }
+                if(krow + 1 < kh) //Not last loaded row
+                    base += W << elemshift;
+            }
         }
     }
     else
-    {
-        WHILE_(krow<kh)
-        {
-            if(flags&PADVER)
+    {//Code with vertical check loop
+        IReg krow = CONST_(0);
+        if(kw <= 3 && stride_x == 1)
+        {//Code without using exts.
+            WHILE_(krow<kh)
             {
-                IF_(uge(yi,H))
+                if(flags&PADVER)
                 {
-                    base += W << elemshift;
-                    yi += 1;
-                    krow += 1;
-                    CONTINUE_;
+                    IF_(uge(yi,H))
+                    {
+                        base += W << elemshift;
+                        yi += 1;
+                        krow += 1;
+                        CONTINUE_;
+                    }
                 }
-            }
-            IReg kptr = kernel + krow * (kw * elemsize);
-            VReg<uintM> dummy;
-            VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(x) + countingPattern : VReg<intC>();
-            VReg<_Tp> loadedHalf0, loadedHalf1;
-            loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
-            if(kw > 1)
-                loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
-
-            for(int kcol = 0; kcol < kw; kcol++) 
-            {
-                VReg<_Tp> spliced;
-                VReg<_Tp> toAdd;
-                if(kcol%CTX.vlanes<_Tp>() == 0 && kcol > 0)
+                IReg kptr = kernel + krow * (kw * elemsize);
+                VReg<uintM> dummy;
+                VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(x) + countingPattern : VReg<intC>();
+                for(int kcol = 0; kcol < kw; kcol++) 
                 {
-                    VReg<_Tp> interm;
-                    interm.copyidx(loadedHalf0);
-                    loadedHalf0.copyidx(loadedHalf1);
-                    loadedHalf1.copyidx(interm);
+                    VReg<_Tp> toAdd;
+                    loadVector(base, 0, toAdd, horIdxs, dummy, WcondV, (kcol ? PREINCREMENT_IDXS : 0) | INITDEST | lvflags);
+                    VReg<_Tp> w = broadcast<_Tp>(load_<_Tp>(kptr));
+                    {
+                        VReg<_Tp> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                        vres = fma(antiSpill, toAdd, w);
+                    }
+                    kptr += elemsize;
                     if(kcol + 1 < kw)
-                        loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, PREINCREMENT_IDXS | lvflags);
-                    toAdd.copyidx(loadedHalf0);
+                        base += elemsize;
                 }
-                else
-                    toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<_Tp>()));
-                VReg<_Tp> w = broadcast<_Tp>(load_<_Tp>(kptr));
-                {
-                    VReg<_Tp> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
-                    vres = fma(antiSpill, toAdd, w);
-                }
-                kptr += elemsize;
+                base += (W<<elemshift) - ((kw-1)*elemsize);                
+                if(flags&PADVER)
+                    yi += 1;
+                krow += 1;
             }
-            base += W << elemshift;
-            if(flags&PADVER)
-                yi += 1;
-            krow += 1;
         }
+        else if(stride_x == 1)
+        {//Code uses exts for doing lesser loads.
+            WHILE_(krow<kh)
+            {
+                if(flags&PADVER)
+                {
+                    IF_(uge(yi,H))
+                    {
+                        base += W << elemshift;
+                        yi += 1;
+                        krow += 1;
+                        CONTINUE_;
+                    }
+                }
+                IReg kptr = kernel + krow * (kw * elemsize);
+                VReg<uintM> dummy;
+                VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(x) + countingPattern : VReg<intC>();
+                VReg<_Tp> loadedHalf0, loadedHalf1;
+                loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
+                if(kw > 1)
+                    loadVector(base, CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, INITDEST | PREINCREMENT_IDXS | lvflags);
+
+                for(int kcol = 0; kcol < kw; kcol++) 
+                {
+                    VReg<_Tp> spliced;
+                    VReg<_Tp> toAdd;
+                    if(kcol%CTX.vlanes<_Tp>() == 0 && kcol > 0)
+                    {
+                        VReg<_Tp> interm;
+                        interm.copyidx(loadedHalf0);
+                        loadedHalf0.copyidx(loadedHalf1);
+                        loadedHalf1.copyidx(interm);
+                        if(kcol + 1 < kw)
+                            loadVector(base, kcol*elemsize+CTX.vbytes(), loadedHalf1, horIdxs, dummy, WcondV, PREINCREMENT_IDXS | lvflags);
+                        toAdd.copyidx(loadedHalf0);
+                    }
+                    else
+                        toAdd.copyidx(ext(loadedHalf0, loadedHalf1, kcol%CTX.vlanes<_Tp>()));
+                    VReg<_Tp> w = broadcast<_Tp>(load_<_Tp>(kptr));
+                    {
+                        VReg<_Tp> antiSpill = vres; //TODO(ch): remove it when snippet management will be better.
+                        vres = fma(antiSpill, toAdd, w);
+                    }
+                    kptr += elemsize;
+                }
+                base += W << elemshift;
+                if(flags&PADVER)
+                    yi += 1;
+                krow += 1;
+            }
+        } 
     }
     IReg roffset = (flags&PADSHIFTRES? x + padding_left : x) << elemshift;
     storevec<_Tp>(result_rs, roffset, activationFunction(vres));
@@ -580,7 +667,7 @@ template<typename _Tp>
 void DepthwiseconvGenerator<_Tp>::loadVector(const IReg& base, int64_t offset, VReg<_Tp>& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags)
 {
     USE_CONTEXT_(CTX);
-    if(flags&INITDEST) 
+    if(flags&INITDEST)
         dest.copyidx(loadvec<_Tp>(base, offset));
     else
         dest = loadvec<_Tp>(base, offset);
