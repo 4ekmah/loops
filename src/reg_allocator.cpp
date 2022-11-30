@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <list>
 #include <cstring>
+#include <unordered_map>
 #include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
@@ -223,6 +224,7 @@ namespace loops
 
     RegisterPool::RegisterPool(Backend* a_backend): m_backend(a_backend)
         , m_spillPlaceholdersAvailable{0,0}
+
     {}
 
     void RegisterPool::initRegisterPool()
@@ -310,6 +312,36 @@ namespace loops
         }
         removeFromAllVessels(basketNum, res);
         res = (res == NOREGISTER) ? IReg::NOIDX : res;
+        return res;
+    }
+
+    //TODO(ch): this function is just a workaround for ld2/ld3/ld4 instructions
+    std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basketNum, int amount)
+    {
+        int amount_temp = amount; 
+        std::vector<RegIdx> res;
+        std::vector<RegIdx> fragmented;
+        res.reserve(amount);
+        fragmented.reserve(32);
+        while(amount_temp > 0)
+        {
+            RegIdx next = provideRegFromPool(basketNum);
+            if(next == IReg::NOIDX)
+                throw std::runtime_error("Register allocator: register space is too fragmented for ld2/ld3/ld4 workaround.");
+            if(res.empty() || next == res.back() + 1)
+            {
+                amount_temp--;
+            }
+            else
+            {
+                fragmented.insert(fragmented.end(), res.begin(), res.end());
+                res.clear();
+                amount_temp = amount - 1;
+            }
+            res.push_back(next);
+        }
+        for(auto t_rel : fragmented)
+            releaseReg(basketNum, t_rel);
         return res;
     }
 
@@ -499,6 +531,18 @@ but only if this nested register will be used after this redefinition.
                 snippetCausedSpills = LAalgo.getSnippetCausedSpills();
             }
         }
+        //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
+        std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> > unspillableLd2[RB_AMOUNT];
+        std::unordered_map<RegIdx, RegIdx> already_allocatedLd2[RB_AMOUNT];
+        bool ld2workaround_needed = false;
+        for(const Syntop& op: a_processed.program)
+            if(op.opcode == VOP_ARM_LD2)
+            {
+                std::pair<RegIdx, RegIdx> order = std::make_pair(op[0].idx, op[1].idx); 
+                unspillableLd2[RB_VEC].insert(std::make_pair(op[0].idx, order));
+                unspillableLd2[RB_VEC].insert(std::make_pair(op[1].idx, order));
+                ld2workaround_needed = true;
+            }
 
         //Space in stack used by snippets will be located in the bottom,
         //so spilled variables will be located higher.
@@ -563,14 +607,19 @@ but only if this nested register will be used after this redefinition.
                 }
                 if (!m_pool.havefreeRegs(basketNum))
                 {
+                    if(unspillableLd2[basketNum].find(interval->idx) != unspillableLd2[basketNum].end())
+                        throw std::runtime_error("Register allocator: not enough free registers for ld2 workaround.");
                     bool stackParameterSpilled = false;
-                    if (!active.empty() && active.rbegin()->end > interval->end)
+                    std::multiset<LiveInterval, endordering>::reverse_iterator lastactive = active.rbegin();
+                    while(lastactive!=active.rend() && unspillableLd2[basketNum].find(lastactive->idx) != unspillableLd2[basketNum].end())
+                        lastactive++;
+                    if (lastactive != active.rend() && lastactive->end > interval->end)
                     {
-                        regReassignment[basketNum][interval->idx] = regReassignment[basketNum][active.rbegin()->idx];
-                        RegIdx keepidx = regReassignment[basketNum][active.rbegin()->idx].idx; //We need to know appointed target architecture register for spilled parameters.
-                        stackParameterSpilled = stackParamLayout->count(active.rbegin()->idx);
-                        regReassignment[basketNum][active.rbegin()->idx] = argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]);
-                        regReassignment[basketNum][active.rbegin()->idx].idx = keepidx;
+                        regReassignment[basketNum][interval->idx] = regReassignment[basketNum][lastactive->idx];
+                        RegIdx keepidx = regReassignment[basketNum][lastactive->idx].idx; //We need to know appointed target architecture register for spilled parameters.
+                        stackParameterSpilled = stackParamLayout->count(lastactive->idx);
+                        regReassignment[basketNum][lastactive->idx] = argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]);
+                        regReassignment[basketNum][lastactive->idx].idx = keepidx;
                         active.erase(--(active.end()));
                         active.insert(*interval);
                     }
@@ -586,28 +635,60 @@ but only if this nested register will be used after this redefinition.
                 }
                 else
                 {
-                    RegIdx poolHint = IReg::NOIDX;
+                    RegIdx hwReg;
                     active.insert(*interval);
-                    //There we looking around last used input registers and trying to reuse them as
-                    //out. This optimization is important, e.g., for add, sub and mul operation on Intel, where
-                    //this operation are binary, not ternary.
-                    if (opUndefs.size())
+                    auto unsprator = unspillableLd2[basketNum].find(interval->idx);
+                    if(basketNum == RB_VEC && ( unsprator != unspillableLd2[basketNum].end()))
                     {
-                        std::unordered_map<size_t, RegIdx> opUndefsIdxMap;
-                        std::set<size_t> opUndefsIdx;
-                        const Syntop& op = a_processed.program[interval->start];
-                        std::set<size_t> iNs = backend->getInRegistersIdxs(op, basketNum);
-                        for (size_t in : iNs)
-                            if (opUndefs.count(op[in].idx))
+                        auto alrator = already_allocatedLd2[basketNum].find(interval->idx);
+                        if(alrator != already_allocatedLd2[basketNum].end())
+                        {
+                            hwReg = alrator->second;
+                            already_allocatedLd2[basketNum].erase(interval->idx);
+                        }
+                        else
+                        {
+                            std::vector<RegIdx> consecutive_regs = m_pool.provideConsecutiveRegs(RB_VEC, 2);
+                            int numberOfOpposite = 1;
+                            RegIdx oppositeSrc = unsprator->second.second;
+                            RegIdx oppositeDst = consecutive_regs[1];
+                            RegIdx dst = consecutive_regs[0];
+                            if (oppositeSrc == interval->idx)
                             {
-                                opUndefsIdxMap[in] = opUndefs.at(op[in].idx);
-                                opUndefsIdx.insert(in);
+                                numberOfOpposite = 0;
+                                oppositeSrc = unsprator->second.first;
+                                oppositeDst = consecutive_regs[0];
+                                dst = consecutive_regs[1];
                             }
-                        size_t idxHint = backend->reusingPreferences(op, opUndefsIdx);
-                        if (idxHint != IReg::NOIDX)
-                            poolHint = opUndefsIdxMap.at(idxHint);
+                            hwReg = dst;
+                            already_allocatedLd2[basketNum].insert(std::make_pair(oppositeSrc, oppositeDst));
+                        }
+                    } 
+                    else
+                    {
+                        //There we are looking around last used input registers and trying to reuse them as
+                        //out. This optimization is important, e.g., for add, sub and mul operation on Intel, where
+                        //this operation are binary, not ternary.
+                        RegIdx poolHint = IReg::NOIDX;
+                        if (opUndefs.size())
+                        {
+                            std::unordered_map<size_t, RegIdx> opUndefsIdxMap;
+                            std::set<size_t> opUndefsIdx;
+                            const Syntop& op = a_processed.program[interval->start];
+                            std::set<size_t> iNs = backend->getInRegistersIdxs(op, basketNum);
+                            for (size_t in : iNs)
+                                if (opUndefs.count(op[in].idx))
+                                {
+                                    opUndefsIdxMap[in] = opUndefs.at(op[in].idx);
+                                    opUndefsIdx.insert(in);
+                                }
+                            size_t idxHint = backend->reusingPreferences(op, opUndefsIdx);
+                            if (idxHint != IReg::NOIDX)
+                                poolHint = opUndefsIdxMap.at(idxHint);
+                        }
+                        hwReg = m_pool.provideRegFromPool(basketNum, poolHint);
                     }
-                    regReassignment[basketNum][interval->idx] = argReg(basketNum, m_pool.provideRegFromPool(basketNum, poolHint));
+                    regReassignment[basketNum][interval->idx] = argReg(basketNum, hwReg);
                 }
             }
         }

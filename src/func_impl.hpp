@@ -62,6 +62,7 @@ public:
     inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList = {});
     inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+    inline std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init);
     inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
     template<typename _Tp>
@@ -172,6 +173,23 @@ inline void FuncImpl::newiopNoret(int opcode, ::std::initializer_list<Arg> args,
     Syntop toAdd(opcode, args);
     if (tryImmList.size()) immediateImplantationAttempt(toAdd, 0, tryImmList);
     m_data.program.emplace_back(toAdd);
+}
+
+inline std::vector<int> FuncImpl::newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init)
+{
+    std::vector<int> res;
+    res.reserve(regsn_to_init.size());
+    std::vector<Arg> args_vec = args;
+    for(size_t argn : regsn_to_init)
+    {
+        Assert(argn<args_vec.size() && argn >=0 && (args_vec[argn].tag == Arg::IREG || args_vec[argn].tag == Arg::VREG));
+        RegIdx aidx = provideIdx((args_vec[argn].tag == Arg::IREG) ? RB_INT : RB_VEC);
+        args_vec[argn].idx = aidx;
+        res.push_back(aidx);
+    }
+    Syntop toAdd(opcode, args_vec);
+    m_data.program.emplace_back(toAdd);
+    return res;
 }
 
 inline void FuncImpl::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)

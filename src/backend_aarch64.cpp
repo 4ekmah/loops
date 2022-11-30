@@ -746,11 +746,18 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 return BiT({ BTsta(0b0110111001111001110110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
+    case (AARCH64_LD2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elemSize(index[0].elemtype)];
+            return BiT({ BTsta(0b01001100010000001000, 20), BTsta(size_imm, 2), BTreg(2, 5, In), BTreg(0, 5, Out), BTomm(1)});
+        }
     case (AARCH64_LD1):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
         {
             int esize = elemSize(index[0].elemtype); 
-            static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100}; 
+            static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100};
             int opcode = opcodes[esize];
             Assert(opcode != -1);
             int size_field = esize == 8 ? 1 : 0;
@@ -1154,6 +1161,10 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         }
         else if(index.size() == 2)
             return SyT(AARCH64_LDR, { SAcop(0), SAcop(1), SAimm(0) });
+        break;
+    case (VOP_ARM_LD2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
+            return SyT(AARCH64_LD2, { SAcop(0), SAcop(1), SAcop(2) });
         break;
     case (VOP_ARM_LD1):
 
@@ -1616,6 +1627,25 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             }
             break;
         }
+        case (VOP_ARM_LD2):
+        {
+            Assert(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
+            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            {
+                if (BinTranslation::Token::T_INPUT & flagmask)
+                    return std::set<size_t>({2});
+                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                    return std::set<size_t>({});
+            }
+            else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            {
+                if (BinTranslation::Token::T_INPUT & flagmask)
+                    return std::set<size_t>({});
+                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                    return std::set<size_t>({0,1});
+            }
+            break;
+        }
         default:
             break;
     };
@@ -1781,6 +1811,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SCVTF, "scvtf"},
         {AARCH64_UCVTF, "ucvtf"},
         {AARCH64_LD1,   "ld1"  },
+        {AARCH64_LD2,   "ld2"  },
         {AARCH64_ST1,   "st1"  },
         {AARCH64_EXT,   "ext"  },
         {AARCH64_DUP,   "dup"  },

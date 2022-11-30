@@ -37,6 +37,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
     }},
+    {VOP_ARM_LD2, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vld_deinterleave2." << type_suffixes[op.args[0].elemtype];
+    }},
     {VOP_ARM_LD1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld_lane." << type_suffixes[op.args[0].elemtype];
     }},

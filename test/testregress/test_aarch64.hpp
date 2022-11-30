@@ -103,12 +103,16 @@ LTESTcomposer(instruction_set_test, {
     VReg<uint64_t> v0_2u = vregHid<uint64_t>(0,_f);
     VReg<uint64_t> v31_2u = vregHid<uint64_t>(31,_f);
     VReg<int8_t> v0_16s = vregHid<int8_t>(0,_f);
+    VReg<int8_t> v1_16s = vregHid<int8_t>(1,_f);
     VReg<int8_t> v31_16s = vregHid<int8_t>(31,_f);
     VReg<int16_t> v0_8s = vregHid<int16_t>(0,_f);
+    VReg<int16_t> v1_8s = vregHid<int16_t>(1,_f);
     VReg<int16_t> v31_8s = vregHid<int16_t>(31,_f);
     VReg<int32_t> v0_4s = vregHid<int32_t>(0,_f);
+    VReg<int32_t> v1_4s = vregHid<int32_t>(1,_f);
     VReg<int32_t> v31_4s = vregHid<int32_t>(31,_f);
     VReg<int64_t> v0_2s = vregHid<int64_t>(0,_f);
+    VReg<int64_t> v1_2s = vregHid<int64_t>(1,_f);
     VReg<int64_t> v31_2s = vregHid<int64_t>(31,_f);
     VReg<f16_t> v0_8f = vregHid<f16_t>(0,_f);
     VReg<f16_t> v15_8f = vregHid<f16_t>(15,_f);
@@ -755,6 +759,22 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_ARM_LD1, { v31_2s, argIImm(0, _f), x0});
     newiopNoret(VOP_ARM_LD1, { v0_2s, argIImm(1, _f), x0});
     newiopNoret(VOP_ARM_LD1, { v0_2s, argIImm(0, _f), x15});
+
+    newiopNoret(VOP_ARM_LD2, {  v0_16s, v1_16s,  x0});
+    newiopNoret(VOP_ARM_LD2, { v31_16s, v0_16s,  x0});
+    newiopNoret(VOP_ARM_LD2, {  v0_16s, v1_16s, x15});
+    
+    newiopNoret(VOP_ARM_LD2, {  v0_8s, v1_8s,  x0});
+    newiopNoret(VOP_ARM_LD2, { v31_8s, v0_8s,  x0});
+    newiopNoret(VOP_ARM_LD2, {  v0_8s, v1_8s, x15});
+
+    newiopNoret(VOP_ARM_LD2, {  v0_4s, v1_4s,  x0});
+    newiopNoret(VOP_ARM_LD2, { v31_4s, v0_4s,  x0});
+    newiopNoret(VOP_ARM_LD2, {  v0_4s, v1_4s, x15});
+
+    newiopNoret(VOP_ARM_LD2, {  v0_2s, v1_2s,  x0});
+    newiopNoret(VOP_ARM_LD2, { v31_2s, v0_2s,  x0});
+    newiopNoret(VOP_ARM_LD2, {  v0_2s, v1_2s, x15});
 
     newiopNoret(VOP_ARM_ST1, {  x0, v0_16s, argIImm(0, _f)});
     newiopNoret(VOP_ARM_ST1, {  x0, v31_16s, argIImm(0, _f)});

@@ -34,6 +34,7 @@ excepts connected vectors.
         RegIdx provideParamFromPool(int basketNum);  //Must be called first.
         // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
         RegIdx provideRegFromPool(int basketNum, RegIdx a_hint = IReg::NOIDX);
+        std::vector<RegIdx> provideConsecutiveRegs(int basketNum, int amount);
         RegIdx provideReturnFromPool(int basketNum); //Must be called last.
         void releaseReg(int basketNum, RegIdx freeReg);
 
