@@ -187,6 +187,8 @@ inline std::vector<int> FuncImpl::newiopNoret_initregs(int opcode, ::std::initia
         args_vec[argn].idx = aidx;
         res.push_back(aidx);
     }
+    Syntop toAdd(opcode, args_vec);
+    m_data.program.emplace_back(toAdd);
     return res;
 }
 

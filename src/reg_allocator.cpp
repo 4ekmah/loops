@@ -224,6 +224,7 @@ namespace loops
 
     RegisterPool::RegisterPool(Backend* a_backend): m_backend(a_backend)
         , m_spillPlaceholdersAvailable{0,0}
+
     {}
 
     void RegisterPool::initRegisterPool()
@@ -531,14 +532,16 @@ but only if this nested register will be used after this redefinition.
             }
         }
         //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
-        std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> > unspillableLd2; 
-        std::unordered_map<RegIdx, RegIdx> already_allocatedLd2;
+        std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> > unspillableLd2[RB_AMOUNT];
+        std::unordered_map<RegIdx, RegIdx> already_allocatedLd2[RB_AMOUNT];
+        bool ld2workaround_needed = false;
         for(const Syntop& op: a_processed.program)
             if(op.opcode == VOP_ARM_LD2)
             {
                 std::pair<RegIdx, RegIdx> order = std::make_pair(op[0].idx, op[1].idx); 
-                unspillableLd2.insert(std::make_pair(op[0].idx, order));
-                unspillableLd2.insert(std::make_pair(op[0].idx, order));
+                unspillableLd2[RB_VEC].insert(std::make_pair(op[0].idx, order));
+                unspillableLd2[RB_VEC].insert(std::make_pair(op[1].idx, order));
+                ld2workaround_needed = true;
             }
 
         //Space in stack used by snippets will be located in the bottom,
@@ -604,11 +607,11 @@ but only if this nested register will be used after this redefinition.
                 }
                 if (!m_pool.havefreeRegs(basketNum))
                 {
-                    if(unspillableLd2.find(interval->idx) != unspillableLd2.end())
+                    if(unspillableLd2[basketNum].find(interval->idx) != unspillableLd2[basketNum].end())
                         throw std::runtime_error("Register allocator: not enough free registers for ld2 workaround.");
                     bool stackParameterSpilled = false;
                     std::multiset<LiveInterval, endordering>::reverse_iterator lastactive = active.rbegin();
-                    while(lastactive!=active.rend() && unspillableLd2.find(lastactive->idx) != unspillableLd2.end())
+                    while(lastactive!=active.rend() && unspillableLd2[basketNum].find(lastactive->idx) != unspillableLd2[basketNum].end())
                         lastactive++;
                     if (lastactive != active.rend() && lastactive->end > interval->end)
                     {
@@ -634,14 +637,14 @@ but only if this nested register will be used after this redefinition.
                 {
                     RegIdx hwReg;
                     active.insert(*interval);
-                    auto unsprator = unspillableLd2.find(interval->idx);
-                    if(basketNum == RB_VEC && ( unsprator != unspillableLd2.end()))
+                    auto unsprator = unspillableLd2[basketNum].find(interval->idx);
+                    if(basketNum == RB_VEC && ( unsprator != unspillableLd2[basketNum].end()))
                     {
-                        auto alrator = already_allocatedLd2.find(interval->idx);
-                        if(alrator != already_allocatedLd2.end())
+                        auto alrator = already_allocatedLd2[basketNum].find(interval->idx);
+                        if(alrator != already_allocatedLd2[basketNum].end())
                         {
                             hwReg = alrator->second;
-                            already_allocatedLd2.erase(interval->idx);
+                            already_allocatedLd2[basketNum].erase(interval->idx);
                         }
                         else
                         {
@@ -658,7 +661,7 @@ but only if this nested register will be used after this redefinition.
                                 dst = consecutive_regs[1];
                             }
                             hwReg = dst;
-                            already_allocatedLd2.insert(std::make_pair(oppositeSrc, oppositeDst));
+                            already_allocatedLd2[basketNum].insert(std::make_pair(oppositeSrc, oppositeDst));
                         }
                     } 
                     else

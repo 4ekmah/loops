@@ -1637,12 +1637,12 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
                     return std::set<size_t>({});
             }
-            else if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({0,1});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
                     return std::set<size_t>({});
+                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                    return std::set<size_t>({0,1});
             }
             break;
         }
