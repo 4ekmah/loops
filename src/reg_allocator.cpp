@@ -451,7 +451,7 @@ but only if this nested register will be used after this redefinition.
     private:
         struct LAEvent //Liveness Analysis Event
         {
-            enum { LAE_STARTLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_STARTSUBINT, LAE_SWITCHSUBINT, LAE_ENDSUBINT, NONDEF = -1 };
+            enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_STARTSUBINT, LAE_SWITCHSUBINT, LAE_ENDSUBINT, NONDEF = -1 };
             int eventType;
             RegIdx idx;
             size_t elsePos;
@@ -462,8 +462,15 @@ but only if this nested register will be used after this redefinition.
             LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(NONDEF), oppositeNestingSide(NONDEF), basketNum(basketNum_) {}
         };
         std::vector<std::vector<LiveInterval> > m_subintervals[RB_AMOUNT]; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
-                                                                   //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
+                                                                           //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
+        //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
         std::vector<size_t> m_subintervalHeaders[RB_AMOUNT];
+        std::deque<std::map<RegIdx, size_t> > m_active_headers_stack[RB_AMOUNT];
+        void push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
+                       , size_t a_endif);
+        void pop_active_state();
+        std::map<RegIdx, size_t>::const_iterator acs_begin(int basketNum) const;
+        std::map<RegIdx, size_t>::const_iterator acs_end(int basketNum) const;
         ContextImpl* m_owner;
         size_t m_snippetCausedSpills;
         inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
@@ -472,7 +479,7 @@ but only if this nested register will be used after this redefinition.
         inline void def(int basketNum, RegIdx regNum, size_t opnum);
         inline void use(int basketNum, RegIdx regNum, size_t opnum);
         inline void spliceUntilSinum(int basketNum, RegIdx regNum, size_t siEnd, size_t siStart = -1);
-        inline size_t expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum);
+        inline size_t expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum, size_t siStart);
         inline size_t deactivationOpnum(int basketNum, RegIdx regNum);
         inline void initSubintervalHeaders(size_t initval = 0);
         inline size_t getCurrentSinum(int basketNum, RegIdx regNum);
@@ -928,53 +935,6 @@ but only if this nested register will be used after this redefinition.
         a_processed.program = newProg;
     }
 
-    class BranchStateStack
-    {
-    private:
-        std::deque<std::map<RegIdx, size_t> > m_states[RB_AMOUNT];
-    public:
-        void pushState(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
-                       , const std::vector<size_t> (&a_subintervalHeaders) [RB_AMOUNT]
-                       , size_t a_endif)
-        {
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            {
-                m_states[basketNum].push_back(std::map<RegIdx, size_t>());
-                auto filled = m_states[basketNum].rbegin();
-                for(auto lastactive: a_lastActive[basketNum])
-                {
-                    if(lastactive.end > a_endif) //Will not consider subintervals contains whole embranchement.
-                        break;
-                    RegIdx idx = lastactive.idx;
-                    filled->insert(std::pair<RegIdx, size_t>(idx, a_subintervalHeaders[basketNum][idx]));
-                }
-            }
-        }
-
-        void popState()
-        {
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            {
-                Assert(!m_states[basketNum].empty());
-                m_states[basketNum].pop_back();
-            }
-        }
-
-        std::map<RegIdx, size_t>::const_iterator begin(int basketNum) const
-        {
-            const std::deque<std::map<RegIdx, size_t> >& b_states = m_states[basketNum];
-            Assert(!b_states.empty());
-            return b_states.back().cbegin();
-        }
-
-        std::map<RegIdx, size_t>::const_iterator end(int basketNum) const
-        {
-            const std::deque<std::map<RegIdx, size_t> >& b_states = m_states[basketNum];
-            Assert(!b_states.empty());
-            return b_states.back().cend();
-        }
-    };
-
     void LivenessAnalysisAlgo::process(Syntfunc& a_processed, std::vector<LiveInterval> (&a_liveintervals)[RB_AMOUNT])
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -988,7 +948,6 @@ but only if this nested register will be used after this redefinition.
         
         Backend* backend = m_owner->getBackend();
         //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
-        std::multimap<size_t, LAEvent> loopQueue;
         std::multimap<size_t, LAEvent> branchQueue;
         RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
         { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
@@ -1055,7 +1014,7 @@ but only if this nested register will be used after this redefinition.
                     if (opnum < 2)
                         throw std::runtime_error("Temporary condition solution needs one instruction before WHILE cycle.");
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum - 1));
-                    loopQueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 1) mean that condition can be one-instruction only.
+                    branchQueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 1) mean that condition can be one-instruction only.
                     continue;
                 }
                 case (OP_ENDWHILE):
@@ -1064,9 +1023,12 @@ but only if this nested register will be used after this redefinition.
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
-                    auto rator = loopQueue.find(bracket.labelOrPos);
-                    Assert(rator != loopQueue.end());
+                    auto rator = branchQueue.find(bracket.labelOrPos);
+                    Assert(rator != branchQueue.end());
+                    size_t whilePos = rator->first;
                     rator->second.oppositeNestingSide = opnum;
+                    rator = branchQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
+                    rator->second.oppositeNestingSide = whilePos;
                     continue;
                 }
                 default:
@@ -1094,90 +1056,9 @@ but only if this nested register will be used after this redefinition.
             m_snippetCausedSpills += m_snippetCausedSpills % alignx ? alignx - m_snippetCausedSpills % alignx : 0; 
         }
 
-        { //2.) Expanding intervals, which are crossing loops borders.
-            initSubintervalHeaders();
-            std::multiset<LiveInterval, endordering> active[RB_AMOUNT];
-            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            {
-                for (RegIdx idx = 0; idx < regAmount(basketNum); idx++)
-                {
-                    const size_t sintStart = getCurrentSubinterval(basketNum, idx).start;
-                    if (sintStart == 0)
-                    {
-                        LiveInterval toActive = getCurrentSubinterval(basketNum, idx);
-                        active[basketNum].insert(toActive);
-                        loopQueue.insert(std::make_pair(toActive.end, LAEvent(LAEvent::LAE_ENDSUBINT, idx, basketNum)));
-                    }
-                    else
-                        loopQueue.insert(std::make_pair(sintStart, LAEvent(LAEvent::LAE_STARTSUBINT, idx, basketNum)));
-                }
-
-            }
-
-            while (!loopQueue.empty())
-            {
-                auto loopRator = loopQueue.begin();
-                size_t opnum = loopQueue.begin()->first;
-                LAEvent event = loopQueue.begin()->second;
-                loopQueue.erase(loopQueue.begin());
-                switch (event.eventType)
-                {
-                case (LAEvent::LAE_STARTSUBINT):
-                {
-                    std::multiset<LiveInterval, endordering>& b_active = active[event.basketNum];
-                    LiveInterval li = getCurrentSubinterval(event.basketNum, event.idx);
-                    b_active.insert(li);
-                    const size_t sintEnd = li.end;
-                    loopQueue.insert(std::make_pair(sintEnd, LAEvent(LAEvent::LAE_ENDSUBINT, event.idx, event.basketNum)));
-                    break;
-                };
-                case (LAEvent::LAE_ENDSUBINT):
-                {
-                    std::multiset<LiveInterval, endordering>& b_active = active[event.basketNum];
-                    auto removerator = b_active.begin();
-                    while (removerator != b_active.end() && removerator->idx != event.idx && removerator->end == opnum)
-                        ++removerator;
-                    Assert(removerator != b_active.end() && removerator->idx == event.idx);
-                    b_active.erase(removerator);
-                    if (isIterateable(event.basketNum, event.idx))
-                    {
-                        const LiveInterval& newli = getNextSubinterval(event.basketNum, event.idx);
-                        iterateSubinterval(event.basketNum, event.idx);
-                        loopQueue.insert(std::make_pair(newli.start, LAEvent(LAEvent::LAE_STARTSUBINT, event.idx, event.basketNum)));
-                    }
-                    break;
-                };
-                case (LAEvent::LAE_STARTLOOP):
-                {
-                    for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-                    {
-                        std::multiset<LiveInterval, endordering> changed_active;
-                        auto arator = active[basketNum].begin();
-                        for (; arator != active[basketNum].end(); ++arator)
-                            if (arator->end < event.oppositeNestingSide)
-                            {
-                                const RegIdx idx = arator->idx;
-                                size_t newEnd = expandUntilOpnum(basketNum, idx, event.oppositeNestingSide);
-                                changed_active.insert(getCurrentSubinterval(basketNum, idx));
-                                moveEventLater(loopQueue, arator->idx, LAEvent::LAE_ENDSUBINT, arator->end, newEnd);
-                            }
-                            else
-                                break;
-                        active[basketNum].erase(active[basketNum].begin(), arator);
-                        active[basketNum].insert(changed_active.begin(), changed_active.end());
-                    };
-                    break;
-                }
-                default:
-                    throw std::runtime_error("Internal error: unexpected event in loop queue.");
-                }
-            }
-        }
-
-        { //3.) Calculating intervals crossing if branches.
+        { //2.) Calculating intervals crossing loops and embranchments.
             initSubintervalHeaders(-1);
             std::multiset<LiveInterval, endordering> lastActive[RB_AMOUNT]; // NOTE: In this part of code LiveInterval::end means not end position of subinterval, but deactivation position, position, when starts new subinterval or ends final one.
-            BranchStateStack branchStack;
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             {
                 for (RegIdx idx = 0; idx < regAmount(basketNum); idx++)
@@ -1232,8 +1113,9 @@ but only if this nested register will be used after this redefinition.
                     break;
                 };
                 case (LAEvent::LAE_STARTBRANCH):
+                case (LAEvent::LAE_STARTLOOP):
                 {
-                    branchStack.pushState(lastActive, m_subintervalHeaders, event.oppositeNestingSide);
+                    push_active_state(lastActive, event.oppositeNestingSide);
                     break;
                 }
                 case (LAEvent::LAE_ENDBRANCH):
@@ -1245,7 +1127,7 @@ but only if this nested register will be used after this redefinition.
                         const bool haveElse = (event.elsePos != LAEvent::NONDEF);
                         const size_t elsePos = haveElse ? event.elsePos : endifPos;
                         std::multiset<LiveInterval, endordering> lastActiveChanged;
-                        for(auto ifidrator = branchStack.begin(basketNum); ifidrator != branchStack.end(basketNum); ifidrator++)
+                        for(auto ifidrator = acs_begin(basketNum); ifidrator != acs_end(basketNum); ifidrator++)
                         {
                             static const size_t NOTFOUND = -1;
                             size_t firstUseMain = NOTFOUND, firstDefMain = NOTFOUND;
@@ -1339,7 +1221,39 @@ but only if this nested register will be used after this redefinition.
                         }
                         lastActive[basketNum].insert(lastActiveChanged.begin(), lastActiveChanged.end());
                     };
-                    branchStack.popState();
+                    pop_active_state();
+                    break;
+                }
+                case (LAEvent::LAE_ENDLOOP):
+                {
+                    const size_t whilePos = event.oppositeNestingSide;
+                    const size_t endwhilePos = opnum;
+                    for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                    {
+                        std::multiset<LiveInterval, endordering> lastActiveChanged;
+                        for(auto ifidrator = acs_begin(basketNum); ifidrator != acs_end(basketNum); ifidrator++)
+                        {
+                            const RegIdx idx = ifidrator->first;
+                            const size_t si_start = ifidrator->second;
+                            const size_t switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
+                            if(m_subintervals[basketNum][idx][si_start].end < endwhilePos)
+                            {
+                                size_t newEnd = expandUntilOpnum(basketNum, idx, endwhilePos, si_start);
+                                auto removerator = lastActive[basketNum].find(LiveInterval(idx, switchIpos));
+                                while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
+                                if(removerator != lastActive[basketNum].end())
+                                {
+                                    lastActive[basketNum].erase(removerator);
+                                    LiveInterval changedOne = m_subintervals[basketNum][idx][si_start];
+                                    changedOne.end = deactivationOpnum(basketNum, idx);
+                                    lastActiveChanged.insert(changedOne);
+                                    moveEventLater(branchQueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
+                                }
+                            }
+                        }
+                        lastActive[basketNum].insert(lastActiveChanged.begin(), lastActiveChanged.end());
+                    }
+                    pop_active_state();
                     break;
                 }
                 default:
@@ -1349,7 +1263,7 @@ but only if this nested register will be used after this redefinition.
         }
 
         size_t resSize[RB_AMOUNT];
-        { //4.) Renaming splitted registers.
+        { //3.) Renaming splitted registers.
             initSubintervalHeaders();
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++ )
             {
@@ -1407,6 +1321,46 @@ but only if this nested register will be used after this redefinition.
         , m_owner(a_owner)
     {}
 
+    void LivenessAnalysisAlgo::push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
+                    , size_t a_endif)
+    {
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        {
+            m_active_headers_stack[basketNum].push_back(std::map<RegIdx, size_t>());
+            auto filled = m_active_headers_stack[basketNum].rbegin();
+            for(auto lastactive: a_lastActive[basketNum])
+            {
+                if(lastactive.end > a_endif) //Will not consider subintervals contains whole embranchement.
+                    break;
+                RegIdx idx = lastactive.idx;
+                filled->insert(std::pair<RegIdx, size_t>(idx, m_subintervalHeaders[basketNum][idx]));
+            }
+        }
+    }
+
+    void LivenessAnalysisAlgo::pop_active_state()
+    {
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        {
+            Assert(!m_active_headers_stack[basketNum].empty());
+            m_active_headers_stack[basketNum].pop_back();
+        }
+    }
+
+    std::map<RegIdx, size_t>::const_iterator LivenessAnalysisAlgo::acs_begin(int basketNum) const
+    {
+        const std::deque<std::map<RegIdx, size_t> >& b_states = m_active_headers_stack[basketNum];
+        Assert(!b_states.empty());
+        return b_states.back().cbegin();
+    }
+
+    std::map<RegIdx, size_t>::const_iterator LivenessAnalysisAlgo::acs_end(int basketNum) const
+    {
+        const std::deque<std::map<RegIdx, size_t> >& b_states = m_active_headers_stack[basketNum];
+        Assert(!b_states.empty());
+        return b_states.back().cend();
+    }
+
     size_t LivenessAnalysisAlgo::siAmount(int basketNum, RegIdx regNum) const
     {
         Assert(regNum < regAmount(basketNum));
@@ -1443,10 +1397,11 @@ but only if this nested register will be used after this redefinition.
         m_subintervals[basketNum][regNum].erase(m_subintervals[basketNum][regNum].begin() + siStart + 1, m_subintervals[basketNum][regNum].begin() + siEnd + 1);
     }
 
-    size_t LivenessAnalysisAlgo::expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum)
+    size_t LivenessAnalysisAlgo::expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum, size_t a_siStart)
     {
-        size_t sinum = m_subintervalHeaders[basketNum][regNum];
-        size_t subinterval2erase = sinum + 1;
+        m_subintervalHeaders[basketNum][regNum] = a_siStart == -1 ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
+        size_t si_start = m_subintervalHeaders[basketNum][regNum];
+        size_t subinterval2erase = si_start + 1;
         for (; subinterval2erase < siAmount(basketNum, regNum); subinterval2erase++)
             if (m_subintervals[basketNum][regNum][subinterval2erase].start >= opnum)
             {
@@ -1457,7 +1412,7 @@ but only if this nested register will be used after this redefinition.
                 opnum = std::max(m_subintervals[basketNum][regNum][subinterval2erase].end, opnum);
         subinterval2erase = std::min(subinterval2erase, siAmount(basketNum, regNum) - 1);
         spliceUntilSinum(basketNum, regNum, subinterval2erase);
-        m_subintervals[basketNum][regNum][sinum].end = opnum;
+        m_subintervals[basketNum][regNum][si_start].end = opnum;
         return opnum;
     }
 
