@@ -69,6 +69,7 @@ public:
     inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
 
     IReg const_(int64_t value);
+    IReg def_();
     
     /*
     TODO(ch): Implement with RISC-V RVV

@@ -448,7 +448,8 @@ namespace loops
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
     bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
-    IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value);    }
+    IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->const_(value); }
+    IReg Context::def_()                   { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->def_(); }
     void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->while_(r); }
     void Context::endwhile_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->endwhile_(); }
     void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->break_(); }

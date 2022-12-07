@@ -11,7 +11,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "reg_allocator.hpp"
 #include "common.hpp"
 #include "func_impl.hpp"
-
 /*
 This file contains two consequently applied algorithms: liveness analysis and register
 allocation.
@@ -24,7 +23,7 @@ of this algorithm: separating liveinterval to many subintervals with reappointin
 number to each subinterval. In some degree, it can substitute effectiveness of more sophisticated
 scheme.
 
-Algorithm have four stages:
+Algorithm have three stages:
 1.) Lookup for elementary subintervals and initialization of event queues.
     It's known amount of virtual registers, used in code of the function. First step is
     initialization of vector of subintervals, each register will have subintervals breakdown -
@@ -34,52 +33,57 @@ Algorithm have four stages:
     instruction and which was redefined. Each elementary subinterval is the chain like def-use-
     use-...-use(use is optional). Algorithm stores info only about first and last link of chain.
 
-    In the same time it's initialized two event queues: for loops and for embranchments. It's
-    stored info about each loop into loopQueue with help of control flow stack(flowstack).
-    loopQueue[<startLoopPosition>].endNesting is end of loop. Same for branchQueue:
-    branchQueue[<startEmbranchementPosition>].endNesting is endif position and
-    branchQueue[<startEmbranchementPosition>].elsePos is else position. At this stage elseif are
+    In the same time it's initialized control flow event queue, kkeping loops and embranchments.
+    It's stored info about each loop or menbranchment into CFqueue with help of control flow 
+    stack(flowstack).
+    CFqueue[<startPosition>].endNesting is end of loop/embranchemnt.
+    CFqueue[<endPosition>].endNesting is start of loop/embranchemnt.
+    CFqueue[<startEmbranchementPosition>].elsePos is else position. At this stage elseif is
     already deconstructed.
     Time complexity: O(N) - where N is amount of instructions.
     Space complexity: O(M), M - amount of elementary subintervals.
 
-2.) Splicing subintervals, which intersects loops borders.
+2.) Splicing subintervals, which intersects loops/embranchment borders.
     Main idea: if subinterval was alive at start of the loop, it must stay alive until the
     end of loop, that's why in this case all subintervals, intersects loop's interval must be
-    spliced in one. For making this splice there will be used loopQueue. It's obvious, that there
+    spliced in one. Much more sophisticated, but, basically, almost the same logic is used 
+    for embranchment. Difficulty is splicing decision logic - in some cases they can stood
+    separated.
+    
+    For making this splices there will be used CFqueue. It's obvious, that there
     is no need to work with all registers, but only with active. For effective keeping "active"
     container actual it's used same event queue with locating here information about starts end
     ends of subintervals activity.
 
-    It's important, that on algorithm's work there is only forward movement along vector of
-    certain register. That's why each subinterval will be considered only once(don't be confused
-    by matix view of data).
+    Container of active intervals uses different definition of interval ends. Subinterval uses
+    line of last use, there it's used new definition, because splicing condition needs last known
+    active value.
+        Subintervals    Active Intervals
+    1:        ^                ^
+    2:        |                |
+    3:        v                |
+    4:                         |
+    5:                         v
+    6:        ^                ^
+    7:        |                |
+    8:        |                |
+    9:        v                v
 
-    In start, for each register it's zeroed number of of current subinterval with help of
-    function initSubintervalHeaders(). Registers are activate from 0 instruction(parameters) must
-    be added to the event queue with LAE_ENDSUBINT tag, other with LAE_STARTSUBINT. Also
-    parameters are added to "active" multiset, which is ordered by ends of intervals. This order
-    increases find operations(because element to erase will always be in start of "active"
-    container).
-
-    In iterations over instruction  it's keeped "active" and numbers of current subintervals
-    actual with help of iterateSubinterval, getNextSubinterval, isIterateable methods.
-
-    When it's meet loop start (there is loop end in event description), each active subinterval
-    will spliced all subintervals, intersected with loop body. If loop is finished further, than
-    union got, subinterval will be prolongated to end end of loop.
-
-    Time complexity: O(B*M) - where B - number of basic blocks, M - amount of elementary
-    subintervals, roughly equal to amount of instructions.
-    Space complexity: O(M), M - amount of elementary subintervals.
-
-3.) Splicing subintervals, which intersects embrachements borders.
-    Algorithm is similar to previous one, but there is three serious differences:
-
-    First, unfortunately, it cannot be done in loop's linear manner, it need some
-    recursion, because splicing in inner embranchments can affect on outer splicing decisions.
+    Algorithm simulteneously iterates over subintervals for every known register. In start, for
+    each register it's zero number of of current subinterval with help of function 
+    initSubintervalHeaders(). Also all the registers interval starts are added to events queue
+    as LAE_SWITCHSUBINT events. Also, paramater registers are added to "active" multiset, which
+    is ordered by ends of intervals. This order accelerates find operations(because element to
+    erase will always be in start of "active" container).
  
-    The example we have encountered:
+    For basic program, don't contain nested blocks, algorithm iterates subintervals, active and
+    events only forward, each subinterval will is considered only once(don't be confused
+    by matix view of data). If there are nested blocks, container of active is recursively stored
+    at start of block and droped at end as a list of registers to be checked for splicing.
+    
+    Example, which demonstrate, why the most nested blocks must splice registers first we 
+    encountered in real practice:
+
     IReg v = CTX.const_(val1);
     CTX.if_(cond1)
         v = CTX.const_(val2);
@@ -89,35 +93,26 @@ Algorithm have four stages:
         v = CTX.const_(val3);
     CTX.endif();
  
-    Without splicing in most inner branch, algorithm inadequately decided to keep register's
+    Without splicing in most inner branch first, algorithm inadequately decided to keep register's
     subintervals separated in outer embranchement.
- 
-    Therefore, embranchment handling must be done after of embranchement. On other hand, algorithm
-    needs the list of registers was active in start of block. This lists are stacked in
-    BranchStateStack class(pushed at start of block and popped at an end).
-  
-    Second, on intersection condtions it's used last active intervals instead of active one(that
-    is the reason why stage 2 and 3 cannot be united into one stage). E.g:
-        Active intervals    LastActive Intervals
-    1:        ^                      ^
-    2:        |                      |
-    3:        v                      |
-    4:                               |
-    5:                               v
-    6:        ^                      ^
-    7:        |                      |
-    8:        |                      |
-    9:        v                      v
 
-    Third, this stage have much more complicated splicing decision logic. It depends on amount
-    of branches, position of first "use" and fisrt "def" in each branch and after-embranchment
-    usage(afterlife). In some cases it's list of subintervals to splice can be shorted.
+    When it's meet loop/embranchment start, active subintervals container is stored to stack of actives
+    (m_active_headers_stack), keeping registers idx's and the number of currently considered subinterval.
 
-    Time complexity same as for previous: O(B*M), where B - number of basic blocks, M - amount
-    of elementary subintervals, roughly equal to amount of instructions.
-    Space complexity: O(B*M), B - number of basic blocks, M - amount of elementary subintervals.
+    When it's meet loop end, each active subinterval where active at loop start will be spliced with all
+    subintervals, intersected with loop body. If loop is finished further, than union got, subinterval
+    will be prolongated to end end of loop.
 
-4.) Renaming.
+    When it's meet embranchment end, happens bascally almost same, but decision about splicing have
+    sophisticated logic, depends on amount of branches, position of first "use" and fisrt "def" in
+    each branch and after-embranchment usage(afterlife). In some cases list of subintervals to splice can
+    be shorted.
+
+    Time complexity: O(B*M) - where B - number of basic blocks, M - amount of elementary
+    subintervals, roughly equal to amount of instructions.
+    Space complexity: O(M + B*I), where I - amount of registers.
+
+3.) Renaming.
     Finally each subinterval can be considered as separate register.
 
     Two linear loops:
@@ -451,7 +446,7 @@ but only if this nested register will be used after this redefinition.
     private:
         struct LAEvent //Liveness Analysis Event
         {
-            enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_STARTSUBINT, LAE_SWITCHSUBINT, LAE_ENDSUBINT, NONDEF = -1 };
+            enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
             int eventType;
             RegIdx idx;
             size_t elsePos;
@@ -948,7 +943,7 @@ but only if this nested register will be used after this redefinition.
         
         Backend* backend = m_owner->getBackend();
         //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
-        std::multimap<size_t, LAEvent> branchQueue;
+        std::multimap<size_t, LAEvent> CFqueue;
         RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
         { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
             std::deque<ControlFlowBracket> flowstack;
@@ -974,7 +969,7 @@ but only if this nested register will be used after this redefinition.
                 {
                     Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
-                    branchQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
+                    CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
                     continue;
                 }
                 case (OP_ELSE):
@@ -999,11 +994,11 @@ but only if this nested register will be used after this redefinition.
                         flowstack.pop_back();
                     }
                     Assert(bracket.tag == ControlFlowBracket::IF);
-                    auto rator = branchQueue.find(bracket.labelOrPos);
-                    Assert(rator != branchQueue.end());
+                    auto rator = CFqueue.find(bracket.labelOrPos);
+                    Assert(rator != CFqueue.end());
                     size_t ifStart = rator->first;
                     rator->second.oppositeNestingSide = opnum;
-                    rator = branchQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDBRANCH)));
+                    rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDBRANCH)));
                     rator->second.elsePos = elsePos;
                     rator->second.oppositeNestingSide = ifStart;
                     continue;
@@ -1014,7 +1009,7 @@ but only if this nested register will be used after this redefinition.
                     if (opnum < 2)
                         throw std::runtime_error("Temporary condition solution needs one instruction before WHILE cycle.");
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum - 1));
-                    branchQueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 1) mean that condition can be one-instruction only.
+                    CFqueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 1) mean that condition can be one-instruction only.
                     continue;
                 }
                 case (OP_ENDWHILE):
@@ -1023,11 +1018,11 @@ but only if this nested register will be used after this redefinition.
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
-                    auto rator = branchQueue.find(bracket.labelOrPos);
-                    Assert(rator != branchQueue.end());
+                    auto rator = CFqueue.find(bracket.labelOrPos);
+                    Assert(rator != CFqueue.end());
                     size_t whilePos = rator->first;
                     rator->second.oppositeNestingSide = opnum;
-                    rator = branchQueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
+                    rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
                     rator->second.oppositeNestingSide = whilePos;
                     continue;
                 }
@@ -1078,15 +1073,15 @@ but only if this nested register will be used after this redefinition.
                     }
                     else
                         eventPos = sintStart;
-                    branchQueue.insert(std::make_pair(eventPos, LAEvent(LAEvent::LAE_SWITCHSUBINT, idx, basketNum)));
+                    CFqueue.insert(std::make_pair(eventPos, LAEvent(LAEvent::LAE_SWITCHSUBINT, idx, basketNum)));
                 }
             }
 
-            while (!branchQueue.empty())
+            while (!CFqueue.empty())
             {
-                size_t opnum = branchQueue.begin()->first;
-                LAEvent event = branchQueue.begin()->second;
-                branchQueue.erase(branchQueue.begin());
+                size_t opnum = CFqueue.begin()->first;
+                LAEvent event = CFqueue.begin()->second;
+                CFqueue.erase(CFqueue.begin());
                 switch (event.eventType)
                 {
                 case (LAEvent::LAE_SWITCHSUBINT):
@@ -1108,7 +1103,7 @@ but only if this nested register will be used after this redefinition.
                         LiveInterval toActive = getCurrentSubinterval(event.basketNum, event.idx);
                         toActive.end = eventPos;
                         b_lastActive.insert(toActive);
-                        branchQueue.insert(std::make_pair(eventPos, toAdd));
+                        CFqueue.insert(std::make_pair(eventPos, toAdd));
                     }
                     break;
                 };
@@ -1215,7 +1210,7 @@ but only if this nested register will be used after this redefinition.
                                     while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
                                     Assert(removerator != lastActive[basketNum].end());
                                     lastActive[basketNum].erase(removerator);
-                                    moveEventLater(branchQueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
+                                    moveEventLater(CFqueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
                                 }
                             }
                         }
@@ -1247,7 +1242,7 @@ but only if this nested register will be used after this redefinition.
                                     LiveInterval changedOne = m_subintervals[basketNum][idx][si_start];
                                     changedOne.end = deactivationOpnum(basketNum, idx);
                                     lastActiveChanged.insert(changedOne);
-                                    moveEventLater(branchQueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
+                                    moveEventLater(CFqueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
                                 }
                             }
                         }
