@@ -31,15 +31,12 @@ private:
     bool m_done; 
     Context CTX;
     enum { MULTI_H = 3 };
-    enum { PADHOR = 1, PADVER = 2, INITDEST = 4, PREINCREMENT_IDXS = 8, MULTILINE = 16 };
-    void loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags = 0);
+    enum { PADHOR = 1, PADVER = 2, INITDEST = 4, MULTILINE = 8 };
     void loadVectorIReg(const IReg& base, const IReg& offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags = 0);
-
     void multilineInit(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, int& horVecsPerOut, std::vector<std::vector<VReg<float>>>& vertMaxes, const IReg& stride, int& kh, int flags);
     void multilineInitLast(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, int& horVecsPerOut, std::vector<std::vector<VReg<float>>>& vertMaxes, const IReg& stride, int& kh, int flags);
     void onelineInit(const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, int& horVecsPerOut, std::vector<loops::VReg<float>>& vertMaxes, const IReg& stride, int& kh, int flags);
     void onelineInitLast(const VReg<uint32_t>& WcondV, IReg& yi, IReg& x, IReg& base, int& horVecsPerOut, std::vector<loops::VReg<float>>& vertMaxes, const IReg& stride, int& kh, int flags);
-
     VReg<uint32_t> VertMask(IReg& yi, const VReg<uint32_t>& HcondV, int flags);
 
     //Common parameters and registers
@@ -49,9 +46,6 @@ private:
     VReg<int32_t> countingPattern, idx_step;
     VReg<float> valpha;
     VReg<float> activationFunction(VReg<float>& res);
-    IReg DUBUGresult;
-    IReg DUBUGchannel;
-    IReg DUBUGy;
 
     inline int upDiv(int numerator, int denominator);
     inline int upMultipleOf(int numerator, int denominator); 
@@ -121,10 +115,10 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
     USE_CONTEXT_(CTX);
     STARTFUNC_(funcname, &data, &H, &W, &C, &result, &H0, &W0, &algsLimits)
     {
-        // if(activation_type == ACT_LRELU)
-        // {
-        //     valpha.copyidx(VCONST_(float, alpha));
-        // }
+        if(activation_type == ACT_LRELU)
+        {
+            valpha.copyidx(VCONST_(float, alpha));
+        }
         if(padhor)
         {
             countingPattern.copyidx(VCONST_(int32_t, 0));
@@ -144,23 +138,9 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
         IReg Xie = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Xie)) - padding_left;
         int horVecsPerOut = (kw + 3)/4 + ((kw + 3)%4?1:0);
 
-        // getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, 
-        //     { 0, 1, 2, 3, 4, 5, 6, 7 }, 
-        //     { 0, 1, 2, 3, 4, 5, 6, 7 }, 
-        //     { }, 
-        //     { 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 });
-
         IReg offset = CONST_(0);
         IReg channel = CONST_(0);
-        IReg check = W0 << elemshift;
-
-        std::vector<IReg> offstab(kw, IReg());
-        for(int i = 0; i < kw; i++ )
-            offstab[i].copyidx(IReg(CONST_(i) << elemshift));
-        IReg H0x3 = H0 - H0 % 3;
         IReg stride = W << elemshift;
-        IReg stride0 = W0 << elemshift;
-        IReg vsize = CONST_(4); // CTX.vbytes() >> elemshift;
         
         WHILE_(channel < C)
         {
@@ -193,7 +173,7 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                         IReg result_rs = result + (W0 << elemshift) * y;
                         IReg xi = CONST_(-padding_left);
                         IReg Hcond = padver ? max(H - (kh + MULTI_H - 2), CONST_(0)) : IReg(); 
-                        IReg Wcond = padhor ? max(W - (kw + CTX.vlanes<float>() - 2), CONST_(0)) : IReg();
+                        IReg Wcond = padhor ? max(W - (CTX.vlanes<float>()*horVecsPerOut - 1), CONST_(0)) : IReg();
                         VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
                         VReg<uint32_t> HcondV = padver ? broadcast<uint32_t>(H) : VReg<uint32_t>();
                         IReg multilineendx;
@@ -203,12 +183,8 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                         for(int n = 0; n < 3; n++)
                         {
                             for(int vRegNum = 0; vRegNum < horVecsPerOut; vRegNum++)
-                                vertMaxes[n][vRegNum].copyidx(VCONST_(float, 0));
+                                vertMaxes[n][vRegNum].copyidx(VDEF_(float));
                         }
-
-                        DUBUGchannel.copyidx(channel);
-                        DUBUGresult.copyidx(result);
-                        DUBUGy.copyidx(y);
 
                         if(padhor||padver)
                         {
@@ -228,20 +204,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                         {
                             multilineInit(HcondV, WcondV, y, xi, data_rs, horVecsPerOut, vertMaxes, stride, kh, 0);
                         }
-                        // IF_(y >= 3)
-                        // {//DUBUGGG
-                        //     storevec(DUBUGresult + 8*4*4, vertMaxes[0][0]);
-                        //     // storevec(result_ + 16, vertMaxes[0][1]);
-                        //     storevec(DUBUGresult + 8*4*5 , vertMaxes[1][0]);
-                        //     // storevec(result_ + stride0 + 16, vertMaxes[1][1]);
-                        //     storevec(DUBUGresult + 8*4*6 , vertMaxes[2][0]);
-                        //     // storevec(result_ + 2 * stride0 + 16, vertMaxes[2][1]);
-                        //     RETURN_(555);
-                        // } 
-                        // IF_(y==1)
-                        // {
-                        //     RETURN_(y);
-                        // }
                         
                         WHILE_(xi < multilineendx)
                         {
@@ -303,13 +265,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                                 }
                             }
 
-                            // IF_(y >= 3)
-                            // {//DUBUGGG
-                            //     storevec(DUBUGresult + 8*4*4, res[0]);
-                            //     storevec(DUBUGresult + 8*4*5, res[1]);
-                            //     storevec(DUBUGresult + 8*4*6, res[2]);
-                            //     RETURN_(555);
-                            // } 
                             for(int n = 0; n < 3; n++)
                             {
                                 for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
@@ -328,7 +283,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                                 if(lineNum + 1 < MULTI_H)
                                     roffset += offstride;
                             }
-
                             xi += CTX.vlanes<float>();
                         }
                         y += MULTI_H;
@@ -350,17 +304,16 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                     IReg result_rs = result + (W0 << elemshift) * y;
 
                     int horVecsPerOut = (kw + 3)/4 + ((kw + 3)%4?1:0);
-                    IReg stride = W << elemshift;
                     std::vector<VReg<float> > vertMaxes(horVecsPerOut, VReg<float>());
                     
                     for(int vRegNum = 0; vRegNum < horVecsPerOut; vRegNum++)
-                        vertMaxes[vRegNum].copyidx(VCONST_(float, 0));
+                        vertMaxes[vRegNum].copyidx(VDEF_(float));
 
                     WHILE_(xi < W0mpl)
                     {
                         IF_(xi == xis)
                         {
-                            IReg Wcond = padhor ? max(W - kw - 2, CONST_(0)): IReg();
+                            IReg Wcond = padhor ? max(W - (CTX.vlanes<float>()*horVecsPerOut - 1), CONST_(0)) : IReg();
                             IReg Hcond = padver ? max(H - (kh - 1), CONST_(0)) : IReg();
                             VReg<uint32_t> WcondV = padhor ? broadcast<uint32_t>(W) : VReg<uint32_t>();
                             if(padhor||padver)
@@ -379,11 +332,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                             }
                             else 
                                 onelineInit(WcondV, y, xi, data_rs, horVecsPerOut, vertMaxes, stride, kh, 0);
-                            // {//DUBUGGG
-                            //     storevec(result_rs, vertMaxes[0]);
-                            //     // storevec(result_rs + stride0, vertMaxes[1]);
-                            //     // storevec(result_rs + 2 * stride0, vertMaxes[2]);
-                            //     RETURN_(0);
                             
                             WHILE_(xi < xie)
                             {
@@ -405,9 +353,7 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                                 }
                                 else 
                                     onelineInitLast(WcondV, y, xi, data__, horVecsPerOut, vertMaxes, stride, kh, 0);
-    
-                                
-                                // vertMaxes[1].copyidx(VReg<float>(vertMaxes[0]));
+
                                 VReg<float> res = max(vertMaxes[0], ext(vertMaxes[0], vertMaxes[1], 1));
                                 for(int i = 2; i < kw; i++ )
                                 {
@@ -424,10 +370,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                                 }
 
                                 IReg roffset = (padhor ? xi + padding_left : xi) << elemshift;
-                                // // int outdiffW = padding_left + padding_right - kw + 1;
-                                // // IReg W0_;
-                                // // W0_.copyidx(outdiffW ? (outdiffW > 0 ? W+outdiffW: W-(-outdiffW)): W); //TODO(ch): fix it in interface of loops(there must be ability to add and sub negaitve numbers).
-                                // // IReg offstride = W0_ << elemshift;
                                 storevec<float>(result_rs, roffset, activationFunction(res));
                                 xi += CTX.vlanes<float>();
                             }
@@ -436,8 +378,7 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                         
                         WHILE_(xi < scalarEnd)
                         {
-                            // NEED CHANGE VALUE
-                            VReg<float> vres = VCONST_(float, 0);
+                            VReg<float> vres = VDEF_(float);
                             IReg res_already_init = CONST_(0);
                             IReg data__ = data_rs + (xi << elemshift);
                             IReg kcol = CONST_(0);
@@ -490,9 +431,6 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                             }
                             IReg roffset = (((padhor||padver) ? xi + padding_left : xi) << elemshift);
                             store_<float>(result_rs + roffset, getlane<float>(activationFunction(vres), 0));
-                            // RETURN_(y);  //0
-                            // RETURN_(xi); //0
-                            // RETURN_(getlane<float>(vres, 0)); //0
                             xi += 1;
                         }
                     }
@@ -522,7 +460,6 @@ VReg<uint32_t> MaxpoolGenerator::VertMask(IReg& yi, const VReg<uint32_t>& HcondV
 
 void MaxpoolGenerator::multilineInit(const VReg<uint32_t>& HcondV, const VReg<uint32_t>& WcondV, IReg& yi_, IReg& x, IReg& base, int& horVecsPerOut, std::vector<std::vector<VReg<float>>>& vertMaxes, const IReg& stride, int& kh, int flags)
 {
-    const int MultiH = 3;
     USE_CONTEXT_(CTX);
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&(PADHOR|PADVER);
@@ -543,7 +480,7 @@ void MaxpoolGenerator::multilineInit(const VReg<uint32_t>& HcondV, const VReg<ui
         offset += stride;
         vertMaxes[2][vRegNum] = vertMaxes[2][vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
         loadVectorIReg(vertMaxesPtr, offset, vertMaxes[2][vRegNum], horIdxs, VertMask(yi, HcondV, flags), WcondV, lvflags);
-        temp.copyidx(VCONST_(float, 0));
+        temp.copyidx(VDEF_(float));
 
         for(int row = 3; row < kh; row++)
         {
@@ -574,16 +511,13 @@ void MaxpoolGenerator::multilineInitLast(const VReg<uint32_t>& HcondV, const VRe
     VReg<int32_t> horIdxs = (flags&PADHOR) ? broadcast<int32_t>(x+lastVRegNum*CTX.vlanes<float>()) + countingPattern : VReg<int32_t>();
     IReg vertMaxesPtr = base + (x << elemshift) + lastVRegNum * CTX.vbytes();
     IReg offset = stride;
-    vertMaxes[0][lastVRegNum] = vertMaxes[0][lastVRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
+    
     loadVectorIReg(vertMaxesPtr, CONST_(0), vertMaxes[0][lastVRegNum], horIdxs, VertMask(yi, HcondV, flags), WcondV, lvflags);
-
-    vertMaxes[1][lastVRegNum] = vertMaxes[1][lastVRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
     loadVectorIReg(vertMaxesPtr, offset, vertMaxes[1][lastVRegNum], horIdxs, VertMask(yi, HcondV, flags), WcondV, lvflags);
     vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[1][lastVRegNum]);
     offset += stride;
-    vertMaxes[2][lastVRegNum] = vertMaxes[2][lastVRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
     loadVectorIReg(vertMaxesPtr, offset, vertMaxes[2][lastVRegNum], horIdxs, VertMask(yi, HcondV, flags), WcondV, lvflags);
-    temp.copyidx(VCONST_(float, 0));
+    temp.copyidx(VDEF_(float));
 
     for(int row = 3; row < kh; row++)
     {
@@ -593,7 +527,6 @@ void MaxpoolGenerator::multilineInitLast(const VReg<uint32_t>& HcondV, const VRe
     }
 
     vertMaxes[0][lastVRegNum] = max(vertMaxes[0][lastVRegNum], vertMaxes[2][lastVRegNum]);
-
     offset += stride;
     loadVectorIReg(vertMaxesPtr, offset, temp, horIdxs, VertMask(yi, HcondV, flags), WcondV, lvflags);
     vertMaxes[2][lastVRegNum] = max(vertMaxes[2][lastVRegNum], temp);
@@ -606,11 +539,8 @@ void MaxpoolGenerator::multilineInitLast(const VReg<uint32_t>& HcondV, const VRe
 void MaxpoolGenerator::onelineInit(const VReg<uint32_t>& WcondV, IReg& yi_, IReg& x, IReg& base, int& horVecsPerOut, std::vector<loops::VReg<float>>& vertMaxes, const IReg& stride, int& kh, int flags)
 {
     USE_CONTEXT_(CTX);
-    int lanes = CTX.vlanes<float>();
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&PADHOR;
-    VReg<float> temp;
-    IReg offset = stride;
     IReg krow = CONST_(0);
     VReg<uint32_t> dummy;
     IReg vertMaxesPtr = base + (x << elemshift);
@@ -626,28 +556,22 @@ void MaxpoolGenerator::onelineInit(const VReg<uint32_t>& WcondV, IReg& yi_, IReg
                 loadedVector.copyidx(VCONST_(float, 0));
                 IF_(ult(yi,H))
                 {
-                    loadVector(vertMaxesPtr, vRegNum*CTX.vbytes(), loadedVector, horIdxs, dummy, WcondV, lvflags);
+                    loadVectorIReg(vertMaxesPtr, CONST_(vRegNum*CTX.vbytes()), loadedVector, horIdxs, dummy, WcondV, lvflags);
                 }
             }
             else
-                loadVector(vertMaxesPtr, vRegNum*CTX.vbytes(), loadedVector, horIdxs, dummy, WcondV, lvflags | INITDEST);
+                loadVectorIReg(vertMaxesPtr, CONST_(vRegNum*CTX.vbytes()), loadedVector, horIdxs, dummy, WcondV, lvflags | INITDEST);
 
             IF_(krow > 0)
-            {
-                vertMaxes[vRegNum] = vertMaxes[vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
                 vertMaxes[vRegNum] = max(vertMaxes[vRegNum], loadedVector);
-            }
             ELSE_
-            {
-                vertMaxes[vRegNum] = vertMaxes[vRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
                 vertMaxes[vRegNum] = loadedVector; 
-            }
             if(flags&PADHOR)
             {
                 horIdxs += idx_step;
             }
         }
-        vertMaxesPtr += (W << elemshift);
+        vertMaxesPtr += stride;
         if (flags&PADVER)
             yi += 1;
         krow += 1;
@@ -661,12 +585,11 @@ void MaxpoolGenerator::onelineInitLast(const VReg<uint32_t>& WcondV, IReg& yi_, 
     const int elemshift = (elemsize == 8) ? 3 : ((elemsize == 4) ? 2 : 1);
     int lvflags = flags&PADHOR;
     VReg<uint32_t> dummy;
-    IReg offset = stride;
     int lastVRegNum = horVecsPerOut-1;
     IReg vertMaxesPtr = base;
     IReg krow = CONST_(0);
-
     VReg<int32_t> horIdxs = flags&PADHOR ? broadcast<int32_t>(x+(lastVRegNum*CTX.vlanes<float>())) + countingPattern : VReg<int32_t>();
+    
     WHILE_(krow<kh)
     {
         VReg<float> loadedVector;
@@ -675,55 +598,21 @@ void MaxpoolGenerator::onelineInitLast(const VReg<uint32_t>& WcondV, IReg& yi_, 
             loadedVector.copyidx(VCONST_(float, 0));
             IF_(ult(yi,H))
             {
-                loadVector(vertMaxesPtr, lastVRegNum*CTX.vbytes(), loadedVector, horIdxs, dummy, WcondV, lvflags);
+                loadVectorIReg(vertMaxesPtr, CONST_(lastVRegNum*CTX.vbytes()), loadedVector, horIdxs, dummy, WcondV, lvflags);
             }
         }
         else
-            loadVector(vertMaxesPtr, lastVRegNum*CTX.vbytes(), loadedVector, horIdxs, dummy, WcondV, lvflags | INITDEST);
+            loadVectorIReg(vertMaxesPtr, CONST_(lastVRegNum*CTX.vbytes()), loadedVector, horIdxs, dummy, WcondV, lvflags | INITDEST);
 
         IF_(krow > 0)
-        {
-            vertMaxes[lastVRegNum] = vertMaxes[lastVRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
             vertMaxes[lastVRegNum] = max(vertMaxes[lastVRegNum], loadedVector);
-        }
         ELSE_
-        {
-            vertMaxes[lastVRegNum] = vertMaxes[lastVRegNum];//TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
             vertMaxes[lastVRegNum] = loadedVector; 
-        }
-        if(flags&PADHOR)
-        {
-            horIdxs += idx_step;
-        }
 
-        vertMaxesPtr += (W << elemshift);
+        vertMaxesPtr += stride;
         if (flags&PADVER)
             yi += 1;
         krow += 1;
-    }
-}
-
-void MaxpoolGenerator::loadVector(const IReg& base, int64_t offset, VReg<float>& dest, VReg<int32_t>& horIdxs, const VReg<uint32_t>& verMask, const VReg<uint32_t>& WcondV, int flags)
-{
-    USE_CONTEXT_(CTX);
-    if(flags&INITDEST) 
-        dest.copyidx(loadvec<float>(base, offset));
-    else
-        dest = loadvec<float>(base, offset);
-    if(flags&(PADHOR|PADVER))
-    {
-        if((flags & PADVER) && !(flags & PADHOR))
-        {
-            dest = reinterpret<float>( verMask & reinterpret<uint32_t>(dest));
-        }
-        else
-        {
-            // if((flags&PREINCREMENT_IDXS) && (flags & PADHOR))
-            //     horIdxs += idx_step;
-            VReg<uint32_t> mask;
-            mask.copyidx((flags & PADHOR) ? (reinterpret<uint32_t>(horIdxs) < WcondV) : verMask);
-            dest = reinterpret<float>( mask & reinterpret<uint32_t>(dest));
-        }
     }
 }
 
@@ -742,8 +631,6 @@ void MaxpoolGenerator::loadVectorIReg(const IReg& base, const IReg& offset, VReg
         }
         else
         {
-            // if((flags&PREINCREMENT_IDXS) && (flags & PADHOR))
-            //     horIdxs += idx_step;
             VReg<uint32_t> mask;
             VReg<int32_t> horIdxs_;
             if(flags&PADHOR && flags&PADVER) 
@@ -900,34 +787,3 @@ maxpool_algs_limits MaxpoolGenerator::calc_maxpool_algs_limits(int C, int W, int
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 #endif //__LOOPS_MAXPOOL_HPP__
-
-// #ifdef HORIZONTAL_OFFSET
-//         std::vector<IReg> horoff(kw, IReg());
-//         for(int kcol = 0; kcol < kw; kcol++)
-//             if(kcol%CTX.vlanes<float>())
-//                 horoff[kcol].rawcopy(CONST_(kcol<<elemshift));
-// #endif //HORIZONTAL_OFFSET
-// #ifdef HORIZONTAL_OFFSET
-//                 WHILE_(xi < xme)
-//                 {
-//                     IReg data__ = data_rs + (xi << elemshift);
-//                     VReg<float> vres = vbias;
-//                     for(int krow = 0; krow < kh; krow++) 
-//                     {
-//                         for(int kcol = 0; kcol < kw; kcol++) 
-//                         {
-//                             const int kerelemnum = krow*kw + kcol;
-//                             VReg<float> justloaded;
-//                             if(kcol%CTX.vlanes<float>())
-//                                 justloaded.rawcopy(loadvec<float>(data__, horoff[kcol]));
-//                             else
-//                                 justloaded.rawcopy(loadvec<float>(data__, kcol*elemsize));
-//                             vres = fma(vres, justloaded, vkernel[kerelemnum/CTX.vlanes<float>()], kerelemnum%CTX.vlanes<float>());
-//                         }
-//                         if(krow + 1 < kh)
-//                             data__ += W << elemshift;
-//                     }
-//                     storevec<float>(result_rs, xi << elemshift, vres);
-//                     xi += CTX.vlanes<float>();
-//                 }
-// #else// HORIZONTAL_OFFSET
