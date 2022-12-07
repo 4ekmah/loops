@@ -132,11 +132,15 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Wrong LABEL format");
         str << "label " << op.args[0] << ":";
-    }}
+    }},
+    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vdef." << type_suffixes[op.args[0].elemtype];
+    }},
 };
 
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
-    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}}
+    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
+    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
@@ -190,6 +194,7 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_ARM_CINC, "arm_cinc"},
     {OP_ARM_CNEG, "arm_cneg"},
     {OP_ARM_MOVK, "arm_movk"},
+    {OP_DEF,      "def"},
 };
 
 FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
@@ -324,6 +329,11 @@ FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
 IReg FuncImpl::const_(int64_t value)
 {
     return static_cast<IReg&&>(newiop(OP_MOV, { argIImm(value, this) }));
+}
+
+IReg FuncImpl::def_()
+{
+    return static_cast<IReg&&>(newiop(OP_DEF, {}));
 }
 
 void FuncImpl::while_(const IReg& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.

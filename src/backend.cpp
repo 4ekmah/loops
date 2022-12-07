@@ -121,9 +121,17 @@ size_t Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 
 std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
 {
+    std::set<size_t> result;
+    if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
+    {
+        int ioflags = flagmask&(BinTranslation::Token::T_OUTPUT | BinTranslation::Token::T_INPUT);
+        if (ioflags == BinTranslation::Token::T_OUTPUT && 
+            ((a_op.opcode == OP_DEF && basketNum == RB_INT) || (a_op.opcode == VOP_DEF && basketNum == RB_VEC)))
+                result = std::set<size_t>({0});
+        return result;
+    }
     bool foundSynTr;
     SyntopTranslation s2s = m_s2slookup(this, a_op, foundSynTr);
-    std::set<size_t> result;
     if (!foundSynTr)
         return result;
     Syntop tarop = s2s.apply(a_op);

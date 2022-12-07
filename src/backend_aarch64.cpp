@@ -1682,6 +1682,9 @@ bool Aarch64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingt
             m_labelMap[a_btop.args[0].value] = getS2sCurrentOffset() >> 2;
             return true;
         }
+        case (OP_DEF):
+        case (VOP_DEF):
+            return true;
         default:
             return false;
     };

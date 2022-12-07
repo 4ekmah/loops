@@ -136,7 +136,10 @@ enum {
     VOP_GETLANE,
     VOP_SETLANE,
 
-    OP_NOINIT
+    OP_DEF,
+    VOP_DEF,
+
+    OP_NOINIT,
 };
 
 template<typename _Tp> struct ElemTraits {};
@@ -331,6 +334,7 @@ public:
     //TODO(ch): IMPORTANT(CMPLCOND) Obsolete interface. Delete after complex condition implementation.
     void startFunc(const std::string& name, std::initializer_list<IReg*> params);
     IReg const_(int64_t value);
+    IReg def_();
     void endFunc();
     void while_(const IReg& r);
     void endwhile_();
@@ -395,7 +399,9 @@ inline int64_t __loops_pack_2_valtype_(_Tp tocast)
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_ctx__.const_(x)
+#define DEF_(x) __loops_ctx__.def_()
 #define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(__loops_pack_2_valtype_(eltyp(x)), &__loops_ctx__) })
+#define VDEF_(eltyp) newiopV<eltyp>(VOP_DEF, { Arg(0, &__loops_ctx__) }) //TODO(ch): this Arg(0) is a workaround for providing context to newiop<...>.
 #define IF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
     if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
 #define ELIF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
