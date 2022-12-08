@@ -14,51 +14,43 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 #include <iostream>
 #include <iomanip>
-#include "arm_neon.h"
 #include "tests.hpp"
 
 namespace loops
 {
-MaxpoolTest::MaxpoolTest(Context aCTX, std::ostream* a_out): CTX(aCTX), out(a_out) {}
 
-void MaxpoolTest::run() 
+class MaxpoolTestImpl: public MaxpoolTest
+{
+public:
+    MaxpoolTestImpl(std::ostream* a_out): MaxpoolTest(), out(a_out)
+    {
+        CTX = (Context*)create_context();
+    }
+    virtual ~MaxpoolTestImpl() {free_context(CTX);};
+    virtual void run();
+private:
+    void gendata(float* data, int kh, int kw, int H, int W, int C);
+    void ref(float* data, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type);
+    bool compare(float* tocheck, float* ref, int C, int H, int W, float empty_value);
+    bool compare_alg_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference);
+    void print_algs_limits(const dwc_algs_limits& tocheck);
+    Context* CTX;
+    std::ostream* out;
+};
+
+MaxpoolTest::MaxpoolTest(std::ostream* a_out)
+{ impl = new MaxpoolTestImpl(a_out); }
+
+MaxpoolTest::~MaxpoolTest()
+{ delete impl; }
+
+void MaxpoolTest::run()
+{ impl->run(); }
+
+void MaxpoolTestImpl::run() 
 {
     const int TESTITERATIONS = 30;
 
-    std::vector< std::pair<std::vector<int>, std::vector<int>> > limitsFixtures = {
-        {{3, 3, 3, 10, 3, 0, 0, 0, 0}, {4, 3, 0, 2, 9, 8, 0, 6, 0, 0}},
-        {{3, 3, 3, 10, 10, 0, 0, 0, 0}, {0, 2, 0, 2, 0, 6, 0, 7, 0, 4}},
-        {{3, 3, 3, 10, 10, 1, 0, 1, 0}, {1, 2, 0, 2, 1, 6, 0, 8, 0, 4}},
-        {{3, 3, 3, 10, 10, 0, 1, 0, 1}, {1, 2, 1, 2, 1, 6, 1, 7, 1, 4}},
-        {{3, 3, 3, 10, 10, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 6, 2, 8, 1, 4}},
-        {{3, 3, 1, 10, 10, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 6, 0, 7, 0, 4}},
-        {{3, 3, 1, 10, 10, 1, 0, 1, 0}, {1, 0, 0, 0, 1, 7, 0, 8, 0, 4}},
-        {{3, 3, 1, 10, 10, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 7, 1, 7, 1, 4}},
-        {{3, 3, 1, 10, 10, 1, 1, 1, 1}, {1, 0, 1, 0, 2, 8, 2,  8, 1, 4}},
-        {{3, 3, 1, 1, 1, 1, 1, 1, 1},   {2, 1, 2, 1, 2, 1, 2, 1, 1, 1}},
-        {{3, 3, 100, 1, 1, 1, 1, 1, 1}, {101, 100, 1, 94, 2, 1, 2, 0, 1, 1}}
-        };
-    for(auto fxt: limitsFixtures)
-    {
-        int kh = fxt.first[0];
-        int kw = fxt.first[1];
-        const int C = fxt.first[2];
-        const int H = fxt.first[3];
-        const int W = fxt.first[4];
-        const int padding_top = fxt.first[5];
-        const int padding_left = fxt.first[6];
-        const int padding_bottom = fxt.first[7];
-        const int padding_right = fxt.first[8];
-        const maxpool_algs_limits ref(fxt.second[0], fxt.second[1], fxt.second[2], fxt.second[3], fxt.second[4], fxt.second[5], fxt.second[6], fxt.second[7], fxt.second[8], fxt.second[9]);
-        const int H0 = H-kh+1+padding_top+padding_bottom;
-        const int W0 = W-kw+1+padding_left+padding_right;
-
-        (*out) << "Maxpooling "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-        maxpool_algs_limits tocheck;
-        calc_maxpool_algs_limits_f32(&tocheck, C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
-        if(!compare_alg_limits(tocheck, ref))
-            return;
-    }
     enum {PERF, REGRESS};
     enum {SMALL_ALPHA, BIG_ALPHA};
     std::vector<std::vector<int> > fixtures = {
@@ -99,39 +91,39 @@ void MaxpoolTest::run()
         {5, 5, 1632, 7, 7, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
         {3, 3, 32, 112, 112, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {3, 3, 192, 56, 56, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
-//      {kh,kw, C, H, W, padding_top, padding_left, padding_bottom, padding_right}
+//      {kh,kw, NC, H, W, padding_top, padding_left, padding_bottom, padding_right}
     };
-    int DUBUGGGfixtureNum = 0;
     for(auto fxt: fixtures)
     {
         int kh = fxt[0];
         int kw = fxt[1];
-        const int C = fxt[2];
+        const int NC = fxt[2];
         const int H = fxt[3];
         const int W = fxt[4];
         const int padding_top = fxt[5];
         const int padding_left = fxt[6];
         const int padding_bottom = fxt[7];
         const int padding_right = fxt[8];
+        const int stride_y = 1, stride_x = 1, dilation_y = 1, dilation_x = 1;
         const int activation = fxt[9];
         const float alpha = fxt[10] == BIG_ALPHA ? 1.25 : 0.25;
         bool perf = (fxt[11] == PERF);
         const int H0 = H-kh+1+padding_top+padding_bottom;
         const int W0 = W-kw+1+padding_left+padding_right;
         const float empty_value = kh * kw * 2000 + 1;
-        (*out) << "Maxpooling "<<kh<<"x"<<kw<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << std::endl;
-        maxpool_algs_limits algsLimits;
-        calc_maxpool_algs_limits_f32(&algsLimits, C, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right);
+        (*out) << "Maxpooling "<</*(fxt[0]==TYPE_FP16?"FP16 ":"FP32 ")*/"FP32 "<<kh<<"x"<<kw<<", C = "<< NC << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x  << std::endl;
+        dwc_algs_limits algsLimits;
+        calc_maxpool_algs_limits_f32(CTX, &algsLimits, NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, dilation_y, dilation_x);
 
-        maxpool_f32_t func = generate_maxpool_f32(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation, alpha);
-        std::vector<float> indata(W*H*C);
-        std::vector<float> outdata(H0*W0*C * 3, empty_value);
-        std::vector<float> outdataref(H0*W0*C, 0);
+        maxpool_f32_t func = generate_maxpool_f32(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, dilation_y, dilation_x, activation, alpha);
+        std::vector<float> indata(W*H*NC);
+        std::vector<float> outdata(H0*W0*NC * 3, empty_value);
+        std::vector<float> outdataref(H0*W0*NC, 0);
         float* inptr = &(indata[0]);
-        float* optr = &(outdata[0]) + H0*W0*C;
+        float* optr = &(outdata[0]) + H0*W0*NC;
         float* optrref = &(outdataref[0]);
-        gendata(inptr, kh, kw, H, W, C);
-        ref(inptr, H, W, C, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
+        gendata(inptr, kh, kw, H, W, NC);
+        ref(inptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
         
         if(perf)
         {
@@ -140,10 +132,10 @@ void MaxpoolTest::run()
             for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
             {
                 t.start();
-                ret = func(inptr, H, W, C, optr, H0, W0, &algsLimits);
+                ret = func(inptr, H, W, NC, optr, H0, W0, &algsLimits);
                 t.stop();
             }
-            if(compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
+            if(compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
                 (*out)<<"    Optimized time = "<<t.str()<<std::endl;
             else
                 return;
@@ -151,24 +143,23 @@ void MaxpoolTest::run()
         else
         {
             int ret;
-            ret = func(inptr, H, W, C, optr, H0, W0, &algsLimits);
-            if(!compare(&(outdata[0]), optrref, C, H0, W0, empty_value))
+            ret = func(inptr, H, W, NC, optr, H0, W0, &algsLimits);
+            if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
             {
                 (*out)<<"    FAILED!"<<std::endl;
                 return;
             }
         }
-        DUBUGGGfixtureNum++;
     }
 }
                                           
-void MaxpoolTest::gendata(float* data, int kh, int kw, int H, int W, int C)
+void MaxpoolTestImpl::gendata(float* data, int kh, int kw, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
         data[i] = (rand() % 10000)/5000.0f - 1;
 }
 
-void MaxpoolTest::ref(float* data, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)
+void MaxpoolTestImpl::ref(float* data, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)
 {
     std::vector<float> padded;
     {
@@ -227,7 +218,7 @@ void MaxpoolTest::ref(float* data, int H, int W, int C, float* result, int H0, i
     }
 }
 
-void MaxpoolTest::print_algs_limits(const maxpool_algs_limits& toprint)
+void MaxpoolTestImpl::print_algs_limits(const dwc_algs_limits& toprint)
 {
     (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
     (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
@@ -241,7 +232,7 @@ void MaxpoolTest::print_algs_limits(const maxpool_algs_limits& toprint)
     (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 
-bool MaxpoolTest::compare(float* tocheck, float* ref, int C, int H, int W, float empty_value)
+bool MaxpoolTestImpl::compare(float* tocheck, float* ref, int C, int H, int W, float empty_value)
 {
     for(int k = 0; k < C; k++)
         for(int i = 0; i < H; i++)
@@ -279,7 +270,7 @@ bool MaxpoolTest::compare(float* tocheck, float* ref, int C, int H, int W, float
     return true;
 }
 
-bool MaxpoolTest::compare_alg_limits(const maxpool_algs_limits& tocheck, const maxpool_algs_limits& reference)
+bool MaxpoolTestImpl::compare_alg_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference) //DUBUG: create common class. This check will be needed in coming handleFixture.
 {
     bool res = true;
     if(tocheck.Cms != reference.Cms) {std::cout<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}

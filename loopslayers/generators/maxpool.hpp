@@ -24,9 +24,9 @@ class MaxpoolGenerator
 {
 public:
     MaxpoolGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
-    typedef int64_t (*maxpool_t)(float* data, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, maxpool_algs_limits* algsLimits);
+    typedef int64_t (*maxpool_t)(float* data, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, dwc_algs_limits* algsLimits);
     maxpool_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
-    maxpool_algs_limits calc_maxpool_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
+    dwc_algs_limits calc_maxpool_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
 private:
     bool m_done; 
     Context CTX;
@@ -111,9 +111,9 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
         return (maxpool_t)(CTX.getFunc(funcname).ptr());
     }
 
-    IReg data, C, result, H0, algsLimits;
+    IReg data, NC, result, H0, algsLimits;
     USE_CONTEXT_(CTX);
-    STARTFUNC_(funcname, &data, &H, &W, &C, &result, &H0, &W0, &algsLimits)
+    STARTFUNC_(funcname, &data, &H, &W, &NC, &result, &H0, &W0, &algsLimits)
     {
         if(activation_type == ACT_LRELU)
         {
@@ -126,23 +126,23 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
                 setlane(countingPattern, lane, CONST_(lane));
             idx_step.copyidx(VCONST_(int32_t, CTX.vlanes<float>()));
         }
-        IReg Cms = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Cms));
-        IReg Cme = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Cme));
-        IReg Cis = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Cis));
-        IReg Cie = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Cie));
-        IReg Yms = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Yms));
-        IReg Yme = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Yme));
-        IReg Yis = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Yis));
-        IReg Yie = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Yie));
-        IReg Xis = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Xis)) - padding_left;
-        IReg Xie = load_<int64_t>(algsLimits, offsetof(maxpool_algs_limits, Xie)) - padding_left;
+        IReg Cms = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cms));
+        IReg Cme = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cme));
+        IReg Cis = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cis));
+        IReg Cie = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Cie));
+        IReg Yms = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Yms));
+        IReg Yme = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Yme));
+        IReg Yis = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Yis));
+        IReg Yie = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Yie));
+        IReg Xis = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Xis)) - padding_left;
+        IReg Xie = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Xie)) - padding_left;
         int horVecsPerOut = (kw + 3)/4 + ((kw + 3)%4?1:0);
 
         IReg offset = CONST_(0);
         IReg channel = CONST_(0);
         IReg stride = W << elemshift;
         
-        WHILE_(channel < C)
+        WHILE_(channel < NC)
         {
             IReg yms = select(channel == Cms - 1, Yms, H0); 
             yms = select(channel > Cms - 1, 0, yms); 
@@ -737,52 +737,52 @@ inline int MaxpoolGenerator::upperX(int C, int H, int W, int Cf, int Yf, int xs,
     return M * upperBorder((C-Cf)*H*W - Yf * W - xs - x0, M) + x0;
 }
 
-maxpool_algs_limits MaxpoolGenerator::calc_maxpool_algs_limits(int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
+dwc_algs_limits MaxpoolGenerator::calc_maxpool_algs_limits(int NC, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right)
 {
     int Cms, Cme;
     int lsimd = upMultipleOf(kw + CTX.vlanes<float>() - 2, CTX.vlanes<float>()) - 1;
     int XlastMulti = (W0 - padding_left - CTX.vlanes<float>()) + lsimd;
     if(W0 > CTX.vlanes<float>())
     {
-        Cms = downC(C, H, W, -padding_top, -padding_left);
+        Cms = downC(NC, H, W, -padding_top, -padding_left);
         int YlastMulti = (downMultipleOf(W0, MULTI_H) - padding_top + kh + MULTI_H - 2);
-        Cme = upperC(C, H, W, YlastMulti, XlastMulti);
+        Cme = upperC(NC, H, W, YlastMulti, XlastMulti);
     }
     else
     {
-        Cms = C + 1;
-        Cme = C;
+        Cms = NC + 1;
+        Cme = NC;
     }
     int Xlast = downMultipleOf(W0-1, CTX.vlanes<float>()) + lsimd - padding_left;
-    int Cis = downC(C, H, W, 0, -padding_left);
-    int Cie = upperC(C, H, W, (H-1), Xlast);
+    int Cis = downC(NC, H, W, 0, -padding_left);
+    int Cie = upperC(NC, H, W, (H-1), Xlast);
     if(Cie < (Cis - 1))
     {
-        Cis = C + 1;
-        Cie = C;
+        Cis = NC + 1;
+        Cie = NC;
     }
     int Yms = H0 + 1, Yme = H0;
-    if(Cms < C + 1)
+    if(Cms < NC + 1)
     {
-        Yms = downY(C, H, W, Cms - 1, -padding_top, -padding_left);
-        Yme = upperY(C, H, W, Cme, MULTI_H + kh - padding_top - 2, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
+        Yms = downY(NC, H, W, Cms - 1, -padding_top, -padding_left);
+        Yme = upperY(NC, H, W, Cme, MULTI_H + kh - padding_top - 2, MULTI_H, ((Cms - 1) == Cme ? Yms : 0), XlastMulti);
     }
     int Yis = H0 + 1, Yie = H0;
-    if(Cis < C + 1)
+    if(Cis < NC + 1)
     {
-        Yis = (padding_left == 0) ? 0 : downY(C, H, W, Cis - 1, -padding_top, -padding_left);
-        if ((H - 1) * W + Xlast < (C-Cie)*H*W)
+        Yis = (padding_left == 0) ? 0 : downY(NC, H, W, Cis - 1, -padding_top, -padding_left);
+        if ((H - 1) * W + Xlast < (NC-Cie)*H*W)
             Yie = H0;
         else
-            Yie = std::max(0, upperY(C, H, W, Cie, kh - 1 - padding_top, Xlast));
+            Yie = std::max(0, upperY(NC, H, W, Cie, kh - 1 - padding_top, Xlast));
     }
     int Xis = W0, Xie = W0;
     if(Yis < H0)
     {
-        Xis = downX(C, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
-        Xie = upperX(C, H, W, Cie, std::min(Yie - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<float>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
+        Xis = downX(NC, H, W, Cis-1, Yis - 1 - padding_top, -padding_left);
+        Xie = upperX(NC, H, W, Cie, std::min(Yie - padding_top + kh - 1, H-1), lsimd-padding_left, CTX.vlanes<float>(), ((Cis - 1) == Cie && Yis == Yie)? Xis: 0);
     }
-    return maxpool_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
+    return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
 }
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

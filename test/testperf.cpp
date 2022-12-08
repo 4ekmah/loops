@@ -18,8 +18,7 @@ int main(int argc, char** argv)
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
     loops::DepthwiseconvTest dwc(&std::cout);
     dwc.run();
-    loops::Context gCTX;
-    loops::MaxpoolTest mp(gCTX, &std::cout);
+    loops::MaxpoolTest mp(&std::cout);
     mp.run();
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
     return 0;
