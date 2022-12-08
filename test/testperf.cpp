@@ -9,6 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
 #include "testperf/dwctest.hpp"
+#include "testperf/mptest.hpp"
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 
 //TODO(ch): create normal class for performance testing and integrate it in general testing system, please.
@@ -17,6 +18,9 @@ int main(int argc, char** argv)
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
     loops::DepthwiseconvTest dwc(&std::cout);
     dwc.run();
+    loops::Context gCTX;
+    loops::MaxpoolTest mp(gCTX, &std::cout);
+    mp.run();
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
     return 0;
 }
