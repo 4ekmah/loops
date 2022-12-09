@@ -13,7 +13,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 #include <vector>
 #include <iostream>
-#include <iomanip>
 #include "tests.hpp"
 
 namespace loops
@@ -124,6 +123,8 @@ void MaxpoolTestImpl::run()
         float* optrref = &(outdataref[0]);
         gendata(inptr, kh, kw, H, W, NC);
         ref(inptr, H, W, NC, optrref, H0, W0, alpha, kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation);
+        // print_algs_limits(algsLimits); //DUBUGG
+        // print_channel(inptr, H, W);    //DUBUGG
         
         if(perf)
         {
@@ -146,6 +147,9 @@ void MaxpoolTestImpl::run()
             ret = func(inptr, H, W, NC, optr, H0, W0, &algsLimits);
             if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
             {
+                // print_channel(optrref, H0, W0);//DUBUGG
+                // print_channel(optr, H0, W0);//DUBUGG
+                std::cout << "DUBUGGGret:" << ret << std::endl;
                 (*out)<<"    FAILED!"<<std::endl;
                 return;
             }
@@ -157,6 +161,9 @@ void MaxpoolTestImpl::gendata(float* data, int kh, int kw, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
         data[i] = (rand() % 10000)/5000.0f - 1;
+    //DUBUGGG
+    // for (int i = 0 ; i < C*H*W ; i++)
+    //     data[i] = (rand() % 200) - 100;
 }
 
 void MaxpoolTestImpl::ref(float* data, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type)

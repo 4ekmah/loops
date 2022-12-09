@@ -13,7 +13,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 #include <vector>
 #include <iostream>
-#include <iomanip>
 #include <thread>
 #include "arm_neon.h"
 #include "tests.hpp"
@@ -105,28 +104,6 @@ template<> struct DWCTestTraits<f16_t> {
         return padded_ksize;
     }
 };
-
-template<class T>
-void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << DWCTestTraits<T>::tflt(data[i*W+j]);
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(15) << DWCTestTraits<T>::tflt(data[i*stride+j]);
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
 
 DepthwiseconvTest::DepthwiseconvTest(std::ostream* a_out)
 { impl = new DepthwiseconvTestImpl(a_out); }
