@@ -1128,7 +1128,7 @@ but only if this nested register will be used after this redefinition.
                             size_t firstUseMain = NOTFOUND, firstDefMain = NOTFOUND;
                             size_t firstUseElse = NOTFOUND, firstDefElse = NOTFOUND;
                             const RegIdx idx = ifidrator->first;
-                            bool afterlife = (m_subintervals[basketNum][idx].back().end > endifPos);
+                            bool afterlife = m_subintervals[basketNum][idx].back().end > endifPos;
                             if (!haveElse && !afterlife)
                                 continue;
                             const size_t initSinum = ifidrator->second;
@@ -1173,15 +1173,15 @@ but only if this nested register will be used after this redefinition.
                                 firstUseElse = NOTFOUND;
                             bool splice = false;
 
-                            if (firstDefMain != NOTFOUND && firstUseElse != NOTFOUND) // Abscence of linear separability.
+                            if(afterlife && (firstUseMain != NOTFOUND || firstDefMain != NOTFOUND || firstUseElse != NOTFOUND || firstDefElse != NOTFOUND))
+                            {
+                                splice = true;
+                            }
+                            else if (firstDefMain != NOTFOUND && firstUseElse != NOTFOUND) // Abscence of linear separability.
                             {
                                 if (!afterlife && firstDefElse != NOTFOUND)//Tail from firstDefElse can be separated
                                     sinum = firstUseElse;
                                 splice = true;
-                            }
-                            else if (!afterlife)
-                            {
-                                splice = false;
                             }
                             else if (firstDefElse == NOTFOUND && firstUseElse == NOTFOUND)
                             {

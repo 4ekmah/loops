@@ -149,7 +149,7 @@ void MaxpoolTestImpl::run()
             {
                 // print_channel(optrref, H0, W0);//DUBUGG
                 // print_channel(optr, H0, W0);//DUBUGG
-                std::cout << "DUBUGGGret:" << ret << std::endl;
+                // std::cout << "DUBUGGGret:" << ret << std::endl;
                 (*out)<<"    FAILED!"<<std::endl;
                 return;
             }

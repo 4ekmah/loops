@@ -182,7 +182,7 @@ MaxpoolGenerator::maxpool_t MaxpoolGenerator::generate(int kh_, int kw_, int pad
 
                         std::vector<std::vector<VReg<float> > > vertMaxes(MULTI_H, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
                         vertMaxes.resize(MULTI_H, std::vector<VReg<float>>(horVecsPerOut, VReg<float>()));
-                        for(int n = 0; n < 3; n++)
+                        for(int n = 0; n < MULTI_H; n++)
                         {
                             for(int vRegNum = 0; vRegNum < horVecsPerOut; vRegNum++)
                                 vertMaxes[n][vRegNum].copyidx(VDEF_(float));
@@ -455,11 +455,6 @@ void MaxpoolGenerator::multilineInit(const VReg<uint32_t>& HcondV, const VReg<ui
 {
     USE_CONTEXT_(CTX);
     int lvflags = flags&(PADHOR|PADVER);
-
-    for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++) //TODO(ch): Waiting for fixing liveness analysis issue(def-while-if-def-endif-use fusion).
-        for(int mreg = 0; mreg < MULTI_H; mreg++)
-            vertMaxes[mreg][vRegNum] = vertMaxes[mreg][vRegNum];
-
     IReg vertMaxesPtr = base + (x << elemshift);
     IReg yi = yi_;
     for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++)
