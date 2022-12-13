@@ -152,7 +152,7 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
         return 0;
     try  
     {
-        return loops::MaxpoolGenerator(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, activation_type, alpha);
+        return (maxpool_f32_t)loops::MaxpoolGenerator<float>(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type, alpha);
     }
     catch(...)
     {
@@ -163,5 +163,89 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
 
 void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
-    calc_dwc_algs_limits_f32(ctx, out, NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, dilation_y, dilation_x);
+#if __LOOPS_ARCH != __LOOPS_AARCH64
+        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
+        return;
+#else
+    loops::Context& CTX = *(loops::Context*)(ctx);
+    if(NC <= 0 ||
+       H <= 0 ||
+       W <= 0 ||
+       H0 <= 0 ||
+       W0 <= 0 ||
+       kh <= 0 ||
+       kw <= 0 || 
+       (H0 != (H + padding_top + padding_bottom - kh) / stride_y + 1) ||
+       (W0 != (W + padding_left + padding_right - kw) / stride_x + 1) ||
+       padding_top < 0 ||
+       padding_left < 0 ||
+       padding_bottom < 0 ||
+       padding_right < 0 ||
+       stride_x != 1 ||
+       stride_y != 1 ||
+       dilation_x != 1 ||
+       dilation_y != 1 ||
+       kh * kw > 39*39)
+    {
+        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
+        return;
+    }
+    *out = loops::MaxpoolGenerator<float>(CTX).calc_maxpool_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
+    return;
+#endif
+}
+
+maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
+{
+#if __LOOPS_ARCH != __LOOPS_AARCH64
+        return 0;
+#else
+    loops::Context& CTX = *(loops::Context*)(ctx);
+    if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
+       kh * kw > 39*39 || stride_x != 1 || stride_y != 1 || dilation_x != 1 || dilation_y != 1 ||
+       (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
+        return 0;
+    try  
+    {
+        return (maxpool_f16_t)loops::MaxpoolGenerator<loops::f16_t>(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type, alpha);
+    }
+    catch(...)
+    {
+        return 0;
+    };
+#endif 
+}
+
+void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+{
+#if __LOOPS_ARCH != __LOOPS_AARCH64
+        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
+        return;
+#else
+    loops::Context& CTX = *(loops::Context*)(ctx);
+    if(NC <= 0 ||
+       H <= 0 ||
+       W <= 0 ||
+       H0 <= 0 ||
+       W0 <= 0 ||
+       kh <= 0 ||
+       kw <= 0 || 
+       (H0 != (H + padding_top + padding_bottom - kh) / stride_y + 1) ||
+       (W0 != (W + padding_left + padding_right - kw) / stride_x + 1) ||
+       padding_top < 0 ||
+       padding_left < 0 ||
+       padding_bottom < 0 ||
+       padding_right < 0 ||
+       stride_x != 1 ||
+       stride_y != 1 ||
+       dilation_x != 1 ||
+       dilation_y != 1 ||
+       kh * kw > 39*39)
+    {
+        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
+        return;
+    }
+    *out = loops::MaxpoolGenerator<loops::f16_t>(CTX).calc_maxpool_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
+    return;
+#endif
 }

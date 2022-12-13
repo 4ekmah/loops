@@ -516,8 +516,10 @@ struct mtCallData
 };
 
 template <typename _Tp>
-void mtCall(void* data_)
+static void mtCall(void* data_)
 {
+    std::cout<<"WHOOF!"<<std::endl;
+
     mtCallData<_Tp>* data = (mtCallData<_Tp>*)data_;
     data->func(data->data, data->kernel, data->bias, data->H, data->W, data->C, data->NC, data->kCS, data->result, data->H0, data->W0, data->algs_limits);
 }
@@ -927,6 +929,36 @@ void DepthwiseconvTestImpl::run()
                 return;
         }
     };
+}
+
+bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference, std::ostream* out)
+{
+    bool res = true;
+    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
+    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
+    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
+    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
+    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
+    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
+    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
+    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
+    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
+    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
+    return res;
+}
+
+void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
+{
+    (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
+    (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
+    (*out)<<"    Cis: = " << toprint.Cis<<std::endl;
+    (*out)<<"    Cie: = " << toprint.Cie<<std::endl;
+    (*out)<<"    Yms: = " << toprint.Yms<<std::endl;
+    (*out)<<"    Yme: = " << toprint.Yme<<std::endl;
+    (*out)<<"    Yis: = " << toprint.Yis<<std::endl;
+    (*out)<<"    Yie: = " << toprint.Yie<<std::endl;
+    (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
+    (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
