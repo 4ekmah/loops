@@ -56,7 +56,6 @@ template<> struct MPTestTraits<float> {
     typedef float ftype;
     typedef maxpool_f32_t maxpool_t;
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); } 
-    static inline float tflt(ftype a) { return a; }
     static inline ftype max(ftype a, ftype b) { return std::max(a,b); }
     static inline ftype min(ftype a, ftype b) { return std::min(a,b); }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
@@ -71,18 +70,12 @@ template<> struct MPTestTraits<float> {
     }
 };
 
-inline __fp16 f16_t2armf16(f16_t tc)
-{
-    return *(reinterpret_cast<__fp16*>(&(tc.bits)));
-}
-
 template<> struct MPTestTraits<f16_t> {
     typedef f16_t ftype;
     typedef maxpool_f16_t maxpool_t;
-    static inline bool cmp_ne(ftype a, ftype b) { return (f16_t2armf16(a)!=f16_t2armf16(b)); }
-    static inline float tflt(ftype a) { return f16_t2armf16(a); }
-    static inline ftype max(ftype a, ftype b) { return (tflt(a) > tflt(b)) ? a : b; }
-    static inline ftype min(ftype a, ftype b) { return (tflt(a) < tflt(b)) ? a : b; }
+    static inline bool cmp_ne(ftype a, ftype b) { return float(a)!=float(b); }
+    static inline ftype max(ftype a, ftype b) { return (float(a) > float(b)) ? a : b; }
+    static inline ftype min(ftype a, ftype b) { return (float(a) < float(b)) ? a : b; }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_maxpool_algs_limits_f16(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1); }
     static inline maxpool_t generate_mp(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
@@ -164,8 +157,8 @@ void MaxpoolTestImpl::ref(_Tp* data, int H, int W, int C, _Tp* result, int H0, i
                         case(ACT_RELU6): *vres = MPTestTraits<_Tp>::min(MPTestTraits<_Tp>::max(*vres, _Tp(0)), _Tp(6)); break;;
                         case(ACT_LRELU):
                             *vres = alpha == 1 ? *vres :
-                                    alpha <  1 ? MPTestTraits<_Tp>::max(_Tp(alpha*MPTestTraits<_Tp>::tflt(*vres)), (*vres)):
-                                                 MPTestTraits<_Tp>::min(_Tp(alpha*MPTestTraits<_Tp>::tflt(*vres)), (*vres));
+                                    alpha <  1 ? MPTestTraits<_Tp>::max(_Tp(alpha*(*vres)), (*vres)):
+                                                 MPTestTraits<_Tp>::min(_Tp(alpha*(*vres)), (*vres));
                         break;
                         default: throw std::runtime_error("Unknown activation");
                     };        
@@ -352,11 +345,9 @@ bool MaxpoolTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W, _Tp e
                 _Tp r = ref[(k * H + i) * W + j];
                 if(MPTestTraits<_Tp>::cmp_ne(tchk, r))
                 {
-                    float _tchk = MPTestTraits<_Tp>::tflt(tchk);
-                    float _r = MPTestTraits<_Tp>::tflt(r);
                     (*out)<<"    Result non-equal to reference at ["<< k <<", "<< i <<", "<< j<<"]"<<std::endl;
-                    (*out)<<"        Result got:"<< _tchk <<std::endl;
-                    (*out)<<"        Reference:"<< _r <<std::endl;
+                    (*out)<<"        Result got:"<< tchk <<std::endl;
+                    (*out)<<"        Reference:"<< r <<std::endl;
                     return false;
                 }
             }
@@ -573,26 +564,26 @@ void MaxpoolTestImpl::run()
 {
     std::cout << "=================================================  SINGLETHREAD TESTS  =============================================================="<<std::endl;
     std::vector<std::vector<int> > fixtures = {
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},

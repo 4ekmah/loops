@@ -20,6 +20,7 @@ namespace loops
 struct f16_t {
     f16_t();
     explicit f16_t(float x);
+    operator float();
     uint16_t bits;
 };
 

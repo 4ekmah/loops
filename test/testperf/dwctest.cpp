@@ -63,7 +63,6 @@ template<> struct DWCTestTraits<float> {
     static inline neon_ftype mul(const neon_ftype& a, const neon_ftype& b) { return vmulq_f32(a,b); }
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f32(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); }
-    static inline float tflt(ftype a) { return a; }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_dwc_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);}
     static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
@@ -92,7 +91,6 @@ template<> struct DWCTestTraits<f16_t> {
     static inline neon_ftype mul(const neon_ftype& a, const neon_ftype& b) { return vmulq_f16(a,b); }
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f16(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (f16_t2armf16(a)!=f16_t2armf16(b)); }
-    static inline float tflt(ftype a) { return f16_t2armf16(a); }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_dwc_algs_limits_f16(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);}
     static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
@@ -371,8 +369,8 @@ bool DepthwiseconvTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W,
                 _Tp r = ref[(k * H + i) * W + j];
                 if(DWCTestTraits<_Tp>::cmp_ne(tchk, r))
                 {
-                    float _tchk = DWCTestTraits<_Tp>::tflt(tchk);
-                    float _r = DWCTestTraits<_Tp>::tflt(r);
+                    float _tchk = tchk;
+                    float _r = r;
                     float absErr = std::abs(_tchk - _r);
                     float relErr = absErr / std::abs(_r);
                     (*out)<<"    Result non-equal to reference at ["<< k <<", "<< i <<", "<< j<<"]"<<std::endl;
@@ -518,8 +516,6 @@ struct mtCallData
 template <typename _Tp>
 static void mtCall(void* data_)
 {
-    std::cout<<"WHOOF!"<<std::endl;
-
     mtCallData<_Tp>* data = (mtCallData<_Tp>*)data_;
     data->func(data->data, data->kernel, data->bias, data->H, data->W, data->C, data->NC, data->kCS, data->result, data->H0, data->W0, data->algs_limits);
 }
