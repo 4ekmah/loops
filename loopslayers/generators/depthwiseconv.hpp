@@ -247,7 +247,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
                         VReg<uintM> HcondV = padver ? broadcast<uintM>(H) : VReg<uintM>();
                         IReg hldx = W0 - CTX.vlanes<_Tp>();
-                        IReg roffset = W0<<elemshift;
+                        IReg rstride = W0<<elemshift;
                         WHILE_(xo < W0)
                         {
                             xo = select(xo > hldx , hldx , xo);
@@ -260,13 +260,13 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : xi;
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 {
-                                    multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, roffset, 0);
+                                    multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, 0);
                                     CONTINUE_;
                                 }
-                                multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, roffset, handlerFlags);
+                                multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, handlerFlags);
                             }
                             else 
-                                multilineHandler(HcondV, WcondV, y, xo, xi, data__, result_rs, roffset, 0);
+                                multilineHandler(HcondV, WcondV, y, xo, xi, data__, result_rs, rstride, 0);
                         }
                         y += MULTI_H;
                     }

@@ -384,7 +384,7 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     const int H0 = (H + padding_top + padding_bottom - kh) / stride_y + 1;
     const int W0 = (W + padding_left + padding_right - kw) / stride_x + 1;
 
-    (*out) << "Depthwise convolution "<<(fxt[0]==TYPE_FP16?"FP16 ":"FP32 ")<<kh<<"x"<<kw<<", C = "<< NC << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x  << std::endl;
+    (*out) << "Maxpooling "<<(fxt[0]==TYPE_FP16?"FP16 ":"FP32 ")<<kh<<"x"<<kw<<", C = "<< NC << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x  << std::endl;
     const _Tp empty_value(kh * kw * 2000 + 1);
     dwc_algs_limits algs_limits;
     const dwc_algs_limits ref_limits = ref_calc_algs_limits<_Tp>(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
@@ -491,7 +491,7 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
     int NCtask_ = NC / threads;
     int tailTaskNum = NC % threads;
 
-    (*out) << "Depthwise convolution "<< ( fxt[0]==TYPE_FP16 ? "FP16 " : "FP32 ")<<kh<<"x"<<kw<<", Batch = "<<N<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x << ", threads = " << threads << std::endl;
+    (*out) << "Maxpooling "<< ( fxt[0]==TYPE_FP16 ? "FP16 " : "FP32 ")<<kh<<"x"<<kw<<", Batch = "<<N<<", C = "<< C << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x << ", threads = " << threads << std::endl;
     dwc_algs_limits algs_limits_;
     MPTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits_, tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     const dwc_algs_limits ref_algs_limits_ = ref_calc_algs_limits<_Tp>(tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
@@ -573,7 +573,7 @@ void MaxpoolTestImpl::run()
 {
     std::cout << "=================================================  SINGLETHREAD TESTS  =============================================================="<<std::endl;
     std::vector<std::vector<int> > fixtures = {
-        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
