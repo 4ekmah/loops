@@ -13,7 +13,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 #include <vector>
 #include <iostream>
-#include <iomanip>
 #include <thread>
 #include "arm_neon.h"
 #include "tests.hpp"
@@ -64,7 +63,6 @@ template<> struct DWCTestTraits<float> {
     static inline neon_ftype mul(const neon_ftype& a, const neon_ftype& b) { return vmulq_f32(a,b); }
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f32(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); }
-    static inline float tflt(ftype a) { return a; }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_dwc_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);}
     static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
@@ -93,7 +91,6 @@ template<> struct DWCTestTraits<f16_t> {
     static inline neon_ftype mul(const neon_ftype& a, const neon_ftype& b) { return vmulq_f16(a,b); }
     static inline neon_ftype fma(const neon_ftype& a, const neon_ftype& m1, const neon_ftype& m2) { return vfmaq_f16(a,m1,m2); }
     static inline bool cmp_ne(ftype a, ftype b) { return (f16_t2armf16(a)!=f16_t2armf16(b)); }
-    static inline float tflt(ftype a) { return f16_t2armf16(a); }
     static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_dwc_algs_limits_f16(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);}
     static inline dwconv_t generate_dwc(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
@@ -105,28 +102,6 @@ template<> struct DWCTestTraits<f16_t> {
         return padded_ksize;
     }
 };
-
-template<class T>
-void printData(T* data, int H, int W) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << DWCTestTraits<T>::tflt(data[i*W+j]);
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void printData(T* data, int H, int W, int stride) { //TODO(ch): move it to test.hpp 
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(15) << DWCTestTraits<T>::tflt(data[i*stride+j]);
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
 
 DepthwiseconvTest::DepthwiseconvTest(std::ostream* a_out)
 { impl = new DepthwiseconvTestImpl(a_out); }
@@ -267,7 +242,7 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
             {
                 int minY = std::max(orow * stride_y - padding_top, 0);
                 int minX = col * stride_x - padding_left;
-                int maxY = std::min(minY + kh - 1, H - 1);
+                int maxY = std::max(std::min((orow * stride_y - padding_top) + kh - 1, H - 1), 0);
                 int maxX = minX + lsimd;
                 map_good_start_I[ch][orow][col] = (ch * H * W + minY * W + minX >= 0);
                 map_good_end_I[ch][orow][col] = (ch * H * W + maxY * W + maxX < NC*H*W) &&
@@ -394,8 +369,8 @@ bool DepthwiseconvTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W,
                 _Tp r = ref[(k * H + i) * W + j];
                 if(DWCTestTraits<_Tp>::cmp_ne(tchk, r))
                 {
-                    float _tchk = DWCTestTraits<_Tp>::tflt(tchk);
-                    float _r = DWCTestTraits<_Tp>::tflt(r);
+                    float _tchk = tchk;
+                    float _r = r;
                     float absErr = std::abs(_tchk - _r);
                     float relErr = absErr / std::abs(_r);
                     (*out)<<"    Result non-equal to reference at ["<< k <<", "<< i <<", "<< j<<"]"<<std::endl;
@@ -539,7 +514,7 @@ struct mtCallData
 };
 
 template <typename _Tp>
-void mtCall(void* data_)
+static void mtCall(void* data_)
 {
     mtCallData<_Tp>* data = (mtCallData<_Tp>*)data_;
     data->func(data->data, data->kernel, data->bias, data->H, data->W, data->C, data->NC, data->kCS, data->result, data->H0, data->W0, data->algs_limits);
@@ -950,6 +925,36 @@ void DepthwiseconvTestImpl::run()
                 return;
         }
     };
+}
+
+bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference, std::ostream* out)
+{
+    bool res = true;
+    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
+    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
+    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
+    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
+    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
+    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
+    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
+    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
+    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
+    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
+    return res;
+}
+
+void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
+{
+    (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
+    (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
+    (*out)<<"    Cis: = " << toprint.Cis<<std::endl;
+    (*out)<<"    Cie: = " << toprint.Cie<<std::endl;
+    (*out)<<"    Yms: = " << toprint.Yms<<std::endl;
+    (*out)<<"    Yme: = " << toprint.Yme<<std::endl;
+    (*out)<<"    Yis: = " << toprint.Yis<<std::endl;
+    (*out)<<"    Yie: = " << toprint.Yie<<std::endl;
+    (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
+    (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 };
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

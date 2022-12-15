@@ -11,6 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <list>
 #include <iostream>
+#include <iomanip>
 #include <math.h>
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #include <Windows.h>
@@ -124,6 +125,29 @@ struct Timer
     }
 };
 
+template<class T>
+void print_channel(T* data, int H, int W)
+{
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << data[i*W+j];
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+template<class T>
+void print_channel(T* data, int H, int W, int stride) 
+{
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << data[i*stride+j];
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 //TODO(ch): Interesting solution for test substitution is class derivation
 //with using RTTI for taking name of class. Still not really easy to decide what to 

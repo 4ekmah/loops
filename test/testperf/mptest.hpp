@@ -10,20 +10,16 @@ See https://github.com/4ekmah/loops/LICENSE
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
 namespace loops
 {
+
 class MaxpoolTest
 {
 public:
-    MaxpoolTest(Context aCTX, std::ostream* a_out);
-    ~MaxpoolTest(){}
-    void run();
-private:
-    void gendata(float* data, int kh, int kw, int H, int W, int C);
-    void ref(float* data, int H, int W, int C, float* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type);
-    bool compare(float* tocheck, float* ref, int C, int H, int W, float empty_value);
-    bool compare_alg_limits(const maxpool_algs_limits& tocheck, const maxpool_algs_limits& reference);
-    void print_algs_limits(const maxpool_algs_limits& tocheck);
-    Context CTX;
-    std::ostream* out;
+    MaxpoolTest(std::ostream* a_out);
+    virtual ~MaxpoolTest();
+    virtual void run();
+protected:
+    MaxpoolTest* impl;
+    MaxpoolTest(): impl(nullptr) {}
 };
 };
 

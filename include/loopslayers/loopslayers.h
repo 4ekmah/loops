@@ -47,38 +47,18 @@ extern "C" {
     dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha);
     void calc_dwc_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
 
+    typedef int64_t (*maxpool_f32_t)(float* data, int64_t H, int64_t W, int64_t NC, float* result, int64_t H0, int64_t W0, struct dwc_algs_limits* algsLimits);
+    maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha);
+    void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
+
+    typedef int64_t (*maxpool_f16_t)(fp16_ptr data, int64_t H, int64_t W, int64_t NC, fp16_ptr result, int64_t H0, int64_t W0, struct dwc_algs_limits* algsLimits);
+    maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha);
+    void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
+
     bool good_alg_limits(struct dwc_algs_limits* out);
 #ifdef __cplusplus
 }
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-    struct maxpool_algs_limits
-    {
-        int64_t Cms; //Channel on which starts clear multiline scheme behaviour
-        int64_t Cme; //Channel after clear multiline scheme behaviour
-        int64_t Cis; //Channel on which starts clear oneline SIMD scheme behaviour
-        int64_t Cie; //Channel after clear oneline SIMD scheme behaviour
-        int64_t Yms; //Y on (Cms - 1) on which starts multiline scheme behaviour
-        int64_t Yme; //Y on Cme after multiline scheme behaviour
-        int64_t Yis; //Y on (Cis - 1) on which starts oneline SIMD scheme behaviour
-        int64_t Yie; //Y on Cie after oneline SIMD scheme behaviour
-        int64_t Xis; //X on (Cis - 1) on Y < Yis on which starts oneline SIMD scheme behaviour
-        int64_t Xie; //X on Cie on Y >= Yie after oneline SIMD scheme behaviour
-#ifdef __cplusplus
-        maxpool_algs_limits(int64_t _Cms, int64_t _Cme, int64_t _Cis, int64_t _Cie, int64_t _Yms, int64_t _Yme, int64_t _Yis, int64_t _Yie, int64_t _Xis, int64_t _Xie):
-                        Cms(_Cms),Cme(_Cme),Cis(_Cis),Cie(_Cie),Yms(_Yms),Yme(_Yme),Yis(_Yis),Yie(_Yie),Xis(_Xis),Xie(_Xie){}
-        maxpool_algs_limits():Cms(0),Cme(0),Cis(0),Cie(0),Yms(0),Yme(0),Yis(0),Yie(0),Xis(0),Xie(0){}
-#endif
-    };
-
-    typedef int64_t (*maxpool_f32_t)(float* data, int64_t H, int64_t W, int64_t C, float* result, int64_t H0, int64_t W0, struct maxpool_algs_limits* algsLimits);
-    maxpool_f32_t generate_maxpool_f32(int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int activation_type, float alpha);
-    void calc_maxpool_algs_limits_f32(struct maxpool_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right);
-#ifdef __cplusplus
-}
-#endif
 
 #endif //__LOOPS_LOOPSLAYERS_HPP__
