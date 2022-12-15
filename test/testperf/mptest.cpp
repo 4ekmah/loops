@@ -102,15 +102,11 @@ void MaxpoolTestImpl::gendata(_Tp* data, int kh, int kw, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
         data[i] = _Tp((rand() % 10000)/5000.0f - 1);
-    //DUBUGGG
-    // for (int i = 0 ; i < C*H*W ; i++)
-    //     data[i] = _Tp((rand() % 200) - 100);
 }
 
 template<typename _Tp>
 void MaxpoolTestImpl::ref(_Tp* data, int H, int W, int C, _Tp* result, int H0, int W0, float alpha, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type)
 {
-    Assert(stride_y == 1 && stride_y == 1);
     std::vector<_Tp> padded;
     {
         const int WP = (W+padding_left+padding_right);
@@ -142,7 +138,7 @@ void MaxpoolTestImpl::ref(_Tp* data, int H, int W, int C, _Tp* result, int H0, i
         {
             for (int x = 0; x < W0; x++)
             {
-                const _Tp* ptr = &data[(c*H*W)+(y*W+x)];
+                const _Tp* ptr = &data[(c*H*W)+(y*stride_y*W+x*stride_x)];
                 _Tp tmp = *ptr;
                 for (int k = 1; k < kh*kw; k++)
                     tmp = MPTestTraits<_Tp>::max(tmp, ptr[tab[k]]);
@@ -218,7 +214,7 @@ dwc_algs_limits MaxpoolTestImpl::ref_calc_algs_limits(int NC, int H, int W, int 
             {
                 int minY = std::max(orow * stride_y - padding_top, 0);
                 int minX = col * stride_x - padding_left;
-                int maxY = std::min(minY + kh - 1, H - 1);
+                int maxY = std::max(std::min((orow * stride_y - padding_top) + kh - 1, H - 1), 0);
                 int maxX = minX + lsimd;
                 map_good_start_I[ch][orow][col] = (ch * H * W + minY * W + minX >= 0);
                 map_good_end_I[ch][orow][col] = (ch * H * W + maxY * W + maxX < NC*H*W) &&
@@ -584,26 +580,28 @@ void MaxpoolTestImpl::run()
         {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 13, 13, 5, 11, 11, 6, 6, 6, 6, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP16, 13, 13, 5, 11, 11, 6, 6, 6, 6, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP16, 3, 3, 3, 10, 10, 0, 1, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
@@ -667,26 +665,28 @@ void MaxpoolTestImpl::run()
         {TYPE_FP32, 5, 5, 5, 11, 11, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 7, 7, 5, 11, 11, 3, 3, 3, 3, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 9, 9, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
-        // {TYPE_FP32, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 13, 13, 5, 11, 11, 6, 6, 6, 6, 1, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10, 10, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 3, 10,  3, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 0, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 0, 1, 0, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 0, 1, 0, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 3, 3, 5, 11, 11, 1, 1, 1, 1, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 5, 5, 5, 11, 11, 2, 2, 2, 2, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 7, 7, 5, 11, 11, 3, 3, 3, 3, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 9, 9, 5, 11, 11, 5, 5, 5, 5, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
+        {TYPE_FP32, 13, 13, 5, 11, 11, 6, 6, 6, 6, 2, 1, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 0, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP32, 3, 3, 3, 10, 10, 1, 0, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
         // {TYPE_FP32, 3, 3, 3, 10, 10, 0, 1, 0, 0, 1, 2, ACT_NONE, SMALL_ALPHA, REGRESS},
@@ -730,9 +730,9 @@ void MaxpoolTestImpl::run()
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
 
-        // {TYPE_FP16, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        // {TYPE_FP16, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        // {TYPE_FP16, 3, 3, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
         {TYPE_FP32, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
@@ -751,11 +751,11 @@ void MaxpoolTestImpl::run()
         }
     std::cout << "=================================================  MULTITHREAD TESTS  =============================================================="<<std::endl;
     std::vector<std::vector<int> > fixtures_mt = {
-        // {TYPE_FP16, 5, 5, 1, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
-        // {TYPE_FP16, 5, 5, 1, 1633, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
-        // {TYPE_FP16, 3, 3, 1, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
-        // {TYPE_FP16, 3, 3, 1, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
-        // {TYPE_FP16, 3, 3, 1, 193, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
+        {TYPE_FP16, 5, 5, 1, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
+        {TYPE_FP16, 5, 5, 1, 1633, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
+        {TYPE_FP16, 3, 3, 1, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
+        {TYPE_FP16, 3, 3, 1, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
+        {TYPE_FP16, 3, 3, 1, 193, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
         {TYPE_FP32, 3, 3, 1, 33, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
         {TYPE_FP32, 5, 5, 1, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},
         {TYPE_FP32, 3, 3, 1, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, 8},

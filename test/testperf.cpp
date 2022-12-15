@@ -16,8 +16,8 @@ See https://github.com/4ekmah/loops/LICENSE
 int main(int argc, char** argv)
 {
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
-    // loops::DepthwiseconvTest dwc(&std::cout); //DUBUG: Uncomment?
-    // dwc.run();
+    loops::DepthwiseconvTest dwc(&std::cout);
+    dwc.run();
     loops::MaxpoolTest mp(&std::cout);
     mp.run();
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

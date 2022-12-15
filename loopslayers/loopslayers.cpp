@@ -134,12 +134,6 @@ void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, i
 #endif
 }
 
-bool good_alg_limits(struct dwc_algs_limits* out)
-{
-    return out->Cms != 0 || out->Cme != 0 || out->Cis != 0 || out->Cie != 0 || out->Yms != 0 ||
-           out->Yme != 0 || out->Yis != 0 || out->Yie != 0 || out->Xis != 0 || out->Xie != 0;
-}
-
 maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
 {
 #if __LOOPS_ARCH != __LOOPS_AARCH64
@@ -147,7 +141,7 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
 #else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
-       kh * kw > 39*39 || stride_x != 1 || stride_y != 1 || dilation_x != 1 || dilation_y != 1 ||
+       kh * kw > 39*39 || stride_x != 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
     try  
@@ -182,7 +176,7 @@ void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out
        padding_bottom < 0 ||
        padding_right < 0 ||
        stride_x != 1 ||
-       stride_y != 1 ||
+       stride_y < 1 ||
        dilation_x != 1 ||
        dilation_y != 1 ||
        kh * kw > 39*39)
@@ -202,7 +196,7 @@ maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int paddin
 #else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
-       kh * kw > 39*39 || stride_x != 1 || stride_y != 1 || dilation_x != 1 || dilation_y != 1 ||
+       kh * kw > 39*39 || stride_x != 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
     try  
@@ -237,7 +231,7 @@ void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out
        padding_bottom < 0 ||
        padding_right < 0 ||
        stride_x != 1 ||
-       stride_y != 1 ||
+       stride_y < 1 ||
        dilation_x != 1 ||
        dilation_y != 1 ||
        kh * kw > 39*39)
@@ -249,3 +243,10 @@ void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out
     return;
 #endif
 }
+
+bool good_alg_limits(struct dwc_algs_limits* out)
+{
+    return out->Cms != 0 || out->Cme != 0 || out->Cis != 0 || out->Cie != 0 || out->Yms != 0 ||
+           out->Yme != 0 || out->Yis != 0 || out->Yie != 0 || out->Xis != 0 || out->Xie != 0;
+}
+

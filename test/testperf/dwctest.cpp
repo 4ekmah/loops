@@ -242,7 +242,7 @@ dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W
             {
                 int minY = std::max(orow * stride_y - padding_top, 0);
                 int minX = col * stride_x - padding_left;
-                int maxY = std::min(minY + kh - 1, H - 1);
+                int maxY = std::max(std::min((orow * stride_y - padding_top) + kh - 1, H - 1), 0);
                 int maxX = minX + lsimd;
                 map_good_start_I[ch][orow][col] = (ch * H * W + minY * W + minX >= 0);
                 map_good_end_I[ch][orow][col] = (ch * H * W + maxY * W + maxX < NC*H*W) &&
