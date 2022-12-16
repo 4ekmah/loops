@@ -123,7 +123,7 @@ namespace loops
         __fp16 res = *(reinterpret_cast<__fp16*>(&bits));
         return (float)res;
     #else
-        bits = fp16_ieee_to_fp32_value(bits);
+        return fp16_ieee_to_fp32_value(bits);
     #endif 
     }
 
