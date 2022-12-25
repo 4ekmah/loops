@@ -142,23 +142,19 @@ void MaxpoolTestImpl::ref(_Tp* data, int H, int W, int C, _Tp* result, int H0, i
                 _Tp tmp = *ptr;
                 for (int k = 1; k < kh*kw; k++)
                     tmp = MPTestTraits<_Tp>::max(tmp, ptr[tab[k]]);
-                result[c*H0*W0+y*W0+x] = tmp;
-                for(int vnum = 0; vnum < 16/sizeof(_Tp); vnum++)
+                switch(activation_type)
                 {
-                    _Tp* vres = result + c*H0*W0+y*W0+x + vnum;
-                    switch(activation_type)
-                    {
-                        case(ACT_NONE): break;
-                        case(ACT_RELU):  *vres = MPTestTraits<_Tp>::max(*vres, _Tp(0)); break;
-                        case(ACT_RELU6): *vres = MPTestTraits<_Tp>::min(MPTestTraits<_Tp>::max(*vres, _Tp(0)), _Tp(6)); break;;
-                        case(ACT_LRELU):
-                            *vres = alpha == 1 ? *vres :
-                                    alpha <  1 ? MPTestTraits<_Tp>::max(_Tp(alpha*(*vres)), (*vres)):
-                                                 MPTestTraits<_Tp>::min(_Tp(alpha*(*vres)), (*vres));
-                        break;
-                        default: throw std::runtime_error("Unknown activation");
-                    };        
-                }
+                    case(ACT_NONE): break;
+                    case(ACT_RELU):  tmp = MPTestTraits<_Tp>::max(tmp, _Tp(0)); break;
+                    case(ACT_RELU6): tmp = MPTestTraits<_Tp>::min(MPTestTraits<_Tp>::max(tmp, _Tp(0)), _Tp(6)); break;;
+                    case(ACT_LRELU):
+                        tmp = alpha == 1 ? tmp :
+                                alpha <  1 ? MPTestTraits<_Tp>::max(_Tp(alpha*tmp), tmp):
+                                                MPTestTraits<_Tp>::min(_Tp(alpha*tmp), tmp);
+                    break;
+                    default: throw std::runtime_error("Unknown activation");
+                };        
+                result[c*H0*W0+y*W0+x] = tmp;
             }
         }
     }
@@ -744,12 +740,12 @@ void MaxpoolTestImpl::run()
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
 
-        {TYPE_FP16, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        {TYPE_FP16, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        {TYPE_FP16, 3, 3, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        {TYPE_FP32, 5, 5, 1632, 7, 7, 2, 2, 2, 2, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        {TYPE_FP32, 3, 3, 32, 112, 112, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
-        {TYPE_FP32, 3, 3, 192, 56, 56, 1, 1, 1, 1, 1, 1, ACT_RELU6, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
 //      {kh,kw, NC, H, W, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x}
     };
     for(auto fxt: fixtures)
