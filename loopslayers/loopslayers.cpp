@@ -144,7 +144,7 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
-    try  
+    try
     {
         return (maxpool_f32_t)loops::MaxpoolGenerator<float>(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type, alpha);
     }
