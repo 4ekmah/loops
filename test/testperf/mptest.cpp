@@ -740,12 +740,22 @@ void MaxpoolTestImpl::run()
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, SMALL_ALPHA, REGRESS},
         {TYPE_FP32, 3, 3, 5, 11, 11, 5, 5, 5, 5, 1, 1, ACT_LRELU, BIG_ALPHA, REGRESS},
 
-        {TYPE_FP16, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+//Googlenet
+        {TYPE_FP16, 3, 3, 64, 112, 112, 0, 0, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP16, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP16, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
-        {TYPE_FP32, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+//Yolov4
+        {TYPE_FP16, 5, 5, 512, 13, 13, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 9, 9, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 13, 13, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},        
+//Googlenet
+        {TYPE_FP32, 3, 3, 64, 112, 112, 0, 0, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+//Yolov4
+        {TYPE_FP32, 5, 5, 512, 13, 13, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 9, 9, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 13, 13, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
 //      {kh,kw, NC, H, W, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x}
     };
     for(auto fxt: fixtures)
