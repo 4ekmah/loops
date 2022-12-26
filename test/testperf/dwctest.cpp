@@ -449,6 +449,11 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
         return false;
     }
     typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation, alpha);
+    if(func == nullptr)
+    {
+        (*out)<<"    Function generation error!"<<std::endl;
+        return false;
+    }
     std::vector<_Tp> indata(W*H*NC);
     std::vector<_Tp> kernel(C*DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX), _Tp(0));
     std::vector<_Tp> bias(C, _Tp(0));
@@ -570,6 +575,11 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     }
 
     typename DWCTestTraits<_Tp>::dwconv_t func = DWCTestTraits<_Tp>::generate_dwc(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation, alpha);
+    if(func == nullptr)
+    {
+        (*out)<<"    Function generation error!"<<std::endl;
+        return false;
+    }
     std::vector<_Tp> indata(W*H*NC);
     std::vector<_Tp> kernel(C * DWCTestTraits<_Tp>::padded_ksize(kh, kw, *CTX), _Tp(0));
     std::vector<_Tp> bias(C, _Tp(0));

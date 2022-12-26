@@ -16,7 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 int main(int argc, char** argv)
 {
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
-    loops::DepthwiseconvTest dwc(&std::cout);
+    loops::DepthwiseconvTest dwc(&std::cout); //TODO(ch): use common context.
     dwc.run();
     loops::MaxpoolTest mp(&std::cout);
     mp.run();

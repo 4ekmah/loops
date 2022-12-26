@@ -141,10 +141,10 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
 #else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
-       kh * kw > 39*39 || stride_x != 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
+       kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
-    try  
+    try
     {
         return (maxpool_f32_t)loops::MaxpoolGenerator<float>(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type, alpha);
     }
@@ -175,7 +175,7 @@ void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out
        padding_left < 0 ||
        padding_bottom < 0 ||
        padding_right < 0 ||
-       stride_x != 1 ||
+       stride_x < 1 ||
        stride_y < 1 ||
        dilation_x != 1 ||
        dilation_y != 1 ||
@@ -196,7 +196,7 @@ maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int paddin
 #else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
-       kh * kw > 39*39 || stride_x != 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
+       kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
     try  
@@ -230,7 +230,7 @@ void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out
        padding_left < 0 ||
        padding_bottom < 0 ||
        padding_right < 0 ||
-       stride_x != 1 ||
+       stride_x < 1 ||
        stride_y < 1 ||
        dilation_x != 1 ||
        dilation_y != 1 ||
