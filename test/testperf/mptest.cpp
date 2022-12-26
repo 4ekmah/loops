@@ -744,6 +744,8 @@ void MaxpoolTestImpl::run()
         {TYPE_FP16, 3, 3, 64, 112, 112, 0, 0, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP16, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP16, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP16, 3, 3, 832, 14, 14, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
 //Yolov4
         {TYPE_FP16, 5, 5, 512, 13, 13, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP16, 9, 9, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
@@ -752,6 +754,8 @@ void MaxpoolTestImpl::run()
         {TYPE_FP32, 3, 3, 64, 112, 112, 0, 0, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 192, 28, 28, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP32, 3, 3, 832, 7, 7, 1, 1, 1, 1, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 3, 3, 64, 112, 112, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
+        {TYPE_FP32, 3, 3, 832, 14, 14, 0, 0, 2, 2, 2, 2, ACT_NONE, SMALL_ALPHA, PERF},
 //Yolov4
         {TYPE_FP32, 5, 5, 512, 13, 13, 2, 2, 2, 2, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
         {TYPE_FP32, 9, 9, 512, 13, 13, 4, 4, 4, 4, 1, 1, ACT_NONE, SMALL_ALPHA, PERF},
