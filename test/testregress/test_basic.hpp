@@ -494,18 +494,44 @@ static void BresenhamRef(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int
         }
     }
 }
+bool memok(uint8_t* canvas, int64_t w, int64_t h)
+{
+    for(int i = 0; i < h; i++)
+        for (int j = 0; j < w; j++)
+        {
+            if (canvas[i * w + j] != 0)
+            {
+                std::cout << "    Memory writing violation at output [" << -1 << ", " << i << ", " << j << "]" << std::endl;
+                return false;
+            }
+            if(canvas[2*h*w + i*w + j] != 0) 
+            {
+                std::cout << "    Memory writing violation at output ["<< 1 <<", "<< i <<", "<< j<<"]"<<std::endl;
+                return false;
+            }
+        }
+    return true;
+}
 LTESTexe(bresenham, {
     typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
     bresenham_f tested = reinterpret_cast<bresenham_f>(EXEPTR);
     int64_t w = 15;
     int64_t h = 15;
-    std::vector<uint8_t> canvas(w * h, ' ');
-    tested(&canvas[0], w, 0, 0, 14, 14, '1');
-    tested(&canvas[0], w, 0, 11, 7, 7, '2');
-    tested(&canvas[0], w, 14, 7, 11, 14, '3');
-    tested(&canvas[0], w, 5, 3, 8, 3, '4');
-    tested(&canvas[0], w, 9, 2, 9, 13, '5');
-    tested(&canvas[0], w, 14, 1, 14, 1, '6');
+    std::vector<uint8_t> canvas(3 * w * h, 0);
+    uint8_t* optr = (&canvas[0]) + w * h;
+    memset(optr, ' ', w * h);
+    tested(optr, w, 0, 0, 14, 14, '1');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    tested(optr, w, 0, 11, 7, 7, '2');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    tested(optr, w, 14, 7, 11, 14, '3');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    tested(optr, w, 5, 3, 8, 3, '4');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    tested(optr, w, 9, 2, 9, 13, '5');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    tested(optr, w, 14, 1, 14, 1, '6');
+    EXPECT_EQ(memok(&canvas[0], w, h), true);
     std::vector<uint8_t> canvasRef(w * h, ' ');
     BresenhamRef(&canvasRef[0], w, 0, 0, 14, 14, '1');
     BresenhamRef(&canvasRef[0], w, 0, 11, 7, 7, '2');
@@ -514,7 +540,7 @@ LTESTexe(bresenham, {
     BresenhamRef(&canvasRef[0], w, 9, 2, 9, 13, '5');
     BresenhamRef(&canvasRef[0], w, 14, 1, 14, 1, '6');
     for (int symbn = 0; symbn < w * h; symbn++)
-        EXPECT_EQ(canvas[symbn], canvasRef[symbn]);
+        EXPECT_EQ(optr[symbn], canvasRef[symbn]);
     });
 
 //TODO(ch): Obviously, this test must be rewritten without generator, when test system will be rewritten.

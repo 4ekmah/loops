@@ -3,6 +3,7 @@ This is a part of Loops project.
 Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
+#include "loops/loops.hpp"
 #include "loopslayers/loopslayers.h"
 
 #if __LOOPS_ARCH == __LOOPS_AARCH64

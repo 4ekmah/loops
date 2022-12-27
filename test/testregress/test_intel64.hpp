@@ -120,7 +120,7 @@ namespace loops
         store_<int8_t>(r12, 255);
         store_<int8_t>(r13, 255);
 
-        // TODO(ch): Add here store_<uint32/64_t>(rax, ax) just for symmetry;
+        //// TODO(ch): Add here store_<uint32/64_t>(rax, ax) just for symmetry;
 
         store_<uint64_t>(rax, rax);
         store_<int64_t>(rax, rax);
@@ -669,11 +669,31 @@ namespace loops
         newiopNoret(OP_X86_ADC, { rax, rax, argSpilled(RB_INT, 32, _f) });
         newiopNoret(OP_X86_ADC, { rdi, rdi, argSpilled(RB_INT, 32, _f) });
         newiopNoret(OP_X86_ADC, { r8 , r8 , argSpilled(RB_INT, 32, _f) });
-        
+        //
         newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rax });
         newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), rdi });
         newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), r8 });
         newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32, _f), argSpilled(RB_INT, 32, _f), argIImm(256, _f) });
+
+        newiopNoret(OP_CMP, { rax, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_CMP, { rdi, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_CMP, { r8,  argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_CMP, { r15, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF, _f), rax });
+        newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF, _f), rdi });
+        newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF, _f), r8  });
+        newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF, _f), r15 });
+        newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF, _f), argIImm(0x8888, _f) });
+
+        newiopNoret(OP_ADD, { rax, rax, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_ADD, { rdi, rdi, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_ADD, { r8 , r8 , argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_ADD, { r15, r15, argSpilled(RB_INT, 0x1FFF, _f) });
+        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), rax });
+        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), rdi });
+        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), r8  });
+        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), r15 });
+        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), argIImm(0x8888, _f) });
         });
 
 };

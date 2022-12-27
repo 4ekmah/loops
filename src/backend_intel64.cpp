@@ -39,7 +39,10 @@ namespace loops
     {
         //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
         //fixed sizes(in most cases = 32). For space economy, it's better to implement different cases.
-
+        //TODO(ch): IMPORTANT: many BTspl uses 8bit form, which works only for offsets [-63, +64]. At least there needed diagnostic
+        //error messages, when spill cannot fit. Next level of solution is to change form of most part of BTspl from 8bit to
+        //32bit. Perfect solution is introducing adaptive encoding - 8/32/64 bit. 
+        
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
@@ -571,16 +574,16 @@ namespace loops
                     return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In | Out) });           //add rax, rbx
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BTsta(index[0].idx < 8 ? 0x1200D : 0x1300D, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) }); //add rax, [rsp + offset]
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x1200E : 0x1300E, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //add rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BTreg(0, 3, In | Out), BTimm(1, 8) });
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BTsta(index[1].idx < 8 ? 0x12005 : 0x13005, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //add [rsp + offset], rbx
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x12006 : 0x13006, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });   //add [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(0x48834424, 32), BTspl(0, 8), BTimm(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x48818424, 32), BTspl(0, 32), BTimm(1, 32) });  //add QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_ADC):
@@ -822,17 +825,16 @@ namespace loops
                     return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In) });
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BTsta((index[0].idx < 8) ? 0x120ED : 0x130ED, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) });
+                    return BiT({ BTsta((index[0].idx < 8) ? 0x120EE : 0x130EE, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ nBkb(2, index[0].idx < 8 ? 0x4883 : 0x4983, 5, 0b11111), BTreg(0, 3, In), BTimm(1, 8) });
-
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BTsta(index[1].idx < 8 ? 0x120E5 : 0x130E5, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x120E6 : 0x130E6, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(0x48817c24, 32), BTspl(0, 8), BTimm(1, 32) });
+                    return BiT({ BTsta(0x4881bc24, 32), BTspl(0, 32), BTimm(1, 32) });
             }
             break;
         case (INTEL64_CMOVE ):
