@@ -507,3 +507,21 @@ instruction_set_test()
    505 : adc    [rsp+#0x100], rdi       ; 48 11 bc 24 00 01 00 00              
    506 : adc    [rsp+#0x100], r8        ; 4c 11 84 24 00 01 00 00              
    507 : adc    [rsp+#0x100], #0x100    ; 48 81 94 24 00 01 00 00 00 01 00 00  
+   508 : cmp    rax, [rsp+#0xfff8]      ; 48 3b 84 24 f8 ff 00 00              
+   509 : cmp    rdi, [rsp+#0xfff8]      ; 48 3b bc 24 f8 ff 00 00              
+   510 : cmp    r8, [rsp+#0xfff8]       ; 4c 3b 84 24 f8 ff 00 00              
+   511 : cmp    r15, [rsp+#0xfff8]      ; 4c 3b bc 24 f8 ff 00 00              
+   512 : cmp    [rsp+#0xfff8], rax      ; 48 39 84 24 f8 ff 00 00              
+   513 : cmp    [rsp+#0xfff8], rdi      ; 48 39 bc 24 f8 ff 00 00              
+   514 : cmp    [rsp+#0xfff8], r8       ; 4c 39 84 24 f8 ff 00 00              
+   515 : cmp    [rsp+#0xfff8], r15      ; 4c 39 bc 24 f8 ff 00 00              
+   516 : cmp    [rsp+#0xfff8], #0x8888  ; 48 81 bc 24 f8 ff 00 00 88 88 00 00  
+   517 : add    rax, [rsp+#0xfff8]      ; 48 03 84 24 f8 ff 00 00              
+   518 : add    rdi, [rsp+#0xfff8]      ; 48 03 bc 24 f8 ff 00 00              
+   519 : add    r8, [rsp+#0xfff8]       ; 4c 03 84 24 f8 ff 00 00              
+   520 : add    r15, [rsp+#0xfff8]      ; 4c 03 bc 24 f8 ff 00 00              
+   521 : add    [rsp+#0xfff8], rax      ; 48 01 84 24 f8 ff 00 00              
+   522 : add    [rsp+#0xfff8], rdi      ; 48 01 bc 24 f8 ff 00 00              
+   523 : add    [rsp+#0xfff8], r8       ; 4c 01 84 24 f8 ff 00 00              
+   524 : add    [rsp+#0xfff8], r15      ; 4c 01 bc 24 f8 ff 00 00              
+   525 : add    [rsp+#0xfff8], #0x8888  ; 48 81 84 24 f8 ff 00 00 88 88 00 00  

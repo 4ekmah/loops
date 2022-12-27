@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "loops/loops.hpp"
 #include "tests.hpp"
 #include <iostream>
+#include <cstring>
 #include <math.h>
 #include <stdexcept>
 #include "src/common.hpp"

@@ -1,5 +1,5 @@
 nullify_msb_lsb(i0, i1, i2)
-     0 : sub       i4, i4, 8  
+     0 : sub       i4, i4, 40 
      1 : mov       i1, i7     
      2 : shr       i1, i1, 1  
      3 : or        i1, i1, i7 
@@ -28,5 +28,5 @@ nullify_msb_lsb(i0, i1, i2)
     26 : and       i2, i2, i7 
     27 : xor       i2, i2, i7 
     28 : store.u64 6, i6, i2  
-    29 : add       i4, i4, 8  
+    29 : add       i4, i4, 40 
     30 : ret                  
