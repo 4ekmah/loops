@@ -44,7 +44,7 @@ add_executable(testperf ${testperf_hdrs} ${testperf_srcs} ${loopslayers_hdrs}
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/include")
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/test")
 target_link_libraries(testperf loops loopslayers "-lpthread")
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     target_compile_options(testperf PRIVATE "-march=armv8.2-a+fp16+dotprod")
 endif()
 
