@@ -324,15 +324,18 @@ namespace loops
         inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
     };
 
+    class Backend;
     class CompilerStage
     {
     public:
-        virtual void process(Syntfunc& a_processed) const = 0;
+        CompilerStage(const Backend* a_backend) : m_backend(a_backend) {}
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) = 0;
         virtual ~CompilerStage() {}
+    protected:
+        const Backend* m_backend;
     };
     typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
 
-    class Backend;
     class RegisterAllocator;
     class ContextImpl : public Context
     {

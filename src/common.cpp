@@ -672,7 +672,9 @@ namespace loops
         {
             FuncImpl* func = getImpl(&par.second);
             func->applySyntopStages();
-            FuncBodyBuf body = m_backend->target2Hex(m_backend->bytecode2Target(func->getData()));
+            Syntfunc tarcode;
+            m_backend->getBytecode2TargetStage()->process(tarcode, func->getData());
+            FuncBodyBuf body = m_backend->target2Hex(tarcode);
             size_t bsize = body->size();
             bsize = (bsize / funcAlignment) * funcAlignment + ((bsize % funcAlignment) ? funcAlignment : 0); //TODO(ch): normal alignment expression, mkay?
             totalSize += bsize;

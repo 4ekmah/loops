@@ -243,7 +243,11 @@ void FuncImpl::applySyntopStages()
         {
             auto beforeRegAlloc = m_context->getBackend()->getBeforeRegAllocStages();
             for (CompilerStagePtr braStage : beforeRegAlloc)
-                braStage->process(m_data);
+            {
+                Syntfunc datanew;
+                braStage->process(datanew, m_data);
+                m_data = datanew;
+            }
             if (m_cflowStack.size())
                 throw std::runtime_error("Unclosed control flow bracket."); //TODO(ch): Look at stack for providing more detailed information.
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -257,8 +261,11 @@ void FuncImpl::applySyntopStages()
             controlBlocks2Jumps();
             auto afterRegAlloc = m_context->getBackend()->getAfterRegAllocStages();
             for (CompilerStagePtr araStage : afterRegAlloc)
-                araStage->process(m_data);
-
+            {
+                Syntfunc datanew;
+                araStage->process(datanew, m_data);
+                m_data = datanew;
+            }
         }
         m_syntopStagesApplied = true;
     }
@@ -284,7 +291,9 @@ void FuncImpl::printBytecode(std::ostream& out)
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Backend* backend = m_context->getBackend();
-    Syntfunc tarcode = backend->bytecode2Target(m_data);
+    Syntfunc tarcode;
+    backend->getBytecode2TargetStage()->process(tarcode, m_data);
+
     std::vector<Printer::ColPrinter> columnPrs;
     columnPrs.reserve(3);
     if(columns&PC_OPNUM)
