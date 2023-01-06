@@ -1480,8 +1480,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
 class AArch64BigImmediates : public CompilerStage
 {
 public:
-    AArch64BigImmediates(Backend* a_backend): m_backend(a_backend) {}
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) const override;
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual ~AArch64BigImmediates() override {}
     static CompilerStagePtr make(const Backend* a_backend)
     {
@@ -1496,7 +1495,7 @@ private:
 class AArch64ARASnippets : public CompilerStage
 {
 public:
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) const override;
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual ~AArch64ARASnippets() override {}
     static CompilerStagePtr make(const Backend* a_backend)
     {
@@ -1847,7 +1846,7 @@ void Aarch64Backend::switchOnSpillStressMode()
     m_calleeSavedRegisters[RB_VEC] = { Q29, Q30, Q31 };
 }
 
-void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source) const
+void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
     a_dest.name = a_source.name;
     a_dest.params = a_source.params;
@@ -1906,7 +1905,7 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source) c
         }
 }
 
-void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source) const
+void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
     a_dest.name = a_source.name;
     a_dest.params = a_source.params;
