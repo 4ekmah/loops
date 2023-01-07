@@ -254,7 +254,9 @@ void Bytecode2TargetStage::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case (OP_JMP_EQ):
         case (OP_JMP_LT):
         case (OP_JMP_GT):
+        case (OP_JMP_UGT):
         case (OP_JMP_LE):
+        case (OP_JMP_ULE):
         case (OP_JMP_GE):
         case (OP_JMP):
         {
