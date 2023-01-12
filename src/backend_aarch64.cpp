@@ -1482,6 +1482,8 @@ class AArch64BigImmediates : public CompilerStage
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual ~AArch64BigImmediates() override {}
+    virtual bool is_inplace() const override final { return false; }
+    virtual StageID stage_id() const override final { return CS_AARCH64_BIG_IMMEDIATES; }
     static CompilerStagePtr make(const Backend* a_backend)
     {
         std::shared_ptr<AArch64BigImmediates> res;
@@ -1496,6 +1498,8 @@ class AArch64ARASnippets : public CompilerStage
 {
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
+    virtual bool is_inplace() const override final { return false; }
+    virtual StageID stage_id() const override final { return CS_AARCH64_SNIPPETS; }
     virtual ~AArch64ARASnippets() override {}
     static CompilerStagePtr make(const Backend* a_backend)
     {
@@ -1688,9 +1692,9 @@ size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
 }
 
-Arg Aarch64Backend::getSParg(Func* funcimpl) const
+Arg Aarch64Backend::getSParg() const
 {
-    return argReg(RB_INT, SP, funcimpl);
+    return argReg(RB_INT, SP);
 }
 
 std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const

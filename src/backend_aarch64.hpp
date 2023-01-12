@@ -97,6 +97,12 @@ enum {
     AARCH64_RET
 };
 
+enum {
+    CS_AARCH64_BIG_IMMEDIATES = CS_ARCH_SPECIFIC
+    CS_AARCH64_SNIPPETS,
+};
+
+
 class Aarch64Backend : public Backend
 {
 public:
@@ -106,7 +112,7 @@ public:
     virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const override final;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
-    virtual Arg getSParg(Func* funcimpl) const override final;
+    virtual Arg getSParg() const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;

@@ -377,7 +377,7 @@ funcname##_reg funcname##_reg_instance
 
 //Utils
 
-template<typename _Tp>           //TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
+template<typename _Tp>           //DUBUGG: Urgent on Arm. TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
 static inline void load2(const loops::IReg& dest, const loops::IReg& base)
 {
     using namespace loops;

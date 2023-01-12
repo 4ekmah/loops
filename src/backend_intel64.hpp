@@ -9,6 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "backend.hpp"
+#include "pipeline.hpp"
 
 namespace loops
 {
@@ -51,6 +52,10 @@ namespace loops
         INTEL64_RET
     };
 
+    enum {
+        CS_INTEL64_SNIPPETS = CS_ARCH_SPECIFIC
+    };
+
     class Intel64Backend : public Backend
     {
     public:
@@ -61,7 +66,7 @@ namespace loops
         virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
         virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const override final;
         virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
-        virtual Arg getSParg(Func* funcimpl) const override final;
+        virtual Arg getSParg() const override final;
         virtual std::unordered_map<int, std::string> getOpStrings() const override final;
         virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
         virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;

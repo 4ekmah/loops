@@ -101,9 +101,6 @@ public:
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
 
-    const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
-    void* compile(Context* a_ctx, Func* a_func);
-    
     //Prologue and epilogue support
     /*
     getStackParameterLayout
@@ -113,7 +110,7 @@ public:
     */
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
-    virtual Arg getSParg(Func* funcimpl) const = 0;
+    virtual Arg getSParg() const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
@@ -141,8 +138,6 @@ public:
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
     const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
-
-    virtual CompilerStagePtr getBytecode2TargetStage() const;
 
     inline BinTranslation lookS2b(const Syntop& index) const;
     inline SyntopTranslation lookS2s(const Syntop& index) const;

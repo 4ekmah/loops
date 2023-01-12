@@ -5,6 +5,7 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 #include "backend_intel64.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
+#include "func_impl.hpp"
 #include <algorithm>
 #include <iomanip>
 namespace loops
@@ -1041,6 +1042,8 @@ namespace loops
     public:
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
+        virtual bool is_inplace() const override final { return false; }
+        virtual StageID stage_id() const override final { return CS_INTEL64_SNIPPETS; }
         static CompilerStagePtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64ARASnippets> res;
@@ -1331,9 +1334,9 @@ namespace loops
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
 
-    Arg Intel64Backend::getSParg(Func* funcimpl) const
+    Arg Intel64Backend::getSParg() const
     {
-        return argReg(RB_INT, RSP, funcimpl);
+        return argReg(RB_INT, RSP);
     }
 
     std::unordered_map<int, std::string> Intel64Backend::getOpStrings() const
@@ -1388,7 +1391,11 @@ namespace loops
             posNsizes.push_back(std::make_pair(oppos, opsize));
             oppos += opsize;
         }
-        FuncBodyBuf buffer = target2Hex(toP);
+
+        Assembly2Hex a2hStage(this);
+        a2hStage.process(*((Syntfunc*)(nullptr)), toP);
+        const FuncBodyBuf buffer = a2hStage.result_buffer();
+
         return [buffer, posNsizes](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
         {
             uint8_t* hexfield = &((*buffer)[0]) + posNsizes[rowNum].first;
