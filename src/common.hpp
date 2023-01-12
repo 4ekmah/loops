@@ -354,12 +354,15 @@ namespace loops
         std::string getPlatformName() const;
         size_t vbytes() const;
         void compileAll();
+        inline void debugModeOn() { m_debug_mode = true; }
+        inline bool debug_mode() const { return m_debug_mode; }
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
         inline Backend* getBackend() { return m_backend.get(); }
         Context getOwner();
     private:
+        bool m_debug_mode;
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
         std::shared_ptr<Backend> m_backend;

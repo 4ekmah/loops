@@ -249,6 +249,11 @@ void Pipeline::run_until_including(StageID a_stageID)
     m_current_stage = target_stage+1;
 }
 
+void Pipeline::pass_until(StageID a_stageID)
+{
+    m_current_stage = m_stage_ordering.at(a_stageID);
+}
+
 CodeCollecting* Pipeline::get_code_collecting()
 {
     AssertMsg(m_current_stage <= CS_COLLECTING, "Attempt to add instruction to already finished function.");

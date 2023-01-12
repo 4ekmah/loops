@@ -220,9 +220,9 @@ void* FuncImpl::ptr()
         FuncBodyBuf body = get_hex_body();
         Backend* backend = m_context->getBackend();
         Allocator* alloc = backend->getAllocator();
-        uint8_t* m_compiled = alloc->allocate(body->size());
+        m_compiled = alloc->allocate(body->size());
         memcpy(m_compiled, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adressess before.
-        alloc->protect2Execution(m_compiled);
+        alloc->protect2Execution((uint8_t*)m_compiled);
     }
     return m_compiled;
 }
@@ -237,7 +237,7 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
 
 void FuncImpl::printBytecode(std::ostream& out)
 {
-    Pipeline l_pipeline(*(m_pipeline.get()));
+    Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
     l_pipeline.run_until(CS_BYTECODE_TO_ASSEMBLY);
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
     printer.print(out, l_pipeline.get_data());
@@ -245,7 +245,7 @@ void FuncImpl::printBytecode(std::ostream& out)
 
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
-    Pipeline l_pipeline(*(m_pipeline.get()));
+    Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
     l_pipeline.run_until_including(CS_BYTECODE_TO_ASSEMBLY);
     
     Backend* backend = m_context->getBackend();
@@ -296,5 +296,9 @@ const FuncBodyBuf FuncImpl::get_hex_body()
 void FuncImpl::endFunc()
 {
     m_pipeline->run_until_including(CS_COLLECTING);
+    if (m_directTranslation)
+        m_pipeline->pass_until(CS_BYTECODE_TO_ASSEMBLY);
+    if (m_context->debug_mode())
+        m_debug_pipeline = std::make_shared<Pipeline>(*(m_pipeline.get()));
 }
 };

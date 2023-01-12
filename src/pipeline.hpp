@@ -81,6 +81,7 @@ public:
     inline void full_run() { run_until_including(CS_ASSEMBLY_TO_HEX); }
     void run_until(StageID a_stageID);
     void run_until_including(StageID a_stageID);
+    void pass_until(StageID a_stageID);
     inline const Syntfunc& get_data() const { return m_data; }
     const FuncBodyBuf result_buffer() const { return m_buffer; }
     CodeCollecting* get_code_collecting();

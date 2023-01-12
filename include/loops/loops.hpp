@@ -360,6 +360,7 @@ public:
     size_t vbytes() const; //size of vector register in bytes
     template<typename _Tp> inline size_t vlanes() const { return vbytes() / sizeof(_Tp); }
     void compileAll();
+    void debugModeOn();//Gives ability to print listings even after compilation
 protected:
     Context(Context* a_impl): impl(a_impl) {}
     Context* impl;

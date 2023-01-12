@@ -19,9 +19,6 @@ namespace loops {
 
 class ContextImpl;
 
-//DUBUGGG: Don't forget to consider ability of peek compilation(e.g., for printAssembly[which need Hex]) in pipeline design process
-//Main idea for now is to copy Pipeline.
-//In  debug mode FuncImpl must keep intermediate stages(like initial stage, after syntop stages and assembly stage)
 class FuncImpl : public Func
 {
 public:
@@ -32,7 +29,7 @@ public:
     void* ptr();
     //directTranslation == true avoids most part of stages, like register allocation or controlBlocks2Jumps.
     //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
-    inline void setDirectTranslation(bool directTranslation) { m_directTranslation = directTranslation; } //DUBUGGG: Implement somehow.
+    inline void directTranslationOn() { m_directTranslation = true; }
 
     void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
         const std::vector<size_t>&  a_returnRegisters,
@@ -59,6 +56,7 @@ public:
 
 private:
     std::shared_ptr<Pipeline> m_pipeline;
+    std::shared_ptr<Pipeline> m_debug_pipeline;
     ContextImpl* m_context;
     bool m_directTranslation;
     

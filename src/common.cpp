@@ -501,6 +501,7 @@ namespace loops
     size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
+    void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
 
     __Loops_ConditionMarker_::__Loops_ConditionMarker_(Context* _CTX)
     {
@@ -619,7 +620,7 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0) {
+    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0), m_debug_mode(false) {
 #if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64

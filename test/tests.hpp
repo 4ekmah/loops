@@ -354,7 +354,7 @@ public:                                                         \
         CTX.startFunc(TESTNAME, {});                            \
         __VA_ARGS__                                             \
         loops::Func func = CTX.getFunc(TESTNAME);               \
-        getImpl(&func)->setDirectTranslation(true);             \
+        getImpl(&func)->directTranslationOn();                  \
         getImpl(&CTX)->endFunc();                               \
     }                                                           \
     virtual bool testExecution(const std::string& fixName)      \
