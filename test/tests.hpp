@@ -383,7 +383,7 @@ static inline void load2(const loops::IReg& dest, const loops::IReg& base)
     using namespace loops;
     IReg dummy = load_<_Tp>(base);
     FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
     sfunc.program.back()[0].idx = dest.idx;
 }
 
@@ -393,7 +393,7 @@ static inline void load2(const loops::IReg& dest, const loops::IReg& base, const
     using namespace loops;
     IReg dummy = load_<_Tp>(base, offset);
     FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
     sfunc.program.back()[0].idx = dest.idx;
 }
 
@@ -403,7 +403,7 @@ static inline void load2(const loops::IReg& dest, const loops::IReg& base, int64
     using namespace loops;
     IReg dummy = load_<_Tp>(base, offset);
     FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
+    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
     sfunc.program.back()[0].idx = dest.idx;
 }
 

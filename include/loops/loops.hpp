@@ -294,7 +294,6 @@ public:
     virtual ~Func();
 
     std::string name() const; //TODO(ch): what for we need name here? 
-    void call(std::initializer_list<int64_t> args) const;
     void* ptr(); // returns function pointer. Ensure, that all passed parameters are 64-bit wide.
     void printBytecode(std::ostream& out) const;
     enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
@@ -349,13 +348,7 @@ public:
     void return_(int64_t retval);
     void return_(const IReg& retval);
     
-    // direct call
-    IReg call_(const IReg& addr, std::initializer_list<IReg> args);
-    // indirect call
-    IReg call_(const IReg& addr, const IReg& offset, std::initializer_list<IReg> args);
-
     //TODO(ch): make next methods static:
-    
     std::string getPlatformName() const;
     size_t vbytes() const; //size of vector register in bytes
     template<typename _Tp> inline size_t vlanes() const { return vbytes() / sizeof(_Tp); }

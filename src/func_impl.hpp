@@ -25,45 +25,40 @@ public:
     FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
     static Func makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
 
-    void call(std::initializer_list<int64_t> args) const;
-    void* ptr();
-    //directTranslation == true avoids most part of stages, like register allocation or controlBlocks2Jumps.
-    //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
-    inline void directTranslationOn() { m_directTranslation = true; }
-
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-        const std::vector<size_t>&  a_returnRegisters,
-        const std::vector<size_t>&  a_callerSavedRegisters,
-        const std::vector<size_t>&  a_calleeSavedRegisters);
-
-    void setCompiledPtr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
-                                                        //Generally, we have to implement FuncImpl as a pipeline, where each creating output ofeach stage deletes input(doesn't keep it).
-    void printBytecode(std::ostream& out);
-    void printAssembly(std::ostream& out, int columns);
     std::string name() const { return m_pipeline->get_data().name; }
+    void* ptr();
+    void endFunc();
+    void printBytecode(std::ostream& out, int uptoStage = CS_COLLECTING);
+    void printAssembly(std::ostream& out, int columns);
 
-    size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
-    inline Context GetContext() { return m_context->getOwner(); }
     static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
-    const Syntfunc& getData() const { return m_pipeline->get_data(); }
+     inline ContextImpl* getContext() { return m_context; }
+
+    const Syntfunc& get_data() const;
     const FuncBodyBuf get_hex_body();
     inline CodeCollecting* get_code_collecting()
     {
         AssertMsg(m_pipeline.get(), "Attempt to add instruction to already finished function.");
         return m_pipeline->get_code_collecting();
     }
-    void endFunc();
+    void set_compiled_ptr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
+    //directTranslation == true avoids most part of stages, like register allocation or controlBlocks2Jumps.
+    //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
+    inline void directTranslationOn() { m_directTranslation = true; }
+    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
+        const std::vector<size_t>&  a_returnRegisters,
+        const std::vector<size_t>&  a_callerSavedRegisters,
+        const std::vector<size_t>&  a_calleeSavedRegisters);
 
+    size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
 private:
+    ContextImpl* m_context;
+
     std::shared_ptr<Pipeline> m_pipeline;
     std::shared_ptr<Pipeline> m_debug_pipeline;
-    ContextImpl* m_context;
-    bool m_directTranslation;
-    
-    enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
-    int m_returnType;
-
     void* m_compiled;
+
+    bool m_directTranslation;
 };
 
 inline FuncImpl* getImpl(Func* wrapper)

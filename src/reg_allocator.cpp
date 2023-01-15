@@ -786,7 +786,6 @@ namespace loops
                     newProgUnbracketed.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, ar.first)), ar.second }));
         }
         
-        a_dest.program.clear();
         a_dest.program.reserve(newProgUnbracketed.size() + 64);
         a_dest.params = a_source.params;
         a_dest.name = a_source.name;

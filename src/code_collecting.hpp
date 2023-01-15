@@ -29,7 +29,7 @@ struct ControlFlowBracket
 class CodeCollecting : public CompilerStage
 {
 public:
-    CodeCollecting(Syntfunc& a_data, Func* a_func, Backend* a_backend);
+    CodeCollecting(Syntfunc& a_data, Func* a_func);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
     virtual StageID stage_id() const override final;

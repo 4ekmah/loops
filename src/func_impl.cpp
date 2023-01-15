@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "printer.hpp"
 #include "reg_allocator.hpp"
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <deque>
 #include <iostream>
@@ -201,7 +202,6 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
 FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
     , m_pipeline(std::make_shared<Pipeline>(ctx->getBackend(), this, name, params))
     , m_context(ctx)
-    , m_returnType(RT_NOTDEFINED)
     , m_compiled(nullptr)
     , m_directTranslation(false)
 {
@@ -235,10 +235,10 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
-void FuncImpl::printBytecode(std::ostream& out)
+void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until(CS_BYTECODE_TO_ASSEMBLY);
+    l_pipeline.run_until(uptoStage);
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
     printer.print(out, l_pipeline.get_data());
 }
@@ -283,6 +283,14 @@ FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
     if (func == nullptr)
         throw std::runtime_error("Cannot find mother function in registers.");
     return func;
+}
+
+const Syntfunc& FuncImpl::get_data() const
+{
+    if(m_pipeline.get())
+        return m_pipeline->get_data(); 
+    AssertMsg(m_context->debug_mode(), "Function is already compiled.");
+    return m_debug_pipeline->get_data();
 }
 
 const FuncBodyBuf FuncImpl::get_hex_body()

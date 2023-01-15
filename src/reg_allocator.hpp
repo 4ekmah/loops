@@ -166,7 +166,7 @@ public:
     RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
-    virtual bool is_inplace() const override final { return true; } //DUBUGGG: O'rly? Rewrite regalloc without this "inplace".
+    virtual bool is_inplace() const override final { return false; } 
     virtual StageID stage_id() const override final { return CS_REGISTER_ALLOCATION; }
 
     inline size_t epilogueSize() const { return m_epilogueSize; }

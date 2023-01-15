@@ -32,13 +32,12 @@ enum
 class Cf2jumps: public CompilerStage
 {
 public:
-    Cf2jumps(const Backend* a_backend, int a_epilogueSize, Func* a_func);
+    Cf2jumps(const Backend* a_backend, int a_epilogueSize);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; }
     virtual StageID stage_id() const override final { return CS_CONTROLFLOW_TO_JUMPS; }
     virtual ~Cf2jumps() {}
 private:
-    Func* m_func;
     int m_epilogueSize;
 };
 

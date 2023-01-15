@@ -17,9 +17,8 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-Cf2jumps::Cf2jumps(const Backend* a_backend, int a_epilogueSize, Func* a_func) : CompilerStage(a_backend)
+Cf2jumps::Cf2jumps(const Backend* a_backend, int a_epilogueSize) : CompilerStage(a_backend)
     , m_epilogueSize(a_epilogueSize)
-    , m_func(a_func)
 {}
 
 void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
@@ -102,7 +101,7 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
         {
             if(opnum + 1 + m_epilogueSize != a_source.program.size())
             {
-                a_dest.program.push_back(Syntop(OP_JMP, {argIImm(returnLabel, m_func)}));
+                a_dest.program.push_back(Syntop(OP_JMP, {argIImm(returnLabel)}));
                 returnJumps = true;
             }
             break;
@@ -113,7 +112,7 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
         }
     }
     if(returnJumps)
-        a_dest.program.push_back(Syntop(OP_LABEL, {argIImm(returnLabel, m_func)}));
+        a_dest.program.push_back(Syntop(OP_LABEL, {argIImm(returnLabel)}));
     //Write epilogue
     for(size_t opnum = bodySize; opnum < a_source.program.size(); opnum++)
         a_dest.program.push_back(a_source.program[opnum]);
@@ -213,7 +212,7 @@ const FuncBodyBuf Assembly2Hex::result_buffer() const
 }
 
 Pipeline::Pipeline(Backend* a_backend, Func* a_func, const std::string& name, std::initializer_list<IReg*> params): m_backend(a_backend)
-    , m_codecol(m_data, a_func, a_backend)
+    , m_codecol(m_data, a_func)
     , m_func(a_func)
     , m_mode(PM_REGULAR)
     , m_current_stage(0)
@@ -284,7 +283,7 @@ void Pipeline::run()
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         if(m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
             regalloc.getRegisterPool().overrideRegisterSet(basketNum, {}, {}, {}, {});
-    Cf2jumps cf2jmps(m_backend, regalloc.epilogueSize(), m_func);
+    Cf2jumps cf2jmps(m_backend, regalloc.epilogueSize());
     run_stage(&cf2jmps);
     auto afterRegAlloc = m_backend->getAfterRegAllocStages();
     for (CompilerStagePtr araStage : afterRegAlloc)

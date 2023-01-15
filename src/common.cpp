@@ -198,12 +198,10 @@ namespace loops
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
     void Func::printBytecode(std::ostream& out) const
     {
-        //static_cast<FuncImpl*>(impl)->applySyntopStages();  //DUBUG: well, fix this: for now, syntop stages are automatically ran in FuncImpl, but must be not.
-        static_cast<FuncImpl*>(impl)->printBytecode(out);
+        static_cast<FuncImpl*>(impl)->printBytecode(out, CS_BYTECODE_TO_ASSEMBLY);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {
-        //static_cast<FuncImpl*>(impl)->applySyntopStages();
         static_cast<FuncImpl*>(impl)->printAssembly(out, columns);
     }
 
@@ -217,7 +215,7 @@ namespace loops
     
     Context ExtractContext(const Arg& arg)
     {
-        return FuncImpl::verifyArgs({arg})->GetContext();
+        return FuncImpl::verifyArgs({arg})->getContext()->getOwner();
     }
 
     IReg newiop(int opcode, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
@@ -690,7 +688,7 @@ namespace loops
             dptr = dptr ? funcAlignment - dptr : 0;
             exeptr += dptr;
             memcpy(exeptr, (void*)(*curBody)->data(), (*curBody)->size()); //TODO(ch): You have to change used adresses before.
-            func->setCompiledPtr(exeptr);
+            func->set_compiled_ptr(exeptr);
             exeptr += (*curBody)->size();
             ++curBody;
         }

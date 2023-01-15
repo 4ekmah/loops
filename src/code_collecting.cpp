@@ -5,6 +5,7 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "code_collecting.hpp"
+#include "func_impl.hpp"
 #include "backend.hpp"
 #include "pipeline.hpp"
 #include "printer.hpp"
@@ -16,14 +17,17 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-CodeCollecting::CodeCollecting(Syntfunc& a_data, Func* a_func, Backend* a_backend) : CompilerStage(a_backend)
+
+CodeCollecting::CodeCollecting(Syntfunc& a_data, Func* a_func) : CompilerStage(((FuncImpl*)a_func)->getContext()->getBackend())
     , m_data(a_data)
     , m_func(a_func)
     , m_returnType(RT_NOTDEFINED)
     , m_cmpopcode(IC_UNKNOWN)
     , m_conditionStart(-1)
     , m_substConditionBypass(false)
-{}
+{
+    
+}
 
 void CodeCollecting::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
