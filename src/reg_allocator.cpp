@@ -1281,8 +1281,7 @@ namespace loops
     {
         Assert(regNum < regAmount(basketNum));
         return m_subintervals[basketNum][regNum].size();
-        
-    };
+    }
 
     void LivenessAnalysisAlgo::def(int basketNum, RegIdx regNum, size_t opnum)
     {
