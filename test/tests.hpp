@@ -374,37 +374,4 @@ public:                                                         \
 };                                                              \
 funcname##_reg funcname##_reg_instance
 
-
-//Utils
-
-template<typename _Tp>           //DUBUGG: Urgent on Arm. TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
-static inline void load2(const loops::IReg& dest, const loops::IReg& base)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
-    sfunc.program.back()[0].idx = dest.idx;
-}
-
-template<typename _Tp>
-static inline void load2(const loops::IReg& dest, const loops::IReg& base, const loops::IReg& offset)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base, offset);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
-    sfunc.program.back()[0].idx = dest.idx;
-}
-
-template<typename _Tp>
-static inline void load2(const loops::IReg& dest, const loops::IReg& base, int64_t offset)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base, offset);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->get_data());
-    sfunc.program.back()[0].idx = dest.idx;
-}
-
 #endif//__LOOPS_TESTS_HPP__

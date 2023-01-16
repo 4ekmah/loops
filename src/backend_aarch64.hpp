@@ -9,9 +9,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "loops/defines.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 
-#include "composer.hpp"
 #include "backend.hpp"
 #include "common.hpp"
+#include "composer.hpp"
+#include "pipeline.hpp"
 #include <vector>
 #include <map>
 
@@ -98,7 +99,7 @@ enum {
 };
 
 enum {
-    CS_AARCH64_BIG_IMMEDIATES = CS_ARCH_SPECIFIC
+    CS_AARCH64_BIG_IMMEDIATES = CS_ARCH_SPECIFIC,
     CS_AARCH64_SNIPPETS,
 };
 

@@ -1782,7 +1782,10 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
-    FuncBodyBuf buffer = target2Hex(toP);
+    Assembly2Hex a2hStage(this);
+    a2hStage.process(*((Syntfunc*)(nullptr)), toP);
+    const FuncBodyBuf buffer = a2hStage.result_buffer();
+
     return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
