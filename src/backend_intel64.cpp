@@ -5,6 +5,7 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 #include "backend_intel64.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
+#include "func_impl.hpp"
 #include <algorithm>
 #include <iomanip>
 namespace loops
@@ -39,7 +40,10 @@ namespace loops
     {
         //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
         //fixed sizes(in most cases = 32). For space economy, it's better to implement different cases.
-
+        //TODO(ch): IMPORTANT: many BTspl uses 8bit form, which works only for offsets [-63, +64]. At least there needed diagnostic
+        //error messages, when spill cannot fit. Next level of solution is to change form of most part of BTspl from 8bit to
+        //32bit. Perfect solution is introducing adaptive encoding - 8/32/64 bit. 
+        
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
@@ -571,16 +575,16 @@ namespace loops
                     return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In | Out) });           //add rax, rbx
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BTsta(index[0].idx < 8 ? 0x1200D : 0x1300D, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) }); //add rax, [rsp + offset]
+                    return BiT({ BTsta(index[0].idx < 8 ? 0x1200E : 0x1300E, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //add rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BTreg(0, 3, In | Out), BTimm(1, 8) });
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BTsta(index[1].idx < 8 ? 0x12005 : 0x13005, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //add [rsp + offset], rbx
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x12006 : 0x13006, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });   //add [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(0x48834424, 32), BTspl(0, 8), BTimm(1, 8) });  //add QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x48818424, 32), BTspl(0, 32), BTimm(1, 32) });  //add QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_ADC):
@@ -822,17 +826,16 @@ namespace loops
                     return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In) });
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BTsta((index[0].idx < 8) ? 0x120ED : 0x130ED, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) });
+                    return BiT({ BTsta((index[0].idx < 8) ? 0x120EE : 0x130EE, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ nBkb(2, index[0].idx < 8 ? 0x4883 : 0x4983, 5, 0b11111), BTreg(0, 3, In), BTimm(1, 8) });
-
             }
             else if (index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BTsta(index[1].idx < 8 ? 0x120E5 : 0x130E5, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });
+                    return BiT({ BTsta(index[1].idx < 8 ? 0x120E6 : 0x130E6, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(0x48817c24, 32), BTspl(0, 8), BTimm(1, 32) });
+                    return BiT({ BTsta(0x4881bc24, 32), BTspl(0, 32), BTimm(1, 32) });
             }
             break;
         case (INTEL64_CMOVE ):
@@ -1037,12 +1040,18 @@ namespace loops
     class Intel64ARASnippets : public CompilerStage
     {
     public:
-        virtual void process(Syntfunc& a_processed) const override;
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
-        static CompilerStagePtr make()
+        virtual bool is_inplace() const override final { return false; }
+        virtual StageID stage_id() const override final { return CS_INTEL64_SNIPPETS; }
+        static CompilerStagePtr make(const Backend* a_backend)
         {
-            return std::static_pointer_cast<CompilerStage>(std::make_shared<Intel64ARASnippets>());
+            std::shared_ptr<Intel64ARASnippets> res;
+            res.reset(new Intel64ARASnippets(a_backend));
+            return std::static_pointer_cast<CompilerStage>(res);
         } 
+    private: 
+        Intel64ARASnippets(const Backend* a_backend) : CompilerStage(a_backend) {}
     };
 
     Intel64Backend::Intel64Backend()
@@ -1053,9 +1062,11 @@ namespace loops
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
+        m_offsetShift = 0;
+        m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
-        m_afterRegAllocStages.push_back(Intel64ARASnippets::make());
+        m_afterRegAllocStages.push_back(Intel64ARASnippets::make(this));
 #if __LOOPS_OS == __LOOPS_WINDOWS
         m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX };
@@ -1069,41 +1080,6 @@ namespace loops
 #else
 #error Unknown OS
 #endif
-    }
-
-    bool Intel64Backend::handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const
-    {
-        switch (a_btop.opcode)
-        {
-        case (OP_JMP_NE):
-        case (OP_JMP_EQ):
-        case (OP_JMP_LT):
-        case (OP_JMP_GT):
-        case (OP_JMP_LE):
-        case (OP_JMP_GE):
-        case (OP_JMP):
-        {
-            Assert(a_btop.size() == 1 && a_btop.args[0].tag == Arg::IIMMEDIATE);
-            m_labelRefMap[a_btop.args[0].value].emplace_back(a_formingtarget.program.size(), 0, getS2sCurrentOffset());
-            Syntop toTransform(a_btop);
-            toTransform[0].value = getS2sCurrentOffset();
-            Syntop tarop = lookS2s(toTransform).apply(toTransform, this);
-            tarop[0].value += lookS2b(tarop).size();
-            a_formingtarget.program.emplace_back(tarop);
-            return true;
-        }
-        case (OP_LABEL):
-        {
-            if (a_btop.size() != 1 || a_btop.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Wrong LABEL format.");
-            if (m_labelMap.count(a_btop.args[0].value) != 0)
-                throw std::runtime_error("Label redefinition");
-            m_labelMap[a_btop.args[0].value] = getS2sCurrentOffset();
-            return true;
-        }
-        default:
-            return false;
-        };
     }
 
     std::set<size_t> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
@@ -1321,32 +1297,6 @@ namespace loops
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
-    Syntfunc Intel64Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
-    {
-        m_retReg = Syntfunc::RETREG;
-        m_labelMap.clear();//labels offsets from start.
-        m_labelRefMap.clear(); // label referenes map is needed to calculate and put in relative offsets after
-        Syntfunc result = Backend::bytecode2Target(a_bcfunc);
-        for (auto label : m_labelRefMap)
-        {
-            if (m_labelMap.count(label.first) == 0)
-                throw std::runtime_error("Reference to unknown label");
-            const int64_t loff = static_cast<int64_t>(m_labelMap[label.first]);
-            for (LabelRefInfo& lref : label.second)
-            {
-                if (lref.opnum >= result.program.size())
-                    throw std::runtime_error("Internal error: operation number is too big");
-                if (lref.argnum >= result.program[lref.opnum].size())
-                    throw std::runtime_error("Internal error: operation don't have so much arguments");
-                if (result.program[lref.opnum].args[lref.argnum].tag != Arg::IIMMEDIATE)
-                    throw std::runtime_error("Internal error: operation don't have so much arguments");
-                int64_t& opoff = result.program[lref.opnum].args[lref.argnum].value;
-                opoff = (loff - opoff);
-            }
-        }
-        return result;
-    }
-
     void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
     {
     #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -1384,9 +1334,9 @@ namespace loops
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
 
-    Arg Intel64Backend::getSParg(Func* funcimpl) const
+    Arg Intel64Backend::getSParg() const
     {
-        return argReg(RB_INT, RSP, funcimpl);
+        return argReg(RB_INT, RSP);
     }
 
     std::unordered_map<int, std::string> Intel64Backend::getOpStrings() const
@@ -1441,7 +1391,11 @@ namespace loops
             posNsizes.push_back(std::make_pair(oppos, opsize));
             oppos += opsize;
         }
-        FuncBodyBuf buffer = target2Hex(toP);
+
+        Assembly2Hex a2hStage(this);
+        a2hStage.process(*((Syntfunc*)(nullptr)), toP);
+        const FuncBodyBuf buffer = a2hStage.result_buffer();
+
         return [buffer, posNsizes](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
         {
             uint8_t* hexfield = &((*buffer)[0]) + posNsizes[rowNum].first;
@@ -1507,11 +1461,14 @@ namespace loops
         };
     }
 
-    void Intel64ARASnippets::process(Syntfunc& a_processed) const
+    void Intel64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
-        std::vector<Syntop> newProg;
-        newProg.reserve(2 * a_processed.program.size());
-        for (Syntop& op : a_processed.program)
+        a_dest.name = a_source.name;
+        a_dest.params = a_source.params;
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+        a_dest.program.reserve(2 * a_source.program.size());
+        for (const Syntop& op : a_source.program)
             switch (op.opcode)
             {
             case OP_MOV:
@@ -1520,7 +1477,7 @@ namespace loops
                 if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
                     (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
                     && op[0].idx == op[1].idx))
-                    newProg.push_back(op);
+                    a_dest.program.push_back(op);
                 break;
             case OP_AND:
             case OP_OR:
@@ -1529,18 +1486,19 @@ namespace loops
             case OP_ADD:
             case OP_MUL:
             {
-                Assert(op.size() == 3 && regOrSpi(op[0]));
-                if (op[1].tag == Arg::IIMMEDIATE)
-                    std::swap(op[1], op[2]);
-                Assert(regOrSpi(op[1]));
-                if (regOrSpi(op[2]) && regOrSpiEq(op[0], op[2]) && !regOrSpiEq(op[0], op[1]))
-                    std::swap(op[1], op[2]);
-                if (!regOrSpiEq(op[0], op[1]))
+                Syntop op_ = op;
+                Assert(op_.size() == 3 && regOrSpi(op_[0]));
+                if (op_[1].tag == Arg::IIMMEDIATE)
+                    std::swap(op_[1], op_[2]);
+                Assert(regOrSpi(op_[1]));
+                if (regOrSpi(op_[2]) && regOrSpiEq(op_[0], op_[2]) && !regOrSpiEq(op_[0], op_[1]))
+                    std::swap(op_[1], op_[2]);
+                if (!regOrSpiEq(op_[0], op_[1]))
                 {
-                    newProg.push_back(Syntop(OP_MOV, { op[0],op[1] }));
-                    op[1] = op[0];
+                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
+                    op_[1] = op_[0];
                 }
-                newProg.push_back(op);
+                a_dest.program.push_back(op_);
                 break;
             }
             case OP_SUB:
@@ -1548,17 +1506,17 @@ namespace loops
                 Assert(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
                 if (regOrSpi(op[1]) && regOrSpiEq(op[0], op[1]))
                 {
-                    newProg.push_back(op);
+                    a_dest.program.push_back(op);
                 }
                 else if (!regOrSpi(op[2]) || !regOrSpiEq(op[0], op[2]))
                 {
-                    newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                    newProg.push_back(Syntop(OP_SUB, { op[0], op[0], op[2] }));
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                    a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[2] }));
                 } 
                 else //op[0] == op[2] != op[0]
                 {
-                    newProg.push_back(Syntop(OP_SUB, { op[0], op[0], op[1] }));
-                    newProg.push_back(Syntop(OP_NEG, { op[0], op[0] }));
+                    a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[1] }));
+                    a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
                 }
                 break;
             }
@@ -1571,9 +1529,9 @@ namespace loops
                 {
                     if (!regOrSpiEq(op[0], op[1]))
                     {
-                        newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                     }
-                    newProg.push_back(Syntop(op.opcode, { op[0], op[0], op[2] }));
+                    a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], op[2] }));
                 }
                 else
                 {
@@ -1582,32 +1540,32 @@ namespace loops
                     const bool rcx2 = op[2].tag == Arg::IREG && op[2].idx == RCX;
                     if (rcx0 && rcx1 && rcx2)
                     {
-                        newProg.push_back(op);
+                        a_dest.program.push_back(op);
                     }
                     else if (rcx0)
                     {
                         if (op[1].tag == Arg::ISPILLED)
                         {
-                            newProg.push_back(Syntop(OP_SPILL, { 0, op[2] }));
-                            newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), op[1].value }));
-                            newProg.push_back(Syntop(OP_XCHG, { argReg(RB_INT, RCX), argSpilled(RB_INT, 0) }));
+                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[2] }));
+                            a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), op[1].value }));
+                            a_dest.program.push_back(Syntop(OP_XCHG, { argReg(RB_INT, RCX), argSpilled(RB_INT, 0) }));
                         }
                         else
-                            newProg.push_back(Syntop(OP_SPILL, { 0, op[0] }));
+                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
                         if(!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
-                            newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
-                        newProg.push_back(Syntop(op.opcode, { argSpilled(RB_INT, 0), argSpilled(RB_INT, 0), argReg(RB_INT, RCX) }));
-                        newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
+                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
+                        a_dest.program.push_back(Syntop(op.opcode, { argSpilled(RB_INT, 0), argSpilled(RB_INT, 0), argReg(RB_INT, RCX) }));
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
                     }
                     else
                     {
-                        newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RCX) }));
+                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RCX) }));
                         if(!regOrSpiEq(op[0], op[1]))
-                            newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                            a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                         if (!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
-                            newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
-                        newProg.push_back(Syntop(op.opcode, { op[0], op[0], argReg(RB_INT, RCX)}));
-                        newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
+                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
+                        a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], argReg(RB_INT, RCX)}));
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
                     }
                 }
                 break;
@@ -1619,52 +1577,53 @@ namespace loops
                 bool unspillRax = false;;
                 if (op[0].idx != RAX)
                 {
-                    newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
+                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
                     unspillRax = true;
                 }
                 bool unspillRdx = false;
                 if (op[0].idx != RDX)
                 {
-                    newProg.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
+                    a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
                     unspillRdx = true;
                 }
                 Arg effectiveDivider = op[2];
                 if (op[2].tag == Arg::IREG && op[2].idx == RAX)
                 {
                     if (!unspillRax)
-                        newProg.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
+                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
                     effectiveDivider = argSpilled(RB_INT, 0);
                 }
                 else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
                 {
                     if (!unspillRdx)
-                        newProg.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
+                        a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
                     effectiveDivider = argSpilled(RB_INT, 1);
                 }
                 if (op[1].idx != RAX)
-                    newProg.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
-                newProg.push_back(Syntop(OP_X86_CQO, {}));
-                newProg.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
+                    a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
+                a_dest.program.push_back(Syntop(OP_X86_CQO, {}));
+                a_dest.program.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
                 if(op.opcode == OP_DIV && op[0].idx != RAX)
-                    newProg.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
                 if (op.opcode == OP_MOD && op[0].idx != RDX)
-                    newProg.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
                 if (unspillRax)
-                    newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
+                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
                 if (unspillRdx)
-                    newProg.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
+                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
                 break;
             }
             case OP_NOT:
             case OP_NEG:
             {
-                Assert(op.size() == 2 && regOrSpi(op[0]) && regOrSpi(op[1]));
-                if (!regOrSpiEq(op[0], op[1]))
+                Syntop op_ = op;
+                Assert(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));
+                if (!regOrSpiEq(op_[0], op_[1]))
                 {
-                    newProg.push_back(Syntop(OP_MOV, { op[0],op[1] }));
-                    op[1] = op[0];
+                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
+                    op_[1] = op_[0];
                 }
-                newProg.push_back(op);
+                a_dest.program.push_back(op_);
                 break;
             }
             case OP_SELECT:
@@ -1672,60 +1631,62 @@ namespace loops
                 if (regOrSpiEq(op[2], op[3]))
                 {
                     if (!regOrSpiEq(op[0], op[2]))
-                        newProg.push_back(Syntop(OP_MOV, { op[0], op[2]}));
+                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[2]}));
                 }
                 else if (!regOrSpiEq(op[0], op[2]))
                 {
                     if (!regOrSpiEq(op[0], op[3]))
-                        newProg.push_back(Syntop(OP_MOV, { op[0], op[3] }));
-                    newProg.push_back(Syntop(OP_SELECT, { op[0], op[1], op[2], op[0] }));
+                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[3] }));
+                    a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op[1], op[2], op[0] }));
                 }
                 else
-                    newProg.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
+                    a_dest.program.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
                 break;
             case OP_MIN:
             case OP_MAX:
-                Assert(op.size() == 3 && op[0].tag == Arg::IREG && regOrSpi(op[1]) && regOrSpi(op[2]));
-                if (regOrSpiEq(op[0], op[1]))
-                    std::swap(op[1], op[2]);
-                if (op[2].tag == Arg::ISPILLED)
-                    std::swap(op[1], op[2]);
-                if(!regOrSpiEq(op[0], op[2]))
-                    newProg.push_back(Syntop(OP_MOV, { op[0], op[2] }));
-                newProg.push_back(Syntop(OP_CMP, { op[0], op[1] }));
-                newProg.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? IC_GT : IC_LT, op[1], op[0] }));
+            {
+                Syntop op_ = op;
+                Assert(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
+                if (regOrSpiEq(op_[0], op_[1]))
+                    std::swap(op_[1], op_[2]);
+                if (op_[2].tag == Arg::ISPILLED)
+                    std::swap(op_[1], op_[2]);
+                if (!regOrSpiEq(op_[0], op_[2]))
+                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
+                a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? IC_GT : IC_LT, op_[1], op_[0] }));
                 break;
+            }
             case OP_ABS:
             {
                 Assert(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
                 bool augAbs = regOrSpiEq(op[0], op[1]);
                 if (regOrSpiEq(op[0], op[1]))
-                    newProg.push_back(Syntop(OP_SPILL, { 0, op[0] }));
+                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
                 else
-                    newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                newProg.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                newProg.push_back(Syntop(OP_SELECT, { op[0], IC_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], IC_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
                 break;
             }
             case OP_SIGN:
             {
                 Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
                 Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
-                newProg.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
+                a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
                 if (!regOrSpiEq(op[0], op[1]))
-                    newProg.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                newProg.push_back(Syntop(OP_MOV, { scratch, op[0] }));
-                newProg.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
-                newProg.push_back(Syntop(OP_NEG, { scratch, scratch }));
-                newProg.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
-                newProg.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[0] }));
+                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
+                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
+                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
+                a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
                 break;
             }
             default:
-                newProg.push_back(op);
+                a_dest.program.push_back(op);
                 break;
             }
-        a_processed.program = newProg;
     }
     
     void Intel64Backend::switchOnSpillStressMode()

@@ -354,7 +354,7 @@ public:                                                         \
         CTX.startFunc(TESTNAME, {});                            \
         __VA_ARGS__                                             \
         loops::Func func = CTX.getFunc(TESTNAME);               \
-        getImpl(&func)->setDirectTranslation(true);             \
+        getImpl(&func)->directTranslationOn();                  \
         getImpl(&CTX)->endFunc();                               \
     }                                                           \
     virtual bool testExecution(const std::string& fixName)      \
@@ -373,38 +373,5 @@ public:                                                         \
     };                                                          \
 };                                                              \
 funcname##_reg funcname##_reg_instance
-
-
-//Utils
-
-template<typename _Tp>           //TODO(ch): delete these "utilities" and use regular methodology for load instructions in instruction_set_tests
-static inline void load2(const loops::IReg& dest, const loops::IReg& base)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
-    sfunc.program.back()[0].idx = dest.idx;
-}
-
-template<typename _Tp>
-static inline void load2(const loops::IReg& dest, const loops::IReg& base, const loops::IReg& offset)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base, offset);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
-    sfunc.program.back()[0].idx = dest.idx;
-}
-
-template<typename _Tp>
-static inline void load2(const loops::IReg& dest, const loops::IReg& base, int64_t offset)
-{
-    using namespace loops;
-    IReg dummy = load_<_Tp>(base, offset);
-    FuncImpl* func = static_cast<FuncImpl*>(dummy.func);
-    Syntfunc& sfunc = const_cast<Syntfunc&>(func->getData());
-    sfunc.program.back()[0].idx = dest.idx;
-}
 
 #endif//__LOOPS_TESTS_HPP__

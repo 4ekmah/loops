@@ -1,6 +1,6 @@
 nonnegative_odd(i0, i1)
-     0 : sub    rsp, #0x18               ; 48 83 ec 18              
-     1 : mov    [rsp+#0x10], r12         ; 4c 89 64 24 10           
+     0 : sub    rsp, #0x28               ; 48 83 ec 28              
+     1 : mov    [rsp+#0x20], r12         ; 4c 89 64 24 20           
      2 : mov    rdx, #0                  ; 48 c7 c2 00 00 00 00     
      3 : mov    rcx, #0xfffffffffffffffc ; 48 c7 c1 fc ff ff ff     
      4 : imul   rsi, #0x04               ; 48 6b f6 04              
@@ -33,6 +33,6 @@ nonnegative_odd(i0, i1)
     31 : mov    rax, [rsp]               ; 48 8b 84 24 00 00 00 00  
     32 : mov    rdx, [rsp+#0x08]         ; 48 8b 94 24 08 00 00 00  
     33 : mov    rax, rdi                 ; 48 89 f8                 
-    34 : mov    r12, [rsp+#0x10]         ; 4c 8b a4 24 10 00 00 00  
-    35 : add    rsp, #0x18               ; 48 83 c4 18              
+    34 : mov    r12, [rsp+#0x20]         ; 4c 8b a4 24 20 00 00 00  
+    35 : add    rsp, #0x28               ; 48 83 c4 28              
     36 : ret                             ; c3                       

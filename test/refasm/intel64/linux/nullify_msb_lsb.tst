@@ -1,5 +1,5 @@
 nullify_msb_lsb(i0, i1, i2)
-     0 : sub rsp, #0x08 ; 48 83 ec 08  
+     0 : sub rsp, #0x28 ; 48 83 ec 28  
      1 : mov rcx, rdi   ; 48 89 f9     
      2 : shr rcx, #0x01 ; 48 c1 e9 01  
      3 : or  rcx, rdi   ; 48 09 f9     
@@ -28,5 +28,5 @@ nullify_msb_lsb(i0, i1, i2)
     26 : and rdx, rdi   ; 48 21 fa     
     27 : xor rdx, rdi   ; 48 31 fa     
     28 : mov [rsi], rdx ; 48 89 16     
-    29 : add rsp, #0x08 ; 48 83 c4 08  
+    29 : add rsp, #0x28 ; 48 83 c4 28  
     30 : ret            ; c3           

@@ -9,9 +9,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "loops/defines.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 
-#include "composer.hpp"
 #include "backend.hpp"
 #include "common.hpp"
+#include "composer.hpp"
+#include "pipeline.hpp"
 #include <vector>
 #include <map>
 
@@ -97,6 +98,12 @@ enum {
     AARCH64_RET
 };
 
+enum {
+    CS_AARCH64_BIG_IMMEDIATES = CS_ARCH_SPECIFIC,
+    CS_AARCH64_SNIPPETS,
+};
+
+
 class Aarch64Backend : public Backend
 {
 public:
@@ -104,29 +111,13 @@ public:
     virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
     virtual size_t spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
     virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
-    virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const override final;
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const override final;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
-    virtual Arg getSParg(Func* funcimpl) const override final;
+    virtual Arg getSParg() const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
     virtual void switchOnSpillStressMode() override final;
-private:
-    struct label_ref_info
-    {
-        size_t opnum;
-        size_t argnum;
-        size_t opoffset;
-        label_ref_info(): opnum(0), argnum(0), opoffset(0) {}
-        label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset): opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
-    };
-
-    mutable RegIdx m_retReg;
-    mutable std::unordered_map<size_t, size_t> m_labelMap;
-    mutable std::unordered_map<size_t, std::vector<label_ref_info> > m_labelRefMap; // label
-
-    virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const override final;
 };
 
 };

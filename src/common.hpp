@@ -19,10 +19,12 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #undef Assert
 #define Assert(expr) if(expr) ; else throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
+#define AssertMsg(expr, msg) if(expr) ; else throw std::runtime_error(msg)
 
 namespace loops
 {
     typedef int RegIdx;
+    typedef int StageID;
     enum RegisterBasket { RB_INT = 0, RB_VEC = 1, RB_AMOUNT };
 
     inline IReg iregHid(RegIdx a_idx, Func* a_func)
@@ -319,20 +321,27 @@ namespace loops
         std::vector<Arg> params;
         std::string name;
         int regAmount[RB_AMOUNT];
-        enum {RETREG = size_t(-2)};
-        Syntfunc() : regAmount{0,0} {}
+        int nextLabel;
+        enum {RETREG = -2, NOLABEL = -1};
+        Syntfunc() : regAmount{0,0}, nextLabel(0) {}
         inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
+        inline int provideLabel() { return nextLabel++; }
     };
 
+    class Backend;
     class CompilerStage
     {
     public:
-        virtual void process(Syntfunc& a_processed) const = 0;
+        CompilerStage(const Backend* a_backend) : m_backend(a_backend) {}
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) = 0;
+        virtual bool is_inplace() const = 0; 
+        virtual StageID stage_id() const = 0; 
         virtual ~CompilerStage() {}
+    protected:
+        const Backend* m_backend;
     };
     typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
 
-    class Backend;
     class RegisterAllocator;
     class ContextImpl : public Context
     {
@@ -345,17 +354,18 @@ namespace loops
         std::string getPlatformName() const;
         size_t vbytes() const;
         void compileAll();
+        inline void debugModeOn() { m_debug_mode = true; }
+        inline bool debug_mode() const { return m_debug_mode; }
 
         int m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
         inline Backend* getBackend() { return m_backend.get(); }
-        inline RegisterAllocator* getRegisterAllocator() { return m_registerAllocator.get(); }
         Context getOwner();
     private:
+        bool m_debug_mode;
         std::unordered_map<std::string, Func> m_functionsStorage;
         Func m_currentFunc;
         std::shared_ptr<Backend> m_backend;
-        std::shared_ptr<RegisterAllocator> m_registerAllocator;
     };
 
     inline Func* _getImpl(Func* wrapper) { return wrapper->impl; };

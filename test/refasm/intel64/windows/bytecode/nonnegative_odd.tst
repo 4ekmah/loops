@@ -1,6 +1,6 @@
 nonnegative_odd(i0, i1)
-     0 : sub      i4, i4, 24    
-     1 : spill    2, i12        
+     0 : sub      i4, i4, 40    
+     1 : spill    4, i12        
      2 : mov      i8, 0         
      3 : mov      i9, -4        
      4 : mul      i2, i2, 4     
@@ -37,6 +37,6 @@ nonnegative_odd(i0, i1)
     35 : unspill  i0, 0         
     36 : unspill  i2, 1         
     37 : mov      i0, i1        
-    38 : unspill  i12, 2        
-    39 : add      i4, i4, 24    
+    38 : unspill  i12, 4        
+    39 : add      i4, i4, 40    
     40 : ret                    

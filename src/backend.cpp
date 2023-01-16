@@ -188,51 +188,6 @@ std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) cons
     return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_INPUT);
 }
 
-Syntfunc Backend::bytecode2Target(const Syntfunc& a_bcfunc) const
-{
-    Syntfunc result;
-    result.params = a_bcfunc.params;
-    result.program.reserve(a_bcfunc.program.size());
-    result.name = a_bcfunc.name;
-    m_s2sCurrentOffset = 0;
-    for(const Syntop& op: a_bcfunc.program)
-    {
-        size_t curr_tar_op = result.program.size();
-        if(!this->handleBytecodeOp(op, result)) //Philosophically, we have to ask map BEFORE overrules, not after.
-        {
-            result.program.emplace_back(lookS2s(op).apply(op, this));
-        }
-        for(size_t addedop = curr_tar_op; addedop<result.program.size(); addedop++)
-        {
-            const Syntop& lastop = result.program[addedop];
-            m_s2sCurrentOffset += lookS2b(lastop).size();
-        }
-    }
-    return result;
-}
-
-const FuncBodyBuf Backend::target2Hex(const Syntfunc& a_bcfunc) const
-{
-    Bitwriter bitstream(this);
-    for (const Syntop& op : a_bcfunc.program)
-        lookS2b(op).applyNAppend(op, &bitstream);
-    return bitstream.buffer();
-}
-
-void* Backend::compile(Context* a_ctx, Func* a_func)
-{
-    FuncImpl* func = static_cast<FuncImpl*>(a_func);
-    Syntfunc tarcode = bytecode2Target(func->getData());
-    const FuncBodyBuf body = target2Hex(tarcode);
-    
-    uint8_t* exebuf = m_exeAlloc.allocate(body->size());
-    
-    memcpy(exebuf, (void*)&(body->operator[](0)), body->size()); //TODO(ch): You have to change used adressess before.
-    
-    m_exeAlloc.protect2Execution(exebuf);
-    return exebuf;
-}
-
 BinTranslation BTLookup(const Syntop&, bool&)
 {
     throw std::runtime_error("Binary translation table is not implemented.");
@@ -248,7 +203,6 @@ Backend::Backend() : m_isLittleEndianInstructions(true)
 , m_isMonowidthInstruction(false)
 , m_instructionWidth(0)
 , m_registersAmount(8)
-, m_s2sCurrentOffset(0)
 , m_s2blookup(BTLookup)
 , m_s2slookup(STLookup)
     {}

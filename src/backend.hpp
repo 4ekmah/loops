@@ -81,7 +81,6 @@ namespace SyntopTranslationConstruction
     }
 };
 
-
 class Backend
 {
 public:
@@ -102,10 +101,6 @@ public:
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
 
-    virtual Syntfunc bytecode2Target(const Syntfunc& a_bcfunc) const; //TODO(ch): most part of this function must be implemeted here. Or it must be there fully.
-    const FuncBodyBuf target2Hex(const Syntfunc& a_bcfunc) const;
-    void* compile(Context* a_ctx, Func* a_func);
-    
     //Prologue and epilogue support
     /*
     getStackParameterLayout
@@ -115,7 +110,7 @@ public:
     */
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
-    virtual Arg getSParg(Func* funcimpl) const = 0;
+    virtual Arg getSParg() const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
@@ -129,7 +124,11 @@ public:
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
-    inline size_t instructionWidth() const { return m_instructionWidth; };
+    inline size_t instructionWidth() const { return m_instructionWidth; }
+    inline size_t offsetShift() const { return m_offsetShift; }
+    //In some architectures jumps are measured from start of jump instruction(Arm), on other
+    //from first byte after end of instruction.
+    inline bool postInstructionOffset() const { return m_postInstructionOffset; }
     virtual std::vector<size_t> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
     virtual std::vector<size_t> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
     virtual std::vector<size_t> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
@@ -139,36 +138,23 @@ public:
 
     const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
     const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
-private:
-    mutable size_t m_s2sCurrentOffset; //TODO(ch): Do something with thread-safety.
+
+    inline BinTranslation lookS2b(const Syntop& index) const;
+    inline SyntopTranslation lookS2s(const Syntop& index) const;
 protected:
     Backend();
-    size_t getS2sCurrentOffset() const {return m_s2sCurrentOffset;}
-    virtual bool handleBytecodeOp(const Syntop& a_btop, Syntfunc& a_formingtarget) const = 0;
 
     BinTranslation(*m_s2blookup)(const Syntop&, bool&);
     SyntopTranslation(*m_s2slookup)(const Backend*, const Syntop&, bool&);
-    inline BinTranslation lookS2b(const Syntop& index) const
-    {
-        bool NOTSUPPORTED;
-        BinTranslation ret = m_s2blookup(index, NOTSUPPORTED);
-        Assert(NOTSUPPORTED);
-        return ret;
-    }
-    inline SyntopTranslation lookS2s(const Syntop& index) const
-    {
-        bool NOTSUPPORTED;
-        SyntopTranslation ret = m_s2slookup(this, index, NOTSUPPORTED);
-        Assert(NOTSUPPORTED);
-        return ret;
-    }
 
     Allocator m_exeAlloc;
     int m_vectorRegisterBits;
     bool m_isLittleEndianInstructions;
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;
+    bool m_postInstructionOffset;
     size_t m_instructionWidth;
+    size_t m_offsetShift;
     size_t m_registersAmount;
     std::vector<size_t> m_parameterRegisters[RB_AMOUNT];
     std::vector<size_t> m_returnRegisters[RB_AMOUNT];
@@ -178,5 +164,21 @@ protected:
     std::vector<CompilerStagePtr> m_beforeRegAllocStages;
     std::string m_name;
 };
+
+BinTranslation Backend::lookS2b(const Syntop& index) const
+{
+    bool NOTSUPPORTED;
+    BinTranslation ret = m_s2blookup(index, NOTSUPPORTED);
+    Assert(NOTSUPPORTED);
+    return ret;
+}
+SyntopTranslation Backend::lookS2s(const Syntop& index) const
+{
+    bool NOTSUPPORTED;
+    SyntopTranslation ret = m_s2slookup(this, index, NOTSUPPORTED);
+    Assert(NOTSUPPORTED);
+    return ret;
+}
+
 };
 #endif // __LOOPS_BACKEND_HPP__
