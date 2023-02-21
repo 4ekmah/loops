@@ -32,7 +32,7 @@ namespace loops
         IReg ret;
         ret.func = a_func;
         ret.idx = a_idx;
-        return static_cast<IReg&&>(ret);
+        return ret;
     }
     
     template<typename _Tp>
@@ -41,14 +41,7 @@ namespace loops
         VReg<_Tp> ret;
         ret.func = a_func;
         ret.idx = a_idx;
-        return static_cast<VReg<_Tp>&&>(ret);
-    }
-
-    template<typename _Tp>
-    inline void vregHidCopy(VReg<_Tp>& dest, const VReg<_Tp>& src) //TODO(ch): HidCopy isn't needed anymore, there is rawcopy.
-    {
-        dest.func = src.func;
-        dest.idx = src.idx;
+        return ret;
     }
 
     inline Arg argReg(int basketNum, RegIdx idx, Func* impl = nullptr)
@@ -110,30 +103,6 @@ namespace loops
     static inline bool isSignedInteger(int elemType)
     { return elemType == TYPE_I8 || elemType == TYPE_I16 ||elemType == TYPE_I32 ||elemType == TYPE_I64; }
 
-    static inline size_t elemSize(int typ)
-    {
-        switch (typ) {
-            case TYPE_I8:
-            case TYPE_U8:
-                return 1;
-            case TYPE_I16:
-            case TYPE_U16:
-            case TYPE_FP16:
-            case TYPE_BF16:
-                return 2;
-            case TYPE_I32:
-            case TYPE_U32:
-            case TYPE_FP32:
-                return 4;
-            case TYPE_I64:
-            case TYPE_U64:
-            case TYPE_FP64:
-                return 8;
-            default:
-                throw std::runtime_error("Unknown data type.");
-        }
-    }
-
     enum ArgFlags
     {
         AF_ADDRESS  = 1,
@@ -144,33 +113,18 @@ namespace loops
         AF_PRINTOFFSET = 16,
     };
 
-    enum InstructionConditions
-    {
-        IC_EQ = 0,
-        IC_NE,
-        IC_LT,
-        IC_GT,
-        IC_UGT,
-        IC_LE,
-        IC_ULE,
-        IC_GE,
-        IC_S,
-        IC_NS,
-        IC_UNKNOWN
-    };
-
     inline int invertCondition(int condition)
     {
-        return condition == IC_EQ  ? IC_NE : (
-               condition == IC_NE  ? IC_EQ : (
-               condition == IC_LT  ? IC_GE : (
-               condition == IC_GT  ? IC_LE : (
-               condition == IC_UGT ? IC_ULE : (
-               condition == IC_LE  ? IC_GT : (
-               condition == IC_ULE ? IC_UGT : (
-               condition == IC_GE  ? IC_LT : (
-               condition == IC_S   ? IC_NS : (
-               condition == IC_NS  ? IC_S  : IC_UNKNOWN)))))))));
+        return condition == OP_EQ  ? OP_NE : (
+               condition == OP_NE  ? OP_EQ : (
+               condition == OP_LT  ? OP_GE : (
+               condition == OP_GT  ? OP_LE : (
+               condition == OP_UGT ? OP_ULE : (
+               condition == OP_LE  ? OP_GT : (
+               condition == OP_ULE ? OP_UGT : (
+               condition == OP_GE  ? OP_LT : OP_NOINIT)))))));
+            //    condition == IC_S   ? IC_NS : (
+            //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
     }
 
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)

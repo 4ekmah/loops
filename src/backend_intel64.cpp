@@ -922,65 +922,65 @@ namespace loops
         {
         case(OP_LOAD):
             Assert(index.size() > 1);
-            if (index.size() == 3)
+            if (index.size() == 2)
             {
-                switch (index[1].value)
+                switch (index[0].elemtype)
                 {
-                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(2, AF_LOWER8) });
-                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(2, AF_LOWER8) });
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(2, AF_LOWER16) });
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(2, AF_LOWER16) });
-                case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(2) });
-                case (TYPE_U32): return SyT(INTEL64_MOV,   { SAcop(0, AF_LOWER32), SAcop(2, AF_ADDRESS) });
+                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER8) });
+                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER8) });
+                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16) });
+                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16) });
+                case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(1) });
+                case (TYPE_U32): return SyT(INTEL64_MOV,   { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS) });
                 case (TYPE_I64):
-                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(2, AF_ADDRESS) });
+                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
                 default: break;
                 }
             }
-            else if (index.size() == 4)
+            else if (index.size() == 3)
             {
-                switch (index[1].value)
+                switch (index[0].elemtype)
                 {
-                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(2, AF_LOWER8), SAcop(3) });
-                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(2, AF_LOWER8), SAcop(3) });
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(2, AF_LOWER16), SAcop(3) });
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(2, AF_LOWER16), SAcop(3) });
-                case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(2), SAcop(3) });
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_LOWER32), SAcop(2, AF_ADDRESS), SAcop(3, AF_ADDRESS) });
+                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER8), SAcop(2) });
+                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER8), SAcop(2) });
+                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
+                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
+                case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(1), SAcop(2) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
                 case (TYPE_I64):
-                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(2, AF_ADDRESS), SAcop(3, AF_ADDRESS) });
+                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
                 default: break;
                 }
             }
             break;
         case (OP_STORE):
-            if (index.size() == 3)
+            if (index.size() == 2)
             {
-                switch (index[0].value)
+                switch (index[1].elemtype)
                 {
                 case (TYPE_I8):
-                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER8) });
+                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER8) });
                 case (TYPE_I16):
-                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER16) });
+                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER16) });
                 case (TYPE_I32): 
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER32) });
                 case (TYPE_I64): 
-                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2) });
+                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1) });
                 default: break;
                 }
             }
-            else if (index.size() == 4)
+            else if (index.size() == 3)
             {
-                switch (index[0].value)
+                switch (index[2].elemtype)
                 {
                 case (TYPE_I8):
-                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS), SAcop(3, AF_LOWER8) });
+                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER8) });
                 case (TYPE_I16):
-                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS), SAcop(3, AF_LOWER16) });
+                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER16) });
                 case (TYPE_I32):
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS), SAcop(3, AF_LOWER32) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
                 case (TYPE_I64):
-                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS), SAcop(3) });
+                case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
                 default: break;
                 }
             }
@@ -1006,15 +1006,15 @@ namespace loops
         case (OP_SELECT): 
             if (index.size() == 4)
             {
-                Assert(index[1].value >= 0 && index[1].value < IC_UNKNOWN);
-                int tarcode = index[1].value == IC_NE ? INTEL64_CMOVNE : (
-                              index[1].value == IC_EQ ? INTEL64_CMOVE : (
-                              index[1].value == IC_GE ? INTEL64_CMOVGE : (
-                              index[1].value == IC_LE ? INTEL64_CMOVLE : (
-                              index[1].value == IC_GT ? INTEL64_CMOVG : (
-                              index[1].value == IC_LT ? INTEL64_CMOVL : (
-                              index[1].value == IC_S  ? INTEL64_CMOVS : (
-                            /*index[1].value == IC_NS?*/INTEL64_CMOVNS /* : throw error*/)))))));
+                Assert(index[1].value >= OP_GT && index[1].value <= OP_NS);
+                int tarcode = index[1].value == OP_NE ? INTEL64_CMOVNE : (
+                              index[1].value == OP_EQ ? INTEL64_CMOVE : (
+                              index[1].value == OP_GE ? INTEL64_CMOVGE : (
+                              index[1].value == OP_LE ? INTEL64_CMOVLE : (
+                              index[1].value == OP_GT ? INTEL64_CMOVG : (
+                              index[1].value == OP_LT ? INTEL64_CMOVL : (
+                              index[1].value == OP_S  ? INTEL64_CMOVS : (
+                            /*index[1].value == OP_NS?*/INTEL64_CMOVNS /* : throw error*/)))))));
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
             break;
@@ -1654,7 +1654,7 @@ namespace loops
                 if (!regOrSpiEq(op_[0], op_[2]))
                     a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
                 a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? IC_GT : IC_LT, op_[1], op_[0] }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? OP_GT : OP_LT, op_[1], op_[0] }));
                 break;
             }
             case OP_ABS:
@@ -1666,7 +1666,7 @@ namespace loops
                 else
                     a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                 a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], IC_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
                 break;
             }
             case OP_SIGN:

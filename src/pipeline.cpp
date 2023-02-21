@@ -16,6 +16,76 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
+ImmediateImplantation::ImmediateImplantation(const Backend* a_backend): CompilerStage(a_backend) {}
+
+void ImmediateImplantation::process(Syntfunc& a_dest, const Syntfunc& a_source)
+{
+    Assert(&a_dest != &a_source);
+    a_dest.name = a_source.name;
+    a_dest.nextLabel = a_source.nextLabel;
+    a_dest.params = a_source.params;
+    for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+    a_dest.program.clear();
+    a_dest.program.reserve(a_source.program.size()*2);
+    for(const Syntop& op: a_source.program)
+        switch(op.opcode)
+        {
+            case (OP_IF):
+            case (OP_ELSE):
+            case (OP_ENDIF):
+            case (OP_WHILE):
+            case (OP_ENDWHILE):
+            case (OP_BREAK):
+            case (OP_CONTINUE):
+            case (OP_DEF):
+            case (VOP_DEF):
+                a_dest.program.push_back(op);
+                break;
+            default:
+            {
+                Syntop op_probe = op;
+                std::vector<size_t> arnums;
+                arnums.reserve(op_probe.size()); 
+                for(size_t arnum = 0; arnum < op_probe.size(); arnum++)
+                    if(op_probe[arnum].tag == Arg::IIMMEDIATE)
+                        arnums.push_back(arnum);
+                if(op.opcode == OP_SELECT) //DUBUGGG: don't forget to reconsider after finishing conditions task.
+                {
+                    Assert(arnums[0] == 1);
+                    arnums.erase(arnums.begin());
+                }
+                std::set<RegIdx> usedRegs;
+                for (const Arg& ar : op_probe)
+                    if (ar.tag == Arg::IREG)
+                        usedRegs.insert(ar.idx);
+                std::vector<Arg> attempts;
+                attempts.reserve(arnums.size());
+                RegIdx placeholderTop = 0;
+                for (size_t arNum : arnums)
+                {
+                    Assert(op_probe[arNum].tag == Arg::IIMMEDIATE);
+                    attempts.push_back(op_probe[arNum]);
+                    while (usedRegs.count(placeholderTop)) placeholderTop++;
+                    op_probe[arNum] = argReg(RB_INT, placeholderTop++);
+                }
+                for (size_t attemptN = 0; attemptN < arnums.size(); attemptN++)
+                {
+                    size_t arNum = arnums[attemptN];
+                    op_probe[arNum] = attempts[attemptN];
+                    if (!m_backend->isImmediateFit(op_probe, arNum))
+                    {
+                        Arg cons = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                        Syntop move(OP_MOV, {cons, attempts[attemptN]});
+                        a_dest.program.push_back(move);
+                        op_probe[arNum] = cons;
+                    }
+                }
+                a_dest.program.push_back(op_probe);
+                break;
+            }
+        };
+}
 
 Cf2jumps::Cf2jumps(const Backend* a_backend, int a_epilogueSize) : CompilerStage(a_backend)
     , m_epilogueSize(a_epilogueSize)
@@ -270,6 +340,8 @@ void Pipeline::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
 void Pipeline::run()
 {
     run_stage(&m_codecol);
+    ImmediateImplantation immImplantation(m_backend);
+    run_stage(&immImplantation);
     auto beforeRegAlloc = m_backend->getBeforeRegAllocStages();
     for (CompilerStagePtr braStage : beforeRegAlloc)
         run_stage(braStage.get());

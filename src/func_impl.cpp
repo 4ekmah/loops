@@ -34,7 +34,11 @@ std::string type_suffixes[] = { //TODO(ch): find a better place for this
 
 std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {OP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "load." << type_suffixes[op.args[1].value];
+        str << "load." << type_suffixes[op.args[0].elemtype];
+    }},
+    {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
+        str << "store." << type_suffixes[_Tp];
     }},
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
@@ -145,9 +149,6 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
     }},
-    {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "store." << type_suffixes[op.args[0].value];
-    }},
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Wrong LABEL format");
@@ -253,6 +254,37 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
+FuncImpl* FuncImpl::verifyArgs_(std::initializer_list<Recipe> args)
+{
+    FuncImpl* res = nullptr;
+    for(Recipe rcp : args)
+    {
+        if(rcp.opcode() == RECIPE_LEAF)
+        {
+            FuncImpl* pretender = (FuncImpl*)(rcp.leaf().func);
+            if(pretender != nullptr)
+            {
+                if(res == nullptr)
+                    res = pretender;
+                else if(res != pretender)
+                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }        
+        }
+        else for(int child_num = 0; child_num < rcp.children().size(); child_num++)
+        {
+            FuncImpl* pretender = verifyArgs_({rcp.children()[child_num]});
+            if(pretender != nullptr)
+            {
+                if(res == nullptr)
+                    res = pretender;
+                else if(res != pretender)
+                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }
+        }
+    }
+    return res;
+}
+
 void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
@@ -287,20 +319,12 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
     printer.print(out, l_pipeline.get_data());
 }
 
-FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
+FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Recipe> args)
 {
-    FuncImpl* func = nullptr;
-    for (const Arg& arg : args)
-        if (arg.func != nullptr)
-        {
-            if (func == nullptr)
-                func = static_cast<FuncImpl*>(arg.func);
-            else if(func != static_cast<FuncImpl*>(arg.func))
-                throw std::runtime_error("Registers of different functions as arguments of one instruction.");
-        }
-    if (func == nullptr)
-        throw std::runtime_error("Cannot find mother function in registers.");
-    return func;
+    FuncImpl* res = verifyArgs_(args);
+    if (res == nullptr)
+        throw std::runtime_error("Cannot find mother function in expression arguments.");
+    return res;
 }
 
 const Syntfunc& FuncImpl::get_data() const

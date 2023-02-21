@@ -543,37 +543,5 @@ LTESTexe(bresenham, {
     for (int symbn = 0; symbn < w * h; symbn++)
         EXPECT_EQ(optr[symbn], canvasRef[symbn]);
     });
-
-//TODO(ch): Obviously, this test must be rewritten without generator, when test system will be rewritten.
-LTEST(compl_condition_diagnostic_failure, {  
-    STARTFUNC_(TESTNAME)
-    {
-        RETURN_(0);
-    }
-});
-LTESTexe(compl_condition_diagnostic_failure, {
-    bool gotAFailure = false;
-    try
-    {
-        USE_CONTEXT_(CTX);
-        STARTFUNC_("complconditionfailure")
-        {
-            IReg i = CONST_(1);
-            IReg j = CONST_(2);
-            IF_(i+1>j)
-            {
-                j = j + 1;
-            }
-            RETURN_(j);
-        }
-    }
-    catch (std::runtime_error err)
-    {
-        if(std::string("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.") == err.what())
-            gotAFailure = true;
-    };
-    EXPECT_EQ(gotAFailure, true);
-});
-
 };
 #endif//__LOOPS_TEST_BASIC_HPP__

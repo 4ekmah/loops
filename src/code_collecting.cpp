@@ -22,11 +22,18 @@ CodeCollecting::CodeCollecting(Syntfunc& a_data, Func* a_func) : CompilerStage((
     , m_data(a_data)
     , m_func(a_func)
     , m_returnType(RT_NOTDEFINED)
-    , m_cmpopcode(IC_UNKNOWN)
-    , m_conditionStart(-1)
     , m_substConditionBypass(false)
 {
     
+}
+void CodeCollecting::loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base)
+{
+    Recipe b(base);
+    Arg base_ = unpack_recipe(b);
+    res1.func = res2.func = m_func;
+    res1.idx = m_data.provideIdx(RB_VEC);
+    res2.idx = m_data.provideIdx(RB_VEC);
+    m_data.program.emplace_back(Syntop(VOP_ARM_LD2, {res1, res2, base_}));
 }
 
 void CodeCollecting::process(Syntfunc& a_dest, const Syntfunc& a_source)
@@ -36,30 +43,59 @@ void CodeCollecting::process(Syntfunc& a_dest, const Syntfunc& a_source)
 }
 StageID CodeCollecting::stage_id() const { return CS_COLLECTING; }
 
-IReg CodeCollecting::const_(int64_t value)
+Arg CodeCollecting::reg_constr(Recipe& fromwho)
 {
-    return static_cast<IReg&&>(newiop(OP_MOV, { argIImm(value, m_func) }));
+    Arg res;
+    if(fromwho.opcode() == RECIPE_LEAF)
+    {
+        std::vector<Arg> args;
+        args.reserve(2);
+        res.idx = m_data.provideIdx(fromwho.is_vector() ? RB_VEC : RB_INT);
+        res.func = m_func;
+        res.tag = fromwho.is_vector() ? Arg::VREG : Arg::IREG;
+        res.elemtype = fromwho.type();
+        args.push_back(res);
+        args.push_back(fromwho.leaf());
+        Syntop toAdd(OP_MOV, args);
+        m_data.program.emplace_back(toAdd);
+    }
+    else
+        res = unpack_recipe(fromwho);
+    return res;
 }
 
-IReg CodeCollecting::def_()
+void CodeCollecting::reg_assign(const Arg& target, Recipe& fromwho)
 {
-    return static_cast<IReg&&>(newiop(OP_DEF, {}));
+    Arg res;
+    Assert((target.tag == Arg::IREG && !fromwho.is_vector()) || (target.tag == Arg::VREG && fromwho.type() == target.elemtype));
+    std::vector<Arg> args;
+    if(fromwho.opcode() == RECIPE_LEAF)
+    {
+        args.reserve(2);
+        args.push_back(target);
+        args.push_back(fromwho.leaf());
+        Syntop toAdd(OP_MOV, args);
+        m_data.program.emplace_back(toAdd);
+    }
+    else
+    {
+        unpack_recipe(fromwho, UR_NONEWIDX);
+        m_data.program.back()[0].idx = target.idx;
+    }
 }
 
-void CodeCollecting::while_(const IReg& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
+void CodeCollecting::while_(Recipe& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
-    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
-        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
-    m_conditionStart = -1;
+    Syntop cmpop = unpack_condition(r);
+    m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
     size_t nextPos = m_data.program.size();
     size_t contLabel = m_data.provideLabel();
     size_t brekLabel = Syntfunc::NOLABEL;
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, nextPos));
-    int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
+    int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
     if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    newiopNoret(OP_WHILE, {argIImm(jumptype, m_func), argIImm(contLabel, m_func), argIImm(brekLabel, m_func)});
-    m_cmpopcode = IC_UNKNOWN;
+    m_data.program.push_back(Syntop(OP_WHILE, {argIImm(jumptype, m_func), argIImm(contLabel, m_func), argIImm(brekLabel, m_func)}));
 }
 
 void CodeCollecting::endwhile_()
@@ -89,7 +125,7 @@ void CodeCollecting::endwhile_()
             throw std::runtime_error("\"While\" internal error: wrong \"break\" command format.");
         breop[0].value = brekLabel;
     }
-    newiopNoret(OP_ENDWHILE, {argIImm(contLabel, m_func), argIImm(brekLabel, m_func)});
+    m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(contLabel, m_func), argIImm(brekLabel, m_func)}));
 }
 
 void CodeCollecting::break_()
@@ -102,7 +138,7 @@ void CodeCollecting::break_()
     if (rator == m_cflowStack.rend())
         throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"break\".");
     rator->breaks.push_back(nextPos);
-    newiopNoret(OP_BREAK, {argIImm(0,m_func)});
+    m_data.program.push_back(Syntop(OP_BREAK, {argIImm(0,m_func)}));
 }
 
 void CodeCollecting::continue_()
@@ -127,24 +163,22 @@ void CodeCollecting::continue_()
     }
     else
         rator->continues.push_back(nextPos);
-    newiopNoret(OP_CONTINUE, {argIImm(targetLabel,m_func)});
+    m_data.program.push_back(Syntop(OP_CONTINUE, {argIImm(targetLabel,m_func)}));
 }
 
-void CodeCollecting::if_(const IReg& r)
+void CodeCollecting::if_(Recipe& r)
 {
-    if (!m_substConditionBypass && ((m_conditionStart + 1) != m_data.program.size())) //TODO(ch): IMPORTANT(CMPLCOND)
-        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
-    m_conditionStart = -1;
+    Syntop cmpop = unpack_condition(r);
+    m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
-    int jumptype = condition2jumptype(invertCondition(m_cmpopcode));
+    int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
     if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
     //IF(cmp, wrongjmp)
-    newiopNoret(OP_IF, {argIImm(jumptype, m_func), argIImm(0, m_func)});
-    m_cmpopcode = IC_UNKNOWN;
+    m_data.program.push_back(Syntop(OP_IF, {argIImm(jumptype, m_func), argIImm(0, m_func)}));
 }
 
-void CodeCollecting::elif_(const IReg& r)
+void CodeCollecting::elif_(Recipe& r)
 {
     size_t elifRep = 0;
     {
@@ -155,10 +189,7 @@ void CodeCollecting::elif_(const IReg& r)
             throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
         elifRep = bracket.elifRepeats;
     }
-    Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
-    m_data.program.pop_back();
     else_();
-    m_data.program.push_back(conditionBackup);
     if_(r);
     if (m_cflowStack.size() == 0)
         throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", for \"elif\".");
@@ -187,18 +218,13 @@ void CodeCollecting::else_()
     m_data.program[prevBranchPos].args[1].value = label;
     m_ifLabelMap[label] = std::pair<size_t, size_t>(prevBranchPos, 0);
     //ELSE(mylabel, endjmp)
-    newiopNoret(OP_ELSE, {argIImm(label, m_func), argIImm(0, m_func)});
+    m_data.program.push_back(Syntop(OP_ELSE, {argIImm(label, m_func), argIImm(0, m_func)}));
 }
 
-void CodeCollecting::subst_elif(const IReg& r)
+void CodeCollecting::subst_elif(Recipe& r)
 {
-    if (m_conditionStart + 1 != m_data.program.size()) //TODO(ch): IMPORTANT(CMPLCOND)
-        throw std::runtime_error("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.");
-    m_conditionStart = -1;
     m_substConditionBypass = true;
     static int num = 0;
-    Syntop conditionBackup = m_data.program.back(); //TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
-    m_data.program.pop_back();
     size_t elifRep = 0;
     size_t restoredElifRep = 0;
     bool gotElifRepeats = false;
@@ -227,7 +253,6 @@ void CodeCollecting::subst_elif(const IReg& r)
         if(elsePos != -1)
             m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, elsePos));
     } while(elifRep != 0);
-    m_data.program.push_back(conditionBackup);
     elif_(r);
     m_substConditionBypass = false;
 }
@@ -304,7 +329,7 @@ void CodeCollecting::endif_()
         m_ifLabelMap[label] = std::pair<size_t, size_t>(ifPos, 0);
         m_data.program[ifPos].args[1].value = label;
     }
-    newiopNoret(OP_ENDIF, {argIImm(label, m_func)});
+    m_data.program.push_back(Syntop(OP_ENDIF, {argIImm(label, m_func)}));
     if(bracket.elifRepeats != 0)
     {
         endif_();
@@ -317,80 +342,132 @@ void CodeCollecting::return_()
 {
     if (m_returnType == RT_REGISTER)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_RET, {});
+    m_data.program.push_back(Syntop(OP_RET, {}));
 }
 
-void CodeCollecting::return_(int64_t retval)
+void CodeCollecting::return_(Recipe& retval)
 {
     if (m_returnType == RT_VOID)
         throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, { argReg(RB_INT, (int)Syntfunc::RETREG, m_func), Arg(retval) });
-    newiopNoret(OP_RET, {});
+    if (retval.is_vector())
+        throw std::runtime_error("Vector return is not supported.");
+    m_data.program.push_back(Syntop(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG, m_func), unpack_recipe(retval)}));
+    m_data.program.push_back(Syntop(OP_RET, {}));
 }
 
-void CodeCollecting::return_(const IReg& retval)
+Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags)
 {
-    if (m_returnType == RT_VOID)
-        throw std::runtime_error("Mixed return types");
-    newiopNoret(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG, m_func), retval});
-    newiopNoret(OP_RET, {});
-}
-
-void CodeCollecting::markConditionStart()
-{
-    m_conditionStart = m_data.program.size();
-}
-
-IReg CodeCollecting::select(const IReg& cond, const IReg& truev, const IReg& falsev)
-{
-    if (m_cmpopcode >= IC_UNKNOWN)                        //TODO(ch): IMPORTANT(CMPLCOND)
-        throw std::runtime_error("Select: first argument must be condition.");
-    Arg cmpop = Arg(m_cmpopcode);
-    m_cmpopcode = OP_JMP;
-    return newiop(OP_SELECT, {cmpop, truev, falsev});
-}
-
-void CodeCollecting::immediateImplantationAttempt(Syntop& op, size_t anumAdd, ::std::initializer_list<size_t> tryImmList)
-{
-    std::vector<size_t> arnums;
-    arnums.reserve(tryImmList.size());
-    for(size_t arnum : tryImmList)
-        arnums.push_back(arnum + anumAdd);
-    std::sort(arnums.begin(), arnums.end());
-    std::set<RegIdx> usedRegs;
-    for (const Arg& ar : op)
-        if (ar.tag == Arg::IREG)
-            usedRegs.insert(ar.idx);
-    std::vector<Arg> attempts;
-    attempts.reserve(arnums.size());
-    RegIdx placeholderTop = 0;
-    for (size_t arNum : arnums)
+    Arg res;
+    switch(rcp.opcode())
     {
-        Assert(op[arNum].tag == Arg::IIMMEDIATE);
-        attempts.push_back(op[arNum]);
-        while (usedRegs.count(placeholderTop)) placeholderTop++;
-        op[arNum] = argReg(RB_INT, placeholderTop++, m_func);
-    }
-    for (size_t attemptN = 0; attemptN < arnums.size(); attemptN++)
-    {
-        size_t arNum = arnums[attemptN];
-        op[arNum] = attempts[attemptN];
-        if (!m_backend->isImmediateFit(op, arNum))
-            op[arNum] = argReg(RB_INT, const_(attempts[attemptN].value).idx, m_func);
-    }
-};
+        case (RECIPE_LEAF):
+        {
+            if(flags & UR_WRAPIIMM && rcp.leaf().tag == Arg::IIMMEDIATE)
+            {
+                res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(RB_INT);
+                res.func = m_func;
+                res.tag = Arg::IREG;
+                Syntop toAdd(OP_MOV, {res, rcp.leaf()});
+                m_data.program.emplace_back(toAdd);
+            }
+            else 
+                res = rcp.leaf();
+            if(res.tag == Arg::IREG || res.tag == Arg::IIMMEDIATE)
+                res.elemtype = rcp.type();
+            break;
+        }
+        case (VOP_REINTERPRET):
+        {
+            Assert(rcp.is_vector() && rcp.children().size() == 1);
+            res = unpack_recipe(rcp.children()[0], flags & UR_NONEWIDX);
+            res.tag = Arg::VREG;
+            res.elemtype = rcp.type();
+            break;
+        }
+        case (OP_SELECT):
+        {
+            Assert(rcp.children().size() == 3);
+            //TODO(ch): In truth, i'm not sure, that select doesn't support immediates on all the archs, so, this usage of UR_WRAPIIMM must be reconsidered
+            Arg truev = unpack_recipe(rcp.children()[1], UR_WRAPIIMM);
+            Arg falsev = unpack_recipe(rcp.children()[2], UR_WRAPIIMM);
+            Syntop cmpop = unpack_condition(rcp.children()[0], UC_ARITHMARGS);
+            m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
+            res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(RB_INT);
+            res.func = m_func;
+            res.tag = Arg::IREG;
+            res.elemtype = rcp.type();
+            m_data.program.push_back(Syntop(OP_SELECT, {res, argIImm(cmpop.opcode), truev, falsev}));
+            break;
+        }
+        default:
+        {
+            std::vector<Arg> args;
+            args.reserve(rcp.children().size() + 1);
+            res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(rcp.is_vector() ? RB_VEC : RB_INT );
+            res.func = m_func;
+            res.tag = rcp.is_vector() ? Arg::VREG : Arg::IREG;
+            res.elemtype = rcp.type();
+            args.push_back(res);
+            for(int child_num = 0; child_num < rcp.children().size(); child_num++)
+                args.push_back(unpack_recipe(rcp.children()[child_num]));
+            Syntop toAdd(rcp.opcode(), args);
+            m_data.program.emplace_back(toAdd);
+            break;
+        }
+    };
+    //Duplicated members must be calculated only once, so they are replaced with result after calculation.
+    //Since all member mentions are smart pointers to same object, next time unpack algorithm will meet 
+    //the member, it will be already calculated.
+    if(rcp.opcode() != RECIPE_LEAF) 
+        rcp.children().clear();
+    rcp.opcode() = RECIPE_LEAF;
+    rcp.leaf() = res;
+    return res;
+}
 
-int CodeCollecting::condition2jumptype(int cond)
+Syntop CodeCollecting::unpack_condition(Recipe& rcp, int flags)
 {
-    return cond == IC_EQ  ? OP_JMP_EQ  : (
-           cond == IC_NE  ? OP_JMP_NE  : (
-           cond == IC_LT  ? OP_JMP_LT  : (
-           cond == IC_GT  ? OP_JMP_GT  : (
-           cond == IC_UGT ? OP_JMP_UGT : (
-           cond == IC_LE  ? OP_JMP_LE  : (
-           cond == IC_ULE ? OP_JMP_ULE : (
-           cond == IC_GE  ? OP_JMP_GE  : OP_JMP )))))));
-         //cond == IC_S   ? OP_JMP_S   : (
-         //cond == IC_NS  ? OP_JMP_NS  : IC_UNKNOWN)))))));
+    switch (rcp.opcode())
+    {
+    case (OP_GT):
+    case (OP_UGT):
+    case (OP_GE):
+    case (OP_LT):
+    case (OP_LE):
+    case (OP_ULE):
+    case (OP_NE):
+    case (OP_EQ):
+    case (OP_S):
+    case (OP_NS):
+    {
+        Assert(rcp.children().size() == 2);
+        if(rcp.children()[0].opcode() != RECIPE_LEAF ||rcp.children()[1].opcode() != RECIPE_LEAF && (flags & UC_ARITHMARGS == 0))
+            throw std::runtime_error("Temporary condition solution: conditions other than one comparison of two simple arguments are not supported.");
+        std::vector<Arg> args;
+        args.reserve(2);
+        args.push_back(unpack_recipe(rcp.children()[0]));
+        args.push_back(unpack_recipe(rcp.children()[1]));
+        Assert(args[0].tag == Arg::IREG || args[1].tag == Arg::IREG);
+        return Syntop(rcp.opcode(), args);
+    }
+    default:
+        throw std::runtime_error("Temporary condition solution: conditions other than one comparison of two simple arguments are not supported.");
+        break;
+    }
+
+}
+
+int CodeCollecting::comparisson2jumptype(int cond)
+{
+    return cond == OP_EQ  ? OP_JMP_EQ  : (
+           cond == OP_NE  ? OP_JMP_NE  : (
+           cond == OP_LT  ? OP_JMP_LT  : (
+           cond == OP_GT  ? OP_JMP_GT  : (
+           cond == OP_UGT ? OP_JMP_UGT : (
+           cond == OP_LE  ? OP_JMP_LE  : (
+           cond == OP_ULE ? OP_JMP_ULE : (
+           cond == OP_GE  ? OP_JMP_GE  : (
+           cond == OP_S   ? OP_JMP_S   : (
+           cond == OP_NS  ? OP_JMP_NS  : OP_JMP)))))))));
 }
 };
