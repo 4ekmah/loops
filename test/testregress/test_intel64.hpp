@@ -64,9 +64,10 @@ namespace loops
         });
 
     template<typename _Tp>
-    Recipe iregtyped(const IReg reg)
+    Recipe iregtyped(const IReg& reg)
     {
         Recipe ret(reg);
+        ret.type() = ElemTraits<_Tp>::depth;
         return ret;
     }
 
@@ -180,7 +181,7 @@ namespace loops
         newiopNoret(OP_STORE, { r13, iregtyped<int8_t>(dil)});
         newiopNoret(OP_STORE, { r13, iregtyped<int8_t>(r8b)});
 
-        newiopNoret(OP_STORE, { rax, rax, iregtyped<int64_t>(rax)});
+        newiopNoret(OP_STORE, { rax, rax, iregtyped<uint64_t>(rax)});
         newiopNoret(OP_STORE, { rax, rax, iregtyped<int64_t>(rax)});
         newiopNoret(OP_STORE, { rax, rax, iregtyped<int64_t>(rdi)});
         newiopNoret(OP_STORE, { rax, rax, iregtyped<int64_t>(r8)});
@@ -409,16 +410,16 @@ namespace loops
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rdi, argIImm(256, _f)});
-        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax, argIImm(256, _f)});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8 , argIImm(256, _f)});
-        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), r8 , argIImm(256, _f)});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r8 , argIImm(256, _f)});
 
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rdi, argIImm(256, _f)});
-        newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax, argIImm(256, _f)});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8 , argIImm(256, _f)});
-        newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), r8 , argIImm(256, _f)});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r8 , argIImm(256, _f)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, argIImm(256, _f)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di) , rax, argIImm(256, _f)});
@@ -478,25 +479,25 @@ namespace loops
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rdi, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rax, rdi});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), r8 , rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rax, r8 });
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), r8 , r8 });
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8 , r8 });
 
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rdi, rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, rdi});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), r8 , rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, r8 });
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), r8 , r8 });
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8 , r8 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(dil), rax, rax});
