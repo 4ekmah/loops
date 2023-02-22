@@ -79,34 +79,36 @@ namespace loops
         return ret;
     }
 
+#define DEFINE_CERTAIN_REG(name, number) IReg name; name.func = _f; name.idx = number
     LTESTcomposer(instruction_set_test, {
         Func * _f = getImpl(getImpl(&CTX)->getCurrentFunc());
-        IReg rax; rax.copyidx(iregHid(0,_f));
-        IReg rcx; rcx.copyidx(iregHid(1, _f));
-        IReg rdi; rdi.copyidx(iregHid(7,_f));
-        IReg r8 ; r8.copyidx(iregHid(8, _f));
-        IReg r12; r12.copyidx(iregHid(12, _f));
-        IReg r13; r13.copyidx(iregHid(13, _f));
-        IReg r15; r15.copyidx(iregHid(15, _f));
 
-        IReg eax; eax.copyidx(iregHid(0, _f));
-        IReg edi; edi.copyidx(iregHid(7, _f));
-        IReg r8d; r8d.copyidx(iregHid(8, _f));
-        IReg r12d; r12d.copyidx(iregHid(12, _f));
-        IReg r13d; r13d.copyidx(iregHid(13, _f));
+        DEFINE_CERTAIN_REG(rax, 0);
+        DEFINE_CERTAIN_REG(rcx, 1 );
+        DEFINE_CERTAIN_REG(rdi, 7 );
+        DEFINE_CERTAIN_REG(r8 , 8 );
+        DEFINE_CERTAIN_REG(r12, 12);
+        DEFINE_CERTAIN_REG(r13, 13);
+        DEFINE_CERTAIN_REG(r15, 15);
 
-        IReg ax; ax.copyidx(iregHid(0, _f));
-        IReg di; di.copyidx(iregHid(7, _f));
-        IReg r8w; r8w.copyidx(iregHid(8, _f));
-        IReg r12w; r12w.copyidx(iregHid(12, _f));
-        IReg r13w; r13w.copyidx(iregHid(13, _f));
+        DEFINE_CERTAIN_REG(eax , 0);
+        DEFINE_CERTAIN_REG(edi , 7);
+        DEFINE_CERTAIN_REG(r8d , 8);
+        DEFINE_CERTAIN_REG(r12d, 12);
+        DEFINE_CERTAIN_REG(r13d, 13);
 
-        IReg al; al.copyidx(iregHid(0, _f));
-        IReg cl; cl.copyidx(iregHid(1, _f));
-        IReg dil; dil.copyidx(iregHid(7, _f));
-        IReg r8b; r8b.copyidx(iregHid(8, _f));
-        IReg r12b; r12b.copyidx(iregHid(12, _f));
-        IReg r13b; r13b.copyidx(iregHid(13, _f));
+        DEFINE_CERTAIN_REG(ax  , 0 );
+        DEFINE_CERTAIN_REG(di  , 7 );
+        DEFINE_CERTAIN_REG(r8w , 8 );
+        DEFINE_CERTAIN_REG(r12w, 12);
+        DEFINE_CERTAIN_REG(r13w, 13);
+
+        DEFINE_CERTAIN_REG(al  , 0 );
+        DEFINE_CERTAIN_REG(cl  , 1 );
+        DEFINE_CERTAIN_REG(dil , 7 );
+        DEFINE_CERTAIN_REG(r8b , 8 );
+        DEFINE_CERTAIN_REG(r12b, 12);
+        DEFINE_CERTAIN_REG(r13b, 13);
 
         newiopNoret(OP_STORE, { rax, immtyped<uint64_t>(256, _f) });
         newiopNoret(OP_STORE, { rax, immtyped<int64_t>(256, _f) });
@@ -695,7 +697,7 @@ namespace loops
         newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), r15 });
         newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF, _f), argSpilled(RB_INT, 0x1FFF, _f), argIImm(0x8888, _f) });
         });
-
+#undef DEFINE_CERTAIN_REG
 };
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__

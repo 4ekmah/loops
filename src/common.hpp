@@ -27,14 +27,6 @@ namespace loops
     typedef int StageID;
     enum RegisterBasket { RB_INT = 0, RB_VEC = 1, RB_AMOUNT };
 
-    inline IReg iregHid(RegIdx a_idx, Func* a_func)
-    {
-        IReg ret;
-        ret.func = a_func;
-        ret.idx = a_idx;
-        return ret;
-    }
-    
     template<typename _Tp>
     inline VReg<_Tp> vregHid(RegIdx a_idx, Func* a_func)
     {

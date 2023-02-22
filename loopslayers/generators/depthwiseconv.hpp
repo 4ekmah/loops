@@ -257,9 +257,9 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             if(padhor||padver)
                             {
                                 IReg yi = padver ? effective_const_mul(y, stride_y) - padding_top : IReg();
-                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : xi;
-                                IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
-                                {
+                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : xi;//DUBUGGG: such ternary opearator code must be ordered: in some cases there must be used 
+                                IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))                      //copyidx, in some other cases copy constructor. Also, probably, there must be introduced 
+                                {                                                                   //copyidx(Recipe)
                                     multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, 0);
                                     CONTINUE_;
                                 }

@@ -344,7 +344,6 @@ struct IReg
     IReg(const Recipe& fromwho);
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
     IReg& operator=(const Recipe& fromwho);
-    // IReg& operator=(const IReg&& r); //TODO(ch): implement version for temporary objects, which rewrite output of last operation with this->idx and reduces vitualRegisterAmount.
     /*
     copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
