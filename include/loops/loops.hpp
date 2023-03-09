@@ -489,6 +489,7 @@ Recipe::Recipe(const VReg<_Tp>& a_leaf): pointee(new __loops_RecipeStr_)
 {
     pointee->refcounter = 1;
     pointee->opcode = RECIPE_LEAF;
+    pointee->is_vector = true;
     pointee->type = ElemTraits<_Tp>::depth;
     pointee->leaf = Arg(a_leaf);
 }
@@ -1173,9 +1174,9 @@ static inline IReg& operator ^= (IReg& _a, const Recipe& b)
 
 // Load and stores
 template<typename _Tp> static inline Recipe loadvec(const Recipe& base)
-{ assert_haveireg_({base}); return Recipe(VOP_LOAD, ElemTraits<_Tp>::depth, {&base}); }
+{ assert_haveireg_({base}); return Recipe(VOP_LOAD, true, ElemTraits<_Tp>::depth, {&base}); }
 template<typename _Tp> static inline Recipe loadvec(const Recipe& base, const Recipe& offset)
-{ assert_haveireg_({base}); return Recipe(VOP_LOAD, ElemTraits<_Tp>::depth, {&base, &offset}); }
+{ assert_haveireg_({base}); return Recipe(VOP_LOAD, true,  ElemTraits<_Tp>::depth, {base, offset}); }
 //TODO(ch): find a way to delete next warning:
 //WARNING! It's assumed here, that res1 and res2 are not initialized yet.
 //template<typename _Tp> std::pair<Recipe, Recipe> loadvec_deinterleave2(const Recipe& base); //TODO(ch): optimal form of signature
@@ -1373,10 +1374,10 @@ template<typename _Tp> Recipe trunc(const Recipe& a)  //Convert with rounding to
 
 template<typename _Tp> Recipe floor(const Recipe& a)  //Convert with rounding to zero
 {
-    if (a.type() == TYPE_FP16 || a.type() == TYPE_FP32 || a.type() == TYPE_FP64)
+    if (a.type() != TYPE_FP16 && a.type() != TYPE_FP32 && a.type() != TYPE_FP64)
         throw std::runtime_error("Only real number can be floored.");
-    if (ElemTraits<_Tp>::depth == TYPE_I16 || ElemTraits<_Tp>::depth == TYPE_U16 || ElemTraits<_Tp>::depth == TYPE_I32 || ElemTraits<_Tp>::depth == TYPE_U32 ||
-        ElemTraits<_Tp>::depth == TYPE_I64 || ElemTraits<_Tp>::depth == TYPE_U64) 
+    if (ElemTraits<_Tp>::depth != TYPE_I16 && ElemTraits<_Tp>::depth != TYPE_U16 && ElemTraits<_Tp>::depth != TYPE_I32 && ElemTraits<_Tp>::depth != TYPE_U32 &&
+        ElemTraits<_Tp>::depth != TYPE_I64 && ElemTraits<_Tp>::depth != TYPE_U64)
         throw std::runtime_error("Floor can be done only to integer type.");
     if (ElemTraits<_Tp>::elemsize != elem_size(a.type())) 
         throw std::runtime_error("Attempt to convert real number to integer of different size.");

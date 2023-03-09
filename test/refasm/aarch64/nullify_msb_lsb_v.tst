@@ -10,7 +10,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
      8 : b.ge [31]                       ; ea 02 00 54  
      9 : ldr  v1.4s, x0, x18             ; 01 68 f2 3c  
     10 : ushr v2.4s, v1.4s, #0x07, #0x07 ; 22 04 3f 6f  
-    11 : orr  v2.4s, v1.4s, v2.4s        ; 22 1c a2 4e  
+    11 : orr  v2.4s, v2.4s, v1.4s        ; 42 1c a1 4e  
     12 : ushr v3.4s, v2.4s, #0x07, #0x06 ; 43 04 3e 6f  
     13 : orr  v2.4s, v2.4s, v3.4s        ; 42 1c a3 4e  
     14 : ushr v3.4s, v2.4s, #0x07, #0x04 ; 43 04 3c 6f  
@@ -25,7 +25,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
     23 : str  v2.4s, x1, x18             ; 22 68 b2 3c  
     24 : sub  v2.4s, v1.4s, v0.4s        ; 22 84 a0 6e  
     25 : mvn  v2.4s, v2.4s               ; 42 58 20 6e  
-    26 : and  v2.4s, v1.4s, v2.4s        ; 22 1c 22 4e  
+    26 : and  v2.4s, v2.4s, v1.4s        ; 42 1c 21 4e  
     27 : eor  v1.4s, v2.4s, v1.4s        ; 41 1c 21 6e  
     28 : str  v1.4s, x2, x18             ; 41 68 b2 3c  
     29 : add  x18, x18, #0x10            ; 52 42 00 91  

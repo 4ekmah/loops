@@ -118,16 +118,16 @@ bool encodeImmShift(int64_t shift, int etyp, uint64_t& immh, uint64_t& immb)
 
 static inline int ICbytecode2Aarch64(int ic)
 {
-    return ic == IC_NE  ? AARCH64_IC_NE : (
-           ic == IC_EQ  ? AARCH64_IC_EQ : (
-           ic == IC_GE  ? AARCH64_IC_GE : (
-           ic == IC_LE  ? AARCH64_IC_LE : (
-           ic == IC_ULE ? AARCH64_IC_LS : (
-           ic == IC_GT  ? AARCH64_IC_GT : (
-           ic == IC_UGT ? AARCH64_IC_HI : (
-           ic == IC_LT  ? AARCH64_IC_LT : (
-           ic == IC_S   ? AARCH64_IC_MI : (
-         /*ic == IC_NS?*/AARCH64_IC_PL /* : throw error*/)))))))));
+    return ic == OP_NE  ? AARCH64_IC_NE : (
+           ic == OP_EQ  ? AARCH64_IC_EQ : (
+           ic == OP_GE  ? AARCH64_IC_GE : (
+           ic == OP_LE  ? AARCH64_IC_LE : (
+           ic == OP_ULE ? AARCH64_IC_LS : (
+           ic == OP_GT  ? AARCH64_IC_GT : (
+           ic == OP_UGT ? AARCH64_IC_HI : (
+           ic == OP_LT  ? AARCH64_IC_LT : (
+           ic == OP_S   ? AARCH64_IC_MI : (
+         /*ic == OP_NS?*/AARCH64_IC_PL /* : throw error*/)))))))));
 }
 
 static inline int invertAarch64IC(int ic) { return ic^0b1; }
@@ -229,9 +229,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;
     case (AARCH64_MOV):
         Assert(index.size() == 2);
-        if (index[1].tag == Arg::IREG)
+        if (index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             return BiT({ BTsta(0x550,11), BTreg(1, 5, In), BTsta(0x1F ,11), BTreg(0, 5, Out) });
-        else if (index[1].tag == Arg::IIMMEDIATE)
+        else if (index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0x694,11), BTimm(1, 16), BTreg(0, 5, Out) });
         else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
             return BiT({ BTsta(0b01001110101, 11), BTreg(1, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1263,7 +1263,17 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_SELECT):
         if (index.size() == 4)
         {
-            Assert(index[1].value >= 0 && index[1].value < IC_UNKNOWN);
+            Assert(index[1].value == OP_NE  ||
+                   index[1].value == OP_EQ  ||
+                   index[1].value == OP_GE  ||
+                   index[1].value == OP_LE  ||
+                   index[1].value == OP_ULE ||
+                   index[1].value == OP_GT  ||
+                   index[1].value == OP_UGT ||
+                   index[1].value == OP_LT  ||
+                   index[1].value == OP_S   ||
+                   index[1].value == OP_NS);
+            
             return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(ICbytecode2Aarch64(index[1].value)) });
         }
         break;
@@ -2124,7 +2134,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case OP_MAX:
             Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], op[2] }));
-            a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? IC_LT : IC_GT, op[1], op[2] }));
+            a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, op[1], op[2] }));
             break;
         case OP_MOD:
             Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
@@ -2163,12 +2173,12 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
             a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
-            a_dest.program.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(IC_GT) }));
+            a_dest.program.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(OP_GT) }));
             break;
         case OP_ABS:
             Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
-            a_dest.program.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(IC_LT) }));
+            a_dest.program.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(OP_LT) }));
             break;
         case VOP_NE:
             Assert(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[1].elemtype == op[2].elemtype && elem_size(op[0].elemtype) == elem_size(op[1].elemtype) && isUnsignedInteger(op[0].elemtype));

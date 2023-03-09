@@ -11,7 +11,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
      9 : jmp_ge   1            
     10 : vld.u32  v1, i0, i18  
     11 : shr.u32  v2, v1, 1    
-    12 : or       v2, v1, v2   
+    12 : or       v2, v2, v1   
     13 : shr.u32  v3, v2, 2    
     14 : or       v2, v2, v3   
     15 : shr.u32  v3, v2, 4    
@@ -26,7 +26,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
     24 : vst.u32  i1, i18, v2  
     25 : sub.u32  v2, v1, v0   
     26 : not      v2, v2       
-    27 : and      v2, v1, v2   
+    27 : and      v2, v2, v1   
     28 : xor      v1, v2, v1   
     29 : vst.u32  i2, i18, v1  
     30 : add      i18, i18, 16 

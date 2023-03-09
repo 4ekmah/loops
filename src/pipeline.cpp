@@ -31,6 +31,7 @@ void ImmediateImplantation::process(Syntfunc& a_dest, const Syntfunc& a_source)
     for(const Syntop& op: a_source.program)
         switch(op.opcode)
         {
+            case (OP_MOV):
             case (OP_IF):
             case (OP_ELSE):
             case (OP_ENDIF):

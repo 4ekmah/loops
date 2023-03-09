@@ -79,9 +79,9 @@ LTESTexe(min_max_scalar, {
     for(size_t num = 0; num < v.size(); num++)
     {
         if(v[rminpos] > v[num])
-            rminpos = v[num];
+            rminpos = num;
         if(v[rmaxpos] < v[num])
-            rmaxpos = v[num];
+            rmaxpos = num;
     }
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
@@ -130,9 +130,9 @@ LTESTexe(min_max_select, {
     for (size_t num = 0; num < v.size(); num++)
     {
         if (v[rminpos] > v[num])
-            rminpos = v[num];
+            rminpos = num;
         if (v[rmaxpos] < v[num])
-            rmaxpos = v[num];
+            rmaxpos = num;
     }
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
@@ -265,7 +265,7 @@ LTEST(all_loads_all_stores, {
     {
         if (CTX.getPlatformName() == "AArch64")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4 }, { 0, 1, 2, 3, 4 }, {}, { 18, 19, 20, 21, 22 });
-        else if("Intel64" && OSname() == "Linux") 
+        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8 }, { 0 }, {}, { 12, 13, 14, 15 });
 
         IReg num = CONST_(0);
@@ -433,7 +433,7 @@ LTEST(bresenham, {
     {
         if (CTX.getPlatformName() == "AArch64")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6 }, { 0, 1, 2, 3, 4, 5, 6 }, {}, { 18, 19, 20, 21, 22 });
-        else if("Intel64" && OSname() == "Linux") 
+        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8, 9 }, { 0 }, {}, { 12, 13, 14, 15 });
 
         IReg dx = abs(x1 - x0);
@@ -505,7 +505,7 @@ bool memok(uint8_t* canvas, int64_t w, int64_t h)
                 std::cout << "    Memory writing violation at output [" << -1 << ", " << i << ", " << j << "]" << std::endl;
                 return false;
             }
-            if(canvas[2*h*w + i*w + j] != 0) 
+            if(canvas[2*h*w + i*w + j] != 0)
             {
                 std::cout << "    Memory writing violation at output ["<< 1 <<", "<< i <<", "<< j<<"]"<<std::endl;
                 return false;

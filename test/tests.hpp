@@ -149,6 +149,22 @@ void print_channel(T* data, int H, int W, int stride)
     std::cout << std::endl;
 }
 
+template<typename _Tp>
+loops::Recipe iregtyped(const loops::IReg& reg)
+{
+    loops::Recipe ret(reg);
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret;
+}
+
+template<typename _Tp>
+loops::Recipe immtyped(int64_t val, loops::Func* func)
+{
+    loops::Recipe ret(argIImm(val, func));
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret;
+}
+
 //TODO(ch): Interesting solution for test substitution is class derivation
 //with using RTTI for taking name of class. Still not really easy to decide what to 
 // do with fixtures, but there is a thought to think.

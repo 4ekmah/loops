@@ -242,9 +242,33 @@ namespace loops
     Recipe pow(const Recipe& a, int64_t p)
     {
         Assert(!a.empty() && !(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE));
-        USE_CONTEXT_(ExtractContext(a));
+        Context CTX = ExtractContext(a);
+        USE_CONTEXT_(CTX);
         if(p == 0)
-            return CONST_(1);
+        {
+            if(a.is_vector())
+            {
+                switch(a.type())
+                {
+                    case (TYPE_U8 ): return VCONST_(uint8_t, 1);
+                    case (TYPE_I8 ): return VCONST_(int8_t, 1);
+                    case (TYPE_U16): return VCONST_(uint16_t, 1);
+                    case (TYPE_I16): return VCONST_(int16_t, 1);
+                    case (TYPE_U32): return VCONST_(uint32_t, 1);
+                    case (TYPE_I32): return VCONST_(int32_t, 1);
+                    case (TYPE_U64): return VCONST_(uint64_t, 1);
+                    case (TYPE_I64): return VCONST_(int64_t, 1);
+                    case (TYPE_FP16): return VCONST_(f16_t, f16_t(1.0));
+                    case (TYPE_BF16): throw std::runtime_error("BF16 type isn't supported yet.");
+                    case (TYPE_FP32): return VCONST_(float, 1.0);
+                    case (TYPE_FP64): return VCONST_(double, 1.0);
+                    default:
+                        throw std::runtime_error("Unknown data type.");
+                }
+            }
+            else
+                return CONST_(1);
+        }
         Recipe _a = a;
         Recipe res;
         while (p)

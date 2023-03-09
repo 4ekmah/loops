@@ -63,22 +63,6 @@ namespace loops
         }
         });
 
-    template<typename _Tp>
-    Recipe iregtyped(const IReg& reg)
-    {
-        Recipe ret(reg);
-        ret.type() = ElemTraits<_Tp>::depth;
-        return ret;
-    }
-
-    template<typename _Tp>
-    Recipe immtyped(int64_t val, Func* func)
-    {
-        Recipe ret(argIImm(val, func));
-        ret.type() = ElemTraits<_Tp>::depth;
-        return ret;
-    }
-
 #define DEFINE_CERTAIN_REG(name, number) IReg name; name.func = _f; name.idx = number
     LTESTcomposer(instruction_set_test, {
         Func * _f = getImpl(getImpl(&CTX)->getCurrentFunc());
