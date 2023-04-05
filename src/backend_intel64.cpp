@@ -1020,13 +1020,20 @@ namespace loops
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
-
-        case (OP_JMP_NE):  return SyT(INTEL64_JNE, { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_EQ):  return SyT(INTEL64_JE,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_LT):  return SyT(INTEL64_JL,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_GT):  return SyT(INTEL64_JG,  { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_GE):  return SyT(INTEL64_JGE, { SAcop(0, AF_PRINTOFFSET) });
-        case (OP_JMP_LE):  return SyT(INTEL64_JLE, { SAcop(0, AF_PRINTOFFSET) });
+        case (OP_JCC):
+            Assert(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE);
+            switch (index[0].value)
+            {
+            case (OP_NE):  return SyT(INTEL64_JNE, { SAcop(1, AF_PRINTOFFSET) });
+            case (OP_EQ):  return SyT(INTEL64_JE,  { SAcop(1, AF_PRINTOFFSET) });
+            case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1, AF_PRINTOFFSET) });
+            case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1, AF_PRINTOFFSET) });
+            case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1, AF_PRINTOFFSET) });
+            case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1, AF_PRINTOFFSET) });
+            default:
+                break;
+            };
+            break;
         case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0, AF_PRINTOFFSET) });
 
         case (OP_RET):     return SyT(INTEL64_RET, {});

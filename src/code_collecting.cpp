@@ -11,6 +11,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "printer.hpp"
 #include "reg_allocator.hpp"
 #include <algorithm>
+#include <unordered_set>
+#include <map>
 #include <iomanip>
 #include <deque>
 #include <iostream>
@@ -22,7 +24,6 @@ CodeCollecting::CodeCollecting(Syntfunc& a_data, Func* a_func) : CompilerStage((
     , m_data(a_data)
     , m_func(a_func)
     , m_returnType(RT_NOTDEFINED)
-    , m_substConditionBypass(false)
 {
     
 }
@@ -46,7 +47,7 @@ StageID CodeCollecting::stage_id() const { return CS_COLLECTING; }
 Arg CodeCollecting::reg_constr(Recipe& fromwho)
 {
     Arg res;
-    if(fromwho.opcode() == RECIPE_LEAF)
+    if(fromwho.is_leaf())
     {
         std::vector<Arg> args;
         args.reserve(2);
@@ -69,7 +70,7 @@ void CodeCollecting::reg_assign(const Arg& target, Recipe& fromwho)
     Arg res;
     Assert((target.tag == Arg::IREG && !fromwho.is_vector()) || (target.tag == Arg::VREG && fromwho.type() == target.elemtype));
     std::vector<Arg> args;
-    if(fromwho.opcode() == RECIPE_LEAF)
+    if(fromwho.is_leaf())
     {
         args.reserve(2);
         args.push_back(target);
@@ -86,13 +87,27 @@ void CodeCollecting::reg_assign(const Arg& target, Recipe& fromwho)
 
 void CodeCollecting::while_(Recipe& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
-    Syntop cmpop = unpack_condition(r);
+    Syntop cmpop = unpack_condition_old(r);
     m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
     size_t nextPos = m_data.program.size();
     size_t contLabel = m_data.provideLabel();
     size_t brekLabel = Syntfunc::NOLABEL;
     m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, nextPos));
-    int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
+    int jumptype = 0;                                 //DUBUGGG: delete this dummy stub!
+// int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
+// int CodeCollecting::comparisson2jumptype(int cond) //DUBUGGG: delete!
+// {
+//     return cond == OP_EQ  ? OP_JMP_EQ  : (
+//            cond == OP_NE  ? OP_JMP_NE  : (
+//            cond == OP_LT  ? OP_JMP_LT  : (
+//            cond == OP_GT  ? OP_JMP_GT  : (
+//            cond == OP_UGT ? OP_JMP_UGT : (
+//            cond == OP_LE  ? OP_JMP_LE  : (
+//            cond == OP_ULE ? OP_JMP_ULE : (
+//            cond == OP_GE  ? OP_JMP_GE  : (
+//            cond == OP_S   ? OP_JMP_S   : (
+//            cond == OP_NS  ? OP_JMP_NS  : OP_JMP)))))))));
+// }
     if (jumptype == OP_JMP)
         throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
     m_data.program.push_back(Syntop(OP_WHILE, {argIImm(jumptype, m_func), argIImm(contLabel, m_func), argIImm(brekLabel, m_func)}));
@@ -168,125 +183,53 @@ void CodeCollecting::continue_()
 
 void CodeCollecting::if_(Recipe& r)
 {
-    Syntop cmpop = unpack_condition(r);
-    m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.size()));
-    int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
-    if (jumptype == OP_JMP)
-        throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    //IF(cmp, wrongjmp)
-    m_data.program.push_back(Syntop(OP_IF, {argIImm(jumptype, m_func), argIImm(0, m_func)}));
+    int thenlabel = m_data.provideLabel();
+    int endlabel = m_data.provideLabel();
+    m_data.program.push_back(Syntop(OP_IF_CSTART, {}));
+    unpack_condition(r, thenlabel, endlabel);
+    m_data.program.push_back(Syntop(OP_IF_CEND, {Arg(thenlabel)}));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, endlabel));
 }
 
 void CodeCollecting::elif_(Recipe& r)
 {
-    size_t elifRep = 0;
-    {
-        if (m_cflowStack.size() == 0)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", for \"elif\".");
-        ControlFlowBracket& bracket = m_cflowStack.back();
-        if (bracket.tag != ControlFlowBracket::IF)
-            throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
-        elifRep = bracket.elifRepeats;
-    }
-    else_();
-    if_(r);
     if (m_cflowStack.size() == 0)
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", for \"elif\".");
-    ControlFlowBracket& bracket = m_cflowStack.back();
+        throw std::runtime_error("Unclosed control flow bracket: there is no \"if\" for \"elif\".");
+    ControlFlowBracket bracket = m_cflowStack.back();
+    m_cflowStack.pop_back();
     if (bracket.tag != ControlFlowBracket::IF)
-        throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", for \"elif\".");
-    bracket.elifRepeats = elifRep + 1;
+        throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
+    int outlabel = m_data.provideLabel();
+    m_data.program.push_back(Syntop(OP_ELIF_CSTART, {Arg(bracket.labelOrPos), Arg(outlabel)}));
+    int thenlabel = m_data.provideLabel();
+    int new_end_label = m_data.provideLabel();
+    unpack_condition(r, thenlabel, new_end_label);
+    m_data.program.push_back(Syntop(OP_IF_CEND, {Arg(thenlabel)}));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, new_end_label));
 }
 
 void CodeCollecting::else_()
 {
     if (m_cflowStack.size() == 0)
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", for \"else\".");
-    ControlFlowBracket& bracket = m_cflowStack.back();
+        throw std::runtime_error("Unclosed control flow bracket: there is no \"if\" for \"else\".");
+    ControlFlowBracket bracket = m_cflowStack.back();
+    m_cflowStack.pop_back();
     if (bracket.tag != ControlFlowBracket::IF)
-        throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", for \"else\".");
-    size_t posnext = m_data.program.size();
-    size_t prevBranchPos = bracket.labelOrPos;
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, m_data.program.size()));
-    if (prevBranchPos >= posnext)
-        throw std::runtime_error("\"If\" internal error: wrong branch start address");
-    const Syntop& ifop = m_data.program[prevBranchPos];
-    if (ifop.opcode != OP_IF || ifop.size() != 2 || ifop.args[1].tag != Arg::IIMMEDIATE)
-        throw std::runtime_error("\"If\" internal error: wrong \"if\" command format");
-    size_t label = m_data.provideLabel();
-    m_data.program[prevBranchPos].args[1].value = label;
-    m_ifLabelMap[label] = std::pair<size_t, size_t>(prevBranchPos, 0);
-    //ELSE(mylabel, endjmp)
-    m_data.program.push_back(Syntop(OP_ELSE, {argIImm(label, m_func), argIImm(0, m_func)}));
+        throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"else\".");
+    int outlabel = m_data.provideLabel();
+    m_data.program.push_back(Syntop(OP_ELSE, {Arg(bracket.labelOrPos), Arg(outlabel)}));
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, outlabel));
 }
 
 void CodeCollecting::subst_elif(Recipe& r)
 {
-    m_substConditionBypass = true;
-    static int num = 0;
-    size_t elifRep = 0;
-    size_t restoredElifRep = 0;
-    bool gotElifRepeats = false;
-    do
-    {
-        if(m_data.program.size() == 0 || m_data.program.back().opcode != OP_ENDIF)
-            throw std::runtime_error("Control flow bracket error: there is no \"if\" or \"elif\", for \"else\" or \"elif\".");
-        Assert(m_data.program.back()[0].tag == Arg::IIMMEDIATE);
-        size_t label = m_data.program.back()[0].value;
-        size_t ifPos = m_ifLabelMap[label].first;
-        size_t elsePos = -1;
-        elifRep = gotElifRepeats ? elifRep - 1: m_ifLabelMap[label].second ;
-        gotElifRepeats = true;
-        m_ifLabelMap.erase(label);
-        m_data.program.pop_back();
-        Assert(ifPos < m_data.program.size() && (m_data.program[ifPos].opcode == OP_IF || m_data.program[ifPos].opcode == OP_ELSE));
-        if(m_data.program[ifPos].opcode == OP_ELSE)
-        {
-            Assert(m_data.program[ifPos].size() && m_data.program[ifPos][0].tag == Arg::IIMMEDIATE);
-            size_t label = m_data.program[ifPos][0].value;
-            elsePos = ifPos;
-            ifPos = m_ifLabelMap[label].first;
-        }
-        m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, ifPos));
-        m_cflowStack.back().elifRepeats = restoredElifRep++;
-        if(elsePos != -1)
-            m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, elsePos));
-    } while(elifRep != 0);
+    reopen_endif();
     elif_(r);
-    m_substConditionBypass = false;
 }
 
 void CodeCollecting::subst_else()
 {
-    size_t elifRep = 0;
-    size_t restoredElifRep = 0;
-    bool gotElifRepeats = false;
-    do
-    {
-        if(m_data.program.size() == 0 || m_data.program.back().opcode != OP_ENDIF)
-            throw std::runtime_error("Control flow bracket error: there is no \"if\" or \"elif\", for \"else\" or \"elif\".");
-        Assert(m_data.program.back()[0].tag == Arg::IIMMEDIATE);
-        size_t label = m_data.program.back()[0].value;
-        size_t ifPos = m_ifLabelMap[label].first;
-        size_t elsePos = -1;
-        elifRep = gotElifRepeats ? elifRep - 1: m_ifLabelMap[label].second ;
-        gotElifRepeats = true;
-        m_ifLabelMap.erase(label);
-        m_data.program.pop_back();
-        Assert(ifPos < m_data.program.size() && (m_data.program[ifPos].opcode == OP_IF || m_data.program[ifPos].opcode == OP_ELSE));
-        if(m_data.program[ifPos].opcode == OP_ELSE)
-        {
-            Assert(m_data.program[ifPos].size() && m_data.program[ifPos][0].tag == Arg::IIMMEDIATE);
-            size_t label = m_data.program[ifPos][0].value;
-            elsePos = ifPos;
-            ifPos = m_ifLabelMap[label].first;
-        }
-        m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, ifPos));
-        m_cflowStack.back().elifRepeats = restoredElifRep++;
-        if(elsePos != -1)
-            m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, elsePos));
-    } while(elifRep != 0);
+    reopen_endif();
     else_();
 }
 
@@ -296,46 +239,9 @@ void CodeCollecting::endif_()
         throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
     ControlFlowBracket bracket = m_cflowStack.back();
     m_cflowStack.pop_back();
-    size_t posnext = m_data.program.size();
-    size_t label = m_data.provideLabel();
-    bool rewriteNEAddress = true;
-    if (bracket.tag == ControlFlowBracket::ELSE)
-    {
-        rewriteNEAddress = false;
-        size_t elsePos = bracket.labelOrPos;
-        if (elsePos >= posnext)
-            throw std::runtime_error("\"If\" internal error: wrong \"else\" start address");
-        const Syntop& elseOp = m_data.program[elsePos];
-        if (elseOp.opcode != OP_ELSE || elseOp.size() != 2 || elseOp.args[1].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("\"If\" internal error: wrong \"else\" command format");
-        m_data.program[elsePos].args[1].value = label;
-        m_ifLabelMap[label] = std::pair<size_t, size_t>(elsePos, 0);
-        if (m_cflowStack.size() == 0)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
-        bracket = m_cflowStack.back();
-        m_cflowStack.pop_back();
-    }
-    if (bracket.tag != ControlFlowBracket::IF)
+    if (bracket.tag != ControlFlowBracket::IF && bracket.tag != ControlFlowBracket::ELSE)
         throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", \"elif\" or \"else\" for \"endif\".");
-
-    size_t ifPos = bracket.labelOrPos;
-    if (ifPos >= posnext)
-        throw std::runtime_error("\"If\" internal error: wrong \"if\" start address");
-    const Syntop& ifOp = m_data.program[ifPos];
-    if (ifOp.opcode != OP_IF || ifOp.size() != 2 || ifOp.args[1].tag != Arg::IIMMEDIATE)
-        throw std::runtime_error("\"If\" internal error: wrong \"else\" command format");
-    if(rewriteNEAddress)
-    {
-        m_ifLabelMap[label] = std::pair<size_t, size_t>(ifPos, 0);
-        m_data.program[ifPos].args[1].value = label;
-    }
-    m_data.program.push_back(Syntop(OP_ENDIF, {argIImm(label, m_func)}));
-    if(bracket.elifRepeats != 0)
-    {
-        endif_();
-        size_t justAddedIfPos = m_ifLabelMap[label + bracket.elifRepeats].first;
-        m_ifLabelMap[label + bracket.elifRepeats] = std::pair<size_t, size_t>(justAddedIfPos, bracket.elifRepeats);
-    }
+    m_data.program.push_back(Syntop(OP_ENDIF, {Arg(bracket.labelOrPos)}));
 }
 
 void CodeCollecting::return_()
@@ -355,20 +261,21 @@ void CodeCollecting::return_(Recipe& retval)
     m_data.program.push_back(Syntop(OP_RET, {}));
 }
 
-Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags)
+Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags, Syntfunc* buffer)
 {
     Arg res;
+    Syntfunc& outbuf = buffer == nullptr ? m_data: *buffer;
     switch(rcp.opcode())
     {
         case (RECIPE_LEAF):
         {
             if(flags & UR_WRAPIIMM && rcp.leaf().tag == Arg::IIMMEDIATE)
             {
-                res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(RB_INT);
+                res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
                 res.func = m_func;
                 res.tag = Arg::IREG;
                 Syntop toAdd(OP_MOV, {res, rcp.leaf()});
-                m_data.program.emplace_back(toAdd);
+                outbuf.program.emplace_back(toAdd);
             }
             else 
                 res = rcp.leaf();
@@ -390,20 +297,20 @@ Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags)
             //TODO(ch): In truth, i'm not sure, that select doesn't support immediates on all the archs, so, this usage of UR_WRAPIIMM must be reconsidered
             Arg truev = unpack_recipe(rcp.children()[1], UR_WRAPIIMM);
             Arg falsev = unpack_recipe(rcp.children()[2], UR_WRAPIIMM);
-            Syntop cmpop = unpack_condition(rcp.children()[0], UC_ARITHMARGS);
-            m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
-            res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(RB_INT);
+            Syntop cmpop = unpack_condition_old(rcp.children()[0], UC_ARITHMARGS);
+            outbuf.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
+            res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
             res.func = m_func;
             res.tag = Arg::IREG;
             res.elemtype = rcp.type();
-            m_data.program.push_back(Syntop(OP_SELECT, {res, argIImm(cmpop.opcode), truev, falsev}));
+            outbuf.program.push_back(Syntop(OP_SELECT, {res, argIImm(cmpop.opcode), truev, falsev}));
             break;
         }
         default:
         {
             std::vector<Arg> args;
             args.reserve(rcp.children().size() + 1);
-            res.idx = flags & UR_NONEWIDX ? 0 : m_data.provideIdx(rcp.is_vector() ? RB_VEC : RB_INT );
+            res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(rcp.is_vector() ? RB_VEC : RB_INT );
             res.func = m_func;
             res.tag = rcp.is_vector() ? Arg::VREG : Arg::IREG;
             res.elemtype = rcp.type();
@@ -411,21 +318,51 @@ Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags)
             for(int child_num = 0; child_num < rcp.children().size(); child_num++)
                 args.push_back(unpack_recipe(rcp.children()[child_num]));
             Syntop toAdd(rcp.opcode(), args);
-            m_data.program.emplace_back(toAdd);
+            outbuf.program.emplace_back(toAdd);
             break;
         }
     };
     //Duplicated members must be calculated only once, so they are replaced with result after calculation.
     //Since all member mentions are smart pointers to same object, next time unpack algorithm will meet 
     //the member, it will be already calculated.
-    if(rcp.opcode() != RECIPE_LEAF) 
+    if(!rcp.is_leaf()) 
         rcp.children().clear();
     rcp.opcode() = RECIPE_LEAF;
     rcp.leaf() = res;
     return res;
 }
 
-Syntop CodeCollecting::unpack_condition(Recipe& rcp, int flags)
+Recipe CodeCollecting::eliminate_not(Recipe& rcp, bool inverseflag)
+{
+    //Additional non-obvious effect of this function is elimination of internal multirefercences,
+    //for now only on level of logic, but futher they must be eliminated deeper, since similiar
+    //of if structure can be calculated in different branches, not in given order, so every 
+    //subexpression must calculated in each condition branch.
+    //TODO(ch): dereference algebraic expressions.
+    switch(rcp.opcode())
+    {
+        case (OP_LOGICAL_NOT):
+            Assert(rcp.children().size() == 1);
+            return eliminate_not(rcp.children()[0], !inverseflag);
+        case (OP_LOGICAL_AND):
+            Assert(rcp.children().size() == 2);
+            return Recipe(inverseflag ? OP_LOGICAL_OR : OP_LOGICAL_AND, false, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], !inverseflag), eliminate_not(rcp.children()[1], !inverseflag)});
+        case (OP_LOGICAL_OR):
+            Assert(rcp.children().size() == 2);
+            return Recipe(inverseflag ? OP_LOGICAL_AND : OP_LOGICAL_OR, false, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], !inverseflag), eliminate_not(rcp.children()[1], !inverseflag)});
+        case (OP_GT): case (OP_UGT): case (OP_GE): case (OP_LT):
+        case (OP_LE): case (OP_ULE): case (OP_NE):case (OP_EQ):
+            Assert(rcp.children().size() == 2);
+            return Recipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), false, TYPE_BOOLEAN, {rcp.children()[0], rcp.children()[1]});
+        case (OP_S): case (OP_NS):
+            Assert(rcp.children().size() == 1);
+            return Recipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), false, TYPE_BOOLEAN, {rcp.children()[0]});
+        default:
+            return Recipe(inverseflag ? OP_NE : OP_EQ, false, TYPE_BOOLEAN, {rcp.children()[0], Recipe(0)});
+    };
+}
+
+Syntop CodeCollecting::unpack_condition_old(Recipe& rcp, int flags)
 {
     switch (rcp.opcode())
     {
@@ -441,7 +378,7 @@ Syntop CodeCollecting::unpack_condition(Recipe& rcp, int flags)
     case (OP_NS):
     {
         Assert(rcp.children().size() == 2);
-        if(rcp.children()[0].opcode() != RECIPE_LEAF ||rcp.children()[1].opcode() != RECIPE_LEAF && (flags & UC_ARITHMARGS == 0))
+        if(!rcp.children()[0].is_leaf() || !rcp.children()[1].is_leaf() && (flags & UC_ARITHMARGS == 0))
             throw std::runtime_error("Temporary condition solution: conditions other than one comparison of two simple arguments are not supported.");
         std::vector<Arg> args;
         args.reserve(2);
@@ -457,17 +394,201 @@ Syntop CodeCollecting::unpack_condition(Recipe& rcp, int flags)
 
 }
 
-int CodeCollecting::comparisson2jumptype(int cond)
+void CodeCollecting::unpack_condition(Recipe& rcp, int true_jmp, int false_jmp)
 {
-    return cond == OP_EQ  ? OP_JMP_EQ  : (
-           cond == OP_NE  ? OP_JMP_NE  : (
-           cond == OP_LT  ? OP_JMP_LT  : (
-           cond == OP_GT  ? OP_JMP_GT  : (
-           cond == OP_UGT ? OP_JMP_UGT : (
-           cond == OP_LE  ? OP_JMP_LE  : (
-           cond == OP_ULE ? OP_JMP_ULE : (
-           cond == OP_GE  ? OP_JMP_GE  : (
-           cond == OP_S   ? OP_JMP_S   : (
-           cond == OP_NS  ? OP_JMP_NS  : OP_JMP)))))))));
+    //TODO(ch)[impl]: There is a very questionable restriction there: code, generated by calculational expressions must not contain embedded loops and embranchments.
+    //DUBUGGG: At least, create dignostic error: "Embranchments in conditions are not supported!". Probably, it's the best scheme!
+    Recipe r = eliminate_not(rcp);
+    Syntfunc condition_buffer;
+    for(int i = 0; i < RB_AMOUNT; i++)  
+        condition_buffer.regAmount[i] = m_data.regAmount[i];
+    condition_buffer.nextLabel = 2; //0 and 1 are reserved for then and else branches labels
+
+    unpack_ifcond_(condition_buffer, r, 0, 1, false);
+    condition_buffer.program.emplace_back(Syntop(OP_LABEL, {Arg(0)})); //TODO(ch): on condition-tail while, this label must not be added.
+    //1.) Delete consecutive labels
+    std::unordered_map<int, int> labelRenaming;
+    int targetOpnum = 0;
+    for(int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+    {
+        if (opnum > 0 && condition_buffer.program[opnum].opcode == OP_LABEL &&  condition_buffer.program[opnum - 1].opcode == OP_LABEL)
+        {
+            labelRenaming[condition_buffer.program[opnum][0].value] = condition_buffer.program[opnum - 1][0].value;
+            continue;
+        }
+        condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
+        targetOpnum++;
+    }
+    condition_buffer.program.resize(targetOpnum);
+    for(int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+    {
+        int opcode = condition_buffer.program[opnum].opcode;
+        if(opcode == OP_JCC || opcode == OP_JMP)
+        {
+            int labelkeeper = (opcode == OP_JCC ? 1 : 0);
+            int labeldest = condition_buffer.program[opnum][labelkeeper].value;
+            if(labelRenaming.find(labeldest)!=labelRenaming.end())
+                condition_buffer.program[opnum][labelkeeper].value = labelRenaming[labeldest];
+        }
+    }
+    bool changed = true;
+    while(changed)
+    {
+        changed = false;
+        std::unordered_set<int> used_labels;
+        used_labels.insert(0);
+        used_labels.insert(1);
+        //2.) Delete non-used labels.
+        for(int opnum = 0; opnum < condition_buffer.program.size(); opnum++) 
+        {
+            int opcode = condition_buffer.program[opnum].opcode;
+            if(opcode == OP_JCC || opcode == OP_JMP)
+                used_labels.insert(condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value) ;
+        }
+        int opnum;
+        for(opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        {
+            if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find(condition_buffer.program[opnum][0].value) == used_labels.end())
+                continue;
+            condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
+            targetOpnum++;
+        }
+        if(targetOpnum != condition_buffer.program.size())
+        {
+            condition_buffer.program.resize(targetOpnum);
+            changed = true;
+        }
+        //3.) Transform sequences J(Cond, label0);  J(label1) ; label0: -> J(!Cond, label1); label0:
+        targetOpnum = 0;
+        for(int opnum = 0; opnum < condition_buffer.program.size() - 2;)
+        {
+            if(condition_buffer.program[opnum].opcode == OP_JCC &&
+               condition_buffer.program[opnum + 1].opcode == OP_JMP &&
+               condition_buffer.program[opnum + 2].opcode == OP_LABEL)
+                {
+                    Assert(condition_buffer.program[opnum].size() == 2 && condition_buffer.program[opnum + 1].size() == 1 && condition_buffer.program[opnum + 2].size() == 1);
+                    int cond = condition_buffer.program[opnum][0].value;
+                    int label0 = condition_buffer.program[opnum][1].value;
+                    int label1 = condition_buffer.program[opnum + 1][0].value;
+                    int label2 = condition_buffer.program[opnum + 2][0].value;
+                    if(label0 == label2)
+                    {
+                        condition_buffer.program[targetOpnum] = Syntop(OP_JCC, {Arg(invertCondition(cond)), Arg(label1)});
+                        condition_buffer.program[targetOpnum] = condition_buffer.program[opnum + 2];
+                        targetOpnum += 2;
+                        opnum += 3;
+                        continue;
+                    }
+                    targetOpnum += 3;
+                    opnum += 3;
+                    continue;
+                }
+            targetOpnum++;
+            opnum++;
+        }
+        if(targetOpnum != condition_buffer.program.size())
+        {
+            condition_buffer.program.resize(targetOpnum);
+            changed = true;
+        }
+    }
+
+    //4.) Append precompiled condition buffer into program buffer.
+    m_data.program.reserve(m_data.program.size() + condition_buffer.program.size());
+    std::unordered_map<int,int> used_labels;
+    used_labels.insert(std::pair<int, int>(0,true_jmp));
+    used_labels.insert(std::pair<int, int>(1,false_jmp));
+    for(int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+    {
+        Syntop& op = condition_buffer.program[opnum];
+        if (op.opcode == OP_LABEL || op.opcode == OP_JCC || op.opcode == OP_JMP)
+        {
+            int labelkeeper = (op.opcode == OP_JCC ? 1 : 0);
+            int labelsrc = condition_buffer.program[opnum][labelkeeper].value;
+            if(used_labels.find(labelsrc) == used_labels.end())
+                used_labels.insert(std::pair<int, int>(labelsrc, m_data.provideLabel()));
+            int labeldest = used_labels.at(labelsrc);
+            op[labelkeeper].value = labeldest;
+        }
+        m_data.program.push_back(op);
+    }
+    for(int i = 0; i < RB_AMOUNT; i++)
+        m_data.regAmount[i] = condition_buffer.regAmount[i];
+}
+
+void CodeCollecting::unpack_ifcond_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, bool jmp2correct)
+{
+    switch (rcp.opcode())
+    {
+    case (OP_AND):
+    {
+        Assert(rcp.children().size() == 2);
+        int innerlabel = condition_buffer.provideLabel();
+        unpack_ifcond_(condition_buffer, rcp.children()[0], innerlabel, labelfalse, false);
+        Syntop toAdd(OP_LABEL, {innerlabel});
+        condition_buffer.program.emplace_back(toAdd);
+        unpack_ifcond_(condition_buffer, rcp.children()[1], labeltrue, labelfalse, false);
+        if(jmp2correct)
+        {
+            Syntop toAdd(OP_JMP, {labelfalse});
+            condition_buffer.program.emplace_back(toAdd);
+        }
+        break;
+    }
+    case (OP_OR):
+    {
+        Assert(rcp.children().size() == 2);
+        unpack_ifcond_(condition_buffer, rcp.children()[0], labeltrue, labelfalse, true);
+        unpack_ifcond_(condition_buffer, rcp.children()[1], labeltrue, labelfalse, false);
+        if(jmp2correct)
+        {
+            Syntop toAdd(OP_JMP, {labelfalse});
+            condition_buffer.program.emplace_back(toAdd);
+        }
+        break;
+    }
+    case (OP_NOT):
+        throw std::runtime_error("Condition deployment: unexpected NOT operator.");
+    case (OP_GT):
+    case (OP_UGT):
+    case (OP_GE):
+    case (OP_LT):
+    case (OP_LE):
+    case (OP_ULE):
+    case (OP_NE):
+    case (OP_EQ):
+    {
+        Assert(rcp.children().size() == 2);
+        std::vector<Arg> args;
+        args.reserve(2);
+        args.push_back(unpack_recipe(rcp.children()[0], 0, &condition_buffer));
+        args.push_back(unpack_recipe(rcp.children()[1], 0, &condition_buffer));
+        Assert(args[0].tag == Arg::IREG || args[1].tag == Arg::IREG);
+        Syntop toAdd(OP_CMP, args);
+        condition_buffer.program.emplace_back(toAdd);
+        args.clear();
+        args.push_back(jmp2correct ? rcp.opcode() : invertCondition(rcp.opcode()));
+        args.push_back(jmp2correct ? labeltrue : labelfalse);
+        Syntop toAdd1(OP_JCC, args);
+        condition_buffer.program.emplace_back(toAdd);
+        break;
+    }
+    case (OP_S):
+    case (OP_NS):
+        throw std::runtime_error("Condition deployment: unexpected Signed/Unsigned check.");
+    default:
+        throw std::runtime_error("Condition deployment: unexpected operation: must be comparisson or logical.");
+    }
+}
+
+void CodeCollecting::reopen_endif()
+{
+    if (!m_data.program.size())
+        throw std::runtime_error("Trying to substitute branch end in empty program.");
+    if (!m_data.program.back().opcode != OP_ENDIF)
+        throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
+    Assert(m_data.program.back().size() == 1);
+    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.back()[0].value));
+    m_data.program.pop_back();
 }
 };

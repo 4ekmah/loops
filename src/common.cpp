@@ -317,24 +317,9 @@ namespace loops
             delete impl;
     }
 
-    void Context::startFunc(const std::string& name, std::initializer_list<IReg*> params) { static_cast<ContextImpl*>(impl)->startFunc(name, params);    }
-    void Context::endFunc() { static_cast<ContextImpl*>(impl)->endFunc(); }
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
     bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
-    void Context::while_(const Recipe& r)  { Recipe r_(r); getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->while_(r_); }
-    void Context::endwhile_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->endwhile_(); }
-    void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->break_(); }
-    void Context::continue_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->continue_(); }
-
-    void Context::if_(const Recipe& r) { Recipe r_(r); getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->if_(r_); }
-    void Context::elif_(const Recipe& r) { Recipe r_(r); getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->elif_(r_); };
-    void Context::else_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->else_(); };
-    void Context::endif_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->endif_(); }
-
-    void Context::return_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(); }
-    // void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(retval); }
-    void Context::return_(const Recipe& retval) { Recipe r_(retval);getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(r_); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
     size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
@@ -347,16 +332,16 @@ namespace loops
         switch (_cftype)
         {
         case(IF):
-            CTX->if_(condition_);
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->if_(condition_);
             break;
         case(ELIF):
-            getImpl(getImpl(CTX)->getCurrentFunc())->get_code_collecting()->subst_elif(condition_);
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_elif(condition_);
             break;
         case(ELSE):
-            getImpl(getImpl(CTX)->getCurrentFunc())->get_code_collecting()->subst_else();
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_else();
             break;
         case(WHILE):
-            CTX->while_(condition_);
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->while_(condition_);
             break;
         default:
             Assert(false);
@@ -366,17 +351,21 @@ namespace loops
     __Loops_CFScopeBracket_::~__Loops_CFScopeBracket_()
     {
         if(cftype == WHILE)
-            CTX->endwhile_();
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->endwhile_();
         else
-            CTX->endif_();
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->endif_();
     }
 
     __Loops_FuncScopeBracket_::__Loops_FuncScopeBracket_(Context* _CTX, const std::string& name, std::initializer_list<IReg*> params): CTX(_CTX)
-    {
-        CTX->startFunc(name, params);
-    }
+    { getImpl(CTX)->startFunc(name, params); }
 
-    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
+    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { getImpl(CTX)->endFunc(); }
+
+    __Loops_CF_rvalue_::__Loops_CF_rvalue_(Context* _CTX) : CTX(_CTX) {}
+    void __Loops_CF_rvalue_::break_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(); }
+    void __Loops_CF_rvalue_::continue_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(); }
+    void __Loops_CF_rvalue_::return_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(); }
+    void __Loops_CF_rvalue_::return_(const Recipe& r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
     exp_consts::exp_consts(Context CTX)
     {

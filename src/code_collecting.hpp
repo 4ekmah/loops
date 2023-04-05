@@ -19,11 +19,11 @@ struct ControlFlowBracket
 {
     enum { WHILE, IF, ELSE };
     size_t tag;
-    size_t labelOrPos;
-    size_t elifRepeats;
+    size_t labelOrPos; //DUBUG: check naming: what's the situation, when it's used as "position"???
+    size_t elif_repeats;
     std::vector<size_t> breaks;
     std::vector<size_t> continues;
-    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t a_elifRep = 0) : tag(a_tag), labelOrPos(a_labelOrPos), elifRepeats(a_elifRep) {}
+    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos) : tag(a_tag), labelOrPos(a_labelOrPos), elif_repeats(0) {}
 };
 
 class CodeCollecting : public CompilerStage
@@ -66,18 +66,18 @@ public:
     void return_(Recipe& r);
 private:
     enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2};
-    Arg unpack_recipe(Recipe& rcp, int flag = 0);
+    Arg unpack_recipe(Recipe& rcp, int flag = 0, Syntfunc* buffer = nullptr);
     enum {UC_ARITHMARGS = 1};
-    Syntop unpack_condition(Recipe& rcp, int flags = 0); //DUBUG:temporary
+    Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
+    Syntop unpack_condition_old(Recipe& rcp, int flags = 0); //DUBUG:temporary
+    void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
+    void unpack_ifcond_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, bool jmp2correct);
+    void reopen_endif();
     Func* m_func;
-    bool m_substConditionBypass;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc& m_data;
-    std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
-
-    int comparisson2jumptype(int cond);
 };
 
 inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Recipe> args_)

@@ -28,7 +28,8 @@ struct f16_t {
 enum {
     TYPE_U8=0, TYPE_I8=1, TYPE_U16=2, TYPE_I16=3,
     TYPE_U32=4, TYPE_I32=5, TYPE_U64=6, TYPE_I64=7,
-    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11};
+    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11 , 
+    TYPE_BOOLEAN};
 
 enum {
     OP_LOAD=0,
@@ -76,23 +77,21 @@ enum {
     OP_S,
     OP_NS,
 
-    OP_JMP,
-    OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
-    OP_JMP_UGT,
-    OP_JMP_GE,
-    OP_JMP_LT,
-    OP_JMP_LE,
-    OP_JMP_ULE,
-    OP_JMP_NE,
-    OP_JMP_EQ,
-    OP_JMP_S,
-    OP_JMP_NS,
+    OP_LOGICAL_AND,
+    OP_LOGICAL_OR,
+    OP_LOGICAL_NOT,
+
+    OP_JMP,         //OP_JCC <cmpcode>, <target_label>
+    OP_JCC,         //OP_JCC <cmpcode>, <target_label>
     OP_RET,
     OP_LABEL,
 
-    OP_IF,
-    OP_ELSE,
-    OP_ENDIF,
+    OP_IF_CSTART,   
+    OP_ELIF_CSTART, //OP_ELIF_COND_START <elselabel, outlabel>
+    OP_IF_CEND,     //OP_IF_COND_END <correctlabel> 
+    OP_ELSE,        //OP_ELSE <elselabel, outlabel>
+    OP_ENDIF,       //OP_ENDIF <outlabel> 
+
     OP_WHILE,  //WHILE  <CMPcode>, <continuelabel>, <breaklabel>  //TODO(ch): keep there more annotations
     OP_ENDWHILE, //ENDWHILE <continuelabel>, <breaklabel>
     OP_BREAK,
@@ -425,6 +424,7 @@ struct Recipe
     inline ~Recipe();
     inline int& opcode();
     inline bool& is_vector();
+    inline bool is_leaf() const;
     inline int& type();
     inline Arg& leaf();
     inline std::vector<Recipe>& children();
@@ -507,6 +507,7 @@ Recipe::Recipe(int a_opcode, bool a_is_vector, int a_type, std::initializer_list
 Recipe::~Recipe() { if(pointee) { if(--(pointee->refcounter) == 0) delete pointee; } }
 int& Recipe::opcode() { if(!pointee) throw std::runtime_error("Null pointer in Recipe."); return pointee->opcode; }
 bool& Recipe::is_vector() { if(!pointee) throw std::runtime_error("Null pointer in Recipe."); return pointee->is_vector; }
+bool Recipe::is_leaf() const {return opcode() == RECIPE_LEAF; }
 int& Recipe::type() { if(!pointee) throw std::runtime_error("Null pointer in Recipe."); return pointee->type;}
 Arg& Recipe::leaf() 
 {
@@ -584,22 +585,6 @@ public:
     this[the only way how connected vectors can be implemented on SVE]).
     */
 
-    // control flow
-    //TODO(ch): IMPORTANT(CMPLCOND) Obsolete interface. Delete after complex condition implementation.
-    void startFunc(const std::string& name, std::initializer_list<IReg*> params);
-    void endFunc();
-    void while_(const Recipe& r);
-    void endwhile_();
-    void break_();
-    void continue_();
-    void if_(const Recipe& r);
-    void elif_(const Recipe& r);
-    void else_();
-    void endif_();
-    void return_();
-    void return_(const Recipe& r);
-    // void return_(const IReg& retval);
-    
     //TODO(ch): make next methods static:
     std::string getPlatformName() const;
     size_t vbytes() const; //size of vector register in bytes
@@ -629,6 +614,28 @@ struct __Loops_FuncScopeBracket_
     operator bool() { return false; }
 };
 
+struct __Loops_CF_rvalue_
+{
+    __Loops_CF_rvalue_(Context* _CTX);
+    Context* CTX;
+    void break_();
+    void continue_();
+    void return_();
+    void return_(const Recipe& r);
+};
+
+static inline Recipe __loops_const_(Context* CTX, int64_t _val)
+{
+    Recipe val(Arg(_val, CTX));
+    return Recipe(OP_MOV, false, TYPE_I64, {val});
+}
+
+static inline Recipe __loops_def_(Context* CTX)
+{
+    Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe. 
+    return Recipe(OP_DEF, false, TYPE_I64, {dummy});
+}
+
 template<typename _Tp>
 Recipe __loops_vconst_(Context* CTX, _Tp _val)
 {
@@ -644,18 +651,6 @@ Recipe __loops_vdef_(Context* CTX)
     return Recipe(VOP_DEF, ElemTraits<_Tp>::depth, {dummy});
 }
 
-static inline Recipe __loops_const_(Context* CTX, int64_t _val)
-{
-    Recipe val(Arg(_val, CTX));
-    return Recipe(OP_MOV, false, TYPE_I64, {val});
-}
-
-static inline Recipe __loops_def_(Context* CTX)
-{
-    Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe. 
-    return Recipe(OP_DEF, false, TYPE_I64, {dummy});
-}
-
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_const_(&__loops_ctx__, x)
@@ -666,9 +661,9 @@ static inline Recipe __loops_def_(Context* CTX)
 #define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
 #define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
-#define BREAK_ __loops_ctx__.break_()
-#define CONTINUE_ __loops_ctx__.continue_()
-#define RETURN_(x) __loops_ctx__.return_(x)
+#define BREAK_ __Loops_CF_rvalue_(__loops_ctx__).break_()
+#define CONTINUE_ __Loops_CF_rvalue_(__loops_ctx__).continue_()
+#define RETURN_(x) _Loops_CF_rvalue_(__loops_ctx__).return_(x)
 
 //DUBUGGG: One of further step is introducing typified Recipes: only root node will be typified in AST, other will keep type in runtime manner
 //So, this is the way to keep compile-time typechecking as it was before introducing AST.
@@ -693,7 +688,7 @@ static inline void assert_haveireg_(::std::initializer_list<Recipe> args)
             allarescalars = false;
             break;
         }
-        else if (arg.opcode() != RECIPE_LEAF || arg.leaf().tag == Arg::IREG)
+        else if (!arg.is_leaf() || arg.leaf().tag == Arg::IREG)
             foundreg = true;
     if(!allarescalars)
         throw std::runtime_error("Unexpected vector.");
@@ -772,7 +767,7 @@ static inline Recipe operator + (const Recipe& a, const Recipe& b)
     if(!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_ADD, false, b.type(), {b, a});
         else
             return Recipe(OP_ADD, false, a.type(), {a, b});
@@ -802,7 +797,7 @@ static inline Recipe operator * (const Recipe& a, const Recipe& b)
     if(!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_MUL, false, b.type(), {b, a});
         else
             return Recipe(OP_MUL, false, a.type(), {a, b});
@@ -856,7 +851,7 @@ static inline Recipe operator >> (const Recipe& a, const Recipe& b)
     {
         //TODO(ch): Support:
         //template<typename _Tp, typename _Sp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Sp>& b)
-        if(b.opcode() != RECIPE_LEAF || b.leaf().tag != Arg::IIMMEDIATE)
+        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Only immediate shifts are supported.");
         return Recipe(VOP_SAR, true, a.type(), {a, b});
 
@@ -873,7 +868,7 @@ static inline Recipe ushift_right (const Recipe& a, const Recipe& b)
     {
         //TODO(ch): Support:
         //template<typename _Tp, typename _Sp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, const VReg<_Sp>& b)
-        if(b.opcode() != RECIPE_LEAF || b.leaf().tag != Arg::IIMMEDIATE)
+        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Only immediate shifts are supported.");
         return Recipe(VOP_SHR, true, a.type(), {a, b});
     }
@@ -890,7 +885,7 @@ static inline Recipe operator << (const Recipe& a, const Recipe& b)
     {
         if(!b.is_vector())
         {
-            if(b.opcode() != RECIPE_LEAF || b.leaf().tag != Arg::IIMMEDIATE)
+            if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Scalar shift must be immediate.");
         }
         else
@@ -910,7 +905,7 @@ static inline Recipe operator & (const Recipe& a, const Recipe& b)
     if(!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_AND, false, b.type(), {b, a});
         else
             return Recipe(OP_AND, false, a.type(), {a, b});
@@ -927,7 +922,7 @@ static inline Recipe operator | (const Recipe& a, const Recipe& b)
     if(!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_OR, false, b.type(), {b, a});
         else
             return Recipe(OP_OR, false, a.type(), {a, b});
@@ -943,7 +938,7 @@ static inline Recipe operator ^ (const Recipe& a, const Recipe& b)
     if(!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_XOR, false, b.type(), {b, a});
         else
             return Recipe(OP_XOR, false, a.type(), {a, b});
@@ -972,7 +967,7 @@ static inline Recipe operator == (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_EQ, false, b.type(), {b, a});
         else
             return Recipe(OP_EQ, false, a.type(), {a, b});
@@ -988,7 +983,7 @@ static inline Recipe operator != (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_NE, false, b.type(), {b, a});
         else
             return Recipe(OP_NE, false, a.type(), {a, b});
@@ -1005,7 +1000,7 @@ static inline Recipe operator <= (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_GE, false, b.type(), {b, a});
         else
             return Recipe(OP_LE, false, a.type(), {a, b});
@@ -1027,7 +1022,7 @@ static inline Recipe operator >= (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_LE, false, b.type(), {b, a});
         else
             return Recipe(OP_GE, false, a.type(), {a, b});
@@ -1048,7 +1043,7 @@ static inline Recipe operator > (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_LT, false, b.type(), {b, a});
         else
             return Recipe(OP_GT, false, a.type(), {a, b});
@@ -1069,7 +1064,7 @@ static inline Recipe operator < (const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_GT, false, b.type(), {b, a});
         else
             return Recipe(OP_LT, false, a.type(), {a, b});
@@ -1084,6 +1079,27 @@ static inline Recipe ult (const Recipe& a, const Recipe& b)
 {
     assert_haveireg_({a, b});
     return Recipe(OP_UGT, false, b.type(), {b, a});//TODO(ch): Ult -> ugt implementation is formed by ARM. Check for better ideas on Intel.
+}
+
+//DUBUGGG: After  Recipe typeification there will be needed Recipe<IReg> -> Recipe<Boolean>(a -> a!=0) transformation with making assertions stronger.
+static inline Recipe operator && (const Recipe& a, const Recipe& b)
+{
+    assert_haveireg_({a});
+    assert_haveireg_({b});
+    return Recipe(OP_LOGICAL_AND, false, TYPE_BOOLEAN, {a, b});
+}
+
+static inline Recipe operator || (const Recipe& a, const Recipe& b)
+{
+    assert_haveireg_({a});
+    assert_haveireg_({b});
+    return Recipe(OP_LOGICAL_OR, false, TYPE_BOOLEAN, {a, b});
+}
+
+static inline Recipe operator ! (const Recipe& a)
+{
+    assert_haveireg_({a});
+    return Recipe(OP_LOGICAL_NOT, false, TYPE_BOOLEAN, {a});
 }
 
 static inline Recipe select(const Recipe& cond, const Recipe& true_, const Recipe& false_)
@@ -1106,7 +1122,7 @@ static inline Recipe max(const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_MAX, false, b.type(), {b, a});
         else
             return Recipe(OP_MAX, false, a.type(), {a, b});
@@ -1122,7 +1138,7 @@ static inline Recipe min(const Recipe& a, const Recipe& b)
     if (!a.is_vector())
     {
         assert_haveireg_({a, b});
-        if(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE)
+        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
             return Recipe(OP_MIN, false, b.type(), {b, a});
         else
             return Recipe(OP_MIN, false, a.type(), {a, b});
@@ -1340,7 +1356,7 @@ template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, const Recipe& b)
     Recipe a(_a);
     if(!b.is_vector()) 
     {
-        if(b.opcode() != RECIPE_LEAF || b.leaf().tag != Arg::IIMMEDIATE)
+        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Only immediate shifts are supported.");
     }
     else

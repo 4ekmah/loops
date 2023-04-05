@@ -275,7 +275,7 @@ namespace loops
     };
 
     class Backend;
-    class CompilerStage
+    class CompilerStage //DUBUG rename -> pass
     {
     public:
         CompilerStage(const Backend* a_backend) : m_backend(a_backend) {}

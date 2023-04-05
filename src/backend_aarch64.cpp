@@ -1639,6 +1639,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             else if(index[0].tag == Arg::VREG) 
                 return SyT(AARCH64_LDR, { SAcop(0), SAreg(SP, AF_ADDRESS), SAcopsar(1,1) });
         }
+        break;
     case (OP_SPILL):
         if(index.size() == 2) 
         {
@@ -1647,14 +1648,24 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             else if(index[1].tag == Arg::VREG) 
                 return SyT(AARCH64_STR, { SAcop(1), SAreg(SP, AF_ADDRESS), SAcopsar(0,1) });
         }
-    case (OP_JMP_NE):   return SyT(AARCH64_B_NE,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_EQ):   return SyT(AARCH64_B_EQ,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_LT):   return SyT(AARCH64_B_LT,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_GT):   return SyT(AARCH64_B_GT,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_UGT):  return SyT(AARCH64_B_HI,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_LE):   return SyT(AARCH64_B_LE,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_ULE):  return SyT(AARCH64_B_LS,{ SAcop(0, AF_PRINTOFFSET) });
-    case (OP_JMP_GE):   return SyT(AARCH64_B_GE,{ SAcop(0, AF_PRINTOFFSET) });
+        break;
+    case (OP_JCC):
+        Assert(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE);
+        switch (index[0].value)
+        {
+        case (OP_NE):   return SyT(AARCH64_B_NE,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_EQ):   return SyT(AARCH64_B_EQ,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_LT):   return SyT(AARCH64_B_LT,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_GT):   return SyT(AARCH64_B_GT,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_UGT):  return SyT(AARCH64_B_HI,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_LE):   return SyT(AARCH64_B_LE,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_ULE):  return SyT(AARCH64_B_LS,{ SAcop(1, AF_PRINTOFFSET) });
+        case (OP_GE):   return SyT(AARCH64_B_GE,{ SAcop(1, AF_PRINTOFFSET) });
+        default:
+            break;
+        };
+        break;
+
     case (OP_JMP):      return SyT(AARCH64_B,   { SAcop(0, AF_PRINTOFFSET) });
     case (OP_RET):      return SyT(AARCH64_RET, { SAreg(LR) });
     default:

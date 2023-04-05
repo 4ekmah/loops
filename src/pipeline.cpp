@@ -32,13 +32,17 @@ void ImmediateImplantation::process(Syntfunc& a_dest, const Syntfunc& a_source)
         switch(op.opcode)
         {
             case (OP_MOV):
-            case (OP_IF):
+            case (OP_IF_CSTART):
+            case (OP_ELIF_CSTART):
+            case (OP_IF_CEND):
             case (OP_ELSE):
             case (OP_ENDIF):
             case (OP_WHILE):
             case (OP_ENDWHILE):
             case (OP_BREAK):
             case (OP_CONTINUE):
+            case (OP_JMP):
+            case (OP_JCC):
             case (OP_DEF):
             case (VOP_DEF):
                 a_dest.program.push_back(op);
@@ -88,6 +92,87 @@ void ImmediateImplantation::process(Syntfunc& a_dest, const Syntfunc& a_source)
         };
 }
 
+ElifElimination::ElifElimination(const Backend* a_backend) : CompilerStage(a_backend){}
+
+void ElifElimination::process(Syntfunc& a_dest, const Syntfunc& a_source)
+{
+    Assert(&a_dest != &a_source);
+    a_dest.name = a_source.name;
+    a_dest.nextLabel = a_source.nextLabel;
+    a_dest.params = a_source.params;
+    for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+        a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+    a_dest.program.clear();
+    a_dest.program.reserve(a_source.program.size()*2);
+    std::deque<ControlFlowBracket> m_cflowStack;
+    for(const Syntop& op: a_source.program)
+        switch(op.opcode)
+        {
+            case (OP_IF_CSTART):
+                m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, 0));
+                a_dest.program.push_back(op);
+                break;
+            case (OP_ELIF_CSTART):
+            {
+                Assert(m_cflowStack.size());
+                if(m_cflowStack.back().tag == ControlFlowBracket::ELSE)
+                    throw std::runtime_error("Control flow bracket error: \"else\" before \"endif\".");
+                Assert(m_cflowStack.back().tag == ControlFlowBracket::IF);
+                Assert(op.size() == 2);
+                int64_t elselabel = op[0].value; 
+                int64_t outlabel = op[1].value; 
+                ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel);
+                ifcf.elif_repeats = m_cflowStack.back().elif_repeats + 1;
+                a_dest.program.push_back(Syntop(OP_ELSE, {Arg(elselabel), Arg(outlabel)}));
+                m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
+                a_dest.program.push_back(Syntop(OP_IF_CSTART, {}));
+                m_cflowStack.emplace_back(ifcf);
+                break;
+            }
+            case (OP_ELSE):
+                Assert(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::IF);
+                m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
+                a_dest.program.push_back(op);
+                break;
+            case (OP_ENDIF):
+            {
+                Assert(m_cflowStack.size());
+                Assert(op.size() == 1);
+                std::deque<int64_t> reversed_endifs;
+                reversed_endifs.push_back(op[0].value);
+                if(m_cflowStack.back().tag == ControlFlowBracket::ELSE)
+                {
+                    m_cflowStack.pop_back();
+                    Assert(m_cflowStack.size());
+                }
+                int last_elif_repeats = 0;
+                do
+                {
+                    ControlFlowBracket drop = m_cflowStack.back();
+                    m_cflowStack.pop_back();
+                    Assert(drop.tag == ControlFlowBracket::IF);
+                    last_elif_repeats = drop.elif_repeats;
+                    if(last_elif_repeats)
+                    {
+                        reversed_endifs.push_back(drop.labelOrPos);
+                        Assert(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::ELSE);
+                        m_cflowStack.pop_back();
+                    }
+                }
+                while(last_elif_repeats);
+                while (reversed_endifs.size())
+                {
+                    a_dest.program.push_back(Syntop(OP_ENDIF, {Arg(reversed_endifs.back())}));
+                    reversed_endifs.pop_back();
+                }
+                break;
+            }
+            default:
+                a_dest.program.push_back(op);
+                break;
+        };
+}
+
 Cf2jumps::Cf2jumps(const Backend* a_backend, int a_epilogueSize) : CompilerStage(a_backend)
     , m_epilogueSize(a_epilogueSize)
 {}
@@ -112,35 +197,27 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
     for(size_t opnum = 0; opnum < bodySize; opnum++)
     {
         const Syntop& op = a_source.program[opnum];
-        switch (op.opcode) {
-        case (OP_IF):
+        switch (op.opcode) 
         {
-            if (op.size() != 2 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong IF command format");
-            a_dest.program.push_back(Syntop(static_cast<int>(op.args[0].value), {op.args[1].value}));
+        case (OP_IF_CSTART):
             break;
-        }
         case (OP_ELSE):
         {
-            if (op.size() != 2 ||
-                op.args[0].tag != Arg::IIMMEDIATE ||
-                op.args[1].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong ELIF command format");
+            Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_JMP, {op.args[1].value}));
             a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
             break;
         }
+        case (OP_IF_CEND):
         case (OP_ENDIF):
         {
-            if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong ENDIF command format");
+            Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
             break;
         }
         case (OP_WHILE):
         {
-            if (op.size() != 3 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE || op.args[2].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong WHILE command format");
+            Assert(op.size() == 3 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE);
             std::vector<Syntop> conditionBackup(a_dest.program.back().spillPrefix + 1);
             a_dest.program.insert(a_dest.program.end() - 1 - a_dest.program.back().spillPrefix,  Syntop(OP_LABEL, {op.args[1].value}));//TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
             a_dest.program.push_back(Syntop(static_cast<int>(op.args[0].value), {op.args[2].value}));
@@ -148,23 +225,20 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
         }
         case (OP_ENDWHILE):
         {
-            if (op.size() != 2 || op.args[0].tag != Arg::IIMMEDIATE || op.args[1].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong DO command format");
+            Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
             a_dest.program.push_back(Syntop(OP_LABEL, {op.args[1].value}));
             break;
         }
         case (OP_BREAK):
         {
-            if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong BREAK command format");
+            Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
             break;
         }
         case (OP_CONTINUE):
         {
-            if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Internal error: wrong CONTINUE command format");
+            Assert(op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
             break;
         }
@@ -205,24 +279,19 @@ void Bytecode2Assembly::process(Syntfunc& a_dest, const Syntfunc& a_source)
         size_t curr_tar_op = a_dest.program.size();
         switch (op.opcode)
         {
-        case (OP_JMP_NE):
-        case (OP_JMP_EQ):
-        case (OP_JMP_LT):
-        case (OP_JMP_GT):
-        case (OP_JMP_UGT):
-        case (OP_JMP_LE):
-        case (OP_JMP_ULE):
-        case (OP_JMP_GE):
+        case (OP_JCC):
         case (OP_JMP):
         {
             //TODO(ch): We need for this purposes something like label/offset manager with transparent logic.
             //AArch64 supports only multiply-4 offsets,
             //so, for compactification, they are divided by 4.
             size_t current_offset_ = current_offset >> m_backend->offsetShift();
-            Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-            label_ref_map[op.args[0].value].emplace_back(a_dest.program.size(), 0, current_offset_);
+            Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE) ||
+                   (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
+            int64_t target_label = op[op.opcode == OP_JCC ? 1 : 0].value;
+            label_ref_map[target_label].emplace_back(a_dest.program.size(), 0, current_offset_);
             Syntop toTransform(op);
-            toTransform[0].value = current_offset_;
+            toTransform[op.opcode == OP_JCC ? 1 : 0].value = current_offset_;
             Syntop tarop = m_backend->lookS2s(toTransform).apply(toTransform, m_backend);
             if(m_backend->postInstructionOffset()) 
                 tarop[0].value += m_backend->lookS2b(tarop).size();
@@ -232,11 +301,11 @@ void Bytecode2Assembly::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case (OP_LABEL):
         {
             size_t current_offset_ = current_offset >> m_backend->offsetShift();
-            if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
+            if (op.size() != 1 || op[0].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Wrong LABEL format.");
-            if (label_map.count(op.args[0].value) != 0)
+            if (label_map.count(op[0].value) != 0)
                 throw std::runtime_error("Label redefinition");
-            label_map[op.args[0].value] = current_offset_;
+            label_map[op[0].value] = current_offset_;
             break;
         }
         case (OP_DEF):
@@ -263,9 +332,9 @@ void Bytecode2Assembly::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 throw std::runtime_error("Internal error: operation number is too big");
             if (lref.argnum >= a_dest.program[lref.opnum].size())
                 throw std::runtime_error("Internal error: operation don't have so much arguments");
-            if (a_dest.program[lref.opnum].args[lref.argnum].tag != Arg::IIMMEDIATE)
+            if (a_dest.program[lref.opnum][lref.argnum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Internal error: operation don't have so much arguments");
-            int64_t& opoff = a_dest.program[lref.opnum].args[lref.argnum].value;
+            int64_t& opoff = a_dest.program[lref.opnum][lref.argnum].value;
             opoff = (loff - opoff);
         }
     }
@@ -343,6 +412,8 @@ void Pipeline::run()
     run_stage(&m_codecol);
     ImmediateImplantation immImplantation(m_backend);
     run_stage(&immImplantation);
+    ElifElimination eilfElimination(m_backend);
+    run_stage(&eilfElimination);
     auto beforeRegAlloc = m_backend->getBeforeRegAllocStages();
     for (CompilerStagePtr braStage : beforeRegAlloc)
         run_stage(braStage.get());

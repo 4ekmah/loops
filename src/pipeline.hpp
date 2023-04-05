@@ -22,6 +22,7 @@ enum
     CS_NOSTAGE = 0,
     CS_COLLECTING,
     CS_IMMEDIATE_IMPLANTATION,
+    CS_ELIF_ELIMINATION,
     CS_LIVENESS_ANALYSIS,
     CS_REGISTER_ALLOCATION,
     CS_CONTROLFLOW_TO_JUMPS,
@@ -38,6 +39,18 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual StageID stage_id() const override final { return CS_IMMEDIATE_IMPLANTATION; }
     virtual ~ImmediateImplantation() {}
+private:
+    int m_epilogueSize;
+};
+
+class ElifElimination: public CompilerStage
+{
+public:
+    ElifElimination(const Backend* a_backend);
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+    virtual bool is_inplace() const override final { return false; }
+    virtual StageID stage_id() const override final { return CS_ELIF_ELIMINATION; }
+    virtual ~ElifElimination() {}
 private:
     int m_epilogueSize;
 };
