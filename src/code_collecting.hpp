@@ -19,11 +19,9 @@ struct ControlFlowBracket
 {
     enum { WHILE, IF, ELSE };
     size_t tag;
-    size_t labelOrPos; //DUBUG: check naming: what's the situation, when it's used as "position"???
-    size_t elif_repeats;
-    std::vector<size_t> breaks;
-    std::vector<size_t> continues;
-    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos) : tag(a_tag), labelOrPos(a_labelOrPos), elif_repeats(0) {}
+    size_t label_or_pos; //Used as operation num in regeister allocator, as label id otherwise.
+    size_t auxfield; //Used as additional label id or as elif counter.
+    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
 };
 
 class CodeCollecting : public CompilerStage
@@ -67,17 +65,17 @@ public:
 private:
     enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2};
     Arg unpack_recipe(Recipe& rcp, int flag = 0, Syntfunc* buffer = nullptr);
-    enum {UC_ARITHMARGS = 1};
     Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
-    Syntop unpack_condition_old(Recipe& rcp, int flags = 0); //DUBUG:temporary
+    Syntop unpack_condition_old(Recipe& rcp); //DUBUG:temporary
     void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
     void unpack_ifcond_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, bool jmp2correct);
-    void reopen_endif();
+    void reopen_endif(bool cond_prefix_allowed = false);
     Func* m_func;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc& m_data;
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
+    
 };
 
 inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Recipe> args_)

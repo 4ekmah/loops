@@ -210,8 +210,6 @@ namespace loops
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         size_t args_size;
-        int spillPrefix;  //TODO(ch): IMPORTANT(CMPLCOND) : delete
-        int spillPostfix; //TODO(ch): IMPORTANT(CMPLCOND) : delete
         Syntop();
         Syntop(const Syntop& fwho);
         Syntop(int a_opcode, const std::vector<Arg>& a_args);

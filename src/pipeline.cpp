@@ -34,10 +34,9 @@ void ImmediateImplantation::process(Syntfunc& a_dest, const Syntfunc& a_source)
             case (OP_MOV):
             case (OP_IF_CSTART):
             case (OP_ELIF_CSTART):
-            case (OP_IF_CEND):
             case (OP_ELSE):
             case (OP_ENDIF):
-            case (OP_WHILE):
+            case (OP_WHILE_CSTART):
             case (OP_ENDWHILE):
             case (OP_BREAK):
             case (OP_CONTINUE):
@@ -121,8 +120,7 @@ void ElifElimination::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 Assert(op.size() == 2);
                 int64_t elselabel = op[0].value; 
                 int64_t outlabel = op[1].value; 
-                ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel);
-                ifcf.elif_repeats = m_cflowStack.back().elif_repeats + 1;
+                ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel, m_cflowStack.back().auxfield + 1);
                 a_dest.program.push_back(Syntop(OP_ELSE, {Arg(elselabel), Arg(outlabel)}));
                 m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
                 a_dest.program.push_back(Syntop(OP_IF_CSTART, {}));
@@ -148,13 +146,13 @@ void ElifElimination::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 int last_elif_repeats = 0;
                 do
                 {
-                    ControlFlowBracket drop = m_cflowStack.back();
+                    ControlFlowBracket bracket = m_cflowStack.back();
                     m_cflowStack.pop_back();
-                    Assert(drop.tag == ControlFlowBracket::IF);
-                    last_elif_repeats = drop.elif_repeats;
+                    Assert(bracket.tag == ControlFlowBracket::IF);
+                    last_elif_repeats = bracket.auxfield;
                     if(last_elif_repeats)
                     {
-                        reversed_endifs.push_back(drop.labelOrPos);
+                        reversed_endifs.push_back(bracket.label_or_pos);
                         Assert(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::ELSE);
                         m_cflowStack.pop_back();
                     }
@@ -200,6 +198,8 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
         switch (op.opcode) 
         {
         case (OP_IF_CSTART):
+        case (OP_IF_CEND):
+        case (OP_WHILE_CEND):
             break;
         case (OP_ELSE):
         {
@@ -208,19 +208,11 @@ void Cf2jumps::process(Syntfunc& a_dest, const Syntfunc& a_source)
             a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
             break;
         }
-        case (OP_IF_CEND):
+        case (OP_WHILE_CSTART):
         case (OP_ENDIF):
         {
             Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
             a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
-            break;
-        }
-        case (OP_WHILE):
-        {
-            Assert(op.size() == 3 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE);
-            std::vector<Syntop> conditionBackup(a_dest.program.back().spillPrefix + 1);
-            a_dest.program.insert(a_dest.program.end() - 1 - a_dest.program.back().spillPrefix,  Syntop(OP_LABEL, {op.args[1].value}));//TODO(ch): IMPORTANT(CMPLCOND): This mean that condition can be one-instruction only.
-            a_dest.program.push_back(Syntop(static_cast<int>(op.args[0].value), {op.args[2].value}));
             break;
         }
         case (OP_ENDWHILE):

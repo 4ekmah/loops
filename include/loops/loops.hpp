@@ -81,19 +81,22 @@ enum {
     OP_LOGICAL_OR,
     OP_LOGICAL_NOT,
 
-    OP_JMP,         //OP_JCC <cmpcode>, <target_label>
+    OP_JMP,         //OP_JMP <target_label>             //TODO(ch): keep there more annotations
     OP_JCC,         //OP_JCC <cmpcode>, <target_label>
     OP_RET,
     OP_LABEL,
 
+    OP_STEM_CSTART,
+
     OP_IF_CSTART,   
-    OP_ELIF_CSTART, //OP_ELIF_COND_START <elselabel, outlabel>
-    OP_IF_CEND,     //OP_IF_COND_END <correctlabel> 
+    OP_ELIF_CSTART, //OP_ELIF_CSTART <elselabel, outlabel>
+    OP_IF_CEND,     //OP_IF_CEND
     OP_ELSE,        //OP_ELSE <elselabel, outlabel>
     OP_ENDIF,       //OP_ENDIF <outlabel> 
 
-    OP_WHILE,  //WHILE  <CMPcode>, <continuelabel>, <breaklabel>  //TODO(ch): keep there more annotations
-    OP_ENDWHILE, //ENDWHILE <continuelabel>, <breaklabel>
+    OP_WHILE_CSTART,//OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND,  //OP_WHILE_CEND
+    OP_ENDWHILE,    //OP_ENDWHILE <continuelabel>, <breaklabel>
     OP_BREAK,
     OP_CONTINUE,
 
@@ -596,10 +599,17 @@ protected:
     Context* impl;
 };
 
+struct __Loops_CondPrefixMarker_
+{
+    __Loops_CondPrefixMarker_(Context& CTX_);
+    Context* CTX;
+};
+
 struct __Loops_CFScopeBracket_
 {
     enum CFType {IF, ELIF, ELSE, WHILE };
-    explicit __Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const Recipe& condition);
+    explicit __Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const Recipe& condition);
+    explicit __Loops_CFScopeBracket_(Context& inh);
     ~__Loops_CFScopeBracket_();
     Context* CTX;
     CFType cftype;
@@ -651,19 +661,22 @@ Recipe __loops_vdef_(Context* CTX)
     return Recipe(VOP_DEF, ElemTraits<_Tp>::depth, {dummy});
 }
 
+//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be 
+//done independently of status of already evaluated conditions. It's result of code collection procedure traits. Probably, it should be fixed, but it's not easy.
+
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) __loops_const_(&__loops_ctx__, x)
 #define DEF_(x) __loops_def_<eltyp>(&__loops_ctx__)
 #define VCONST_(eltyp, x) __loops_vconst_<eltyp>(&__loops_ctx__, x)
 #define VDEF_(eltyp) __loops_vdef_<eltyp>(&__loops_ctx__)
-#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
-#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
-#define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
-#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
-#define BREAK_ __Loops_CF_rvalue_(__loops_ctx__).break_()
-#define CONTINUE_ __Loops_CF_rvalue_(__loops_ctx__).continue_()
-#define RETURN_(x) _Loops_CF_rvalue_(__loops_ctx__).return_(x)
+#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::IF, (expr)}) ; else
+#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
+#define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{__loops_ctx__}) ; else
+#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
+#define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
+#define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
+#define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
 
 //DUBUGGG: One of further step is introducing typified Recipes: only root node will be typified in AST, other will keep type in runtime manner
 //So, this is the way to keep compile-time typechecking as it was before introducing AST.

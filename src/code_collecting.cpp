@@ -87,60 +87,27 @@ void CodeCollecting::reg_assign(const Arg& target, Recipe& fromwho)
 
 void CodeCollecting::while_(Recipe& r)    //TODO(ch): Implement with jmp-alignops-body-cmp-jmptobody scheme.
 {
-    Syntop cmpop = unpack_condition_old(r);
-    m_data.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
-    size_t nextPos = m_data.program.size();
-    size_t contLabel = m_data.provideLabel();
-    size_t brekLabel = Syntfunc::NOLABEL;
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, nextPos));
-    int jumptype = 0;                                 //DUBUGGG: delete this dummy stub!
-// int jumptype = comparisson2jumptype(invertCondition(cmpop.opcode));
-// int CodeCollecting::comparisson2jumptype(int cond) //DUBUGGG: delete!
-// {
-//     return cond == OP_EQ  ? OP_JMP_EQ  : (
-//            cond == OP_NE  ? OP_JMP_NE  : (
-//            cond == OP_LT  ? OP_JMP_LT  : (
-//            cond == OP_GT  ? OP_JMP_GT  : (
-//            cond == OP_UGT ? OP_JMP_UGT : (
-//            cond == OP_LE  ? OP_JMP_LE  : (
-//            cond == OP_ULE ? OP_JMP_ULE : (
-//            cond == OP_GE  ? OP_JMP_GE  : (
-//            cond == OP_S   ? OP_JMP_S   : (
-//            cond == OP_NS  ? OP_JMP_NS  : OP_JMP)))))))));
-// }
-    if (jumptype == OP_JMP)
-        throw std::runtime_error("Temporary condition solution failed."); //TODO(ch): IMPORTANT(CMPLCOND)
-    m_data.program.push_back(Syntop(OP_WHILE, {argIImm(jumptype, m_func), argIImm(contLabel, m_func), argIImm(brekLabel, m_func)}));
+    int continuelabel = m_data.provideLabel();
+    int bodylabel = m_data.provideLabel();
+    int breaklabel = m_data.provideLabel();
+    int stem_cstart_pos = m_data.program.size() - 1;
+    while(stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART) stem_cstart_pos--;
+    Assert(stem_cstart_pos >= 0);
+    m_data.program[stem_cstart_pos] = Syntop(OP_WHILE_CSTART, {Arg(continuelabel)});
+    unpack_condition(r, bodylabel, breaklabel);
+    m_data.program.push_back(Syntop(OP_WHILE_CEND, {}));
+    m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::WHILE, breaklabel, continuelabel));
 }
 
 void CodeCollecting::endwhile_()
 {
-    if (m_cflowStack.size() == 0)
+    if (m_cflowStack.size() == 0 || m_cflowStack.back().tag != ControlFlowBracket::WHILE)
         throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"endwhile\".");
     auto bracket = m_cflowStack.back();
     m_cflowStack.pop_back();
-    if (bracket.tag != ControlFlowBracket::WHILE)
-        throw std::runtime_error("Control flow bracket error: expected corresponding \"while\" for \"endwhile\".");
-    size_t nextPos = m_data.program.size();
-    size_t whilePos = bracket.labelOrPos;
-    if(whilePos >= nextPos)
-        throw std::runtime_error("\"While\" internal error: wrong branch start address.");
-    Syntop& whileOp = m_data.program[whilePos];
-    if (whileOp.opcode!= OP_WHILE || whileOp.size() != 3 || whileOp[0].tag != Arg::IIMMEDIATE || whileOp[1].tag != Arg::IIMMEDIATE || whileOp[2].tag != Arg::IIMMEDIATE)
-        throw std::runtime_error("\"While\" internal error: wrong command format.");
-    size_t brekLabel = m_data.provideLabel();
-    whileOp[2].value = brekLabel;
-    size_t contLabel = whileOp[1].value;
-    for(size_t bre : bracket.breaks)
-    {
-        if (bre >= m_data.program.size())
-            throw std::runtime_error("\"While\" internal error: wrong \"break\" address.");
-        Syntop& breop = m_data.program[bre];
-        if (breop.opcode != OP_BREAK || breop.size() != 1 || breop.args[0].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("\"While\" internal error: wrong \"break\" command format.");
-        breop[0].value = brekLabel;
-    }
-    m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(contLabel, m_func), argIImm(brekLabel, m_func)}));
+    int continuelabel = bracket.label_or_pos;
+    int breaklabel = bracket.auxfield;
+    m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(continuelabel, m_func), argIImm(breaklabel, m_func)}));
 }
 
 void CodeCollecting::break_()
@@ -151,9 +118,9 @@ void CodeCollecting::break_()
             break;
     size_t nextPos = m_data.program.size();
     if (rator == m_cflowStack.rend())
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"break\".");
-    rator->breaks.push_back(nextPos);
-    m_data.program.push_back(Syntop(OP_BREAK, {argIImm(0,m_func)}));
+        throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"break\".");
+    int breaklabel = rator->auxfield;
+    m_data.program.push_back(Syntop(OP_BREAK, {Arg(breaklabel)}));
 }
 
 void CodeCollecting::continue_()
@@ -162,33 +129,24 @@ void CodeCollecting::continue_()
     for(; rator != m_cflowStack.rend(); ++rator)
         if(rator->tag == ControlFlowBracket::WHILE)
             break;
-    if (rator == m_cflowStack.rend())
-        throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"break\".");
     size_t nextPos = m_data.program.size();
-    size_t targetLabel = 0;
-    if(rator->tag == ControlFlowBracket::WHILE)
-    {
-        size_t whilePos = rator->labelOrPos;
-        if(whilePos >= m_data.program.size())
-            throw std::runtime_error("\"While\" internal error: wrong branch start address.");
-        Syntop& whileOp = m_data.program[whilePos];
-        if (whileOp.opcode!= OP_WHILE || whileOp.size() != 3 || whileOp[0].tag != Arg::IIMMEDIATE || whileOp[1].tag != Arg::IIMMEDIATE || whileOp[2].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("\"While\" internal error: wrong command format.");
-        targetLabel = whileOp[1].value;
-    }
-    else
-        rator->continues.push_back(nextPos);
-    m_data.program.push_back(Syntop(OP_CONTINUE, {argIImm(targetLabel,m_func)}));
+    if (rator == m_cflowStack.rend())
+        throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"continue\".");
+    int continuelabel = rator->label_or_pos;
+    m_data.program.push_back(Syntop(OP_BREAK, {Arg(continuelabel)}));
 }
 
 void CodeCollecting::if_(Recipe& r)
 {
     int thenlabel = m_data.provideLabel();
     int endlabel = m_data.provideLabel();
-    m_data.program.push_back(Syntop(OP_IF_CSTART, {}));
+    int stem_cstart_pos = m_data.program.size() - 1;
+    while(stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART) stem_cstart_pos--;
+    Assert(stem_cstart_pos >= 0);
+    m_data.program[stem_cstart_pos] = Syntop(OP_IF_CSTART, {});
     unpack_condition(r, thenlabel, endlabel);
-    m_data.program.push_back(Syntop(OP_IF_CEND, {Arg(thenlabel)}));
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, endlabel));
+    m_data.program.push_back(Syntop(OP_IF_CEND, {}));
+    m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, endlabel));
 }
 
 void CodeCollecting::elif_(Recipe& r)
@@ -200,12 +158,15 @@ void CodeCollecting::elif_(Recipe& r)
     if (bracket.tag != ControlFlowBracket::IF)
         throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
     int outlabel = m_data.provideLabel();
-    m_data.program.push_back(Syntop(OP_ELIF_CSTART, {Arg(bracket.labelOrPos), Arg(outlabel)}));
+    int stem_cstart_pos = m_data.program.size() - 1;
+    while(stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART) stem_cstart_pos--;
+    Assert(stem_cstart_pos >= 0);
+    m_data.program[stem_cstart_pos] = Syntop(OP_ELIF_CSTART, {Arg(bracket.label_or_pos), Arg(outlabel)});
     int thenlabel = m_data.provideLabel();
     int new_end_label = m_data.provideLabel();
     unpack_condition(r, thenlabel, new_end_label);
-    m_data.program.push_back(Syntop(OP_IF_CEND, {Arg(thenlabel)}));
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, new_end_label));
+    m_data.program.push_back(Syntop(OP_IF_CEND, {}));
+    m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, new_end_label));
 }
 
 void CodeCollecting::else_()
@@ -217,13 +178,13 @@ void CodeCollecting::else_()
     if (bracket.tag != ControlFlowBracket::IF)
         throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"else\".");
     int outlabel = m_data.provideLabel();
-    m_data.program.push_back(Syntop(OP_ELSE, {Arg(bracket.labelOrPos), Arg(outlabel)}));
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, outlabel));
+    m_data.program.push_back(Syntop(OP_ELSE, {Arg(bracket.label_or_pos), Arg(outlabel)}));
+    m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, outlabel));
 }
 
 void CodeCollecting::subst_elif(Recipe& r)
 {
-    reopen_endif();
+    reopen_endif(true);
     elif_(r);
 }
 
@@ -241,7 +202,7 @@ void CodeCollecting::endif_()
     m_cflowStack.pop_back();
     if (bracket.tag != ControlFlowBracket::IF && bracket.tag != ControlFlowBracket::ELSE)
         throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", \"elif\" or \"else\" for \"endif\".");
-    m_data.program.push_back(Syntop(OP_ENDIF, {Arg(bracket.labelOrPos)}));
+    m_data.program.push_back(Syntop(OP_ENDIF, {Arg(bracket.label_or_pos)}));
 }
 
 void CodeCollecting::return_()
@@ -297,7 +258,7 @@ Arg CodeCollecting::unpack_recipe(Recipe& rcp, int flags, Syntfunc* buffer)
             //TODO(ch): In truth, i'm not sure, that select doesn't support immediates on all the archs, so, this usage of UR_WRAPIIMM must be reconsidered
             Arg truev = unpack_recipe(rcp.children()[1], UR_WRAPIIMM);
             Arg falsev = unpack_recipe(rcp.children()[2], UR_WRAPIIMM);
-            Syntop cmpop = unpack_condition_old(rcp.children()[0], UC_ARITHMARGS);
+            Syntop cmpop = unpack_condition_old(rcp.children()[0]);
             outbuf.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
             res.func = m_func;
@@ -362,7 +323,7 @@ Recipe CodeCollecting::eliminate_not(Recipe& rcp, bool inverseflag)
     };
 }
 
-Syntop CodeCollecting::unpack_condition_old(Recipe& rcp, int flags)
+Syntop CodeCollecting::unpack_condition_old(Recipe& rcp)
 {
     switch (rcp.opcode())
     {
@@ -378,8 +339,6 @@ Syntop CodeCollecting::unpack_condition_old(Recipe& rcp, int flags)
     case (OP_NS):
     {
         Assert(rcp.children().size() == 2);
-        if(!rcp.children()[0].is_leaf() || !rcp.children()[1].is_leaf() && (flags & UC_ARITHMARGS == 0))
-            throw std::runtime_error("Temporary condition solution: conditions other than one comparison of two simple arguments are not supported.");
         std::vector<Arg> args;
         args.reserve(2);
         args.push_back(unpack_recipe(rcp.children()[0]));
@@ -396,8 +355,6 @@ Syntop CodeCollecting::unpack_condition_old(Recipe& rcp, int flags)
 
 void CodeCollecting::unpack_condition(Recipe& rcp, int true_jmp, int false_jmp)
 {
-    //TODO(ch)[impl]: There is a very questionable restriction there: code, generated by calculational expressions must not contain embedded loops and embranchments.
-    //DUBUGGG: At least, create dignostic error: "Embranchments in conditions are not supported!". Probably, it's the best scheme!
     Recipe r = eliminate_not(rcp);
     Syntfunc condition_buffer;
     for(int i = 0; i < RB_AMOUNT; i++)  
@@ -405,7 +362,7 @@ void CodeCollecting::unpack_condition(Recipe& rcp, int true_jmp, int false_jmp)
     condition_buffer.nextLabel = 2; //0 and 1 are reserved for then and else branches labels
 
     unpack_ifcond_(condition_buffer, r, 0, 1, false);
-    condition_buffer.program.emplace_back(Syntop(OP_LABEL, {Arg(0)})); //TODO(ch): on condition-tail while, this label must not be added.
+    condition_buffer.program.emplace_back(Syntop(OP_LABEL, {Arg(0)}));
     //1.) Delete consecutive labels
     std::unordered_map<int, int> labelRenaming;
     int targetOpnum = 0;
@@ -581,14 +538,29 @@ void CodeCollecting::unpack_ifcond_(Syntfunc& condition_buffer, Recipe& rcp, int
     }
 }
 
-void CodeCollecting::reopen_endif()
+void CodeCollecting::reopen_endif(bool cond_prefix_allowed)
 {
     if (!m_data.program.size())
         throw std::runtime_error("Trying to substitute branch end in empty program.");
-    if (!m_data.program.back().opcode != OP_ENDIF)
-        throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
-    Assert(m_data.program.back().size() == 1);
-    m_cflowStack.push_back(ControlFlowBracket(ControlFlowBracket::IF, m_data.program.back()[0].value));
-    m_data.program.pop_back();
+    int endif_to_reopen;
+    if(cond_prefix_allowed)
+    {
+        int stem_cstart_pos = m_data.program.size() - 1;
+        while(stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART) stem_cstart_pos--;
+        Assert(stem_cstart_pos >= 0);
+        if (stem_cstart_pos == 0 || !m_data.program[stem_cstart_pos - 1].opcode != OP_ENDIF)
+            throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
+        endif_to_reopen = m_data.program.back()[0].value;
+        m_data.program.erase(m_data.program.begin() + stem_cstart_pos - 1);
+    }
+    else
+    {
+        if (!m_data.program.back().opcode != OP_ENDIF)
+            throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
+        Assert(m_data.program.back().size() == 1);
+        endif_to_reopen = m_data.program.back()[0].value;
+        m_data.program.pop_back();
+    }
+    m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, endif_to_reopen));
 }
 };

@@ -326,26 +326,34 @@ namespace loops
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
     void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
 
-    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const Recipe& condition) : CTX(_CTX), cftype(_cftype)
+    __Loops_CondPrefixMarker_::__Loops_CondPrefixMarker_(Context& CTX_):CTX(&CTX_) 
     {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_STEM_CSTART, {});
+    }
+
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const Recipe& condition) : CTX(inh.CTX), cftype(_cftype)
+    {
+        CodeCollecting* coll = getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting();
         Recipe condition_(condition);
         switch (_cftype)
         {
         case(IF):
-            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->if_(condition_);
+            coll->if_(condition_);
             break;
         case(ELIF):
-            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_elif(condition_);
-            break;
-        case(ELSE):
-            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_else();
+            coll->subst_elif(condition_);
             break;
         case(WHILE):
-            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->while_(condition_);
+            coll->while_(condition_);
             break;
         default:
             Assert(false);
         }
+    }
+
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context& _CTX) : CTX(&_CTX), cftype(ELSE)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_else();
     }
 
     __Loops_CFScopeBracket_::~__Loops_CFScopeBracket_()
@@ -431,29 +439,29 @@ namespace loops
         FuncImpl::verifyArgs({me, fromwho})->get_code_collecting()->reg_assign(target, fromwho_);
     }
 
-    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
-    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
+    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
+    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
