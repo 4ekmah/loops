@@ -672,6 +672,46 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 return BiT({ BTsta(0b01001110010, 11), BTreg(2, 5, In), BTsta(0b001101, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
+    case (AARCH64_SMINV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && isSignedInteger(index[0].elemtype) && elemSize(index[0].elemtype) <= 4)
+        {
+            uint64_t sizeStat = intSizeStats[index[0].elemtype];
+            return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b110001101010, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_SMAXV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && isSignedInteger(index[0].elemtype) && elemSize(index[0].elemtype) <= 4)
+        {
+            uint64_t sizeStat = intSizeStats[index[0].elemtype];
+            return BiT({ BTsta(0b01001110,8), BTsta(sizeStat,2), BTsta(0b110000101010, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_UMINV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && isUnsignedInteger(index[0].elemtype) && elemSize(index[0].elemtype) <= 4)
+        {
+            uint64_t sizeStat = intSizeStats[index[0].elemtype];
+            return BiT({ BTsta(0b01101110,8), BTsta(sizeStat,2), BTsta(0b110001101010, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_UMAXV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && isUnsignedInteger(index[0].elemtype) && elemSize(index[0].elemtype) <= 4)
+        {
+            uint64_t sizeStat = intSizeStats[index[0].elemtype];
+            return BiT({ BTsta(0b01101110,8), BTsta(sizeStat,2), BTsta(0b110000101010, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_FMINV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP32)
+            return BiT({ BTsta(0b0110111010110000111110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP16)
+            return BiT({ BTsta(0b0100111010110000111110,22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        break;
+    case (AARCH64_FMAXV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP32)
+            return BiT({ BTsta(0b0110111000110000111110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP16)
+            return BiT({ BTsta(0b0100111000110000111110,22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        break;
     case (AARCH64_FCVTZS):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype))
         {
@@ -840,6 +880,17 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(dupSizeStat != WrongStat);
             return BiT({ BTsta(0b01001110000, 11), BTsta(dupSizeStat, 5), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
+        else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE && index[0].elemtype == index[1].elemtype)
+        {
+            int elemsize = elemSize(index[0].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t sizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, 3 };
+            uint64_t sizIdx = sizIdxs[elemsize];
+            Assert(sizIdx != WrongStat);
+            static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
+            static const uint64_t sizStatSiz[] = {1, 2, 3, 4};
+            return BiT({ BTsta(0b01001110000, 11), BTimm(2, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0b000001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
         break;
     case (AARCH64_UMOV):
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
@@ -871,7 +922,73 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
             return BiT({ BTsta(0b01001110000, 11), BTimm(1,5 - dupSizeSWidth), BTsta(dupSizeStat, dupSizeSWidth), BTsta(0b000111, 6), BTreg(2, 5, In), BTreg(0, 5, IO) });
         }
-        break;    
+        else if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::VREG && index[3].tag == Arg::IIMMEDIATE && index[0].elemtype == index[2].elemtype)
+        {
+            int elemsize = elemSize(index[0].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t sizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, 3 };
+            uint64_t sizIdx = sizIdxs[elemsize];
+            Assert(sizIdx != WrongStat);
+            static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
+            static const uint64_t sizStatSiz[] = {1, 2, 3, 4};
+            return BiT({ BTsta(0b01101110000, 11), BTimm(1, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0, 1), BTimm(3, 5-sizStatSiz[sizIdx]), BTsta(0, sizStatSiz[sizIdx] - 1), BTsta(1, 1), BTreg(2, 5, In), BTreg(0, 5, Out) });
+        }
+
+        break;
+    case (AARCH64_SSHLL):
+    case (AARCH64_SSHLL2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
+           isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype) &&
+           elemSize(index[0].elemtype) == 2 * elemSize(index[1].elemtype))
+        {
+            int opprefix = index.opcode == AARCH64_SSHLL2 ? 0b010011110 : 0b000011110;
+            int elemsize = elemSize(index[1].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
+            uint64_t esizIdx = esizIdxs[elemsize];
+            Assert(esizIdx != WrongStat);
+            static const uint64_t esizeStatSizes[] = {4, 3, 2};
+            uint64_t esizSSiz = esizeStatSizes[esizIdx];
+            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            if(index[2].value > shiftFieldMask[esizIdx])
+                break;
+            return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_USHLL):
+    case (AARCH64_USHLL2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
+           isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype) &&
+           elemSize(index[0].elemtype) == 2 * elemSize(index[1].elemtype))
+        {
+            int opprefix = index.opcode == AARCH64_USHLL2 ? 0b011011110 : 0b001011110;
+            int elemsize = elemSize(index[1].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
+            uint64_t esizIdx = esizIdxs[elemsize];
+            Assert(esizIdx != WrongStat);
+            static const uint64_t esizeStatSizes[] = {4, 3, 2};
+            uint64_t esizSSiz = esizeStatSizes[esizIdx];
+            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            if(index[2].value > shiftFieldMask[esizIdx])
+                break;
+            return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_XTN):
+    case (AARCH64_XTN2):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&
+           isInteger(index[0].elemtype) && 2 * elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
+        {
+            int opprefix = index.opcode == AARCH64_XTN2 ? 0b01001110 : 0b00001110;
+            int elemsize = elemSize(index[0].elemtype);
+            const uint64_t WrongStat = 0xFFFFFFFF;
+            static const uint64_t esizStats[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
+            uint64_t esizStat = esizStats[elemsize];
+            Assert(esizStat != WrongStat);
+            return BiT({ BTsta(opprefix, 8), BTsta(esizStat, 2), BTsta(0b100001001010, 12), BTreg(1, 5, In), BTreg(0, 5, IO) });
+        }
+        break;
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
@@ -1430,8 +1547,61 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         }
         break;
     case (VOP_BROADCAST):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE && index[0].elemtype == index[1].elemtype)
+        {
+            int lanes = 16 / elemSize(index[0].elemtype);
+            if(index[2].value < lanes)
+                return SyT(AARCH64_DUP, { SAcop(0), SAcop(1), SAcop(2)});
+        }
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
             return SyT(AARCH64_DUP, { SAcop(0), SAcop(1) });
+        break;
+    case (VOP_CAST_LOW):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == 2 * elemSize(index[1].elemtype))
+        {
+            if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype))
+                return SyT(AARCH64_SSHLL, { SAcop(0), SAcop(1), SAimm(0)});
+            else if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))
+                return SyT(AARCH64_USHLL, { SAcop(0), SAcop(1), SAimm(0)});
+        }
+        break;
+    case (VOP_CAST_HIGH):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elemSize(index[0].elemtype) == 2 * elemSize(index[1].elemtype))
+        {
+            if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype))
+                return SyT(AARCH64_SSHLL2, { SAcop(0), SAcop(1), SAimm(0)}); //TODO(ch): shift operation can be added to bytecode instruction set for better USSHL/SSHL representation.
+            else if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))
+                return SyT(AARCH64_USHLL2, { SAcop(0), SAcop(1), SAimm(0) });
+        }
+        break;
+    case (VOP_SHRINK_LOW):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && 2 * elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isInteger(index[0].elemtype))
+            return SyT(AARCH64_XTN, { SAcop(0), SAcop(1) });
+    case (VOP_SHRINK_HIGH):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && 2 * elemSize(index[0].elemtype) == elemSize(index[1].elemtype) && isInteger(index[0].elemtype))
+            return SyT(AARCH64_XTN2, { SAcop(0), SAcop(1) });
+    case (VOP_REDUCE_MAX):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && elemSize(index[0].elemtype) <= 4)
+        {
+            if(isSignedInteger(index[0].elemtype))
+                return SyT(AARCH64_SMAXV, { SAcop(0), SAcop(1) });
+            else if(isUnsignedInteger(index[0].elemtype))
+                return SyT(AARCH64_UMAXV, { SAcop(0), SAcop(1) });
+            else if(index[0].elemtype == TYPE_FP16 || index[0].elemtype == TYPE_FP32 )
+                return SyT(AARCH64_FMAXV, { SAcop(0), SAcop(1) });
+        }
+        break;
+    case (VOP_REDUCE_MIN):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && elemSize(index[0].elemtype) <= 4)
+        {
+            if(isSignedInteger( index[0].elemtype))
+                return SyT(AARCH64_SMINV, { SAcop(0), SAcop(1) });
+            else if(isUnsignedInteger(index[0].elemtype))
+                return SyT(AARCH64_UMINV, { SAcop(0), SAcop(1) });
+            else if(index[0].elemtype == TYPE_FP16 || index[0].elemtype == TYPE_FP32 )
+                return SyT(AARCH64_FMINV, { SAcop(0), SAcop(1) });
+        }
+        break;
     case (VOP_GETLANE):
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE &&
           (index[1].elemtype == TYPE_U8   ||
@@ -1441,7 +1611,13 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             return SyT(AARCH64_UMOV, { SAcop(0), SAcop(1), SAcop(2)});
         break;
     case (VOP_SETLANE):
-        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+        if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::VREG && index[3].tag == Arg::IIMMEDIATE && index[0].elemtype == index[2].elemtype)
+        {
+            int lanes = 16 / elemSize(index[0].elemtype);
+            if(index[1].value < lanes && index[3].value < lanes)
+                return SyT(AARCH64_INS, { SAcop(0), SAcop(1), SAcop(2), SAcop(3)});
+        }
+        else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
             return SyT(AARCH64_INS, { SAcop(0), SAcop(1), SAcop(2) });
         break;
     case (OP_UNSPILL):
@@ -1754,6 +1930,12 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_FCMEQ, "fcmeq"},
         {AARCH64_FMIN,  "fmin" },
         {AARCH64_FMAX,  "fmax" },
+        {AARCH64_SMINV, "sminv" },
+        {AARCH64_SMAXV, "smaxv" },
+        {AARCH64_UMINV, "uminv" },
+        {AARCH64_UMAXV, "umaxv" },
+        {AARCH64_FMINV, "fminv" },
+        {AARCH64_FMAXV, "fmaxv" },
         {AARCH64_FCVTZS,"fcvtzs"},
         {AARCH64_FCVTZU,"fcvtzu"},
         {AARCH64_FCVTMS,"fcvtms"},
@@ -1767,6 +1949,12 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_DUP,   "dup"  },
         {AARCH64_UMOV,  "umov" },
         {AARCH64_INS,   "ins"  },
+        {AARCH64_SSHLL, "sshll" },
+        {AARCH64_SSHLL2,"sshll2"},
+        {AARCH64_USHLL, "ushll" },
+        {AARCH64_USHLL2,"ushll2"},
+        {AARCH64_XTN,   "xtn"   },
+        {AARCH64_XTN2,  "xtn2"  },
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },
