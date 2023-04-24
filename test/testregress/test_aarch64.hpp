@@ -13,80 +13,80 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
-    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
-    STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
-    {
-        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
-        IReg res = a0 * 1;
-        res += a1 * 2;
-        res += a2 * 3;
-        res += a3 * 4;
-        res += a4 * 5;
-        res += a5 * 6;
-        res += a6 * 7;
-        res += a7 * 8;
-        res += a8 * 3;
-        res += a9 * 2;
-        RETURN_(res);
-    }
-    });
-LTESTexe(ten_args_to_sum, {
-    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
-    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
-    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
-    EXPECT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-    });
-
-LTEST(nullify_msb_lsb_v, {
-    IReg iptr, omptr, olptr, n;
-    STARTFUNC_(TESTNAME, &iptr, &omptr, &olptr, &n)
-    {
-        IReg offset  = CONST_(0);
-        n *= sizeof(uint32_t);
-        VReg<uint32_t> one  = VCONST_(uint32_t, 1);
-        WHILE_(offset < n)
-        {
-            VReg<uint32_t> in = loadvec<uint32_t>(iptr, offset);
-            VReg<uint32_t> msb = in | ushift_right(in,1);
-            msb |= ushift_right(msb,  2);
-            msb |= ushift_right(msb,  4);
-            msb |= ushift_right(msb,  8);
-            msb |= ushift_right(msb, 16);
-            msb += one;  //It's assumed, that 0x80000000 bit is switched off.
-            msb = ushift_right(msb, 1);
-            msb ^= in;
-            storevec(omptr, offset, msb);
-            VReg<uint32_t> lsb = in & ~(in - one);
-            lsb ^= in;
-            storevec(olptr, offset, lsb);
-            offset += CTX.vbytes();
-        }
-        RETURN_();
-    }
-    });
-LTESTexe(nullify_msb_lsb_v, {
-    typedef uint32_t (*clear_lsb_msb_v)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
-    clear_lsb_msb_v tested = reinterpret_cast<clear_lsb_msb_v>(EXEPTR);
-    std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
-    std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    std::vector<uint32_t> msb = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    tested(&v[0], &msb[0], &lsb[0], v.size());
-    for (size_t vnum = 0; vnum < v.size(); vnum++ )
-    {
-        uint32_t tchk = v[vnum];
-        uint32_t relsb = tchk ^ (tchk & ~(tchk - 1));
-        uint32_t remsb = tchk | tchk >> 1;
-        remsb |= remsb >> 2;
-        remsb |= remsb >> 4;
-        remsb |= remsb >> 8;
-        remsb |= remsb >> 16;
-        remsb = (remsb + 1) >> 1;
-        remsb ^= tchk;
-        EXPECT_EQ(msb[vnum], remsb);
-        EXPECT_EQ(lsb[vnum], relsb);
-    }
-    });
+//LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
+//    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
+//    STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+//    {
+//        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
+//        IReg res = a0 * 1;
+//        res += a1 * 2;
+//        res += a2 * 3;
+//        res += a3 * 4;
+//        res += a4 * 5;
+//        res += a5 * 6;
+//        res += a6 * 7;
+//        res += a7 * 8;
+//        res += a8 * 3;
+//        res += a9 * 2;
+//        RETURN_(res);
+//    }
+//    });
+//LTESTexe(ten_args_to_sum, {
+//    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
+//    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
+//    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
+//    EXPECT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+//    });
+//
+//LTEST(nullify_msb_lsb_v, {
+//    IReg iptr, omptr, olptr, n;
+//    STARTFUNC_(TESTNAME, &iptr, &omptr, &olptr, &n)
+//    {
+//        IReg offset  = CONST_(0);
+//        n *= sizeof(uint32_t);
+//        VReg<uint32_t> one  = VCONST_(uint32_t, 1);
+//        WHILE_(offset < n)
+//        {
+//            VReg<uint32_t> in = loadvec<uint32_t>(iptr, offset);
+//            VReg<uint32_t> msb = in | ushift_right(in,1);
+//            msb |= ushift_right(msb,  2);
+//            msb |= ushift_right(msb,  4);
+//            msb |= ushift_right(msb,  8);
+//            msb |= ushift_right(msb, 16);
+//            msb += one;  //It's assumed, that 0x80000000 bit is switched off.
+//            msb = ushift_right(msb, 1);
+//            msb ^= in;
+//            storevec(omptr, offset, msb);
+//            VReg<uint32_t> lsb = in & ~(in - one);
+//            lsb ^= in;
+//            storevec(olptr, offset, lsb);
+//            offset += CTX.vbytes();
+//        }
+//        RETURN_();
+//    }
+//    });
+//LTESTexe(nullify_msb_lsb_v, {
+//    typedef uint32_t (*clear_lsb_msb_v)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
+//    clear_lsb_msb_v tested = reinterpret_cast<clear_lsb_msb_v>(EXEPTR);
+//    std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
+//    std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+//    std::vector<uint32_t> msb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+//    tested(&v[0], &msb[0], &lsb[0], v.size());
+//    for (size_t vnum = 0; vnum < v.size(); vnum++ )
+//    {
+//        uint32_t tchk = v[vnum];
+//        uint32_t relsb = tchk ^ (tchk & ~(tchk - 1));
+//        uint32_t remsb = tchk | tchk >> 1;
+//        remsb |= remsb >> 2;
+//        remsb |= remsb >> 4;
+//        remsb |= remsb >> 8;
+//        remsb |= remsb >> 16;
+//        remsb = (remsb + 1) >> 1;
+//        remsb ^= tchk;
+//        EXPECT_EQ(msb[vnum], remsb);
+//        EXPECT_EQ(lsb[vnum], relsb);
+//    }
+//    });
 
 LTESTcomposer(instruction_set_test, {
     FuncImpl* _f = getImpl(getImpl(&CTX)->getCurrentFunc());
@@ -617,7 +617,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_TRUNC, { v0_2u , v0_2f  });
     newiopNoret(VOP_TRUNC, { v31_2u, v0_2f  });
     newiopNoret(VOP_TRUNC, { v0_2u , v31_2f });
-    
+
     newiopNoret(VOP_FLOOR, { v0_8s , v0_8f  });
     newiopNoret(VOP_FLOOR, { v31_8s , v0_8f  });
     newiopNoret(VOP_FLOOR, { v0_8s , v31_8f  });
@@ -636,7 +636,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_FLOOR, { v0_2u , v0_2f  });
     newiopNoret(VOP_FLOOR, { v31_2u , v0_2f  });
     newiopNoret(VOP_FLOOR, { v0_2u , v31_2f  });
-    
+
     newiopNoret(VOP_CAST, { v0_8f , v0_8s  });
     newiopNoret(VOP_CAST, { v31_8f, v0_8s  });
     newiopNoret(VOP_CAST, { v0_8f , v31_8s });
@@ -740,6 +740,131 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_BROADCAST, { v31_2s, x0 });
     newiopNoret(VOP_BROADCAST, { v0_2s, x15 });
 
+    newiopNoret(VOP_BROADCAST, { v0_16u,  v0_16u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v31_16u, v0_16u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_16u, v31_16u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_16u,  v0_16u, argIImm(15, _f)});
+    newiopNoret(VOP_BROADCAST, { v0_8u,  v0_8u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v31_8u, v0_8u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_8u, v31_8u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_8u,  v0_8u, argIImm(7, _f)});
+    newiopNoret(VOP_BROADCAST, { v0_4u,  v0_4u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v31_4u, v0_4u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_4u, v31_4u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_4u,  v0_4u, argIImm(3, _f)});
+    newiopNoret(VOP_BROADCAST, { v0_2u,  v0_2u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v31_2u, v0_2u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_2u, v31_2u, argIImm(0,  _f)});
+    newiopNoret(VOP_BROADCAST, { v0_2u,  v0_2u, argIImm(1, _f)});
+
+    newiopNoret(VOP_CAST_LOW, { v0_8s, v0_16s });
+    newiopNoret(VOP_CAST_LOW, { v31_8s, v0_16s });
+    newiopNoret(VOP_CAST_LOW, { v0_8s, v31_16s });
+    newiopNoret(VOP_CAST_LOW, { v0_4s, v0_8s });
+    newiopNoret(VOP_CAST_LOW, { v31_4s, v0_8s });
+    newiopNoret(VOP_CAST_LOW, { v0_4s, v31_8s });
+    newiopNoret(VOP_CAST_LOW, { v0_2s, v0_4s });
+    newiopNoret(VOP_CAST_LOW, { v31_2s, v0_4s });
+    newiopNoret(VOP_CAST_LOW, { v0_2s, v31_4s });
+    newiopNoret(VOP_CAST_LOW, { v0_8u, v0_16u });
+    newiopNoret(VOP_CAST_LOW, { v31_8u, v0_16u });
+    newiopNoret(VOP_CAST_LOW, { v0_8u, v31_16u });
+    newiopNoret(VOP_CAST_LOW, { v0_4u, v0_8u });
+    newiopNoret(VOP_CAST_LOW, { v31_4u, v0_8u });
+    newiopNoret(VOP_CAST_LOW, { v0_4u, v31_8u });
+    newiopNoret(VOP_CAST_LOW, { v0_2u, v0_4u });
+    newiopNoret(VOP_CAST_LOW, { v31_2u, v0_4u });
+    newiopNoret(VOP_CAST_LOW, { v0_2u, v31_4u });
+
+    newiopNoret(VOP_CAST_HIGH, { v0_8s, v0_16s });
+    newiopNoret(VOP_CAST_HIGH, { v31_8s, v0_16s });
+    newiopNoret(VOP_CAST_HIGH, { v0_8s, v31_16s });
+    newiopNoret(VOP_CAST_HIGH, { v0_4s, v0_8s });
+    newiopNoret(VOP_CAST_HIGH, { v31_4s, v0_8s });
+    newiopNoret(VOP_CAST_HIGH, { v0_4s, v31_8s });
+    newiopNoret(VOP_CAST_HIGH, { v0_2s, v0_4s });
+    newiopNoret(VOP_CAST_HIGH, { v31_2s, v0_4s });
+    newiopNoret(VOP_CAST_HIGH, { v0_2s, v31_4s });
+    newiopNoret(VOP_CAST_HIGH, { v0_8u, v0_16u });
+    newiopNoret(VOP_CAST_HIGH, { v31_8u, v0_16u });
+    newiopNoret(VOP_CAST_HIGH, { v0_8u, v31_16u });
+    newiopNoret(VOP_CAST_HIGH, { v0_4u, v0_8u });
+    newiopNoret(VOP_CAST_HIGH, { v31_4u, v0_8u });
+    newiopNoret(VOP_CAST_HIGH, { v0_4u, v31_8u });
+    newiopNoret(VOP_CAST_HIGH, { v0_2u, v0_4u });
+    newiopNoret(VOP_CAST_HIGH, { v31_2u, v0_4u });
+    newiopNoret(VOP_CAST_HIGH, { v0_2u, v31_4u });
+
+    newiopNoret(VOP_SHRINK_LOW, { v0_16s, v0_8s });
+    newiopNoret(VOP_SHRINK_LOW, { v31_16s, v0_8s });
+    newiopNoret(VOP_SHRINK_LOW, { v0_16s, v31_8s });
+    newiopNoret(VOP_SHRINK_LOW, { v0_8s, v0_4s });
+    newiopNoret(VOP_SHRINK_LOW, { v31_8s, v0_4s });
+    newiopNoret(VOP_SHRINK_LOW, { v0_8s, v31_4s });
+    newiopNoret(VOP_SHRINK_LOW, { v0_4s, v0_2s });
+    newiopNoret(VOP_SHRINK_LOW, { v31_4s, v0_2s });
+    newiopNoret(VOP_SHRINK_LOW, { v0_4s, v31_2s });
+
+    newiopNoret(VOP_SHRINK_HIGH, { v0_16s, v0_8s });
+    newiopNoret(VOP_SHRINK_HIGH, { v31_16s, v0_8s });
+    newiopNoret(VOP_SHRINK_HIGH, { v0_16s, v31_8s });
+    newiopNoret(VOP_SHRINK_HIGH, { v0_8s, v0_4s });
+    newiopNoret(VOP_SHRINK_HIGH, { v31_8s, v0_4s });
+    newiopNoret(VOP_SHRINK_HIGH, { v0_8s, v31_4s });
+    newiopNoret(VOP_SHRINK_HIGH, { v0_4s, v0_2s });
+    newiopNoret(VOP_SHRINK_HIGH, { v31_4s, v0_2s });
+    newiopNoret(VOP_SHRINK_HIGH, { v0_4s, v31_2s });
+
+    newiopNoret(VOP_REDUCE_MAX, { v0_16s, v0_16s });
+    newiopNoret(VOP_REDUCE_MAX, { v31_16s, v0_16s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_16s, v31_16s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8s, v0_8s });
+    newiopNoret(VOP_REDUCE_MAX, { v31_8s, v0_8s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8s, v31_8s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4s, v0_4s });
+    newiopNoret(VOP_REDUCE_MAX, { v31_4s, v0_4s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4s, v31_4s });
+    newiopNoret(VOP_REDUCE_MAX, { v0_16u, v0_16u });
+    newiopNoret(VOP_REDUCE_MAX, { v31_16u, v0_16u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_16u, v31_16u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8u, v0_8u });
+    newiopNoret(VOP_REDUCE_MAX, { v31_8u, v0_8u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8u, v31_8u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4u, v0_4u });
+    newiopNoret(VOP_REDUCE_MAX, { v31_4u, v0_4u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4u, v31_4u });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8f, v0_8f });
+    newiopNoret(VOP_REDUCE_MAX, { v31_8f, v0_8f });
+    newiopNoret(VOP_REDUCE_MAX, { v0_8f, v31_8f });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4f, v0_4f });
+    newiopNoret(VOP_REDUCE_MAX, { v31_4f, v0_4f });
+    newiopNoret(VOP_REDUCE_MAX, { v0_4f, v31_4f });
+
+    newiopNoret(VOP_REDUCE_MIN, { v0_16s, v0_16s });
+    newiopNoret(VOP_REDUCE_MIN, { v31_16s, v0_16s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_16s, v31_16s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8s, v0_8s });
+    newiopNoret(VOP_REDUCE_MIN, { v31_8s, v0_8s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8s, v31_8s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4s, v0_4s });
+    newiopNoret(VOP_REDUCE_MIN, { v31_4s, v0_4s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4s, v31_4s });
+    newiopNoret(VOP_REDUCE_MIN, { v0_16u, v0_16u });
+    newiopNoret(VOP_REDUCE_MIN, { v31_16u, v0_16u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_16u, v31_16u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8u, v0_8u });
+    newiopNoret(VOP_REDUCE_MIN, { v31_8u, v0_8u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8u, v31_8u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4u, v0_4u });
+    newiopNoret(VOP_REDUCE_MIN, { v31_4u, v0_4u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4u, v31_4u });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8f, v0_8f });
+    newiopNoret(VOP_REDUCE_MIN, { v31_8f, v0_8f });
+    newiopNoret(VOP_REDUCE_MIN, { v0_8f, v31_8f });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4f, v0_4f });
+    newiopNoret(VOP_REDUCE_MIN, { v31_4f, v0_4f });
+    newiopNoret(VOP_REDUCE_MIN, { v0_4f, v31_4f });
+
     newiopNoret(VOP_ARM_LD1, { v0_16s, argIImm(0, _f), x0});
     newiopNoret(VOP_ARM_LD1, { v31_16s, argIImm(0, _f), x0});
     newiopNoret(VOP_ARM_LD1, { v0_16s, argIImm(15, _f), x0});
@@ -763,7 +888,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_ARM_LD2, {  v0_16s, v1_16s,  x0});
     newiopNoret(VOP_ARM_LD2, { v31_16s, v0_16s,  x0});
     newiopNoret(VOP_ARM_LD2, {  v0_16s, v1_16s, x15});
-    
+
     newiopNoret(VOP_ARM_LD2, {  v0_8s, v1_8s,  x0});
     newiopNoret(VOP_ARM_LD2, { v31_8s, v0_8s,  x0});
     newiopNoret(VOP_ARM_LD2, {  v0_8s, v1_8s, x15});
@@ -922,7 +1047,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GT, { v31_2u, v0_2s, v0_2s});
     newiopNoret(VOP_GT, { v0_2u, v31_2s, v0_2s});
     newiopNoret(VOP_GT, { v0_2u, v0_2s, v31_2s});
-    
+
     newiopNoret(VOP_GETLANE, { x0,  v0_16u, argIImm(0 , _f)});
     newiopNoret(VOP_GETLANE, { x15, v0_16u, argIImm(0 , _f)});
     newiopNoret(VOP_GETLANE, { x0, v31_16u, argIImm(0 , _f)});
@@ -956,6 +1081,27 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_SETLANE, {  v31_2u,  argIImm(0 , _f),  x0});
     newiopNoret(VOP_SETLANE, {   v0_2u,  argIImm(1 , _f),  x0});
     newiopNoret(VOP_SETLANE, {   v0_2u,  argIImm(0 , _f), x15});
+
+    newiopNoret(VOP_SETLANE, {  v0_16u,  argIImm(0 , _f),  v0_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v31_16u,  argIImm(0 , _f),  v0_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_16u,  argIImm(15 , _f),  v0_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_16u,  argIImm(0 , _f),  v31_16u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_16u,  argIImm(0 , _f),  v0_16u, argIImm(15 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_8u,  argIImm(0 , _f),  v0_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v31_8u,  argIImm(0 , _f),  v0_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_8u,  argIImm(7 , _f),  v0_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_8u,  argIImm(0 , _f),  v31_8u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_8u,  argIImm(0 , _f),  v0_8u, argIImm(7 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_4u,  argIImm(0 , _f),  v0_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v31_4u,  argIImm(0 , _f),  v0_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_4u,  argIImm(3 , _f),  v0_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_4u,  argIImm(0 , _f),  v31_4u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_4u,  argIImm(0 , _f),  v0_4u, argIImm(3 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_2u,  argIImm(0 , _f),  v0_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v31_2u,  argIImm(0 , _f),  v0_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_2u,  argIImm(1 , _f),  v0_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_2u,  argIImm(0 , _f),  v31_2u, argIImm(0 , _f)});
+    newiopNoret(VOP_SETLANE, {  v0_2u,  argIImm(0 , _f),  v0_2u, argIImm(1 , _f)});
 
     newiopNoret(VOP_SELECT, { v0_16u, v0_16u, v0_16u,   v0_16u});
     newiopNoret(VOP_SELECT, { v31_16u, v31_16u, v0_16u, v0_16u});

@@ -127,6 +127,24 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "broadcast." << type_suffixes[op.args[0].elemtype];
     }},
+    {VOP_CAST_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
+    }},
+    {VOP_CAST_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
+    }},
+    {VOP_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
+    }},
+    {VOP_SHRINK_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
+    }},
+    {VOP_REDUCE_MAX, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "reduce.max." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "reduce.max." << type_suffixes[op.args[0].elemtype];
+    }},
     {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "store." << type_suffixes[op.args[0].value];
     }},

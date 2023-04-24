@@ -122,6 +122,12 @@ enum {
     VOP_CAST,
     VOP_REINTERPRET,
     VOP_BROADCAST,
+    VOP_CAST_LOW,
+    VOP_CAST_HIGH,
+    VOP_SHRINK_LOW,
+    VOP_SHRINK_HIGH,
+    VOP_REDUCE_MAX,
+    VOP_REDUCE_MIN,
 
 //Intel-only operations:
     OP_X86_ADC, //Add with carry flag.
@@ -148,48 +154,60 @@ template<> struct ElemTraits<uint8_t> {
     typedef uint8_t elemtype;
     typedef uint8_t masktype;
     typedef int8_t countertype;
+    typedef uint16_t duplicatetype;
     enum { depth = TYPE_U8, elemsize=1 };
 };
 template<> struct ElemTraits<int8_t> {
     typedef int8_t elemtype;
     typedef uint8_t masktype;
     typedef int8_t countertype;
+    typedef int16_t duplicatetype;
     enum { depth = TYPE_I8, elemsize=1 };
 };
 template<> struct ElemTraits<uint16_t> {
     typedef uint16_t elemtype;
     typedef uint16_t masktype;
     typedef int16_t countertype;
+    typedef uint32_t duplicatetype;
+    typedef uint8_t halftype;
     enum { depth = TYPE_U16, elemsize=2 };
 };
 template<> struct ElemTraits<int16_t> {
     typedef int16_t elemtype;
     typedef uint16_t masktype;
     typedef int16_t countertype;
+    typedef int32_t duplicatetype;
+    typedef int8_t halftype;
     enum { depth = TYPE_I16, elemsize=2 };
 };
 template<> struct ElemTraits<uint32_t> {
     typedef uint32_t elemtype;
     typedef uint32_t masktype;
     typedef int32_t countertype;
+    typedef uint64_t duplicatetype;
+    typedef uint16_t halftype;
     enum { depth = TYPE_U32, elemsize=4 };
 };
 template<> struct ElemTraits<int32_t> {
     typedef int32_t elemtype;
     typedef uint32_t masktype;
     typedef int32_t countertype;
+    typedef int64_t duplicatetype;
+    typedef int16_t halftype;
     enum { depth = TYPE_I32, elemsize=4 };
 };
 template<> struct ElemTraits<uint64_t> {
     typedef uint64_t elemtype;
     typedef uint64_t masktype;
     typedef int64_t countertype;
+    typedef uint32_t halftype;
     enum { depth = TYPE_U64, elemsize=8 };
 };
 template<> struct ElemTraits<int64_t> {
     typedef int64_t elemtype;
     typedef uint64_t masktype;
     typedef int64_t countertype;
+    typedef int32_t halftype;
     enum { depth = TYPE_I64, elemsize=8 };
 };
 template<> struct ElemTraits<f16_t> {
@@ -664,10 +682,24 @@ template<typename _Tp> void storelane(const IReg& base, const VReg<_Tp>& r, int6
 
 template<typename _Tp> VReg<_Tp> broadcast(const IReg& scalar)
 { return newiopV<_Tp>(VOP_BROADCAST, { scalar }); }
+template<typename _Tp> VReg<_Tp> broadcast(const VReg<_Tp>& inp, int64_t ilane_index)
+{ return newiopV<_Tp>(VOP_BROADCAST, { inp, ilane_index }); }
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VReg<_Tp>& r)
+{ return newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_LOW, { r }); }
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VReg<_Tp>& r)
+{ return newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_HIGH, { r }); }
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::halftype> shrink(const VReg<_Tp>& r0, const VReg<_Tp>& r1);
+template<typename _Tp> VReg<_Tp> reduce_max(const VReg<_Tp>& r)
+{ return newiopV<_Tp>(VOP_REDUCE_MAX, { r }); }
+template<typename _Tp> VReg<_Tp> reduce_min(const VReg<_Tp>& r)
+{ return newiopV<_Tp>(VOP_REDUCE_MIN, { r }); }
 template<typename _Tp> IReg getlane(const VReg<_Tp>& r, int64_t lane_index)
 { return newiop(VOP_GETLANE, {r, lane_index}); }
 template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const IReg& i)
 { newiopNoret(VOP_SETLANE, {v, lane_index, i}); }
+template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const VReg<_Tp>& inp, int64_t ilane_index)
+{ newiopNoret(VOP_SETLANE, {v, lane_index, inp, ilane_index}); }
+
 
 template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
 { return newiopV<_Tp>(VOP_ADD, {a, b}); }
@@ -951,5 +983,12 @@ template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
     return res;
 }
 
+template<typename _Tp> VReg<typename ElemTraits<_Tp>::halftype> shrink(const VReg<_Tp>& r0, const VReg<_Tp>& r1)
+{//TODO(ch): Such operations must be unpacked via architecture-dependent snippets.
+    Assert(r0.idx != r1.idx);
+    VReg<typename ElemTraits<_Tp>::halftype> shrinked = newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_SHRINK_LOW, { r0 });
+    newiopNoret(VOP_SHRINK_HIGH, { shrinked, r1 });
+    return shrinked;
+}
 }
 #endif
