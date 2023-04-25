@@ -931,7 +931,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
             static const uint64_t sizStatSiz[] = {1, 2, 3, 4};
-            return BiT({ BTsta(0b01101110000, 11), BTimm(1, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0, 1), BTimm(3, 5-sizStatSiz[sizIdx]), BTsta(0, sizStatSiz[sizIdx] - 1), BTsta(1, 1), BTreg(2, 5, In), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b01101110000, 11), BTimm(1, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0, 1), BTimm(3, 5-sizStatSiz[sizIdx]), BTsta(0, sizStatSiz[sizIdx] - 1), BTsta(1, 1), BTreg(2, 5, In), BTreg(0, 5, IO) });
         }
 
         break;
@@ -980,13 +980,14 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&
            isInteger(index[0].elemtype) && 2 * elemSize(index[0].elemtype) == elemSize(index[1].elemtype))
         {
-            int opprefix = index.opcode == AARCH64_XTN2 ? 0b01001110 : 0b00001110;
+            bool high = index.opcode == AARCH64_XTN2;
+            int opprefix = high ? 0b01001110 : 0b00001110;
             int elemsize = elemSize(index[0].elemtype);
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t esizStats[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizStat = esizStats[elemsize];
             Assert(esizStat != WrongStat);
-            return BiT({ BTsta(opprefix, 8), BTsta(esizStat, 2), BTsta(0b100001001010, 12), BTreg(1, 5, In), BTreg(0, 5, IO) });
+            return BiT({ BTsta(opprefix, 8), BTsta(esizStat, 2), BTsta(0b100001001010, 12), BTreg(1, 5, In), BTreg(0, 5, high ? IO : Out) });
         }
         break;
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
