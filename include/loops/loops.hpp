@@ -985,8 +985,9 @@ template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
 
 template<typename _Tp> VReg<typename ElemTraits<_Tp>::halftype> shrink(const VReg<_Tp>& r0, const VReg<_Tp>& r1)
 {//TODO(ch): Such operations must be unpacked via architecture-dependent snippets.
-    Assert(r0.idx != r1.idx);
-    VReg<typename ElemTraits<_Tp>::halftype> shrinked = newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_SHRINK_LOW, { r0 });
+    if(r0.idx == r1.idx)
+        throw std::runtime_error("Shrink two same halfes into same vector is not supported.");
+    VReg<typename ElemTraits<_Tp>::halftype> shrinked = newiopV<typename ElemTraits<_Tp>::halftype>(VOP_SHRINK_LOW, { r0 });
     newiopNoret(VOP_SHRINK_HIGH, { shrinked, r1 });
     return shrinked;
 }
