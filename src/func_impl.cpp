@@ -151,6 +151,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_CAST_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
     }},
+    {VOP_SHRINK, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
+    }},
     {VOP_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
     }},
@@ -175,6 +178,7 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
 
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
+    {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
 };
 
@@ -308,10 +312,10 @@ FuncImpl* FuncImpl::verifyArgs_(std::initializer_list<Recipe> args)
     return res;
 }
 
-void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
+void FuncImpl::printBytecode(std::ostream& out, int uptoPass)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until(uptoStage);
+    l_pipeline.run_until(uptoPass);
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
     printer.print(out, l_pipeline.get_data());
 }
@@ -319,7 +323,7 @@ void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until_including(CS_BYTECODE_TO_ASSEMBLY);
+    l_pipeline.run_until_including(CP_BYTECODE_TO_ASSEMBLY);
     
     Backend* backend = m_context->getBackend();
     std::vector<Printer::ColPrinter> columnPrs;
@@ -368,9 +372,9 @@ const FuncBodyBuf FuncImpl::get_hex_body()
 
 void FuncImpl::endFunc()
 {
-    m_pipeline->run_until_including(CS_COLLECTING);
+    m_pipeline->run_until_including(CP_COLLECTING);
     if (m_directTranslation)
-        m_pipeline->pass_until(CS_BYTECODE_TO_ASSEMBLY);
+        m_pipeline->pass_until(CP_BYTECODE_TO_ASSEMBLY);
     if (m_context->debug_mode())
         m_debug_pipeline = std::make_shared<Pipeline>(*(m_pipeline.get()));
 }

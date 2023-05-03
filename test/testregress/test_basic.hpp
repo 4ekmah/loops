@@ -144,62 +144,21 @@ LTEST(triangle_types, {
     IReg a, b, c;
     STARTFUNC_(TESTNAME, &a, &b, &c)
     {
-        IF_(a <= 0)
+        IF_(a <= 0 || b <= 0 || c <= 0)
             RETURN_(NOT_A_TRIANGLE);
-        ELIF_(b <= 0)
-            RETURN_(NOT_A_TRIANGLE);
-        ELIF_(c <= 0)
-            RETURN_(NOT_A_TRIANGLE);
+        ELIF_(a > b + c || b > a + c || c > a + b)
+                RETURN_(NOT_A_TRIANGLE);
+        ELIF_(a == b && a == c)
+            RETURN_(EQUILATERAL_TRIANGLE);
+        ELIF_(a == b || a == c || b == c)
+            RETURN_(ISOSCELES_TRIANGLE);
+        ELIF_(a*a == b*b + c*c || b*b == a*a + c*c || c*c == a*a +b*b)
+            RETURN_(RIGHT_TRIANGLE);
+        ELIF_(a*a > b*b + c*c || b*b > a*a + c*c || c*c > a*a + b*b)
+            RETURN_(OBTUSE_TRIANGLE);
         ELSE_
-        {
-            IReg apb = a + b;
-            IReg apc = a + c;
-            IReg bpc = b + c;
-            IF_(a > bpc)
-                RETURN_(NOT_A_TRIANGLE);
-            ELIF_(b > apc)
-                RETURN_(NOT_A_TRIANGLE);
-            ELIF_(c > apb)
-                RETURN_(NOT_A_TRIANGLE);
-            ELSE_
-            {
-                IF_(a == b)
-                {
-                    IF_(b == c)
-                        RETURN_(EQUILATERAL_TRIANGLE);
-                    ELSE_
-                        RETURN_(ISOSCELES_TRIANGLE);
-                }
-                ELIF_(a == c)
-                    RETURN_(ISOSCELES_TRIANGLE);
-                ELIF_(b == c)
-                    RETURN_(ISOSCELES_TRIANGLE);
+            RETURN_(ACUTE_TRIANGLE);
 
-                IReg a2 = a*a;
-                IReg b2 = b*b;
-                IReg c2 = c*c;
-                IReg a2pb2 = a2+b2;
-                IReg a2pc2 = a2+c2;
-                IReg b2pc2 = b2+c2;
-                IF_(a2 == b2pc2)
-                    RETURN_(RIGHT_TRIANGLE);
-                ELIF_(b2 == a2pc2)
-                    RETURN_(RIGHT_TRIANGLE);
-                ELIF_(c2 == a2pb2)
-                    RETURN_(RIGHT_TRIANGLE);
-
-                IReg cosa = b2pc2 - a2;
-                IReg cosb = a2pc2 - b2;
-                IReg cosc = a2pb2 - c2;
-                IF_(cosa < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-                ELIF_(cosb < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-                ELIF_(cosc < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-            }
-        }
-        RETURN_(ACUTE_TRIANGLE);
     }
 });
 LTESTexe(triangle_types, {
@@ -444,9 +403,8 @@ LTEST(bresenham, {
         WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
         {
             store_<uint8_t>(canvas, y0* w + x0, filler);
-            IF_(x0 == x1)
-                IF_(y0 == y1)
-                    BREAK_;
+            IF_(x0 == x1 && y0 == y1)
+                BREAK_;
             IReg e2 = error << 1;
             IF_(e2 >= dy)
             {

@@ -24,13 +24,13 @@ struct ControlFlowBracket
     ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
 };
 
-class CodeCollecting : public CompilerStage
+class CodeCollecting : public CompilerPass
 {
 public:
     CodeCollecting(Syntfunc& a_data, Func* a_func);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
-    virtual StageID stage_id() const override final;
+    virtual PassID pass_id() const override final;
 
     inline void newiopNoret(int opcode, ::std::initializer_list<Recipe> args);
     void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base);
@@ -68,7 +68,8 @@ private:
     Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
     Syntop unpack_condition_old(Recipe& rcp); //DUBUG:temporary
     void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
-    void unpack_ifcond_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, bool jmp2correct);
+    enum {UC_CORRECT_PREFFERED = 1};
+    void unpack_condition_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, int flags = 0);
     void reopen_endif(bool cond_prefix_allowed = false);
     Func* m_func;
     std::deque<ControlFlowBracket> m_cflowStack;

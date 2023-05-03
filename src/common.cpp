@@ -214,7 +214,7 @@ namespace loops
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
     void Func::printBytecode(std::ostream& out) const
     {
-        static_cast<FuncImpl*>(impl)->printBytecode(out, CS_BYTECODE_TO_ASSEMBLY);
+        static_cast<FuncImpl*>(impl)->printBytecode(out, CP_BYTECODE_TO_ASSEMBLY);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {

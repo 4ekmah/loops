@@ -681,7 +681,7 @@ Recipe __loops_vdef_(Context* CTX)
 //DUBUGGG: One of further step is introducing typified Recipes: only root node will be typified in AST, other will keep type in runtime manner
 //So, this is the way to keep compile-time typechecking as it was before introducing AST.
 
-//DUBUGGG: Other interesting idea is to keep func not in Args, but only in IReg/Vreg and Recipes. Args is used mostly beyond code collection stage,
+//DUBUGGG: Other interesting idea is to keep func not in Args, but only in IReg/Vreg and Recipes. Args is used mostly beyond code collection pass,
 //where func is always fully-determined.
 
 static inline void assert_scalars_(::std::initializer_list<Recipe> args)
@@ -1248,7 +1248,7 @@ static inline void storelane(const Recipe& base, const Recipe& r, int64_t lane_i
 
 // Cast
 template<typename _Tp> Recipe broadcast(const Recipe& scalar)
-{ return Recipe(VOP_BROADCAST, ElemTraits<_Tp>::depth, {&scalar}); }
+{ return Recipe(VOP_BROADCAST, true, ElemTraits<_Tp>::depth, {scalar}); }
 
 static inline Recipe broadcast(const Recipe& r, int64_t lane_index)
 { 

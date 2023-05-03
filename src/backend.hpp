@@ -136,8 +136,8 @@ public:
     inline std::string name() const { return m_name; };
     virtual void switchOnSpillStressMode() = 0;
 
-    const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
-    const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
+    const std::vector<CompilerPassPtr>& getAfterRegAllocPasses() const { return m_afterRegAllocPasses; }
+    const std::vector<CompilerPassPtr>& getBeforeRegAllocPasses() const { return m_beforeRegAllocPasses; }
 
     inline BinTranslation lookS2b(const Syntop& index) const;
     inline SyntopTranslation lookS2s(const Syntop& index) const;
@@ -160,8 +160,8 @@ protected:
     std::vector<size_t> m_returnRegisters[RB_AMOUNT];
     std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
     std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
-    std::vector<CompilerStagePtr> m_afterRegAllocStages;
-    std::vector<CompilerStagePtr> m_beforeRegAllocStages;
+    std::vector<CompilerPassPtr> m_afterRegAllocPasses;
+    std::vector<CompilerPassPtr> m_beforeRegAllocPasses;
     std::string m_name;
 };
 

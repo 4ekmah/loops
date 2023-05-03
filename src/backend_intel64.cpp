@@ -1044,21 +1044,21 @@ namespace loops
         return SyntopTranslation();
     }
 
-    class Intel64ARASnippets : public CompilerStage
+    class Intel64ARASnippets : public CompilerPass
     {
     public:
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual StageID stage_id() const override final { return CS_INTEL64_SNIPPETS; }
-        static CompilerStagePtr make(const Backend* a_backend)
+        virtual PassID pass_id() const override final { return CP_INTEL64_SNIPPETS; }
+        static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64ARASnippets> res;
             res.reset(new Intel64ARASnippets(a_backend));
-            return std::static_pointer_cast<CompilerStage>(res);
+            return std::static_pointer_cast<CompilerPass>(res);
         } 
     private: 
-        Intel64ARASnippets(const Backend* a_backend) : CompilerStage(a_backend) {}
+        Intel64ARASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
     };
 
     Intel64Backend::Intel64Backend()
@@ -1073,7 +1073,7 @@ namespace loops
         m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
-        m_afterRegAllocStages.push_back(Intel64ARASnippets::make(this));
+        m_afterRegAllocPasses.push_back(Intel64ARASnippets::make(this));
 #if __LOOPS_OS == __LOOPS_WINDOWS
         m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX };
@@ -1399,9 +1399,9 @@ namespace loops
             oppos += opsize;
         }
 
-        Assembly2Hex a2hStage(this);
-        a2hStage.process(*((Syntfunc*)(nullptr)), toP);
-        const FuncBodyBuf buffer = a2hStage.result_buffer();
+        Assembly2Hex a2hPass(this);
+        a2hPass.process(*((Syntfunc*)(nullptr)), toP);
+        const FuncBodyBuf buffer = a2hPass.result_buffer();
 
         return [buffer, posNsizes](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
         {

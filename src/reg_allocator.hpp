@@ -37,7 +37,7 @@ struct endordering
     bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
 };
 
-class LivenessAnalysisAlgo : public CompilerStage
+class LivenessAnalysisAlgo : public CompilerPass
 {
 public:
     LivenessAnalysisAlgo(const Backend* a_owner);
@@ -45,7 +45,7 @@ public:
     virtual ~LivenessAnalysisAlgo() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
-    virtual StageID stage_id() const override final { return CS_LIVENESS_ANALYSIS; }
+    virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
 
     size_t getSnippetCausedSpills() const
     {
@@ -160,14 +160,14 @@ M1 provide 32 highest-level registers of hierarchy depth = 3.
 MF8 provide 256 highest-level registers of hierarchy depth = 0.
 */
 class FuncImpl;
-class RegisterAllocator : public CompilerStage
+class RegisterAllocator : public CompilerPass
 {
 public:
     RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
-    virtual StageID stage_id() const override final { return CS_REGISTER_ALLOCATION; }
+    virtual PassID pass_id() const override final { return CP_REGISTER_ALLOCATION; }
 
     inline size_t epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }

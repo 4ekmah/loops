@@ -18,17 +18,30 @@ See https://github.com/4ekmah/loops/LICENSE
 #define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
 
 #undef Assert
-#define Assert(expr) if(expr) ; else throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
-#define AssertMsg(expr, msg) if(expr) ; else throw std::runtime_error(msg)
+#define Assert(expr) \
+    if (expr)        \
+        ;            \
+    else             \
+        throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
+#define AssertMsg(expr, msg) \
+    if (expr)                \
+        ;                    \
+    else                     \
+        throw std::runtime_error(msg)
 
 namespace loops
 {
     typedef int RegIdx;
-    typedef int StageID;
-    enum RegisterBasket { RB_INT = 0, RB_VEC = 1, RB_AMOUNT };
+    typedef int PassID;
+    enum RegisterBasket
+    {
+        RB_INT = 0,
+        RB_VEC = 1,
+        RB_AMOUNT
+    };
 
-    template<typename _Tp>
-    inline VReg<_Tp> vregHid(RegIdx a_idx, Func* a_func)
+    template <typename _Tp>
+    inline VReg<_Tp> vregHid(RegIdx a_idx, Func *a_func)
     {
         VReg<_Tp> ret;
         ret.func = a_func;
@@ -36,7 +49,7 @@ namespace loops
         return ret;
     }
 
-    inline Arg argReg(int basketNum, RegIdx idx, Func* impl = nullptr)
+    inline Arg argReg(int basketNum, RegIdx idx, Func *impl = nullptr)
     {
         Arg res;
         res.tag = basketNum == RB_INT ? Arg::IREG : Arg::VREG;
@@ -45,7 +58,7 @@ namespace loops
         return res;
     }
 
-    inline Arg argSpilled(int basketNum, size_t spOffset, Func* impl = nullptr)
+    inline Arg argSpilled(int basketNum, size_t spOffset, Func *impl = nullptr)
     {
         Arg res;
         res.tag = basketNum == RB_INT ? Arg::ISPILLED : Arg::VSPILLED;
@@ -54,7 +67,7 @@ namespace loops
         return res;
     }
 
-    inline Arg argIImm(int64_t val, Func* impl = nullptr)
+    inline Arg argIImm(int64_t val, Func *impl = nullptr)
     {
         Arg res;
         res.tag = Arg::IIMMEDIATE;
@@ -63,12 +76,12 @@ namespace loops
         return res;
     }
 
-    inline bool regOrSpi(const Arg& toCheck)
+    inline bool regOrSpi(const Arg &toCheck)
     {
         return toCheck.tag == Arg::IREG || toCheck.tag == Arg::ISPILLED;
     }
 
-    inline bool regOrSpiEq(const Arg& toCmp1, const Arg& toCmp2)
+    inline bool regOrSpiEq(const Arg &toCmp1, const Arg &toCmp2)
     {
         Assert(regOrSpi(toCmp1) && regOrSpi(toCmp2));
         if (toCmp1.tag != toCmp2.tag)
@@ -82,41 +95,40 @@ namespace loops
 
     static inline bool isInteger(int elemTyp)
     {
-        return elemTyp == TYPE_U8 || elemTyp == TYPE_U16 ||elemTyp == TYPE_U32 ||elemTyp == TYPE_U64 ||
-               elemTyp == TYPE_I8 || elemTyp == TYPE_I16 ||elemTyp == TYPE_I32 ||elemTyp == TYPE_I64;
+        return elemTyp == TYPE_U8 || elemTyp == TYPE_U16 || elemTyp == TYPE_U32 || elemTyp == TYPE_U64 ||
+               elemTyp == TYPE_I8 || elemTyp == TYPE_I16 || elemTyp == TYPE_I32 || elemTyp == TYPE_I64;
     }
 
     static inline bool isFloat(int elemTyp)
-    { return elemTyp == TYPE_FP16 || elemTyp == TYPE_FP32 ||elemTyp == TYPE_FP64; }
+    {
+        return elemTyp == TYPE_FP16 || elemTyp == TYPE_FP32 || elemTyp == TYPE_FP64;
+    }
 
     static inline bool isUnsignedInteger(int elemType)
-    { return elemType == TYPE_U8 || elemType == TYPE_U16 ||elemType == TYPE_U32 ||elemType == TYPE_U64; }
+    {
+        return elemType == TYPE_U8 || elemType == TYPE_U16 || elemType == TYPE_U32 || elemType == TYPE_U64;
+    }
 
     static inline bool isSignedInteger(int elemType)
-    { return elemType == TYPE_I8 || elemType == TYPE_I16 ||elemType == TYPE_I32 ||elemType == TYPE_I64; }
+    {
+        return elemType == TYPE_I8 || elemType == TYPE_I16 || elemType == TYPE_I32 || elemType == TYPE_I64;
+    }
 
     enum ArgFlags
     {
-        AF_ADDRESS  = 1,
-        AF_LOWER32  = 2, //010
-        AF_LOWER16  = 4, //100
-        AF_LOWER8   = 6, //110
-        AF_NOPRINT  = 8,
+        AF_ADDRESS = 1,
+        AF_LOWER32 = 2, // 010
+        AF_LOWER16 = 4, // 100
+        AF_LOWER8 = 6,  // 110
+        AF_NOPRINT = 8,
         AF_PRINTOFFSET = 16,
     };
 
     inline int invertCondition(int condition)
     {
-        return condition == OP_EQ  ? OP_NE : (
-               condition == OP_NE  ? OP_EQ : (
-               condition == OP_LT  ? OP_GE : (
-               condition == OP_GT  ? OP_LE : (
-               condition == OP_UGT ? OP_ULE : (
-               condition == OP_LE  ? OP_GT : (
-               condition == OP_ULE ? OP_UGT : (
-               condition == OP_GE  ? OP_LT : OP_NOINIT)))))));
-            //    condition == IC_S   ? IC_NS : (
-            //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
+        return condition == OP_EQ ? OP_NE : (condition == OP_NE ? OP_EQ : (condition == OP_LT ? OP_GE : (condition == OP_GT ? OP_LE : (condition == OP_UGT ? OP_ULE : (condition == OP_LE ? OP_GT : (condition == OP_ULE ? OP_UGT : (condition == OP_GE ? OP_LT : OP_NOINIT)))))));
+        //    condition == IC_S   ? IC_NS : (
+        //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
     }
 
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
@@ -129,12 +141,12 @@ namespace loops
 
     inline RegIdx onlyBitPos64(uint64_t bigNum)
     {
-        static const uint8_t bnBase[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
-        static const uint8_t bnAdd[129] = { 0,1,2,0,3,0,0,0,4,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                            8 };
+        static const uint8_t bnBase[8] = {0, 8, 16, 24, 32, 40, 48, 56};
+        static const uint8_t bnAdd[129] = {0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           8};
         uint32_t first32 = (uint32_t)(bigNum & 0xFFFFFFFF);
         uint32_t second32 = (uint32_t)(bigNum >> 32);
         uint8_t bytenum = (second32 != 0) << 2;
@@ -152,7 +164,6 @@ namespace loops
 
         return static_cast<RegIdx>(bnBase[bytenum]) + static_cast<RegIdx>(bnAdd[bytecontent]) - 1;
     }
-
 
     inline RegIdx lsb64(uint64_t bigNum)
     {
@@ -180,10 +191,10 @@ namespace loops
     {
         size_t res = 0;
         static const uint8_t amountInByte[256] =
-        { 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-          1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-          2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8 };
+            {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+             1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+             1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+             2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
         res += amountInByte[bigNum & 0xFF];
         bigNum >>= 8;
         res += amountInByte[bigNum & 0xFF];
@@ -205,60 +216,64 @@ namespace loops
     struct Syntop
     {
     private:
-        enum {SYNTOP_ARGS_MAX = 10};
+        enum
+        {
+            SYNTOP_ARGS_MAX = 10
+        };
+
     public:
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         size_t args_size;
         Syntop();
-        Syntop(const Syntop& fwho);
-        Syntop(int a_opcode, const std::vector<Arg>& a_args);
+        Syntop(const Syntop &fwho);
+        Syntop(int a_opcode, const std::vector<Arg> &a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args);
-        inline Arg* begin(){ return args; }
-        inline Arg* end()
+        inline Arg *begin() { return args; }
+        inline Arg *end()
         {
-            if(args_size > SYNTOP_ARGS_MAX)
+            if (args_size > SYNTOP_ARGS_MAX)
                 throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
-        inline const Arg* begin() const { return args; }
-        inline const Arg* end() const
+        inline const Arg *begin() const { return args; }
+        inline const Arg *end() const
         {
-            if(args_size > SYNTOP_ARGS_MAX)
+            if (args_size > SYNTOP_ARGS_MAX)
                 throw std::runtime_error("Syntaxic operation: too much args!");
             return args + args_size;
         }
 
         inline size_t size() const { return args_size; }
 
-        inline Arg& operator[](size_t anum)
+        inline Arg &operator[](size_t anum)
         {
-            if(anum >= args_size)
+            if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
-        inline const Arg& operator[](size_t anum) const
+        inline const Arg &operator[](size_t anum) const
         {
-            if(anum >= args_size)
+            if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
 
-        inline Arg& back()
+        inline Arg &back()
         {
-            if(args_size == 0)
+            if (args_size == 0)
                 throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
-        inline const Arg& back() const
+        inline const Arg &back() const
         {
-            if(args_size == 0)
+            if (args_size == 0)
                 throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
     };
-    
+
     struct Syntfunc
     {
         std::vector<Syntop> program;
@@ -266,35 +281,40 @@ namespace loops
         std::string name;
         int regAmount[RB_AMOUNT];
         int nextLabel;
-        enum {RETREG = -2, NOLABEL = -1};
-        Syntfunc() : regAmount{0,0}, nextLabel(0) {}
+        enum
+        {
+            RETREG = -2,
+            NOLABEL = -1
+        };
+        Syntfunc() : regAmount{0, 0}, nextLabel(0) {}
         inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
         inline int provideLabel() { return nextLabel++; }
     };
 
     class Backend;
-    class CompilerStage //DUBUG rename -> pass
+    class CompilerPass
     {
     public:
-        CompilerStage(const Backend* a_backend) : m_backend(a_backend) {}
-        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) = 0;
-        virtual bool is_inplace() const = 0; 
-        virtual StageID stage_id() const = 0; 
-        virtual ~CompilerStage() {}
+        CompilerPass(const Backend *a_backend) : m_backend(a_backend) {}
+        virtual void process(Syntfunc &a_dest, const Syntfunc &a_source) = 0;
+        virtual bool is_inplace() const = 0;
+        virtual PassID pass_id() const = 0;
+        virtual ~CompilerPass() {}
+
     protected:
-        const Backend* m_backend;
+        const Backend *m_backend;
     };
-    typedef std::shared_ptr<CompilerStage> CompilerStagePtr;
+    typedef std::shared_ptr<CompilerPass> CompilerPassPtr;
 
     class RegisterAllocator;
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context* owner);
-        void startFunc(const std::string& name, std::initializer_list<IReg*> params);
+        ContextImpl(Context *owner);
+        void startFunc(const std::string &name, std::initializer_list<IReg *> params);
         void endFunc();
-        Func getFunc(const std::string& name);
-        bool hasFunc(const std::string& name);
+        Func getFunc(const std::string &name);
+        bool hasFunc(const std::string &name);
         std::string getPlatformName() const;
         size_t vbytes() const;
         void compileAll();
@@ -302,9 +322,10 @@ namespace loops
         inline bool debug_mode() const { return m_debug_mode; }
 
         int m_refcount;
-        inline Func* getCurrentFunc() { return &m_currentFunc; }
-        inline Backend* getBackend() { return m_backend.get(); }
+        inline Func *getCurrentFunc() { return &m_currentFunc; }
+        inline Backend *getBackend() { return m_backend.get(); }
         Context getOwner();
+
     private:
         bool m_debug_mode;
         std::unordered_map<std::string, Func> m_functionsStorage;
@@ -312,12 +333,12 @@ namespace loops
         std::shared_ptr<Backend> m_backend;
     };
 
-    inline Func* _getImpl(Func* wrapper) { return wrapper->impl; };
-    inline Context* _getImpl(Context* wrapper) { return wrapper->impl; };
-    inline ContextImpl* getImpl(Context* wrapper)
+    inline Func *_getImpl(Func *wrapper) { return wrapper->impl; };
+    inline Context *_getImpl(Context *wrapper) { return wrapper->impl; };
+    inline ContextImpl *getImpl(Context *wrapper)
     {
         Assert(wrapper);
-        return static_cast<ContextImpl*>(_getImpl(wrapper));
+        return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
 };
 

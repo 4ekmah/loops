@@ -1675,38 +1675,38 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     return SyntopTranslation();
 }
 
-class AArch64BigImmediates : public CompilerStage
+class AArch64BigImmediates : public CompilerPass
 {
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual ~AArch64BigImmediates() override {}
     virtual bool is_inplace() const override final { return false; }
-    virtual StageID stage_id() const override final { return CS_AARCH64_BIG_IMMEDIATES; }
-    static CompilerStagePtr make(const Backend* a_backend)
+    virtual PassID pass_id() const override final { return CP_AARCH64_BIG_IMMEDIATES; }
+    static CompilerPassPtr make(const Backend* a_backend)
     {
         std::shared_ptr<AArch64BigImmediates> res;
         res.reset(new AArch64BigImmediates(a_backend));
-        return std::static_pointer_cast<CompilerStage>(res);
+        return std::static_pointer_cast<CompilerPass>(res);
     } 
 private:
-    AArch64BigImmediates(const Backend* a_backend) : CompilerStage(a_backend) {}
+    AArch64BigImmediates(const Backend* a_backend) : CompilerPass(a_backend) {}
 };
 
-class AArch64ARASnippets : public CompilerStage
+class AArch64ARASnippets : public CompilerPass
 {
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual bool is_inplace() const override final { return false; }
-    virtual StageID stage_id() const override final { return CS_AARCH64_SNIPPETS; }
+    virtual PassID pass_id() const override final { return CP_AARCH64_SNIPPETS; }
     virtual ~AArch64ARASnippets() override {}
-    static CompilerStagePtr make(const Backend* a_backend)
+    static CompilerPassPtr make(const Backend* a_backend)
     {
         std::shared_ptr<AArch64ARASnippets> res;
         res.reset(new AArch64ARASnippets(a_backend));
-        return std::static_pointer_cast<CompilerStage>(res);
+        return std::static_pointer_cast<CompilerPass>(res);
     } 
 private: 
-    AArch64ARASnippets(const Backend* a_backend) : CompilerStage(a_backend) {}
+    AArch64ARASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
 };
 
 Aarch64Backend::Aarch64Backend()
@@ -1722,8 +1722,8 @@ Aarch64Backend::Aarch64Backend()
     m_postInstructionOffset = false;
     m_registersAmount = 7;
     m_name = "AArch64";
-    m_beforeRegAllocStages.push_back(AArch64BigImmediates::make(this));
-    m_afterRegAllocStages.push_back(AArch64ARASnippets::make(this));
+    m_beforeRegAllocPasses.push_back(AArch64BigImmediates::make(this));
+    m_afterRegAllocPasses.push_back(AArch64ARASnippets::make(this));
     m_parameterRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_callerSavedRegisters[RB_INT] = { XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 };
@@ -1992,9 +1992,9 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
-    Assembly2Hex a2hStage(this);
-    a2hStage.process(*((Syntfunc*)(nullptr)), toP);
-    const FuncBodyBuf buffer = a2hStage.result_buffer();
+    Assembly2Hex a2hPass(this);
+    a2hPass.process(*((Syntfunc*)(nullptr)), toP);
+    const FuncBodyBuf buffer = a2hPass.result_buffer();
 
     return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* )
     {
@@ -2082,7 +2082,7 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 break;
             }
 //            if(op[1].value == 0)   //Well, it looks like we cannot do it, since xor x0, x0, x0, when is just defined will "use" undefined register. Hmm...
-//            {                      //Looks like we need ARA stage or some Liveness Analysis modification. If and when will introduce
+//            {                      //Looks like we need ARA pass or some Liveness Analysis modification. If and when will introduce
 //                int tarOpcode = op[0].tag == Arg::VREG ? VOP_XOR : OP_XOR;      // definition-without-assignment, it also will be good solution.
 //                a_dest.program.push_back(Syntop(tarOpcode, { op[0], op[0], op[0] }));
 //                break;

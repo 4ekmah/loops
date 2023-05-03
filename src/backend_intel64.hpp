@@ -53,7 +53,7 @@ namespace loops
     };
 
     enum {
-        CS_INTEL64_SNIPPETS = CS_ARCH_SPECIFIC
+        CP_INTEL64_SNIPPETS = CP_ARCH_SPECIFIC
     };
 
     class Intel64Backend : public Backend

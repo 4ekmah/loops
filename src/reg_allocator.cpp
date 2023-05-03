@@ -411,7 +411,7 @@ namespace loops
         }
     }
 
-    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills) : CompilerStage(a_backend)
+    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills) : CompilerPass(a_backend)
         , m_live_intervals(a_live_intervals)
         , m_snippet_caused_spills(a_snippet_caused_spills)
         , m_pool(a_backend)
@@ -847,7 +847,7 @@ namespace loops
 
     void LivenessAnalysisAlgo::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
-        //TODO(ch): Introduce inplace stages. 
+        //TODO(ch): Introduce inplace passes. 
         Assert(&a_dest == &a_source); 
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             m_subintervals[basketNum].resize(a_source.regAmount[basketNum], std::vector<LiveInterval>());
@@ -1227,7 +1227,7 @@ namespace loops
         }
     }
 
-    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerStage(a_owner)
+    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerPass(a_owner)
         , m_snippetCausedSpills(0)
     {}
 
