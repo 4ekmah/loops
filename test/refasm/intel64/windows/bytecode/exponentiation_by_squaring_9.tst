@@ -6,7 +6,7 @@ exponentiation_by_squaring_9(i0, i1, i2)
      4 : mov       s0, 0        
      5 : label 0:               
      6 : cmp       s0, i2       
-     7 : jmp_ge    1            
+     7 : jmp_ge 2               
      8 : load.i32  i12, i1, i9  
      9 : mov       i0, i12      
     10 : mul       i0, i0, i12  
@@ -18,7 +18,7 @@ exponentiation_by_squaring_9(i0, i1, i2)
     16 : add       i9, i9, 4    
     17 : add       i8, i8, 4    
     18 : jmp       0            
-    19 : label 1:               
+    19 : label 2:               
     20 : mov       i0, 0        
     21 : unspill   i12, 1       
     22 : add       i4, i4, 24   

@@ -6,7 +6,7 @@ exponentiation_by_squaring_0(i0, i1, i2)
      4 : mov       i0, 0       
      5 : label 0:              
      6 : cmp       i0, i2      
-     7 : jmp_ge    1           
+     7 : jmp_ge 2              
      8 : load.i32  i12, i1, i9 
      9 : mov       i12, 1      
     10 : store.i32 i8, i12     
@@ -14,7 +14,7 @@ exponentiation_by_squaring_0(i0, i1, i2)
     12 : add       i9, i9, 4   
     13 : add       i8, i8, 4   
     14 : jmp       0           
-    15 : label 1:              
+    15 : label 2:              
     16 : mov       i0, 0       
     17 : unspill   i12, 0      
     18 : add       i4, i4, 8   

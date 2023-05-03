@@ -7,7 +7,7 @@ arithm_arrs(i0, i1, i2, i3, i4, i5, i6)
      5 : mov       s5, 0        
      6 : label 0:               
      7 : cmp       s5, i8       
-     8 : jmp_ge    1            
+     8 : jmp_ge 2               
      9 : unspill   i13, 4       
     10 : load.i32  i12, i1, i13 
     11 : unspill   i13, 4       
@@ -41,7 +41,7 @@ arithm_arrs(i0, i1, i2, i3, i4, i5, i6)
     39 : add       s15, s15, 4  
     40 : add       s16, s16, 4  
     41 : jmp       0            
-    42 : label 1:               
+    42 : label 2:               
     43 : mov       i0, 0        
     44 : unspill   i12, 7       
     45 : unspill   i13, 8       

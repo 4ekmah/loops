@@ -2,131 +2,116 @@ triangle_types(i0, i1, i2)
      0 : sub       i4, i4, 8    
      1 : spill     0, i12       
      2 : cmp       i1, 0        
-     3 : jmp_gt    1            
-     4 : mov       i0, 0        
-     5 : jmp       51           
-     6 : jmp       50           
-     7 : label 1:               
-     8 : cmp       i2, 0        
-     9 : jmp_gt    4            
-    10 : mov       i0, 0        
-    11 : jmp       51           
-    12 : jmp       49           
-    13 : label 4:               
-    14 : cmp       i8, 0        
-    15 : jmp_gt    8            
-    16 : mov       i0, 0        
-    17 : jmp       51           
-    18 : jmp       48           
-    19 : label 8:               
+     3 : jmp_le 0               
+     4 : cmp       i2, 0        
+     5 : jmp_le 0               
+     6 : cmp       i8, 0        
+     7 : jmp_gt 1               
+     8 : label 0:               
+     9 : mov       i0, 0        
+    10 : jmp       18           
+    11 : label 1:               
+    12 : mov       i9, i2       
+    13 : add       i9, i9, i8   
+    14 : cmp       i1, i9       
+    15 : jmp_gt 3               
+    16 : mov       i9, i1       
+    17 : add       i9, i9, i8   
+    18 : cmp       i2, i9       
+    19 : jmp_gt 3               
     20 : mov       i9, i1       
     21 : add       i9, i9, i2   
-    22 : mov       i0, i1       
-    23 : add       i0, i0, i8   
-    24 : mov       i12, i2      
-    25 : add       i12, i12, i8 
-    26 : cmp       i1, i12      
-    27 : jmp_le    10           
-    28 : mov       i0, 0        
-    29 : jmp       51           
-    30 : jmp       47           
-    31 : label 10:              
-    32 : cmp       i2, i0       
-    33 : jmp_le    13           
-    34 : mov       i0, 0        
-    35 : jmp       51           
-    36 : jmp       46           
-    37 : label 13:              
-    38 : cmp       i8, i9       
-    39 : jmp_le    17           
-    40 : mov       i0, 0        
-    41 : jmp       51           
-    42 : jmp       45           
-    43 : label 17:              
-    44 : cmp       i1, i2       
-    45 : jmp_ne    22           
-    46 : cmp       i2, i8       
-    47 : jmp_ne    19           
-    48 : mov       i0, 2        
-    49 : jmp       51           
-    50 : jmp       20           
-    51 : label 19:              
-    52 : mov       i0, 3        
-    53 : jmp       51           
-    54 : label 20:              
-    55 : jmp       28           
-    56 : label 22:              
-    57 : cmp       i1, i8       
-    58 : jmp_ne    25           
-    59 : mov       i0, 3        
-    60 : jmp       51           
-    61 : jmp       27           
-    62 : label 25:              
-    63 : cmp       i2, i8       
-    64 : jmp_ne    26           
-    65 : mov       i0, 3        
-    66 : jmp       51           
-    67 : label 26:              
-    68 : label 27:              
-    69 : label 28:              
-    70 : mul       i1, i1, i1   
-    71 : mul       i2, i2, i2   
-    72 : mul       i8, i8, i8   
-    73 : mov       i9, i1       
-    74 : add       i9, i9, i2   
-    75 : mov       i0, i1       
-    76 : add       i0, i0, i8   
-    77 : mov       i12, i2      
-    78 : add       i12, i12, i8 
-    79 : cmp       i1, i12      
-    80 : jmp_ne    30           
-    81 : mov       i0, 1        
-    82 : jmp       51           
-    83 : jmp       36           
-    84 : label 30:              
-    85 : cmp       i2, i0       
-    86 : jmp_ne    33           
-    87 : mov       i0, 1        
-    88 : jmp       51           
-    89 : jmp       35           
-    90 : label 33:              
-    91 : cmp       i8, i9       
-    92 : jmp_ne    34           
-    93 : mov       i0, 1        
-    94 : jmp       51           
-    95 : label 34:              
-    96 : label 35:              
-    97 : label 36:              
-    98 : sub       i12, i12, i1 
-    99 : sub       i0, i0, i2   
-   100 : sub       i9, i9, i8   
-   101 : cmp       i12, 0       
-   102 : jmp_ge    38           
-   103 : mov       i0, 5        
-   104 : jmp       51           
-   105 : jmp       44           
-   106 : label 38:              
-   107 : cmp       i0, 0        
-   108 : jmp_ge    41           
-   109 : mov       i0, 5        
-   110 : jmp       51           
-   111 : jmp       43           
-   112 : label 41:              
-   113 : cmp       i9, 0        
-   114 : jmp_ge    42           
-   115 : mov       i0, 5        
-   116 : jmp       51           
-   117 : label 42:              
-   118 : label 43:              
-   119 : label 44:              
-   120 : label 45:              
-   121 : label 46:              
-   122 : label 47:              
-   123 : label 48:              
-   124 : label 49:              
-   125 : label 50:              
-   126 : mov       i0, 4        
-   127 : label 51:              
-   128 : unspill   i12, 0       
-   129 : add       i4, i4, 8    
-   130 : ret                    
+    22 : cmp       i8, i9       
+    23 : jmp_le 4               
+    24 : label 3:               
+    25 : mov       i0, 0        
+    26 : jmp       18           
+    27 : label 4:               
+    28 : cmp       i1, i2       
+    29 : jmp_ne 7               
+    30 : cmp       i1, i8       
+    31 : jmp_ne 7               
+    32 : mov       i0, 2        
+    33 : jmp       18           
+    34 : label 7:               
+    35 : cmp       i1, i2       
+    36 : jmp_eq 9               
+    37 : cmp       i1, i8       
+    38 : jmp_eq 9               
+    39 : cmp       i2, i8       
+    40 : jmp_ne 10              
+    41 : label 9:               
+    42 : mov       i0, 3        
+    43 : jmp       18           
+    44 : label 10:              
+    45 : mov       i9, i1       
+    46 : mul       i9, i9, i1   
+    47 : mov       i0, i2       
+    48 : mul       i0, i0, i2   
+    49 : mov       i12, i8      
+    50 : mul       i12, i12, i8 
+    51 : add       i0, i0, i12  
+    52 : cmp       i9, i0       
+    53 : jmp_eq 12              
+    54 : mov       i9, i2       
+    55 : mul       i9, i9, i2   
+    56 : mov       i0, i1       
+    57 : mul       i0, i0, i1   
+    58 : mov       i12, i8      
+    59 : mul       i12, i12, i8 
+    60 : add       i0, i0, i12  
+    61 : cmp       i9, i0       
+    62 : jmp_eq 12              
+    63 : mov       i9, i8       
+    64 : mul       i9, i9, i8   
+    65 : mov       i0, i1       
+    66 : mul       i0, i0, i1   
+    67 : mov       i12, i2      
+    68 : mul       i12, i12, i2 
+    69 : add       i0, i0, i12  
+    70 : cmp       i9, i0       
+    71 : jmp_ne 13              
+    72 : label 12:              
+    73 : mov       i0, 1        
+    74 : jmp       18           
+    75 : label 13:              
+    76 : mov       i9, i1       
+    77 : mul       i9, i9, i1   
+    78 : mov       i0, i2       
+    79 : mul       i0, i0, i2   
+    80 : mov       i12, i8      
+    81 : mul       i12, i12, i8 
+    82 : add       i0, i0, i12  
+    83 : cmp       i9, i0       
+    84 : jmp_gt 15              
+    85 : mov       i9, i2       
+    86 : mul       i9, i9, i2   
+    87 : mov       i0, i1       
+    88 : mul       i0, i0, i1   
+    89 : mov       i12, i8      
+    90 : mul       i12, i12, i8 
+    91 : add       i0, i0, i12  
+    92 : cmp       i9, i0       
+    93 : jmp_gt 15              
+    94 : mul       i8, i8, i8   
+    95 : mul       i1, i1, i1   
+    96 : mul       i2, i2, i2   
+    97 : add       i1, i1, i2   
+    98 : cmp       i8, i1       
+    99 : jmp_le 16              
+   100 : label 15:              
+   101 : mov       i0, 5        
+   102 : jmp       18           
+   103 : label 16:              
+   104 : mov       i0, 4        
+   105 : jmp       18           
+   106 : label 2:               
+   107 : label 5:               
+   108 : label 8:               
+   109 : label 11:              
+   110 : label 14:              
+   111 : label 17:              
+   112 : label 18:              
+   113 : unspill   i12, 0       
+   114 : add       i4, i4, 8    
+   115 : ret                    
