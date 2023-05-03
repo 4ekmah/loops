@@ -10,7 +10,7 @@ exponentiation_by_squaring_9(i0, i1, i2)
      8 : label 0:                
      9 : unspill   i20, 0        
     10 : cmp       i20, i1       
-    11 : jmp_ge    1             
+    11 : jmp_ge 2                
     12 : load.i32  i19, i0, i3   
     13 : mul       i18, i19, i19 
     14 : mul       i18, i18, i18 
@@ -23,7 +23,7 @@ exponentiation_by_squaring_9(i0, i1, i2)
     21 : add       i3, i3, 4     
     22 : add       i2, i2, 4     
     23 : jmp       0             
-    24 : label 1:                
+    24 : label 2:                
     25 : mov       i0, 0         
     26 : unspill   i18, 1        
     27 : unspill   i19, 2        

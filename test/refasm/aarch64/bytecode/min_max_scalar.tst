@@ -16,23 +16,23 @@ min_max_scalar(i0, i1, i2, i3)
     14 : mul       i1, i1, i19  
     15 : label 0:               
     16 : cmp       i18, i1      
-    17 : jmp_ge    3            
+    17 : jmp_ge 2               
     18 : load.i32  i19, i0, i18 
     19 : cmp       i19, i2      
-    20 : jmp_ge    1            
+    20 : jmp_ge 4               
     21 : mov       i2, i19      
     22 : mov       i20, i18     
     23 : spill     3, i20       
-    24 : label 1:               
+    24 : label 4:               
     25 : cmp       i19, i3      
-    26 : jmp_le    2            
+    26 : jmp_le 6               
     27 : mov       i3, i19      
     28 : mov       i20, i18     
     29 : spill     2, i20       
-    30 : label 2:               
+    30 : label 6:               
     31 : add       i18, i18, 4  
     32 : jmp       0            
-    33 : label 3:               
+    33 : label 2:               
     34 : mov       i0, 4        
     35 : unspill   i20, 3       
     36 : div       i1, i20, i0  

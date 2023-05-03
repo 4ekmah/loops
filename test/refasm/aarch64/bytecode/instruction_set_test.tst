@@ -2,117 +2,117 @@ instruction_set_test()
      0 : mov                      i0, -1                     
      1 : mov                      i15, -1                    
      2 : mov                      i0, -65536                 
-     3 : store.u64                6, i0, 256, i0             
-     4 : store.i64                7, i0, 256, i0             
-     5 : store.u64                6, i0, i0, i0              
-     6 : store.i64                7, i0, i0, i0              
-     7 : store.u32                4, i0, 256, i0             
-     8 : store.i32                5, i0, 256, i0             
-     9 : store.u32                4, i0, i0, i0              
-    10 : store.i32                5, i0, i0, i0              
-    11 : store.u16                2, i0, 256, i0             
-    12 : store.i16                3, i0, 256, i0             
-    13 : store.u16                2, i0, i0, i0              
-    14 : store.i16                3, i0, i0, i0              
-    15 : store.u8                 0, i0, 256, i0             
-    16 : store.i8                 1, i0, 256, i0             
-    17 : store.u8                 0, i0, i0, i0              
-    18 : store.i8                 1, i0, i0, i0              
-    19 : load.u64                 i0, 6, i0                  
-    20 : load.u64                 i0, 6, i0, 256             
-    21 : load.u64                 i15, 6, i0, 256            
-    22 : load.u64                 i0, 6, i15, 256            
-    23 : load.u64                 i0, 6, i0, i0              
-    24 : load.u64                 i15, 6, i0, i0             
-    25 : load.u64                 i0, 6, i15, i0             
-    26 : load.u64                 i0, 6, i0, i15             
-    27 : load.i64                 i0, 7, i0                  
-    28 : load.i64                 i0, 7, i0, 256             
-    29 : load.i64                 i15, 7, i0, 256            
-    30 : load.i64                 i0, 7, i15, 256            
-    31 : load.i64                 i0, 7, i0, i0              
-    32 : load.i64                 i15, 7, i0, i0             
-    33 : load.i64                 i0, 7, i15, i0             
-    34 : load.i64                 i0, 7, i0, i15             
-    35 : load.u32                 i0, 4, i0                  
-    36 : load.u32                 i0, 4, i0, 256             
-    37 : load.u32                 i15, 4, i0, 256            
-    38 : load.u32                 i0, 4, i15, 256            
-    39 : load.u32                 i0, 4, i0, i0              
-    40 : load.u32                 i15, 4, i0, i0             
-    41 : load.u32                 i0, 4, i15, i0             
-    42 : load.u32                 i0, 4, i0, i15             
-    43 : load.i32                 i0, 5, i0                  
-    44 : load.i32                 i0, 5, i0, 256             
-    45 : load.i32                 i15, 5, i0, 256            
-    46 : load.i32                 i0, 5, i15, 256            
-    47 : load.i32                 i0, 5, i0, i0              
-    48 : load.i32                 i15, 5, i0, i0             
-    49 : load.i32                 i0, 5, i15, i0             
-    50 : load.i32                 i0, 5, i0, i15             
-    51 : load.u16                 i0, 2, i0                  
-    52 : load.u16                 i0, 2, i0, 256             
-    53 : load.u16                 i15, 2, i0, 256            
-    54 : load.u16                 i0, 2, i15, 256            
-    55 : load.u16                 i0, 2, i0, i0              
-    56 : load.u16                 i15, 2, i0, i0             
-    57 : load.u16                 i0, 2, i15, i0             
-    58 : load.u16                 i0, 2, i0, i15             
-    59 : load.i16                 i0, 3, i0                  
-    60 : load.i16                 i0, 3, i0, 256             
-    61 : load.i16                 i15, 3, i0, 256            
-    62 : load.i16                 i0, 3, i15, 256            
-    63 : load.i16                 i0, 3, i0, i0              
-    64 : load.i16                 i15, 3, i0, i0             
-    65 : load.i16                 i0, 3, i15, i0             
-    66 : load.i16                 i0, 3, i0, i15             
-    67 : load.u8                  i0, 0, i0                  
-    68 : load.u8                  i0, 0, i0, 256             
-    69 : load.u8                  i15, 0, i0, 256            
-    70 : load.u8                  i0, 0, i15, 256            
-    71 : load.u8                  i0, 0, i0, i0              
-    72 : load.u8                  i15, 0, i0, i0             
-    73 : load.u8                  i0, 0, i15, i0             
-    74 : load.u8                  i0, 0, i0, i15             
-    75 : load.i8                  i0, 1, i0                  
-    76 : load.i8                  i0, 1, i0, 256             
-    77 : load.i8                  i15, 1, i0, 256            
-    78 : load.i8                  i0, 1, i15, 256            
-    79 : load.i8                  i0, 1, i0, i0              
-    80 : load.i8                  i15, 1, i0, i0             
-    81 : load.i8                  i0, 1, i15, i0             
-    82 : load.i8                  i0, 1, i0, i15             
-    83 : select                   i0, 0, i0, i0              
-    84 : select                   i0, 1, i0, i0              
-    85 : select                   i0, 2, i0, i0              
-    86 : select                   i0, 3, i0, i0              
-    87 : select                   i0, 5, i0, i0              
-    88 : select                   i0, 7, i0, i0              
-    89 : select                   i0, 8, i0, i0              
-    90 : select                   i0, 9, i0, i0              
-    91 : select                   i15, 0, i0, i0             
-    92 : select                   i0, 0, i15, i0             
-    93 : select                   i0, 0, i0, i15             
-    94 : arm_cinc                 i0, i0, 0                  
-    95 : arm_cinc                 i0, i0, 1                  
-    96 : arm_cinc                 i0, i0, 2                  
-    97 : arm_cinc                 i0, i0, 3                  
-    98 : arm_cinc                 i0, i0, 5                  
-    99 : arm_cinc                 i0, i0, 7                  
-   100 : arm_cinc                 i0, i0, 8                  
-   101 : arm_cinc                 i0, i0, 9                  
-   102 : arm_cinc                 i15, i0, 0                 
-   103 : arm_cinc                 i0, i15, 0                 
-   104 : arm_cneg                 i0, i0, 0                  
-   105 : arm_cneg                 i0, i0, 1                  
-   106 : arm_cneg                 i0, i0, 2                  
-   107 : arm_cneg                 i0, i0, 3                  
-   108 : arm_cneg                 i0, i0, 5                  
-   109 : arm_cneg                 i0, i0, 7                  
-   110 : arm_cneg                 i0, i0, 8                  
-   111 : arm_cneg                 i0, i0, 9                  
-   112 : arm_cneg                 i15, i0, 0                 
-   113 : arm_cneg                 i0, i15, 0                 
+     3 : store.u64                i0, 256, i0                
+     4 : store.i64                i0, 256, i0                
+     5 : store.u64                i0, i0, i0                 
+     6 : store.i64                i0, i0, i0                 
+     7 : store.u32                i0, 256, i0                
+     8 : store.i32                i0, 256, i0                
+     9 : store.u32                i0, i0, i0                 
+    10 : store.i32                i0, i0, i0                 
+    11 : store.u16                i0, 256, i0                
+    12 : store.i16                i0, 256, i0                
+    13 : store.u16                i0, i0, i0                 
+    14 : store.i16                i0, i0, i0                 
+    15 : store.u8                 i0, 256, i0                
+    16 : store.i8                 i0, 256, i0                
+    17 : store.u8                 i0, i0, i0                 
+    18 : store.i8                 i0, i0, i0                 
+    19 : load.u64                 i0, i0                     
+    20 : load.u64                 i0, i0, 256                
+    21 : load.u64                 i15, i0, 256               
+    22 : load.u64                 i0, i15, 256               
+    23 : load.u64                 i0, i0, i0                 
+    24 : load.u64                 i15, i0, i0                
+    25 : load.u64                 i0, i15, i0                
+    26 : load.u64                 i0, i0, i15                
+    27 : load.i64                 i0, i0                     
+    28 : load.i64                 i0, i0, 256                
+    29 : load.i64                 i15, i0, 256               
+    30 : load.i64                 i0, i15, 256               
+    31 : load.i64                 i0, i0, i0                 
+    32 : load.i64                 i15, i0, i0                
+    33 : load.i64                 i0, i15, i0                
+    34 : load.i64                 i0, i0, i15                
+    35 : load.u32                 i0, i0                     
+    36 : load.u32                 i0, i0, 256                
+    37 : load.u32                 i15, i0, 256               
+    38 : load.u32                 i0, i15, 256               
+    39 : load.u32                 i0, i0, i0                 
+    40 : load.u32                 i15, i0, i0                
+    41 : load.u32                 i0, i15, i0                
+    42 : load.u32                 i0, i0, i15                
+    43 : load.i32                 i0, i0                     
+    44 : load.i32                 i0, i0, 256                
+    45 : load.i32                 i15, i0, 256               
+    46 : load.i32                 i0, i15, 256               
+    47 : load.i32                 i0, i0, i0                 
+    48 : load.i32                 i15, i0, i0                
+    49 : load.i32                 i0, i15, i0                
+    50 : load.i32                 i0, i0, i15                
+    51 : load.u16                 i0, i0                     
+    52 : load.u16                 i0, i0, 256                
+    53 : load.u16                 i15, i0, 256               
+    54 : load.u16                 i0, i15, 256               
+    55 : load.u16                 i0, i0, i0                 
+    56 : load.u16                 i15, i0, i0                
+    57 : load.u16                 i0, i15, i0                
+    58 : load.u16                 i0, i0, i15                
+    59 : load.i16                 i0, i0                     
+    60 : load.i16                 i0, i0, 256                
+    61 : load.i16                 i15, i0, 256               
+    62 : load.i16                 i0, i15, 256               
+    63 : load.i16                 i0, i0, i0                 
+    64 : load.i16                 i15, i0, i0                
+    65 : load.i16                 i0, i15, i0                
+    66 : load.i16                 i0, i0, i15                
+    67 : load.u8                  i0, i0                     
+    68 : load.u8                  i0, i0, 256                
+    69 : load.u8                  i15, i0, 256               
+    70 : load.u8                  i0, i15, 256               
+    71 : load.u8                  i0, i0, i0                 
+    72 : load.u8                  i15, i0, i0                
+    73 : load.u8                  i0, i15, i0                
+    74 : load.u8                  i0, i0, i15                
+    75 : load.i8                  i0, i0                     
+    76 : load.i8                  i0, i0, 256                
+    77 : load.i8                  i15, i0, 256               
+    78 : load.i8                  i0, i15, 256               
+    79 : load.i8                  i0, i0, i0                 
+    80 : load.i8                  i15, i0, i0                
+    81 : load.i8                  i0, i15, i0                
+    82 : load.i8                  i0, i0, i15                
+    83 : select                   i0, 35, i0, i0             
+    84 : select                   i0, 34, i0, i0             
+    85 : select                   i0, 31, i0, i0             
+    86 : select                   i0, 28, i0, i0             
+    87 : select                   i0, 32, i0, i0             
+    88 : select                   i0, 30, i0, i0             
+    89 : select                   i0, 36, i0, i0             
+    90 : select                   i0, 37, i0, i0             
+    91 : select                   i15, 35, i0, i0            
+    92 : select                   i0, 35, i15, i0            
+    93 : select                   i0, 35, i0, i15            
+    94 : arm_cinc                 i0, i0, 35                 
+    95 : arm_cinc                 i0, i0, 34                 
+    96 : arm_cinc                 i0, i0, 31                 
+    97 : arm_cinc                 i0, i0, 28                 
+    98 : arm_cinc                 i0, i0, 32                 
+    99 : arm_cinc                 i0, i0, 30                 
+   100 : arm_cinc                 i0, i0, 36                 
+   101 : arm_cinc                 i0, i0, 37                 
+   102 : arm_cinc                 i15, i0, 35                
+   103 : arm_cinc                 i0, i15, 35                
+   104 : arm_cneg                 i0, i0, 35                 
+   105 : arm_cneg                 i0, i0, 34                 
+   106 : arm_cneg                 i0, i0, 31                 
+   107 : arm_cneg                 i0, i0, 28                 
+   108 : arm_cneg                 i0, i0, 32                 
+   109 : arm_cneg                 i0, i0, 30                 
+   110 : arm_cneg                 i0, i0, 36                 
+   111 : arm_cneg                 i0, i0, 37                 
+   112 : arm_cneg                 i15, i0, 35                
+   113 : arm_cneg                 i0, i15, 35                
    114 : sar                      i0, i0, 63                 
    115 : sar                      i15, i0, 63                
    116 : sar                      i0, i15, 63                

@@ -59,7 +59,7 @@ exp_f32(i0, i1, i2)
     57 : mov            i3, 0           
     58 : label 0:                       
     59 : cmp            i2, 0           
-    60 : jmp_le         1               
+    60 : jmp_le 2                       
     61 : vld.fp32       v3, i1, i3      
     62 : unspill        v29, 26         
     63 : min.fp32       v3, v3, v29     
@@ -115,7 +115,7 @@ exp_f32(i0, i1, i2)
    113 : add            i3, i3, 16      
    114 : sub            i2, i2, 4       
    115 : jmp            0               
-   116 : label 1:                       
+   116 : label 2:                       
    117 : unspill        v29, 30         
    118 : unspill        v30, 32         
    119 : add            i31, i31, 272   

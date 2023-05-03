@@ -15,7 +15,7 @@ min_max_select(i0, i1, i2, i3)
     13 : shl       i1, i1, 2         
     14 : label 0:                    
     15 : cmp       i18, i1           
-    16 : jmp_ge    1                 
+    16 : jmp_ge 2                    
     17 : load.i32  i19, i0, i18      
     18 : cmp       i19, i2           
     19 : unspill   i20, 3            
@@ -31,7 +31,7 @@ min_max_select(i0, i1, i2, i3)
     29 : select    i3, 28, i19, i3   
     30 : add       i18, i18, 4       
     31 : jmp       0                 
-    32 : label 1:                    
+    32 : label 2:                    
     33 : mov       i0, 4             
     34 : unspill   i20, 3            
     35 : sar       i0, i20, 2        

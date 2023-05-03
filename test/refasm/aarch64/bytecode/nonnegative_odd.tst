@@ -8,13 +8,13 @@ nonnegative_odd(i0, i1)
      6 : mul      i1, i1, i18   
      7 : label 0:               
      8 : cmp      i2, i1        
-     9 : jmp_ge   3             
+     9 : jmp_ge 2               
     10 : load.i32 i18, i0, i2   
     11 : cmp      i18, 0        
-    12 : jmp_ge   1             
+    12 : jmp_ge 4               
     13 : add      i2, i2, 4     
     14 : jmp      0             
-    15 : label 1:               
+    15 : label 4:               
     16 : mov      i19, 2        
     17 : spill    0, i0         
     18 : mov      i0, i18       
@@ -23,13 +23,13 @@ nonnegative_odd(i0, i1)
     21 : sub      i18, i0, i18  
     22 : unspill  i0, 0         
     23 : cmp      i18, 0        
-    24 : jmp_eq   2             
+    24 : jmp_eq 6               
     25 : mov      i3, i2        
-    26 : jmp      3             
-    27 : label 2:               
+    26 : jmp      2             
+    27 : label 6:               
     28 : add      i2, i2, 4     
     29 : jmp      0             
-    30 : label 3:               
+    30 : label 2:               
     31 : mov      i0, 4         
     32 : div      i0, i3, i0    
     33 : unspill  i18, 2        
