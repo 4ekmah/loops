@@ -130,12 +130,12 @@ namespace loops
 
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
-    IReg::IReg(const Recipe& fromwho)
+    IReg::IReg(const IRecipe& fromwho)
     {
         if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && fromwho.leaf().func == nullptr)
             throw std::runtime_error("Direct immediate assignment must be done via CONST_ operator, e.g.:\n    IReg var = CONST_(val);\n");
-        Recipe fromwho_(fromwho);
-        Arg unpacked = FuncImpl::verifyArgs({fromwho})->get_code_collecting()->reg_constr(fromwho_);
+        Recipe fromwho_(fromwho.notype());
+        Arg unpacked = FuncImpl::verifyArgs({fromwho_})->get_code_collecting()->reg_constr(fromwho_);
         Assert(unpacked.tag == Arg::IREG);
         func = unpacked.func;
         idx = unpacked.idx;
@@ -168,15 +168,15 @@ namespace loops
 
     IReg& IReg::operator=(const IReg& r)
     {
-        Recipe fromwho(r);
+        IRecipe fromwho(r);
         return operator=(fromwho);
     }
 
-    IReg& IReg::operator=(const Recipe& fromwho)
+    IReg& IReg::operator=(const IRecipe& fromwho)
     {
-        Recipe fromwho_(fromwho);
+        Recipe fromwho_(fromwho.notype());
         Recipe me(*this);
-        FuncImpl::verifyArgs({me, fromwho})->get_code_collecting()->reg_assign(Arg(*this), fromwho_);
+        FuncImpl::verifyArgs({me, fromwho_})->get_code_collecting()->reg_assign(Arg(*this), fromwho_);
         return (*this);
     }
 
@@ -239,38 +239,14 @@ namespace loops
         FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret(opcode, args);
     }
 
-    Recipe pow(const Recipe& a, int64_t p)
+    IRecipe pow(const IRecipe& a, int p)
     {
-        Assert(!a.empty() && !(a.opcode() == RECIPE_LEAF && a.leaf().tag == Arg::IIMMEDIATE));
-        Context CTX = ExtractContext(a);
+        Context CTX = ExtractContext(a.notype());
         USE_CONTEXT_(CTX);
         if(p == 0)
-        {
-            if(a.is_vector())
-            {
-                switch(a.type())
-                {
-                    case (TYPE_U8 ): return VCONST_(uint8_t, 1);
-                    case (TYPE_I8 ): return VCONST_(int8_t, 1);
-                    case (TYPE_U16): return VCONST_(uint16_t, 1);
-                    case (TYPE_I16): return VCONST_(int16_t, 1);
-                    case (TYPE_U32): return VCONST_(uint32_t, 1);
-                    case (TYPE_I32): return VCONST_(int32_t, 1);
-                    case (TYPE_U64): return VCONST_(uint64_t, 1);
-                    case (TYPE_I64): return VCONST_(int64_t, 1);
-                    case (TYPE_FP16): return VCONST_(f16_t, f16_t(1.0));
-                    case (TYPE_BF16): throw std::runtime_error("BF16 type isn't supported yet.");
-                    case (TYPE_FP32): return VCONST_(float, 1.0);
-                    case (TYPE_FP64): return VCONST_(double, 1.0);
-                    default:
-                        throw std::runtime_error("Unknown data type.");
-                }
-            }
-            else
-                return CONST_(1);
-        }
-        Recipe _a = a;
-        Recipe res;
+            return CONST_(1);
+        IRecipe _a = a;
+        IRecipe res;
         while (p)
             if (p & 1) 
             {
@@ -284,10 +260,10 @@ namespace loops
             }
         return res;
     }
-
-    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base)
+    
+    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IRecipe& base)
     {
-        FuncImpl::verifyArgs({base})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base);
+        FuncImpl::verifyArgs({base.notype()})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base.notype());
     }
 
     Context::Context() : impl(nullptr)
@@ -331,10 +307,10 @@ namespace loops
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_STEM_CSTART, {});
     }
 
-    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const Recipe& condition) : CTX(inh.CTX), cftype(_cftype)
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const IRecipe& condition) : CTX(inh.CTX), cftype(_cftype)
     {
         CodeCollecting* coll = getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting();
-        Recipe condition_(condition);
+        Recipe condition_(condition.notype());
         switch (_cftype)
         {
         case(IF):
@@ -373,7 +349,8 @@ namespace loops
     void __Loops_CF_rvalue_::break_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(); }
     void __Loops_CF_rvalue_::continue_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(); }
     void __Loops_CF_rvalue_::return_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(); }
-    void __Loops_CF_rvalue_::return_(const Recipe& r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
+    void __Loops_CF_rvalue_::return_(const IRecipe& r) { Recipe r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
+    void __Loops_CF_rvalue_::return_(int64_t r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
     exp_consts::exp_consts(Context CTX)
     {
@@ -399,19 +376,19 @@ namespace loops
         return exp_consts(CTX);
     }
 
-    Recipe exp(const VReg<float>& x, const exp_consts& expt)
+    VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt)
     {
-        Recipe vexp_x = min(x, expt.hi);
+        VRecipe<float> vexp_x = min(x, expt.hi);
         vexp_x = max(vexp_x, expt.lo);
-        Recipe vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
-        Recipe vexp_mm = floor<int32_t>(vexp_fx);
+        VRecipe<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
+        VRecipe<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
         vexp_fx = cast<float>(vexp_mm);
         vexp_mm = vexp_mm + expt._7f;
         vexp_mm = vexp_mm << 23;
         vexp_x = fma(vexp_x, vexp_fx, expt.C1);
         vexp_x = fma(vexp_x, vexp_fx, expt.C2);
-        Recipe vexp_z = vexp_x * vexp_x;
-        Recipe vexp_y = fma(expt.p1, vexp_x, expt.p0);
+        VRecipe<float> vexp_z = vexp_x * vexp_x;
+        VRecipe<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
         vexp_y = fma(expt.p2, vexp_y, vexp_x);
         vexp_y = fma(expt.p3, vexp_y, vexp_x);
         vexp_y = fma(expt.p4, vexp_y, vexp_x);

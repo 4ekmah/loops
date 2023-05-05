@@ -88,7 +88,7 @@ LTESTexe(nullify_msb_lsb_v, {
     }
     });
 
-#define DEFINE_CERTAIN_REG(name, number) IReg name; name.func = _f; name.idx = number
+#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IRecipe name##_1(name##_0); Recipe name = name##_1.notype()
 LTESTcomposer(instruction_set_test, {
     FuncImpl* _f = getImpl(getImpl(&CTX)->getCurrentFunc());
     DEFINE_CERTAIN_REG(x0, 0);

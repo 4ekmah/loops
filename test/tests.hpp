@@ -150,11 +150,13 @@ void print_channel(T* data, int H, int W, int stride)
 }
 
 template<typename _Tp>
-loops::Recipe iregtyped(const loops::IReg& reg)
+loops::Recipe iregtyped(const loops::Recipe& reg)
 {
-    loops::Recipe ret(reg);
+    Assert(reg.opcode() == loops::RECIPE_LEAF && reg.leaf().tag == loops::Arg::IREG);
+    loops::IReg ar; ar.func = reg.leaf().func; ar.idx = reg.leaf().idx;
+    loops::IRecipe ret(ar);
     ret.type() = loops::ElemTraits<_Tp>::depth;
-    return ret;
+    return ret.notype();
 }
 
 template<typename _Tp>

@@ -28,7 +28,7 @@ struct f16_t {
 enum {
     TYPE_U8=0, TYPE_I8=1, TYPE_U16=2, TYPE_I16=3,
     TYPE_U32=4, TYPE_I32=5, TYPE_U64=6, TYPE_I64=7,
-    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11 , 
+    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11, 
     TYPE_BOOLEAN};
 
 enum {
@@ -339,13 +339,14 @@ static inline int duplicate_type(int typ)
 
 class Func;
 class Recipe;
+class IRecipe;
 struct IReg
 {
     IReg();
     IReg(const IReg& r); //Must generate copy(mov) code
-    IReg(const Recipe& fromwho);
+    IReg(const IRecipe& fromwho);
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
-    IReg& operator=(const Recipe& fromwho);
+    IReg& operator=(const IRecipe& fromwho);
     /*
     copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
@@ -361,15 +362,16 @@ struct IReg
 };
 
 class Context;
+template <typename _Tp> class VRecipe;
 template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
 
     VReg() : idx(NOIDX), func(nullptr) {}
     VReg(const VReg<_Tp>& r);
-    VReg(const Recipe& fromwho);
+    VReg(const VRecipe<_Tp>& fromwho);
     VReg<_Tp>& operator=(const VReg<_Tp>& r);
-    VReg<_Tp>& operator=(const Recipe& fromwho);
+    VReg<_Tp>& operator=(const VRecipe<_Tp>& fromwho);
      /*
     copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
@@ -413,17 +415,14 @@ struct Arg
 };
 
 struct __loops_RecipeStr_;
-struct Recipe
+class Recipe
 {
+public:
     inline Recipe();
     inline Recipe(const Recipe& fromwho);
     inline Recipe& operator=(const Recipe& fromwho);
     inline Recipe(const Arg& a_leaf);
-    inline Recipe(const IReg& a_leaf);
-    template<typename _Tp> 
-    inline Recipe(const VReg<_Tp>& a_leaf);
     inline Recipe(int64_t a_leaf);
-    inline Recipe(int a_opcode, bool a_is_vector, int a_type, std::initializer_list<Recipe> a_children);
     inline ~Recipe();
     inline int& opcode();
     inline bool& is_vector();
@@ -439,6 +438,56 @@ struct Recipe
     inline bool empty() const ;
     //+add assertions on class construction.
     __loops_RecipeStr_* pointee;
+};
+
+class IRecipe
+{
+public:
+    Recipe super;
+    IRecipe() {}
+    // inline IRecipe(const IRecipe& fromwho) : Recipe(fromwho) {}
+    inline IRecipe(const IReg& a_leaf);
+    inline IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children);
+    Recipe notype() const { return super; }
+
+    inline int& opcode() {return super.opcode();} 
+    inline bool& is_vector() {return super.is_vector();} 
+    inline bool is_leaf() const {return super.is_leaf();} 
+    inline int& type() {return super.type();} 
+    inline Arg& leaf() {return super.leaf();} 
+    inline std::vector<Recipe>& children() {return super.children();} 
+    inline int opcode() const {return super.opcode();} 
+    inline bool is_vector() const {return super.is_vector();} 
+    inline int type() const {return super.type();} 
+    inline const Arg& leaf() const {return super.leaf();} 
+    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline bool empty() const {return super.empty();} 
+
+};
+
+template <typename _Tp>
+class VRecipe
+{
+public:
+    Recipe super;
+
+    VRecipe() {}
+    inline VRecipe(const VReg<_Tp>& a_leaf);
+    inline VRecipe(int a_opcode, std::initializer_list<Recipe> a_children);
+    Recipe notype() const {return super;}
+
+    inline int& opcode() {return super.opcode();} 
+    inline bool& is_vector() {return super.is_vector();} 
+    inline bool is_leaf() const {return super.is_leaf();} 
+    inline int& type() {return super.type();} 
+    inline Arg& leaf() {return super.leaf();} 
+    inline std::vector<Recipe>& children() {return super.children();} 
+    inline int opcode() const {return super.opcode();} 
+    inline bool is_vector() const {return super.is_vector();} 
+    inline int type() const {return super.type();} 
+    inline const Arg& leaf() const {return super.leaf();} 
+    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline bool empty() const {return super.empty();}     
 };
 
 struct __loops_RecipeStr_
@@ -473,38 +522,12 @@ Recipe::Recipe(const Arg& a_leaf): pointee(new __loops_RecipeStr_)
     pointee->is_vector = a_leaf.tag != Arg::IREG && a_leaf.tag == Arg::IIMMEDIATE;
     pointee->leaf = a_leaf;
 }
-Recipe::Recipe(const IReg& a_leaf): pointee(new __loops_RecipeStr_)
-{
-    pointee->refcounter = 1;
-    pointee->opcode = RECIPE_LEAF;
-    pointee->is_vector = false;
-    pointee->leaf = Arg(a_leaf);
-}
 Recipe::Recipe(int64_t a_leaf): pointee(new __loops_RecipeStr_)
 {
     pointee->refcounter = 1;
     pointee->opcode = RECIPE_LEAF;
     pointee->is_vector = false;
     pointee->leaf = Arg(a_leaf);
-}
-template<typename _Tp> 
-Recipe::Recipe(const VReg<_Tp>& a_leaf): pointee(new __loops_RecipeStr_)
-{
-    pointee->refcounter = 1;
-    pointee->opcode = RECIPE_LEAF;
-    pointee->is_vector = true;
-    pointee->type = ElemTraits<_Tp>::depth;
-    pointee->leaf = Arg(a_leaf);
-}
-Recipe::Recipe(int a_opcode, bool a_is_vector, int a_type, std::initializer_list<Recipe> a_children): pointee(new __loops_RecipeStr_)
-{
-    pointee->refcounter = 1;
-    pointee->opcode = a_opcode;
-    pointee->is_vector = a_is_vector;
-    pointee->type = a_type;
-    pointee->children.reserve(a_children.size());
-    for(const Recipe& child : a_children)
-        pointee->children.emplace_back(child);
 }
 
 Recipe::~Recipe() { if(pointee) { if(--(pointee->refcounter) == 0) delete pointee; } }
@@ -541,6 +564,52 @@ const std::vector<Recipe>& Recipe::children() const
     return pointee->children;
 }
 bool Recipe::empty() const { return pointee == nullptr; }
+
+inline IRecipe::IRecipe(const IReg& a_leaf)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = RECIPE_LEAF;
+    super.pointee->is_vector = false;
+    super.pointee->type = TYPE_I64;
+    super.pointee->leaf = Arg(a_leaf);
+}
+inline IRecipe::IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = a_opcode;
+    super.pointee->is_vector = false;
+    super.pointee->type = a_type;
+    super.pointee->children.reserve(a_children.size());
+    for(const Recipe& child : a_children)
+        super.pointee->children.emplace_back(child);
+}
+
+template <typename _Tp>
+inline VRecipe<_Tp>::VRecipe(const VReg<_Tp>& a_leaf)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = RECIPE_LEAF;
+    super.pointee->is_vector = true;
+    super.pointee->type = ElemTraits<_Tp>::depth;
+    super.pointee->leaf = Arg(a_leaf);
+}
+
+template <typename _Tp>
+inline VRecipe<_Tp>::VRecipe(int a_opcode, std::initializer_list<Recipe> a_children)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = a_opcode;
+    super.pointee->is_vector = true;
+    super.pointee->type = ElemTraits<_Tp>::depth;
+    super.pointee->children.reserve(a_children.size());
+    for(const Recipe& child : a_children)
+        super.pointee->children.emplace_back(child);
+}
+
 
 class Func
 {
@@ -608,7 +677,7 @@ struct __Loops_CondPrefixMarker_
 struct __Loops_CFScopeBracket_
 {
     enum CFType {IF, ELIF, ELSE, WHILE };
-    explicit __Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const Recipe& condition);
+    explicit __Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const IRecipe& condition);
     explicit __Loops_CFScopeBracket_(Context& inh);
     ~__Loops_CFScopeBracket_();
     Context* CTX;
@@ -631,34 +700,35 @@ struct __Loops_CF_rvalue_
     void break_();
     void continue_();
     void return_();
-    void return_(const Recipe& r);
+    void return_(const IRecipe& r);
+    void return_(int64_t r);
 };
 
-static inline Recipe __loops_const_(Context* CTX, int64_t _val)
+static inline IRecipe __loops_const_(Context* CTX, int64_t _val)
 {
     Recipe val(Arg(_val, CTX));
-    return Recipe(OP_MOV, false, TYPE_I64, {val});
+    return IRecipe(OP_MOV, TYPE_I64, {val});
 }
 
-static inline Recipe __loops_def_(Context* CTX)
+static inline IRecipe __loops_def_(Context* CTX)
 {
     Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe. 
-    return Recipe(OP_DEF, false, TYPE_I64, {dummy});
+    return IRecipe(OP_DEF, TYPE_I64, {dummy});
 }
 
 template<typename _Tp>
-Recipe __loops_vconst_(Context* CTX, _Tp _val)
+VRecipe<_Tp> __loops_vconst_(Context* CTX, _Tp _val)
 {
     int64_t val64 = 0;
     *(reinterpret_cast<_Tp*>(&val64)) = _val;
     Recipe val(Arg(val64, CTX));
-    return Recipe(OP_MOV, true, ElemTraits<_Tp>::depth, {val});
+    return VRecipe<_Tp>(OP_MOV, {val});
 }
 template<typename _Tp>
-Recipe __loops_vdef_(Context* CTX)
+VRecipe<_Tp> __loops_vdef_(Context* CTX)
 {
     Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe. 
-    return Recipe(VOP_DEF, ElemTraits<_Tp>::depth, {dummy});
+    return VRecipe<_Tp>(VOP_DEF, ElemTraits<_Tp>::depth, {dummy});
 }
 
 //TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be 
@@ -678,539 +748,302 @@ Recipe __loops_vdef_(Context* CTX)
 #define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
 #define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
 
-//DUBUGGG: One of further step is introducing typified Recipes: only root node will be typified in AST, other will keep type in runtime manner
-//So, this is the way to keep compile-time typechecking as it was before introducing AST.
-
 //DUBUGGG: Other interesting idea is to keep func not in Args, but only in IReg/Vreg and Recipes. Args is used mostly beyond code collection pass,
 //where func is always fully-determined.
 
-static inline void assert_scalars_(::std::initializer_list<Recipe> args)
-{
-    for(const Recipe& arg : args)
-        if(arg.is_vector())
-            throw std::runtime_error("Unexpected vector.");
-}
-
-static inline void assert_haveireg_(::std::initializer_list<Recipe> args)
-{
-    bool foundreg = false;
-    bool allarescalars = true;
-    for(const Recipe& arg : args)
-        if(arg.is_vector())
-        {
-            allarescalars = false;
-            break;
-        }
-        else if (!arg.is_leaf() || arg.leaf().tag == Arg::IREG)
-            foundreg = true;
-    if(!allarescalars)
-        throw std::runtime_error("Unexpected vector.");
-    if(!foundreg)
-        throw std::runtime_error("Scalar register is expected.");
-}
-
-static inline void assert_unisize_vreg(::std::initializer_list<Recipe> args)
-{
-    if(args.size() == 0) 
-        return;
-    int type = (*(args.begin())).type();
-    for(const Recipe& arg : args)
-        if(!arg.is_vector())
-            throw std::runtime_error("Unexpected scalar.");
-        else if(elem_size(arg.type()) != elem_size(type))
-            throw std::runtime_error("Number of lanes in the in arguments must be the same.");
-}
-
-static inline void assert_unitype_vreg(::std::initializer_list<Recipe> args)
-{
-    if(args.size() == 0) 
-        return;
-    int type = (*(args.begin())).type();
-    for(const Recipe& arg : args)
-        if(!arg.is_vector())
-            throw std::runtime_error("Unexpected scalar.");
-        else if(arg.type() != type)
-            throw std::runtime_error("Type mismatch.");
-}
+//DUBUGGG: Create template implementation file
 
 void newiopNoret(int opcode, ::std::initializer_list<Recipe> args);
 ///////////////////////////// integer operations ///////////////////////
-// load with zero/sign extension
-template<typename _Tp> static inline Recipe load_(const Recipe& base)
-{
-    assert_haveireg_({base});
-    return Recipe(OP_LOAD, false, ElemTraits<_Tp>::depth, {base}); 
-}
-template<typename _Tp> static inline Recipe load_(const Recipe& base, const Recipe& offset)
-{ 
-    assert_haveireg_({base});
-    return Recipe(OP_LOAD, false, ElemTraits<_Tp>::depth, {base, offset});
-}
-static inline Recipe load(const Recipe& base)
-{ return load_<int64_t>(base); }
-static inline Recipe load(const Recipe& base, const Recipe& offset)
-{ return load_<int64_t>(base, offset); }
+// Load with zero/sign extension:
+static inline IRecipe loadx(const IRecipe& base, int depth)
+{ return IRecipe(OP_LOAD, depth, {base.notype()}); }
+static inline IRecipe loadx(const IRecipe& base, const IRecipe& offset, int depth)
+{ return IRecipe(OP_LOAD, depth, {base.notype(), offset.notype()}); }
+static inline IRecipe loadx(const IRecipe& base, int64_t offset, int depth)
+{ return IRecipe(OP_LOAD, depth, {base.notype(), Recipe(offset)}); }
+
+template<typename _Tp> static inline IRecipe load_(const IRecipe& base)
+{ return loadx(base, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+IRecipe load_(const IRecipe& base, const IRecipe& offset)
+{ return loadx(base, offset, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+IRecipe load_(const IRecipe& base, int64_t offset)
+{ return loadx(base, offset, ElemTraits<_Tp>::depth); }
 
 // store part of register
-template<typename _Tp>
-static inline void store_(const Recipe& base, const Recipe& r)
+static inline void storex(const IRecipe& base, const IRecipe& r, int depth)
 { 
-    assert_haveireg_({base});
-    Recipe r_(r);
-    r_.type() = ElemTraits<_Tp>::depth;
-    newiopNoret(OP_STORE, {base, r});
+    Recipe r_(r.notype());
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), r_});
 }
+static inline void storex(const IRecipe& base, int64_t a, int depth)
+{
+    Recipe r_(a);
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), r_});
+}
+static inline void storex(const IRecipe& base, const IRecipe& offset, const IRecipe& r, int depth)
+{
+    Recipe r_(r.notype());
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), offset.notype(), r_});
+}
+static inline void storex(const IRecipe& base, int64_t offset, const IRecipe& r, int depth)
+{
+    Recipe r_(r.notype());
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), Recipe(offset), r_});
+}
+static inline void storex(const IRecipe& base, const IRecipe& offset, int64_t a, int depth)
+{
+    Recipe r_(a);
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), offset.notype(), r_});
+}
+static inline void storex(const IRecipe& base, int64_t offset, int64_t a, int depth)
+{
+    Recipe r_(a);
+    r_.type() = depth;
+    newiopNoret(OP_STORE, {base.notype(), Recipe(offset), r_});
+}
+static inline void store(const IRecipe& base, const IRecipe& r)
+{ storex(base, r, TYPE_I64); }
+static inline void store(const IRecipe& base, const IRecipe& offset, const IRecipe& r)
+{ storex(base, offset, r, TYPE_I64);}
 template<typename _Tp> static inline
-void store_(const Recipe& base, const Recipe& offset, const Recipe& r)
-{ 
-    assert_haveireg_({base});
-    Recipe r_(r);
-    r_.type() = ElemTraits<_Tp>::depth;
-    newiopNoret(OP_STORE, {base, offset, r});
-}
+void store_(const IRecipe& base, const IRecipe& r)
+{ storex(base, r, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+void store_(const IRecipe& base, int64_t a)
+{ storex(base, a, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+void store_(const IRecipe& base, const IRecipe& offset, const IRecipe& r)
+{ storex(base, offset, r, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+void store_(const IRecipe& base, int64_t offset, const IRecipe& r)
+{ storex(base, offset, r, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+void store_(const IRecipe& base, const IRecipe& offset, int64_t a)
+{ storex(base, offset, a, ElemTraits<_Tp>::depth); }
+template<typename _Tp> static inline
+void store_(const IRecipe& base, int64_t offset, int64_t a)
+{ storex(base, offset, a, ElemTraits<_Tp>::depth); }
 
-static inline void store(const Recipe& base, const Recipe& r)
-{ store_<uint64_t>(base, r); }
-static inline void store(const Recipe& base, const Recipe& offset, const Recipe& r)
-{ store_<uint64_t>(base, offset, r); }
+// Integer arithmetic and bitwise operations:
+static inline IRecipe operator + (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_ADD, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator + (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_ADD, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator + (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_ADD, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe operator - (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_SUB, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator - (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_SUB, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator - (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_SUB, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe operator * (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_MUL, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator * (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_MUL, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator * (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_MUL, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe operator / (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_DIV, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator / (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_DIV, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator / (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_DIV, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe operator % (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_MOD, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator % (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_MOD, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator % (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_MOD, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe operator - (const IRecipe& a)
+{ return IRecipe(OP_NEG, a.type(), {a.notype()}); }
+static inline IRecipe operator >> (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_SAR, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator >> (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_SAR, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator >> (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_SAR, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe ushift_right(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_SHR, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe ushift_right(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_SHR, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe ushift_right(int64_t a, const IRecipe& b)
+{ return IRecipe(OP_SHR, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe operator <<(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_SHL, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator <<(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_SHL, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator <<(int64_t a, const IRecipe& b)
+{ return IRecipe(OP_SHL, b.type(), {Recipe(a), b.notype()}); }
+static inline IRecipe operator & (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_AND, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator & (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_AND, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator & (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_AND, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe operator | (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_OR, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator | (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_OR, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator | (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_OR, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe operator ^ (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_XOR, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator ^ (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_XOR, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator ^ (int64_t a, const IRecipe& b)
+{ return IRecipe(OP_XOR, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe operator ~ (const IRecipe& a)
+{ return IRecipe(OP_NOT, a.type(), {a.notype()}); }
 
-//Integer arithmetic and bitwise operations
-static inline Recipe operator + (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_ADD, false, b.type(), {b, a});
-        else
-            return Recipe(OP_ADD, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_ADD, true, a.type(), {a, b});
-    }
-}
+// Comparisson and logical operations:
+static inline IRecipe operator == (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_EQ, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator == (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_EQ, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator != (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_NE, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator != (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_NE, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator <= (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_LE, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator <= (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_LE, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe ule(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_ULE, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe ule(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_ULE, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator >= (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_GE, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator >= (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_GE, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe uge(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_ULE, a.type(), {b.notype(), a.notype()}); } //TODO(ch): Uge -> ule implementation is formed by ARM. Check for better ideas on Intel.
+static inline IRecipe uge(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_ULE, a.type(), {Recipe(b), a.notype()}); }
+static inline IRecipe operator > (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_GT, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator > (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_GT, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe ugt(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_UGT, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe ugt(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_UGT, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe operator < (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_LT, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe operator < (const IRecipe& a, int64_t b)
+{ return IRecipe(OP_LT, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe ult(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_UGT, a.type(), {b.notype(), a.notype()}); }
+static inline IRecipe ult(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_UGT, a.type(), {Recipe(b), a.notype()}); }
+static inline IRecipe operator == (int64_t a, const IRecipe& b) { return b == a; }
+static inline IRecipe operator != (int64_t a, const IRecipe& b) { return b != a; }
+static inline IRecipe operator <= (int64_t a, const IRecipe& b) { return b >= a; }
+static inline IRecipe ule(int64_t a, const IRecipe& b) { return uge(b,a); }
+static inline IRecipe operator >= (int64_t a, const IRecipe& b) { return b <= a; }
+static inline IRecipe uge(int64_t a, const IRecipe& b) { return ule(b, a);}
+static inline IRecipe operator > (int64_t a, const IRecipe& b) { return b < a; }
+static inline IRecipe ugt(int64_t a, const IRecipe& b) { return ult(b,a);}
+static inline IRecipe operator < (int64_t a, const IRecipe& b) { return b > a; }
+static inline IRecipe ult(int64_t a, const IRecipe& b) {return ugt(b,a);}
+static inline IRecipe operator && (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_LOGICAL_AND, TYPE_BOOLEAN, {a.notype(), b.notype()}); }
+static inline IRecipe operator || (const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_LOGICAL_OR, TYPE_BOOLEAN, {a.notype(), b.notype()}); }
+static inline IRecipe operator ! (const IRecipe& a)
+{ return IRecipe(OP_LOGICAL_NOT, TYPE_BOOLEAN, {a.notype()}); }
 
-static inline Recipe operator - (const Recipe& a, const Recipe& b)
-{
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        return Recipe(OP_SUB, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_SUB, true, a.type(), {a, b});
-    }
-}
-static inline Recipe operator * (const Recipe& a, const Recipe& b)
-{
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_MUL, false, b.type(), {b, a});
-        else
-            return Recipe(OP_MUL, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_MUL, true, a.type(), {a, b});
-    }
-}
-static inline Recipe operator / (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        return Recipe(OP_DIV, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_DIV, true, a.type(), {a, b});
-    }
-}
-static inline Recipe operator % (const Recipe& a, const Recipe& b)
-{ 
-    assert_haveireg_({a, b});
-    return Recipe(OP_MOD, false, a.type(), {a, b});
-    //TODO(ch): Support VRegs?
-}
-static inline Recipe operator - (const Recipe& a)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a});
-        return Recipe(OP_NEG, false, a.type(), {a});
-    }
-    else
-    {
-        return Recipe(VOP_NEG, true, a.type(), {a});
-    }
-}
+//Augmenting operations:
+static inline IReg& operator += (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_ADD, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator += (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_ADD, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator -= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_SUB, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator -= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_SUB, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator *= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_MUL, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator *= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_MUL, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator /= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_DIV, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator /= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_DIV, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator %= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_MOD, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator %= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_MOD, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator >>= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_SAR, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator >>= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_SAR, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator <<= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_SHL, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator <<= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_SHL, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator &= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_AND, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator &= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_AND, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator |= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_OR, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator |= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_OR, {a.notype(), a.notype(), Recipe(b)}); return _a; }
+static inline IReg& operator ^= (IReg& _a, const IRecipe& b)
+{ IRecipe a(_a); newiopNoret(OP_XOR, {a.notype(), a.notype(), b.notype()}); return _a; }
+static inline IReg& operator ^= (IReg& _a, int64_t b)
+{ IRecipe a(_a); newiopNoret(OP_XOR, {a.notype(), a.notype(), Recipe(b)}); return _a; }
 
-static inline Recipe operator >> (const Recipe& a, const Recipe& b)
-{
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        return Recipe(OP_SAR, false, a.type(), {a, b});
-    }
-    else
-    {
-        //TODO(ch): Support:
-        //template<typename _Tp, typename _Sp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Sp>& b)
-        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("Only immediate shifts are supported.");
-        return Recipe(VOP_SAR, true, a.type(), {a, b});
-
-    }
-}
-static inline Recipe ushift_right (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        return Recipe(OP_SHR, false, a.type(), {a, b});
-    }
-    else
-    {
-        //TODO(ch): Support:
-        //template<typename _Tp, typename _Sp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, const VReg<_Sp>& b)
-        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("Only immediate shifts are supported.");
-        return Recipe(VOP_SHR, true, a.type(), {a, b});
-    }
-}
-
-static inline Recipe operator << (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        return Recipe(OP_SHL, false, a.type(), {a, b});
-    }
-    else
-    {
-        if(!b.is_vector())
-        {
-            if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Scalar shift must be immediate.");
-        }
-        else
-            assert_unisize_vreg({a, b});
-        return Recipe(VOP_SAL, true, a.type(), {a, b});
-    }
-}
-
-static inline Recipe ushift_left(const Recipe& a, const Recipe& b)
-{
-    assert_unisize_vreg({a, b});
-    return Recipe(VOP_SHL, true, a.type(), {a, b});
-}
-
-static inline Recipe operator & (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_AND, false, b.type(), {b, a});
-        else
-            return Recipe(OP_AND, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_AND, true, a.type(), {b, a});
-    }
-}
-
-static inline Recipe operator | (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_OR, false, b.type(), {b, a});
-        else
-            return Recipe(OP_OR, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_OR, true, a.type(), {b, a});
-    }
-}
-static inline Recipe operator ^ (const Recipe& a, const Recipe& b)
-{ 
-    if(!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_XOR, false, b.type(), {b, a});
-        else
-            return Recipe(OP_XOR, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_XOR, true, a.type(), {b, a});
-    }
-}
-
-static inline Recipe operator ~ (const Recipe& a)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a});
-        return Recipe(OP_NOT, false, a.type(), {a});
-
-    }
-    else
-        return Recipe(VOP_NOT, true, a.type(), {a});
-}
-
-static inline Recipe operator == (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_EQ, false, b.type(), {b, a});
-        else
-            return Recipe(OP_EQ, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_EQ, true, mask_type(a.type()), {a, b});
-    }
-}
-static inline Recipe operator != (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_NE, false, b.type(), {b, a});
-        else
-            return Recipe(OP_NE, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_NE, true, mask_type(a.type()), {a, b});
-    }
-}
-
-static inline Recipe operator <= (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_GE, false, b.type(), {b, a});
-        else
-            return Recipe(OP_LE, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_LE, true, mask_type(a.type()), {a, b});
-    }
-}
-static inline Recipe ule (const Recipe& a, const Recipe& b)
-{ 
-    assert_haveireg_({a, b});
-    return Recipe(OP_ULE, false, a.type(), {a, b});
-}
-
-static inline Recipe operator >= (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_LE, false, b.type(), {b, a});
-        else
-            return Recipe(OP_GE, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_GE, true, mask_type(a.type()), {a, b});
-    }
-}
-static inline Recipe uge (const Recipe& a, const Recipe& b)
-{ 
-    assert_haveireg_({a, b});
-    return Recipe(OP_ULE, false, b.type(), {b, a});//TODO(ch): Uge -> ule implementation is formed by ARM. Check for better ideas on Intel.
-}
-static inline Recipe operator > (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_LT, false, b.type(), {b, a});
-        else
-            return Recipe(OP_GT, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_GT, true, mask_type(a.type()), {a, b});
-    }
-}
-static inline Recipe ugt (const Recipe& a, const Recipe& b)
-{ 
-    assert_haveireg_({a, b});
-    return Recipe(OP_UGT, false, a.type(), {a, b});
-}
-static inline Recipe operator < (const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_GT, false, b.type(), {b, a});
-        else
-            return Recipe(OP_LT, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_LT, true, mask_type(a.type()), {a, b});
-    }
-}
-static inline Recipe ult (const Recipe& a, const Recipe& b)
-{
-    assert_haveireg_({a, b});
-    return Recipe(OP_UGT, false, b.type(), {b, a});//TODO(ch): Ult -> ugt implementation is formed by ARM. Check for better ideas on Intel.
-}
-
-//DUBUGGG: After  Recipe typeification there will be needed Recipe<IReg> -> Recipe<Boolean>(a -> a!=0) transformation with making assertions stronger.
-static inline Recipe operator && (const Recipe& a, const Recipe& b)
-{
-    assert_haveireg_({a});
-    assert_haveireg_({b});
-    return Recipe(OP_LOGICAL_AND, false, TYPE_BOOLEAN, {a, b});
-}
-
-static inline Recipe operator || (const Recipe& a, const Recipe& b)
-{
-    assert_haveireg_({a});
-    assert_haveireg_({b});
-    return Recipe(OP_LOGICAL_OR, false, TYPE_BOOLEAN, {a, b});
-}
-
-static inline Recipe operator ! (const Recipe& a)
-{
-    assert_haveireg_({a});
-    return Recipe(OP_LOGICAL_NOT, false, TYPE_BOOLEAN, {a});
-}
-
-static inline Recipe select(const Recipe& cond, const Recipe& true_, const Recipe& false_)
-{
-    if(!cond.is_vector())
-    {
-        assert_haveireg_({cond});
-        return Recipe(OP_SELECT, false, true_.type(), {cond, true_, false_});
-    }
-    else
-    {
-        assert_unitype_vreg({true_, false_});
-        if(cond.type() != mask_type(true_.type()))
-            throw std::runtime_error("Mask type must be unsigned integer with same element size, as vectors to choose from.");
-        return Recipe(VOP_SELECT, true, true_.type(), {cond, true_, false_});
-    }
-}
-static inline Recipe max(const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_MAX, false, b.type(), {b, a});
-        else
-            return Recipe(OP_MAX, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_MAX, true, a.type(), {a, b});
-    }
-}
-static inline Recipe min(const Recipe& a, const Recipe& b)
-{ 
-    if (!a.is_vector())
-    {
-        assert_haveireg_({a, b});
-        if(a.is_leaf() && a.leaf().tag == Arg::IIMMEDIATE)
-            return Recipe(OP_MIN, false, b.type(), {b, a});
-        else
-            return Recipe(OP_MIN, false, a.type(), {a, b});
-    }
-    else
-    {
-        assert_unitype_vreg({a, b});
-        return Recipe(VOP_MIN, true, a.type(), {a, b});
-    }
-}
-static inline Recipe abs(const Recipe& a)
-{ 
-    //TODO(ch):Support:
-    //template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
-    assert_haveireg_({a});
-    return Recipe(OP_ABS, false, a.type(), {a});
-}
-static inline Recipe sign(const Recipe& a)
-{ 
-    //TODO(ch):Support:
-    //template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
-    assert_haveireg_({a});
-    return Recipe(OP_SIGN, false, a.type(), {a});
-}
-Recipe pow(const Recipe& a, int64_t p);
-
-static inline IReg& operator += (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_ADD, {a, a, b}); return _a; }
-static inline IReg& operator -= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_SUB, {a, a, b}); return _a; }
-static inline IReg& operator *= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_MUL, {a, a, b}); return _a; }
-static inline IReg& operator /= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_DIV, {a, a, b}); return _a; }
-static inline IReg& operator %= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_MOD, {a, a, b}); return _a; }
-static inline IReg& operator >>= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_SAR, {a, a, b}); return _a; }
-static inline IReg& operator <<= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_SHL, {a, a, b}); return _a; }
-static inline IReg& operator &= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_AND, {a, a, b}); return _a; }
-static inline IReg& operator |= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_OR, {a, a, b}); return _a; }
-static inline IReg& operator ^= (IReg& _a, const Recipe& b)
-{ assert_scalars_({b}); Recipe a(_a); newiopNoret(OP_XOR, {a, a, b}); return _a; }
+//Other integer operations:
+static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, const IRecipe& false_)
+{ return IRecipe(OP_SELECT, true_.type(), {cond.notype(), true_.notype(), false_.notype()}); }
+static inline IRecipe select(const IRecipe& cond, int64_t true_, const IRecipe& false_)
+{ return IRecipe(OP_SELECT, false_.type(), {cond.notype(), Recipe(true_), false_.notype()}); }
+static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, int64_t false_)
+{ return IRecipe(OP_SELECT, true_.type(), {cond.notype(), true_.notype(), Recipe(false_)}); }
+static inline IRecipe max(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_MAX, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe max(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_MAX, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe max(int64_t a, const IRecipe& b)
+{ return IRecipe(OP_MAX, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe min(const IRecipe& a, const IRecipe& b)
+{ return IRecipe(OP_MIN, a.type(), {a.notype(), b.notype()}); }
+static inline IRecipe min(const IRecipe& a, int64_t b)
+{ return IRecipe(OP_MIN, a.type(), {a.notype(), Recipe(b)}); }
+static inline IRecipe min(int64_t a, const IRecipe& b)
+{ return IRecipe(OP_MIN, b.type(), {b.notype(), Recipe(a)}); }
+static inline IRecipe abs(const IRecipe& a)
+{ return IRecipe(OP_ABS, a.type(), {a.notype()}); }
+static inline IRecipe sign(const IRecipe& a)
+{ return IRecipe(OP_SIGN, a.type(), {a.notype()}); }
+IRecipe pow(const IRecipe& a, int p);
 
 ///////////////////////////// vector operations ///////////////////////
-
-// Load and stores
-template<typename _Tp> static inline Recipe loadvec(const Recipe& base)
-{ assert_haveireg_({base}); return Recipe(VOP_LOAD, true, ElemTraits<_Tp>::depth, {&base}); }
-template<typename _Tp> static inline Recipe loadvec(const Recipe& base, const Recipe& offset)
-{ assert_haveireg_({base}); return Recipe(VOP_LOAD, true,  ElemTraits<_Tp>::depth, {base, offset}); }
+// Load with zero/sign extension:
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base)
+{ return VRecipe<_Tp>(VOP_LOAD, {base.notype()}); }
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, const IRecipe& offset)
+{ return VRecipe<_Tp>(VOP_LOAD, {base.notype(), offset.notype()}); }
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, int64_t offset)
+{ return VRecipe<_Tp>(VOP_LOAD, {base.notype(), Recipe(offset)}); }
+template<typename _Tp> VRecipe<_Tp> loadlane(const IRecipe& base, int64_t lane_index)
+{ return VRecipe<_Tp>(VOP_ARM_LD1, {Recipe(lane_index), base.notype()}); }
 //TODO(ch): find a way to delete next warning:
 //WARNING! It's assumed here, that res1 and res2 are not initialized yet.
 //template<typename _Tp> std::pair<Recipe, Recipe> loadvec_deinterleave2(const Recipe& base); //TODO(ch): optimal form of signature
-void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base);
-template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const Recipe& base)
+void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IRecipe& base);
+template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IRecipe& base)
 {
     if(res1.func || res2.func)
         throw std::runtime_error("Load deinterleave doesn't support initilized results registers yet.");
@@ -1221,197 +1054,193 @@ template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& re
     res1.idx = r1.idx;
     res2.idx = r2.idx;
 }
-static inline void storevec(const Recipe& base, const Recipe& r)
-{ 
-    assert_haveireg_({base});
-    if (!r.is_vector())
-        throw std::runtime_error("Vector to store is expected.");
-    newiopNoret(VOP_STORE, {base, r});
-}
-static inline void storevec(const Recipe& base, const Recipe& offset, const Recipe& r)
+
+// Store:
+template<typename _Tp> void storevec(const IRecipe& base, const VRecipe<_Tp>& r)
+{ newiopNoret(VOP_STORE, {base.notype(), r.notype()}); }
+template<typename _Tp> void storevec(const IRecipe& base, const IRecipe& offset, const VRecipe<_Tp>& r)
+{ newiopNoret(VOP_STORE, {base.notype(), offset.notype(), r.notype()}); }
+template<typename _Tp> void storelane(const IRecipe& base, const VRecipe<_Tp>& r, int64_t lane_index)
+{ newiopNoret(VOP_ARM_ST1, {base.notype(), r.notype(), Recipe(lane_index)}); }
+
+// Casts:
+//template<typename _Tp> VRecipe<_Tp> add_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+//template<typename _Tp> VRecipe<_Tp> sub_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Dp, typename _Tp> VRecipe<_Dp> cast(const VRecipe<_Tp>& a)
+{ return VRecipe<_Dp>(VOP_CAST, {a.notype()}); }
+template<typename _Dp, typename _Tp> VRecipe<_Dp> reinterpret(const VRecipe<_Tp>& a)
+{ return VRecipe<_Dp>(VOP_REINTERPRET, {a.notype()});}
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<f16_t>& a)  //Convert with rounding to zero
 {
-    assert_haveireg_({base});
-    if (offset.is_vector())
-        throw std::runtime_error("Scalar is expected.");
-    if (!r.is_vector())
-        throw std::runtime_error("Vector is expected.");
-    newiopNoret(VOP_STORE, {base, offset, r});
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I16 || ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_TRUNC, {a.notype()});
 }
-static inline void storelane(const Recipe& base, const Recipe& r, int64_t lane_index)
-{ 
-    assert_haveireg_({base});
-    Recipe lanidx(lane_index);
-    if (!r.is_vector())
-        throw std::runtime_error("Vector to store is expected.");
-    newiopNoret(VOP_ARM_ST1, {base, r, lanidx});
-}
-
-// Cast
-template<typename _Tp> Recipe broadcast(const Recipe& scalar)
-{ return Recipe(VOP_BROADCAST, true, ElemTraits<_Tp>::depth, {scalar}); }
-
-static inline Recipe broadcast(const Recipe& r, int64_t lane_index)
-{ 
-    Recipe lanidx(lane_index);
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_BROADCAST, true, r.type(), {r, lanidx});
-}
-
-template<typename _Tp> Recipe cast(const Recipe& a)
-{ 
-    if (!a.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_CAST, true, ElemTraits<_Tp>::depth, {a});
-}
-
-static inline Recipe cast_low(const Recipe& r)
-{ 
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_CAST_LOW, true, duplicate_type(r.type()), {r});
-}
-
-static inline Recipe cast_high(const Recipe& r)
-{ 
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_CAST_HIGH, true, duplicate_type(r.type()), {r});
-}
-
-static inline Recipe shrink(const Recipe& r0, const Recipe& r1)
-{ 
-    assert_unitype_vreg({r0, r1});
-    if (!r0.is_vector() || !r1.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_SHRINK, true, half_type(r0.type()), {r0,r1});
-}
-
-template<typename _Tp> Recipe reinterpret(const Recipe& a)
-{ 
-    if (!a.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_REINTERPRET, true, ElemTraits<_Tp>::depth, {a});
-}
-
-static inline Recipe getlane(const Recipe& r, int64_t lane_index)
-{ 
-    Recipe lanidx(lane_index);
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_GETLANE, false, r.type(), {r, lanidx});
-}
-static inline void setlane(const Recipe& v, int64_t lane_index, const Recipe& i)
-{ 
-    assert_haveireg_({i});
-    Recipe lanidx(lane_index);
-    if (!v.is_vector())
-        throw std::runtime_error("Vector is expected.");
-    newiopNoret(VOP_SETLANE, {v, lanidx, i});
-}
-
-static inline void setlane(const Recipe& v, int64_t olane_index, const Recipe& r, int64_t ilane_index)
-{ 
-    if (!v.is_vector() || !r.is_vector())
-        throw std::runtime_error("Vector is expected.");
-    Recipe olanidx(ilane_index);
-    Recipe ilanidx(olane_index);
-    newiopNoret(VOP_SETLANE, {v, olanidx, r, ilanidx});
-}
-
-static inline Recipe reduce_max(const Recipe& r)
-{ 
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_REDUCE_MAX, true, r.type(), {r});
-}
-
-static inline Recipe reduce_min(const Recipe& r)
-{ 
-    if (!r.is_vector()) throw std::runtime_error("Vector is expected.");
-    return Recipe(VOP_REDUCE_MIN, true, r.type(), {r});
-}
-
-static inline Recipe ext(const Recipe& n, const Recipe& m, int64_t lane_index)
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<float>& a)  //Convert with rounding to zero
 {
-    assert_unitype_vreg({n,m});
-    Recipe lanidx(lane_index);
-    return Recipe(VOP_ARM_EXT, true, n.type(), {n, m, lanidx});
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I32 || ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_TRUNC, {a.notype()});
 }
-
-static inline Recipe fma(const Recipe& a, const Recipe& b, const Recipe& c)
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<double>& a)  //Convert with rounding to zero
 {
-    assert_unitype_vreg({a,b,c});
-    return Recipe(VOP_FMA, true, a.type(), {a, b, c});
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I64 || ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_TRUNC, {a.notype()});
 }
-static inline Recipe fma(const Recipe& a, const Recipe& b, const Recipe& c, int64_t lane_index)
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<f16_t>& a)  //Convert with rounding to minus infinity
 {
-    assert_unitype_vreg({a, b, c});
-    Recipe lanidx(lane_index);
-    return Recipe(VOP_FMA, true, a.type(), {a, b, c, lanidx});
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I16 || ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_FLOOR, {a.notype()});
 }
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<float>& a)  //Convert with rounding to minus infinity
+{
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I32 || ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_FLOOR, {a.notype()});
+}
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<double>& a)  //Convert with rounding to minus infinity
+{
+    static_assert(ElemTraits<_Dp>::depth == TYPE_I64 || ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
+    return VRecipe<_Dp>(VOP_FLOOR, {a.notype()});
+}
+//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
+template<typename _Tp> VRecipe<_Tp> broadcast(const IRecipe& scalar)
+{ return VRecipe<_Tp>(VOP_BROADCAST, { scalar.notype() }); }
+template<typename _Tp> VRecipe<_Tp> broadcast(const VRecipe<_Tp>& inp, int64_t ilane_index)
+{ return VRecipe<_Tp>(VOP_BROADCAST, { inp.notype(), Recipe(ilane_index) }); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VRecipe<_Tp>& r)
+{ return VRecipe<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_LOW, { r.notype() }); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VRecipe<_Tp>& r)
+{ return VRecipe<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_HIGH, { r.notype() }); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const VRecipe<_Tp>& r0, const VRecipe<_Tp>& r1)
+{ return VRecipe<typename ElemTraits<_Tp>::half_type>(VOP_SHRINK, {r0.notype(),r1.notype()}); }
 
-//template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
+//Lane manipulations:
+//template<typename _Tp> IRecipe all(VRecipe<_Tp>& a);
+//template<typename _Tp> IRecipe any(VRecipe<_Tp>& a);
+template<typename _Tp> IRecipe getlane(const VRecipe<_Tp>& r, int64_t lane_index)
+{ return IRecipe(VOP_GETLANE, ElemTraits<_Tp>::depth, {r.notype(), Recipe(lane_index)}); }
+template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const IRecipe& i)
+{ newiopNoret(VOP_SETLANE, {v.notype(), Recipe(lane_index), i.notype()}); }
+template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const VRecipe<_Tp>& inp, int64_t ilane_index)
+{ newiopNoret(VOP_SETLANE, {v.notype(), Recipe(lane_index), inp.notype(), Recipe(ilane_index)}); }
+template<typename _Tp> VRecipe<_Tp> reduce_max(const VRecipe<_Tp>& r)
+{ return VRecipe<_Tp>(VOP_REDUCE_MAX, { r.notype() }); }
+template<typename _Tp> VRecipe<_Tp> reduce_min(const VRecipe<_Tp>& r)
+{ return VRecipe<_Tp>(VOP_REDUCE_MIN, { r.notype() }); }
+template<typename _Tp> VRecipe<_Tp> ext(const VRecipe<_Tp>& n, const VRecipe<_Tp>& m, int64_t index)
+{ return VRecipe<_Tp>(VOP_ARM_EXT, {n.notype(), m.notype(), Recipe(index)}); }
 
+// Arithmetic and bitwise operations:
+template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_ADD, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b) { return VRecipe<_Tp>(a) + VRecipe<_Tp>(b); }
+template<typename _Tp> VRecipe<_Tp> operator + (const VReg<_Tp>& a, const VRecipe<_Tp>& b) { return VRecipe<_Tp>(a) + b; }
+template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const VReg<_Tp>& b) { return a + VRecipe<_Tp>(b); }
+template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_SUB, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator * (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_MUL, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator / (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_DIV, {a.notype(), b.notype()}); }
+//template<typename _Tp> VRecipe<_Tp> operator % (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a)
+{ return VRecipe<_Tp>(VOP_NEG, {a.notype()}); }
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c)
+{ return VRecipe<_Tp>(VOP_FMA, {a.notype(), b.notype(), c.notype()}); }
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VReg<_Tp>& c) { return fma(a, b, VRecipe<_Tp>(c)); }
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VReg<_Tp>& b, const VRecipe<_Tp>& c) { return fma(a, VRecipe<_Tp>(b), c); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c) { return fma(a, VRecipe<_Tp>(b), VRecipe<_Tp>(c)); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VReg<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c) { return fma(VRecipe<_Tp>(a), b, c); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VReg<_Tp>& a, const VRecipe<_Tp>& b, const VReg<_Tp>& c) { return fma(VRecipe<_Tp>(a), b, VRecipe<_Tp>(c)); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VRecipe<_Tp>& c) { return fma(VRecipe<_Tp>(a), VRecipe<_Tp>(b), c); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c) { return fma(VRecipe<_Tp>(a), VRecipe<_Tp>(b), VRecipe<_Tp>(c)); } 
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c, int64_t index)
+{ return VRecipe<_Tp>(VOP_FMA, {a.notype(), b.notype(), c.notype(), Recipe(index)}); }
+template<typename _Tp> VRecipe<_Tp> pow(const VRecipe<_Tp>& a, int p);
 struct exp_consts;
 exp_consts expInit(Context CTX);
-Recipe exp(const VReg<float>& x, const exp_consts& expt);
+VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt);
 
-template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_ADD, {a, a, b}); return _a; }
-template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_SUB, {a, a, b}); return _a; }
-template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_MUL, {a, a, b}); return _a; }
-template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_DIV, {a, a, b}); return _a; }
-//template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& _a, const Recipe& b);
-//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const Recipe& b)
-//{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_SAR, {&a, &a, b}); return _a;}
-template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, int64_t _b)
-{ Recipe a(_a);  Recipe b(_b); newiopNoret(VOP_SAR, {a, a, b}); return _a; }
-
-template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, const Recipe& b)
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b)
+template<typename _Tp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, int64_t b)
+{ return VRecipe<_Tp>(VOP_SAR, {a.notype(), Recipe(b)}); }
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_right(const VRecipe<_Tp>& a, const VRecipe<_Sp>& b)
+template<typename _Tp> VRecipe<_Tp> ushift_right (const VRecipe<_Tp>& a, int64_t b)
+{ return VRecipe<_Tp>(VOP_SHR, {a.notype(), Recipe(b)}); }
+template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b)
 {
-    Recipe a(_a);
-    if(!b.is_vector()) 
-    {
-        if(!b.is_leaf() || b.leaf().tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("Only immediate shifts are supported.");
-    }
-    else
-        assert_unitype_vreg({a, b});
-    newiopNoret(VOP_SAL, {a, a, b});
-    return _a;
+    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+    return VRecipe<_Tp>(VOP_SAL, {a.notype(), b.notype()});
 }
-template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_AND, {a, a, b} ); return _a; }
-template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_OR, {a, a, b} ); return _a; }
-template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& _a, const Recipe& b)
-{ Recipe a(_a); assert_unitype_vreg({a, b}); newiopNoret(VOP_XOR, {a, a, b} ); return _a; }
+template<typename _Tp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, int64_t b)
+{ return VRecipe<_Tp>(VOP_SAL, {a.notype(), Recipe(b)}); }
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left(const VRecipe<_Tp>& a, int64_t b)
+template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left(const VRecipe<_Tp>& a, const VRecipe<_Sp>& b)
+{
+    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
+    return VRecipe<_Tp>(VOP_SHL, {a.notype(), Recipe(b)});
+}
+template<typename _Tp> VRecipe<_Tp> operator & (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_AND, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator | (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_OR, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator ^ (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_XOR, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> operator ~ (const VRecipe<_Tp>& a)
+{ return VRecipe<_Tp>(VOP_NOT, {a.notype()}); }
+
+// Vector comparisson and masking:
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_EQ, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_NE, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_GE, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_LE, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator > (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_GT, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator < (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<typename ElemTraits<_Tp>::masktype>(VOP_LT, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const VRecipe<_Tp>& iffalse)
+{ return VRecipe<_Tp>(VOP_SELECT, {flag.notype(), iftrue.notype(), iffalse.notype()}); }
+template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_MAX, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b) { return max(VRecipe<_Tp>(a), VRecipe<_Tp>(b));}
+template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const VReg<_Tp>& b) { return max(a, VRecipe<_Tp>(b));}
+template<typename _Tp> VRecipe<_Tp> max(const VReg<_Tp>& a, const VRecipe<_Tp>& b) { return max(VRecipe<_Tp>(a), b);}
+template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b)
+{ return VRecipe<_Tp>(VOP_MIN, {a.notype(), b.notype()}); }
+template<typename _Tp> VRecipe<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b) { return min(VRecipe<_Tp>(a), VRecipe<_Tp>(b));}
+template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const VReg<_Tp>& b) { return min(a, VRecipe<_Tp>(b));}
+template<typename _Tp> VRecipe<_Tp> min(const VReg<_Tp>& a, const VRecipe<_Tp>& b) { return min(VRecipe<_Tp>(a), b);}
+//template<typename _Tp> VRecipe<_Tp> abs(const VRecipe<_Tp>& a);
+//template<typename _Tp> VRecipe<_Tp> sign(const VRecipe<_Tp>& a);
+
+
+//Augmenting operations:
+template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_ADD, {a.notype(), a.notype(), b.notype()}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_SUB, {a.notype(), a.notype(), b.notype()}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_MUL, {a.notype(), a.notype(), b.notype()}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_DIV, {a.notype(), a.notype(), b.notype()}); return _a; }
+//template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, int64_t _b)
+{ VRecipe<_Tp> a(_a);  Recipe b(_b); newiopNoret(VOP_SAR, {a.notype(), a.notype(), b}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, VRecipe<_Tp> b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_SAL, {a.notype(), a.notype(), b.notype()}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, int64_t _b)
+{ VRecipe<_Tp> a(_a);  Recipe b(_b); newiopNoret(VOP_SAL, {a.notype(), a.notype(), b}); return _a; }
+template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_AND, {a.notype(), a.notype(), b.notype()} ); return _a; }
+template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_OR, {a.notype(), a.notype(), b.notype()} ); return _a; }
+template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+{ VRecipe<_Tp> a(_a); newiopNoret(VOP_XOR, {a.notype(), a.notype(), b.notype()} ); return _a; }
 
 //// if all/any of the elements is true
-//template<typename _Tp> IReg all(VReg<_Tp>& a);
-//template<typename _Tp> IReg any(VReg<_Tp>& a);
-
-//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
-template<typename _Tp> Recipe trunc(const Recipe& a)  //Convert with rounding to zero
-{
-    if (a.type() == TYPE_FP16 || a.type() == TYPE_FP32 || a.type() == TYPE_FP64)
-        throw std::runtime_error("Only real number can be truncated.");
-    if (ElemTraits<_Tp>::depth == TYPE_I16 || ElemTraits<_Tp>::depth == TYPE_U16 || ElemTraits<_Tp>::depth == TYPE_I32 || ElemTraits<_Tp>::depth == TYPE_U32 ||
-        ElemTraits<_Tp>::depth == TYPE_I64 || ElemTraits<_Tp>::depth == TYPE_U64) 
-        throw std::runtime_error("Trunc can be done only to integer type.");
-    if (ElemTraits<_Tp>::elemsize != elem_size(a.type())) 
-        throw std::runtime_error("Attempt to convert real number to integer of different size.");
-    return Recipe(VOP_TRUNC, ElemTraits<_Tp>::depth, {&a});
-}
-
-template<typename _Tp> Recipe floor(const Recipe& a)  //Convert with rounding to zero
-{
-    if (a.type() != TYPE_FP16 && a.type() != TYPE_FP32 && a.type() != TYPE_FP64)
-        throw std::runtime_error("Only real number can be floored.");
-    if (ElemTraits<_Tp>::depth != TYPE_I16 && ElemTraits<_Tp>::depth != TYPE_U16 && ElemTraits<_Tp>::depth != TYPE_I32 && ElemTraits<_Tp>::depth != TYPE_U32 &&
-        ElemTraits<_Tp>::depth != TYPE_I64 && ElemTraits<_Tp>::depth != TYPE_U64)
-        throw std::runtime_error("Floor can be done only to integer type.");
-    if (ElemTraits<_Tp>::elemsize != elem_size(a.type())) 
-        throw std::runtime_error("Attempt to convert real number to integer of different size.");
-    return Recipe(VOP_FLOOR, true, ElemTraits<_Tp>::depth, {a});
-}
 
 //TODO(ch): These template implementations can be obviously moved to auxilary header:
 
@@ -1436,9 +1265,9 @@ VReg<_Tp>::VReg(const VReg<_Tp>& r)
 
 
 template<typename _Tp>
-VReg<_Tp>::VReg(const Recipe& fromwho)
+VReg<_Tp>::VReg(const VRecipe<_Tp>& fromwho)
 {
-    VReg_constr_(fromwho, idx, func, ElemTraits<_Tp>::depth);
+    VReg_constr_(fromwho.notype(), idx, func, ElemTraits<_Tp>::depth);
 }
 
 template<typename _Tp>
@@ -1451,9 +1280,9 @@ VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
 void VReg_assign_(const Arg& target, const Recipe& fromwho);
 
 template<typename _Tp>
-VReg<_Tp>& VReg<_Tp>::operator=(const Recipe& fromwho)
+VReg<_Tp>& VReg<_Tp>::operator=(const VRecipe<_Tp>& fromwho)
 {
-    VReg_assign_(Arg(*this), fromwho);
+    VReg_assign_(Arg(*this), fromwho.notype());
     return (*this);
 }
 
@@ -1473,12 +1302,52 @@ Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)
     , elemtype(ElemTraits<_Tp>::depth)
     , flags(0){}
 
+template<typename _Tp>
+VRecipe<_Tp> pow(const VRecipe<_Tp>& a, int p)
+{
+    Context CTX = ExtractContext(a);
+    USE_CONTEXT_(CTX);
+    if(p == 0)
+        switch(a.type())
+        {
+            case (TYPE_U8 ): return VCONST_(uint8_t, 1);
+            case (TYPE_I8 ): return VCONST_(int8_t, 1);
+            case (TYPE_U16): return VCONST_(uint16_t, 1);
+            case (TYPE_I16): return VCONST_(int16_t, 1);
+            case (TYPE_U32): return VCONST_(uint32_t, 1);
+            case (TYPE_I32): return VCONST_(int32_t, 1);
+            case (TYPE_U64): return VCONST_(uint64_t, 1);
+            case (TYPE_I64): return VCONST_(int64_t, 1);
+            case (TYPE_FP16): return VCONST_(f16_t, f16_t(1.0));
+            case (TYPE_BF16): throw std::runtime_error("BF16 type isn't supported yet.");
+            case (TYPE_FP32): return VCONST_(float, 1.0);
+            case (TYPE_FP64): return VCONST_(double, 1.0);
+            default:
+                throw std::runtime_error("Unknown data type.");
+        }
+    VRecipe<_Tp> _a = a;
+    VRecipe<_Tp> res;
+    while (p)
+        if (p & 1) 
+        {
+            res = (res.empty()) ? _a : res * _a;
+            --p;
+        }
+        else 
+        {
+            _a = _a * _a;
+            p >>= 1;
+        }
+    return res;
+}
+
 struct exp_consts
 {
     VReg<float> lo, hi, half, one, LOG2EF, C1, C2, p0, p1, p2, p3, p4, p5;
     VReg<int32_t> _7f;
     exp_consts(Context CTX);
 };
+
 
 }
 #endif

@@ -320,10 +320,10 @@ namespace loops
             return eliminate_not(rcp.children()[0], !inverseflag);
         case (OP_LOGICAL_AND):
             Assert(rcp.children().size() == 2);
-            return Recipe(inverseflag ? OP_LOGICAL_OR : OP_LOGICAL_AND, false, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], inverseflag), eliminate_not(rcp.children()[1], inverseflag)});
+            return IRecipe(inverseflag ? OP_LOGICAL_OR : OP_LOGICAL_AND, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], inverseflag), eliminate_not(rcp.children()[1], inverseflag)}).notype();
         case (OP_LOGICAL_OR):
             Assert(rcp.children().size() == 2);
-            return Recipe(inverseflag ? OP_LOGICAL_AND : OP_LOGICAL_OR, false, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], inverseflag), eliminate_not(rcp.children()[1], inverseflag)});
+            return IRecipe(inverseflag ? OP_LOGICAL_AND : OP_LOGICAL_OR, TYPE_BOOLEAN, {eliminate_not(rcp.children()[0], inverseflag), eliminate_not(rcp.children()[1], inverseflag)}).notype();
         case (OP_GT):
         case (OP_UGT):
         case (OP_GE):
@@ -333,13 +333,13 @@ namespace loops
         case (OP_NE):
         case (OP_EQ):
             Assert(rcp.children().size() == 2);
-            return Recipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), false, TYPE_BOOLEAN, {rcp.children()[0], rcp.children()[1]});
+            return IRecipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), TYPE_BOOLEAN, {rcp.children()[0], rcp.children()[1]}).notype();
         case (OP_S):
         case (OP_NS):
             Assert(rcp.children().size() == 1);
-            return Recipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), false, TYPE_BOOLEAN, {rcp.children()[0]});
+            return IRecipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), TYPE_BOOLEAN, {rcp.children()[0]}).notype();
         default:
-            return Recipe(inverseflag ? OP_NE : OP_EQ, false, TYPE_BOOLEAN, {rcp.children()[0], Recipe(0)});
+            return IRecipe(inverseflag ? OP_NE : OP_EQ, TYPE_BOOLEAN, {rcp.children()[0], Recipe(0)}).notype();
         };
     }
 
