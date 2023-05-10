@@ -99,7 +99,7 @@ enum {
     AARCH64_XTN,
     AARCH64_XTN2,
     AARCH64_B,
-    AARCH64_B_NE,
+    AARCH64_B_NE, //TODO(ch): implement JCC operation instead of this endless variations.
     AARCH64_B_EQ,
     AARCH64_B_LT,
     AARCH64_B_LE,
@@ -111,8 +111,8 @@ enum {
 };
 
 enum {
-    CS_AARCH64_BIG_IMMEDIATES = CS_ARCH_SPECIFIC,
-    CS_AARCH64_SNIPPETS,
+    CP_AARCH64_BIG_IMMEDIATES = CP_ARCH_SPECIFIC,
+    CP_AARCH64_SNIPPETS,
 };
 
 

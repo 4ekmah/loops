@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <inttypes.h>
 #include <ostream>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <stdexcept>
 #include "defines.hpp"
@@ -27,224 +28,166 @@ struct f16_t {
 enum {
     TYPE_U8=0, TYPE_I8=1, TYPE_U16=2, TYPE_I16=3,
     TYPE_U32=4, TYPE_I32=5, TYPE_U64=6, TYPE_I64=7,
-    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11
-};
+    TYPE_FP16=8, TYPE_BF16=9, TYPE_FP32=10, TYPE_FP64=11, 
+    TYPE_BOOLEAN};
 
 enum {
-    OP_LOAD=0,
-    OP_STORE,
+    OP_LOAD         =   0,
+    OP_STORE        =   1,
 
-    OP_MOV,
-    OP_XCHG,
+    OP_MOV          =   2,
+    OP_XCHG         =   3,
 
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
-    OP_MOD,
-    OP_SHL,
-    OP_SHR,
-    OP_SAR,
-    OP_AND, //Note: It's bitwise operations.
-    OP_OR,
-    OP_XOR,
-    OP_NOT,
-    OP_NEG,
-    OP_CMP,
-    OP_SELECT,   //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
-    OP_MIN,
-    OP_MAX,
-    OP_ABS,
-    OP_SIGN,
-
-    OP_ROUND,
-    OP_FLOOR,
-    OP_CEIL,
+    OP_ADD          =   4,
+    OP_SUB          =   5,
+    OP_MUL          =   6,
+    OP_DIV          =   7,
+    OP_MOD          =   8,
+    OP_SHL          =   9,
+    OP_SHR          =  10,
+    OP_SAR          =  11,
+    OP_AND          =  12, //Note: It's bitwise operations.
+    OP_OR           =  13,
+    OP_XOR          =  14,
+    OP_NOT          =  15,
+    OP_NEG          =  16,
+    OP_CMP          =  17,
+    OP_SELECT       =  18, //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
+    OP_MIN          =  19,
+    OP_MAX          =  20,
+    OP_ABS          =  21,
+    OP_SIGN         =  22,
+   
+    OP_ROUND        =  23,
+    OP_FLOOR        =  24,
+    OP_CEIL         =  25,
 
     //For service usage only
-    OP_SPILL,   //(stackPos, reg), stackPos is positive distance from SP, measured in 8byte-long units
-    OP_UNSPILL, //(reg, stackPos)
-
-    OP_JMP,
-    OP_JMP_GT, //TODO(ch): implement JCC operation instead of this endless variations.
-    OP_JMP_UGT,
-    OP_JMP_GE,
-    OP_JMP_LT,
-    OP_JMP_LE,
-    OP_JMP_ULE,
-    OP_JMP_NE,
-    OP_JMP_EQ,
-    OP_RET,
-    OP_LABEL,
-
-    OP_IF,
-    OP_ELSE,
-    OP_ENDIF,
-    OP_WHILE,  //WHILE  <CMPcode>, <continuelabel>, <breaklabel>  //TODO(ch): keep there more annotations
-    OP_ENDWHILE, //ENDWHILE <continuelabel>, <breaklabel>
-    OP_BREAK,
-    OP_CONTINUE,
-
-    VOP_LOAD,
-    VOP_STORE,
+    OP_SPILL        =  26, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL      =  27, //OP_UNSPILL <reg>, <stack_pos>
+    OP_GT           =  28,
+    OP_UGT          =  29,
+    OP_GE           =  30,
+    OP_LT           =  31,
+    OP_LE           =  32,
+    OP_ULE          =  33,
+    OP_NE           =  34,
+    OP_EQ           =  35,
+    OP_S            =  36,
+    OP_NS           =  37,
     
-    VOP_ADD,
-    VOP_SUB,
-    VOP_MUL,
-    VOP_DIV,
+    OP_LOGICAL_AND  =  38,
+    OP_LOGICAL_OR   =  39,
+    OP_LOGICAL_NOT  =  40,
+    
+    OP_JMP          =  41, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
+    OP_JCC          =  42, //OP_JCC <cmpcode>, <target_label>
+    OP_RET          =  43,
+    OP_LABEL        =  44,
+    
+    OP_STEM_CSTART  =  45,
+    
+    OP_IF_CSTART    =  46,
+    OP_ELIF_CSTART  =  47, //OP_ELIF_CSTART <elselabel>, <outlabel>
+    OP_IF_CEND      =  48, //OP_IF_CEND
+    OP_ELSE         =  49, //OP_ELSE <elselabel>, <outlabel>
+    OP_ENDIF        =  50, //OP_ENDIF <outlabel>
+
+    OP_WHILE_CSTART =  51, //OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND   =  52, //OP_WHILE_CEND
+    OP_ENDWHILE     =  53, //OP_ENDWHILE <continuelabel>, <breaklabel>
+    OP_BREAK        =  54,
+    OP_CONTINUE     =  55,
+    VOP_LOAD        =  56,
+    VOP_STORE       =  57,
+    VOP_ADD         =  58,
+    VOP_SUB         =  59,
+    VOP_MUL         =  60,
+    VOP_DIV         =  61,
 //    VOP_MOD,
-    VOP_FMA,
-    VOP_SAL,
-    VOP_SHL,
-    VOP_SAR,
-    VOP_SHR,
-    VOP_AND,
-    VOP_OR,
-    VOP_XOR,
-    VOP_NOT,
-    VOP_NEG,
+    VOP_FMA         =  62,
+    VOP_SAL         =  63,
+    VOP_SHL         =  64,
+    VOP_SAR         =  65,
+    VOP_SHR         =  66,
+    VOP_AND         =  67,
+    VOP_OR          =  68,
+    VOP_XOR         =  69,
+    VOP_NOT         =  70,
+    VOP_NEG         =  71,
 
-    VOP_MIN,
-    VOP_MAX,
+    VOP_MIN         =  72,
+    VOP_MAX         =  73,
 
-    VOP_GT,
-    VOP_GE,
-    VOP_LT,
-    VOP_LE,
-    VOP_NE,
-    VOP_EQ,
-    VOP_SELECT,
+    VOP_GT          =  74,
+    VOP_GE          =  75,
+    VOP_LT          =  76,
+    VOP_LE          =  77,
+    VOP_NE          =  78,
+    VOP_EQ          =  79,
+
+    VOP_SELECT      =  80,
     
-    VOP_ALL,
-    VOP_ANY,
-    VOP_TRUNC,
-    VOP_FLOOR,
-    VOP_CAST,
-    VOP_REINTERPRET,
-    VOP_BROADCAST,
-    VOP_CAST_LOW,
-    VOP_CAST_HIGH,
-    VOP_SHRINK_LOW,
-    VOP_SHRINK_HIGH,
-    VOP_REDUCE_MAX,
-    VOP_REDUCE_MIN,
+    VOP_ALL         =  81,
+    VOP_ANY         =  82,
+    VOP_TRUNC       =  83,
+    VOP_FLOOR       =  84,
+    VOP_CAST        =  85,
+    VOP_REINTERPRET =  86,
+    VOP_BROADCAST   =  87,
+    VOP_CAST_LOW    =  88,
+    VOP_CAST_HIGH   =  89,
+    VOP_SHRINK_LOW  =  90,
+    VOP_SHRINK_HIGH =  91,
+    VOP_SHRINK      =  92,
+    VOP_REDUCE_MAX  =  93,
+    VOP_REDUCE_MIN  =  94,
 
 //Intel-only operations:
-    OP_X86_ADC, //Add with carry flag.
-    OP_X86_CQO,
+    OP_X86_ADC      =  95, //Add with carry flag.
+    OP_X86_CQO      =  96,
 //Aarch64-only operations:
-    OP_ARM_CINC,
-    OP_ARM_CNEG,
-    OP_ARM_MOVK,   //Move bytes to shifted byte position of register and keep other bits unchanged.
-    VOP_ARM_LD1,   //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    VOP_ARM_ST1,
-    VOP_ARM_LD2,
-    VOP_ARM_EXT,
-    VOP_GETLANE,
-    VOP_SETLANE,
+    OP_ARM_CINC     =  97,
+    OP_ARM_CNEG     =  98,
+    OP_ARM_MOVK     =  99, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    VOP_ARM_LD1     = 100, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    VOP_ARM_ST1     = 101,
+    VOP_ARM_LD2     = 102,
+    VOP_ARM_EXT     = 103,
+    VOP_GETLANE     = 104,
+    VOP_SETLANE     = 105,
 
-    OP_DEF,
-    VOP_DEF,
+    OP_DEF          = 106,
+    VOP_DEF         = 107,
 
     OP_NOINIT,
 };
 
-template<typename _Tp> struct ElemTraits {};
-template<> struct ElemTraits<uint8_t> {
-    typedef uint8_t elemtype;
-    typedef uint8_t masktype;
-    typedef int8_t countertype;
-    typedef uint16_t duplicatetype;
-    enum { depth = TYPE_U8, elemsize=1 };
-};
-template<> struct ElemTraits<int8_t> {
-    typedef int8_t elemtype;
-    typedef uint8_t masktype;
-    typedef int8_t countertype;
-    typedef int16_t duplicatetype;
-    enum { depth = TYPE_I8, elemsize=1 };
-};
-template<> struct ElemTraits<uint16_t> {
-    typedef uint16_t elemtype;
-    typedef uint16_t masktype;
-    typedef int16_t countertype;
-    typedef uint32_t duplicatetype;
-    typedef uint8_t halftype;
-    enum { depth = TYPE_U16, elemsize=2 };
-};
-template<> struct ElemTraits<int16_t> {
-    typedef int16_t elemtype;
-    typedef uint16_t masktype;
-    typedef int16_t countertype;
-    typedef int32_t duplicatetype;
-    typedef int8_t halftype;
-    enum { depth = TYPE_I16, elemsize=2 };
-};
-template<> struct ElemTraits<uint32_t> {
-    typedef uint32_t elemtype;
-    typedef uint32_t masktype;
-    typedef int32_t countertype;
-    typedef uint64_t duplicatetype;
-    typedef uint16_t halftype;
-    enum { depth = TYPE_U32, elemsize=4 };
-};
-template<> struct ElemTraits<int32_t> {
-    typedef int32_t elemtype;
-    typedef uint32_t masktype;
-    typedef int32_t countertype;
-    typedef int64_t duplicatetype;
-    typedef int16_t halftype;
-    enum { depth = TYPE_I32, elemsize=4 };
-};
-template<> struct ElemTraits<uint64_t> {
-    typedef uint64_t elemtype;
-    typedef uint64_t masktype;
-    typedef int64_t countertype;
-    typedef uint32_t halftype;
-    enum { depth = TYPE_U64, elemsize=8 };
-};
-template<> struct ElemTraits<int64_t> {
-    typedef int64_t elemtype;
-    typedef uint64_t masktype;
-    typedef int64_t countertype;
-    typedef int32_t halftype;
-    enum { depth = TYPE_I64, elemsize=8 };
-};
-template<> struct ElemTraits<f16_t> {
-    typedef float elemtype;
-    typedef uint16_t masktype;
-    typedef int16_t countertype;
-    enum { depth = TYPE_FP16, elemsize=2 };
-};
-template<> struct ElemTraits<float> {
-    typedef float elemtype;
-    typedef uint32_t masktype;
-    typedef int32_t countertype;
-    enum { depth = TYPE_FP32, elemsize=4 };
-};
-template<> struct ElemTraits<double> {
-    typedef double elemtype;
-    typedef uint64_t masktype;
-    typedef int64_t countertype;
-    enum { depth = TYPE_FP64, elemsize=8 };
+enum
+{
+    RECIPE_LEAF = OP_NOINIT + 1
 };
 
+template<typename _Tp> struct ElemTraits {};
 class Func;
+class Recipe;
+class IRecipe;
+
 struct IReg
 {
     IReg();
     IReg(const IReg& r); //Must generate copy(mov) code
-    IReg(IReg&& a) noexcept;
+    IReg(const IRecipe& fromwho);
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
-    // IReg& operator=(const IReg&& r); //TODO(ch): implement version for temporary objects, which rewrite output of last operation with this->idx and reduces vitualRegisterAmount.
-    /*
-    copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
-    Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
-    Two most obvious usages are late initializtion for registers are elements of dynamic arrays and register 
-    aliases(sometimes it's convinient to use different variables in one expression accordingly to current
-    generation situation.) 
-    */   
+    IReg& operator=(const IRecipe& fromwho);
+    // copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
+    // Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
+    // Two most obvious usages are late initializtion for registers are elements of dynamic arrays and register
+    // aliases(sometimes it's convinient to use different variables in one expression accordingly to current
+    // generation situation.)
     void copyidx(const IReg& from);
+    // This one checks if IRecipe contains only register leaf and copies index. Otherwise it creates new register
+    void copyidx(const IRecipe& from);
 
     int idx;
     Func* func;
@@ -252,14 +195,16 @@ struct IReg
 };
 
 class Context;
+template <typename _Tp> class VRecipe;
 template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
 
     VReg() : idx(NOIDX), func(nullptr) {}
     VReg(const VReg<_Tp>& r);
-    VReg(VReg<_Tp>&& a) noexcept : func(a.func), idx(a.idx) {}
+    VReg(const VRecipe<_Tp>& fromwho);
     VReg<_Tp>& operator=(const VReg<_Tp>& r);
+    VReg<_Tp>& operator=(const VRecipe<_Tp>& fromwho);
      /*
     copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
@@ -288,9 +233,8 @@ typedef VReg<double> VReg64f;
 struct Arg
 {
     enum { EMPTY = 0, IREG = 1, IIMMEDIATE = 2, VREG = 3, ISPILLED = 4, VSPILLED = 5 };
-
-    Arg();
-    Arg(const IReg& r);
+    inline Arg();
+    inline Arg(const IReg& r);
     Arg(int64_t a_value, Context* ctx = nullptr);
     template<typename _Tp>
     Arg(const VReg<_Tp>& vr);
@@ -301,6 +245,84 @@ struct Arg
     uint64_t flags;
     size_t elemtype;
 };
+
+struct __loops_RecipeStr_;
+class Recipe
+{
+public:
+    inline Recipe();
+    inline Recipe(const Recipe& fromwho);
+    inline Recipe& operator=(const Recipe& fromwho);
+    inline Recipe(const Arg& a_leaf);
+    inline Recipe(int64_t a_leaf);
+    inline ~Recipe();
+    inline int& opcode();
+    inline bool& is_vector();
+    inline bool is_leaf() const;
+    inline int& type();
+    inline Arg& leaf();
+    inline std::vector<Recipe>& children();
+    inline int opcode() const;
+    inline bool is_vector() const ;
+    inline int type() const;
+    inline const Arg& leaf() const;
+    inline const std::vector<Recipe>& children() const;
+    inline bool empty() const ;
+    //+add assertions on class construction.
+    __loops_RecipeStr_* pointee;
+};
+
+class IRecipe
+{
+public:
+    Recipe super;
+    IRecipe() {}
+    // inline IRecipe(const IRecipe& fromwho) : Recipe(fromwho) {}
+    inline IRecipe(const IReg& a_leaf);
+    inline IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children);
+    Recipe notype() const { return super; }
+
+    inline int& opcode() {return super.opcode();} 
+    inline bool& is_vector() {return super.is_vector();} 
+    inline bool is_leaf() const {return super.is_leaf();} 
+    inline int& type() {return super.type();} 
+    inline Arg& leaf() {return super.leaf();} 
+    inline std::vector<Recipe>& children() {return super.children();} 
+    inline int opcode() const {return super.opcode();} 
+    inline bool is_vector() const {return super.is_vector();} 
+    inline int type() const {return super.type();} 
+    inline const Arg& leaf() const {return super.leaf();} 
+    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline bool empty() const {return super.empty();} 
+
+};
+
+template <typename _Tp>
+class VRecipe
+{
+public:
+    Recipe super;
+
+    VRecipe() {}
+    static inline VRecipe<_Tp> make(const VReg<_Tp>& a_leaf);
+    inline VRecipe(int a_opcode, std::initializer_list<Recipe> a_children);
+    Recipe notype() const {return super;}
+
+    inline int& opcode() {return super.opcode();} 
+    inline bool& is_vector() {return super.is_vector();} 
+    inline bool is_leaf() const {return super.is_leaf();} 
+    inline int& type() {return super.type();} 
+    inline Arg& leaf() {return super.leaf();} 
+    inline std::vector<Recipe>& children() {return super.children();} 
+    inline int opcode() const {return super.opcode();} 
+    inline bool is_vector() const {return super.is_vector();} 
+    inline int type() const {return super.type();} 
+    inline const Arg& leaf() const {return super.leaf();} 
+    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline bool empty() const {return super.empty();}     
+};
+
+Context ExtractContext(const Recipe& arg);
 
 class Func
 {
@@ -348,24 +370,6 @@ public:
     this[the only way how connected vectors can be implemented on SVE]).
     */
 
-    // control flow
-    //TODO(ch): IMPORTANT(CMPLCOND) Obsolete interface. Delete after complex condition implementation.
-    void startFunc(const std::string& name, std::initializer_list<IReg*> params);
-    IReg const_(int64_t value);
-    IReg def_();
-    void endFunc();
-    void while_(const IReg& r);
-    void endwhile_();
-    void break_();
-    void continue_();
-    void if_(const IReg& r);
-    void elif_(const IReg& r);
-    void else_();
-    void endif_();
-    void return_();
-    void return_(int64_t retval);
-    void return_(const IReg& retval);
-    
     //TODO(ch): make next methods static:
     std::string getPlatformName() const;
     size_t vbytes() const; //size of vector register in bytes
@@ -377,619 +381,372 @@ protected:
     Context* impl;
 };
 
-struct __Loops_ConditionMarker_
-{
-    explicit __Loops_ConditionMarker_(Context* _CTX);
-    operator bool() { return false; }
-};
-
-struct __Loops_CFScopeBracket_
-{
-    enum CFType {IF, ELIF, ELSE, WHILE };
-    explicit __Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition);
-    ~__Loops_CFScopeBracket_();
-    Context* CTX;
-    CFType cftype;
-    operator bool() { return false; }
-};
-
-struct __Loops_FuncScopeBracket_
-{
-    explicit __Loops_FuncScopeBracket_(Context* _CTX, const std::string& name, std::initializer_list<IReg*> params);
-    ~__Loops_FuncScopeBracket_();
-    Context* CTX;
-    operator bool() { return false; }
-};
-
-template<typename _Tp>
-inline int64_t __loops_pack_2_valtype_(_Tp tocast)
-{
-    int64_t ret = 0;
-    *(reinterpret_cast<_Tp*>(&ret)) = tocast;
-    return ret;
-}
-
+//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be 
+//done independently of status of already evaluated conditions. It's result of code collection procedure traits. Probably, it should be fixed, but it's not easy.
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
-#define CONST_(x) __loops_ctx__.const_(x)
-#define DEF_(x) __loops_ctx__.def_()
-#define VCONST_(eltyp, x) newiopV<eltyp>(OP_MOV, { Arg(__loops_pack_2_valtype_(eltyp(x)), &__loops_ctx__) })
-#define VDEF_(eltyp) newiopV<eltyp>(VOP_DEF, { Arg(0, &__loops_ctx__) }) //TODO(ch): this Arg(0) is a workaround for providing context to newiop<...>.
-#define IF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
-    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::IF, (expr)}) ; else
-#define ELIF_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
-    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
-#define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::ELSE, (IReg())}) ; else
-#define WHILE_(expr) if(__Loops_ConditionMarker_ __loops_cm_{&__loops_ctx__}) ; else \
-    if(__Loops_CFScopeBracket_ __loops_cf_{&__loops_ctx__, __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
-#define BREAK_ __loops_ctx__.break_()
-#define CONTINUE_ __loops_ctx__.continue_()
-#define RETURN_(x) __loops_ctx__.return_(x)
+#define CONST_(x) __loops_const_(&__loops_ctx__, x)
+#define DEF_(x) __loops_def_<eltyp>(&__loops_ctx__)
+#define VCONST_(eltyp, x) __loops_vconst_<eltyp>(&__loops_ctx__, eltyp(x))
+#define VDEF_(eltyp) __loops_vdef_<eltyp>(&__loops_ctx__)
+#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::IF, (expr)}) ; else
+#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
+#define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{__loops_ctx__}) ; else
+#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
+#define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
+#define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
+#define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
 
-IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-//Appoint new idx to register arguments from regsn_to_init list and return appointed idxs.
-std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init);
-void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-template<typename _Tp> inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
+//TODO(ch)[IMPORTANT]: Keep func not in Args, but only in IReg/Vreg and Recipes. Args is used mostly beyond code collection pass, where func is always fully-determined.
 
 ///////////////////////////// integer operations ///////////////////////
+// Load with zero/sign extension:
+static inline IRecipe loadx(const IRecipe& base, int depth);
+static inline IRecipe loadx(const IRecipe& base, const IRecipe& offset, int depth);
+static inline IRecipe loadx(const IRecipe& base, int64_t offset, int depth);
 
-// load with zero/sign extension
-static inline IReg loadx(const IReg& base, int depth)
-{ return newiop(OP_LOAD, depth, {base}); }
-static inline IReg loadx(const IReg& base, const IReg& offset, int depth)
-{ return newiop(OP_LOAD, depth, {base, offset}); }
-static inline IReg loadx(const IReg& base, int64_t offset, int depth)
-{ return newiop(OP_LOAD, depth, {base, Arg(offset)}, { 1 }); }
-
-static inline IReg load(const IReg& base)
-{ return newiop(OP_LOAD, TYPE_I64, {base}); }
-static inline IReg load(const IReg& base, const IReg& offset)
-{ return newiop(OP_LOAD, TYPE_I64, {base, offset}); }
-
-template<typename _Tp> static inline IReg load_(const IReg& base)
-{ return loadx(base, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-IReg load_(const IReg& base, const IReg& offset)
-{ return static_cast<IReg&&>(loadx(base, offset, ElemTraits<_Tp>::depth)); }
-template<typename _Tp> static inline
-IReg load_(const IReg& base, int64_t offset)
-{ return static_cast<IReg&&>(loadx(base, offset, ElemTraits<_Tp>::depth)); }
+template<typename _Tp> IRecipe load_(const IRecipe& base);
+template<typename _Tp> IRecipe load_(const IRecipe& base, const IRecipe& offset);
+template<typename _Tp> IRecipe load_(const IRecipe& base, int64_t offset);
 
 // store part of register
-static inline void storex(const IReg& base, const IReg& r, int depth)
-{ newiopNoret(OP_STORE, depth, {base, r}); }
-static inline void storex(const IReg& base, int64_t a, int depth)
-{ newiopNoret(OP_STORE, depth, {base, Arg(a)}, { 1 }); }
-static inline void storex(const IReg& base, const IReg& offset, const IReg& r, int depth)
-{ newiopNoret(OP_STORE, depth, {base, offset, r}); }
-static inline void storex(const IReg& base, int64_t offset, const IReg& r, int depth)
-{ newiopNoret(OP_STORE, depth, {base, Arg(offset), r}, { 1 }); }
-static inline void storex(const IReg& base, const IReg& offset, int64_t a, int depth)
-{ newiopNoret(OP_STORE, depth, {base, offset, Arg(a)}, { 2 }); }
-static inline void storex(const IReg& base, int64_t offset, int64_t a, int depth)
-{ newiopNoret(OP_STORE, depth, {base, Arg(offset), Arg(a)}, { 1, 2 }); }
-static inline void store(const IReg& base, const IReg& r)
-{ newiopNoret(OP_STORE, TYPE_I64, {base, r}); }
-static inline void store(const IReg& base, const IReg& offset, const IReg& r)
-{ newiopNoret(OP_STORE, TYPE_I64, {base, offset, r}); }
-template<typename _Tp> static inline
-void store_(const IReg& base, const IReg& r)
-{ storex(base, r, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-void store_(const IReg& base, int64_t a)
-{ storex(base, a, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-void store_(const IReg& base, const IReg& offset, const IReg& r)
-{ storex(base, offset, r, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-void store_(const IReg& base, int64_t offset, const IReg& r)
-{ storex(base, offset, r, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-void store_(const IReg& base, const IReg& offset, int64_t a)
-{ storex(base, offset, a, ElemTraits<_Tp>::depth); }
-template<typename _Tp> static inline
-void store_(const IReg& base, int64_t offset, int64_t a)
-{ storex(base, offset, a, ElemTraits<_Tp>::depth); }
-static inline IReg operator + (const IReg& a, const IReg& b)
-{ return newiop(OP_ADD, {a, b}); }
-static inline IReg operator + (const IReg& a, int64_t b)
-{ return newiop(OP_ADD, {a, Arg(b)}, {1}); }
-static inline IReg operator + (int64_t a, const IReg& b)
-{ return newiop(OP_ADD, {b, Arg(a)}, {1}); }
-static inline IReg operator - (const IReg& a, const IReg& b)
-{ return newiop(OP_SUB, {a, b}); }
-static inline IReg operator - (const IReg& a, int64_t b)
-{ return newiop(OP_SUB, {a, Arg(b)}, {1}); }
-static inline IReg operator - (int64_t a, const IReg& b)
-{ return newiop(OP_SUB, {Arg(a), b}, {0}); }
-static inline IReg operator * (const IReg& a, const IReg& b)
-{ return newiop(OP_MUL, {a, b}); }
-static inline IReg operator * (const IReg& a, int64_t b)
-{ return newiop(OP_MUL, {a, Arg(b)}, {1}); }
-static inline IReg operator * (int64_t a, const IReg& b)
-{ return newiop(OP_MUL, {b, Arg(a)}, {1}); }
-static inline IReg operator / (const IReg& a, const IReg& b)
-{ return newiop(OP_DIV, {a, b}); }
-static inline IReg operator / (const IReg& a, int64_t b)
-{ return newiop(OP_DIV, {a, Arg(b)}, {1}); }
-static inline IReg operator / (int64_t a, const IReg& b)
-{ return newiop(OP_DIV, {Arg(a), b}, {0}); }
-static inline IReg operator % (const IReg& a, const IReg& b)
-{ return newiop(OP_MOD, {a, b}); }
-static inline IReg operator % (const IReg& a, int64_t b)
-{ return newiop(OP_MOD, {a, Arg(b)}, {1}); }
-static inline IReg operator % (int64_t a, const IReg& b)
-{ return newiop(OP_MOD, {Arg(a), b}, {0}); }
-static inline IReg operator - (const IReg& a)
-{ return newiop(OP_NEG, {a}); }
-static inline IReg operator >> (const IReg& a, const IReg& b)
-{ return newiop(OP_SAR, {a, b}); }
-static inline IReg operator >> (const IReg& a, int64_t b)
-{ return newiop(OP_SAR, {a, Arg(b)}, {1}); }
-static inline IReg operator >> (int64_t a, const IReg& b)
-{ return newiop(OP_SAR, {Arg(a), b}, {0}); }
-static inline IReg ushift_right(const IReg& a, const IReg& b)
-{ return newiop(OP_SHR, {a, b}); }
-static inline IReg ushift_right(const IReg& a, int64_t b)
-{ return newiop(OP_SHR, {a, Arg(b)}, {1}); }
-static inline IReg ushift_right(int64_t a, const IReg& b)
-{ return newiop(OP_SHR, {Arg(a), b}, {0}); }
-static inline IReg operator << (const IReg& a, const IReg& b)
-{ return newiop(OP_SHL, {a, b}); }
-static inline IReg operator << (const IReg& a, int64_t b)
-{ return newiop(OP_SHL, {a, Arg(b)}, {1}); }
-static inline IReg operator << (int64_t a, const IReg& b)
-{ return newiop(OP_SHL, {Arg(a), b}, {0}); }
-static inline IReg operator & (const IReg& a, const IReg& b)
-{ return newiop(OP_AND, {a, b}); }
-static inline IReg operator & (const IReg& a, int64_t b)
-{ return newiop(OP_AND, {a, Arg(b)}, {1}); }
-static inline IReg operator & (int64_t a, const IReg& b)
-{ return newiop(OP_AND, {b, Arg(a)}, {1}); }
-static inline IReg operator | (const IReg& a, const IReg& b)
-{ return newiop(OP_OR, {a, b}); }
-static inline IReg operator | (const IReg& a, int64_t b)
-{ return newiop(OP_OR, {a, Arg(b)}, {1}); }
-static inline IReg operator | (int64_t a, const IReg& b)
-{ return newiop(OP_OR, {b, Arg(a)}, {1}); }
-static inline IReg operator ^ (const IReg& a, const IReg& b)
-{ return newiop(OP_XOR, {a, b}); }
-static inline IReg operator ^ (const IReg& a, int64_t b)
-{ return newiop(OP_XOR, {a, Arg(b)}, {1}); }
-static inline IReg operator ^ (int64_t a, const IReg& b)
-{ return newiop(OP_XOR, {b, Arg(a)}, {1}); }
-static inline IReg operator ~ (const IReg& a)
-{ return newiop(OP_NOT, {a}); }
+static inline void storex(const IRecipe& base, const IRecipe& r, int depth);
+static inline void storex(const IRecipe& base, int64_t a, int depth);
+static inline void storex(const IRecipe& base, const IRecipe& offset, const IRecipe& r, int depth);
+static inline void storex(const IRecipe& base, int64_t offset, const IRecipe& r, int depth);
+static inline void storex(const IRecipe& base, const IRecipe& offset, int64_t a, int depth);
+static inline void storex(const IRecipe& base, int64_t offset, int64_t a, int depth);
+static inline void store(const IRecipe& base, const IRecipe& r);
+static inline void store(const IRecipe& base, const IRecipe& offset, const IRecipe& r);
+template<typename _Tp> void store_(const IRecipe& base, const IRecipe& r);
+template<typename _Tp> void store_(const IRecipe& base, int64_t a);
+template<typename _Tp> void store_(const IRecipe& base, const IRecipe& offset, const IRecipe& r);
+template<typename _Tp> void store_(const IRecipe& base, int64_t offset, const IRecipe& r);
+template<typename _Tp> void store_(const IRecipe& base, const IRecipe& offset, int64_t a);
+template<typename _Tp> void store_(const IRecipe& base, int64_t offset, int64_t a);
 
-IReg operator == (const IReg& a, const IReg& b);
-IReg operator == (const IReg& a, int64_t b);
-static inline IReg operator == (int64_t a, const IReg& b) { return b == a; }
-IReg operator != (const IReg& a, const IReg& b);
-IReg operator != (const IReg& a, int64_t b);
-static inline IReg operator != (int64_t a, const IReg& b) { return b != a; }
-IReg operator <= (const IReg& a, const IReg& b);
-IReg operator <= (const IReg& a, int64_t b);
-IReg ule(const IReg& a, const IReg& b);
-IReg ule(const IReg& a, int64_t b);
-IReg operator >= (const IReg& a, const IReg& b);
-IReg operator >= (const IReg& a, int64_t b);
-IReg uge(const IReg& a, const IReg& b);
-IReg uge(const IReg& a, int64_t b);
-IReg operator > (const IReg& a, const IReg& b);
-IReg operator > (const IReg& a, int64_t b);
-IReg ugt(const IReg& a, const IReg& b);
-IReg ugt(const IReg& a, int64_t b);
-IReg operator < (const IReg& a, const IReg& b);
-IReg operator < (const IReg& a, int64_t b);
-IReg ult(const IReg& a, const IReg& b);
-IReg ult(const IReg& a, int64_t b);
-static inline IReg operator <= (int64_t a, const IReg& b) { return b >= a; }
-static inline IReg ule(int64_t a, const IReg& b) { return uge(b,a); }
-static inline IReg operator >= (int64_t a, const IReg& b) { return b <= a; }
-static inline IReg uge(int64_t a, const IReg& b) { return ule(b, a);}
-static inline IReg operator > (int64_t a, const IReg& b) { return b < a; }
-static inline IReg ugt(int64_t a, const IReg& b) { return ult(b,a);}
-static inline IReg operator < (int64_t a, const IReg& b) { return b > a; }
-static inline IReg ult(int64_t a, const IReg& b) {return ugt(b,a);}
-IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
-IReg select(const IReg& cond, int64_t truev, const IReg& falsev);
-IReg select(const IReg& cond, const IReg& truev, int64_t falsev);
-static inline IReg max(const IReg& a, const IReg& b) //TODD(ch): Add imediate arguments version.
-{ return newiop(OP_MAX, {a, b}); }
-static inline IReg min(const IReg& a, const IReg& b)
-{ return newiop(OP_MIN, {a, b}); }
-static inline IReg abs(const IReg& a)
-{ return newiop(OP_ABS, {a}); }
-static inline IReg sign(const IReg& a)
-{ return newiop(OP_SIGN, {a}); }
-IReg pow(const IReg& a, int p);
 
-static inline IReg& operator += (IReg& a, const IReg& b)
-{ newiopAug(OP_ADD, {a, a, b}); return a; }
-static inline IReg& operator += (IReg& a, int64_t b)
-{ newiopAug(OP_ADD, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator -= (IReg& a, const IReg& b)
-{ newiopAug(OP_SUB, {a, a, b}); return a; }
-static inline IReg& operator -= (IReg& a, int64_t b)
-{ newiopAug(OP_SUB, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator *= (IReg& a, const IReg& b)
-{ newiopAug(OP_MUL, {a, a, b}); return a; }
-static inline IReg& operator *= (IReg& a, int64_t b)
-{ newiopAug(OP_MUL, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator /= (IReg& a, const IReg& b)
-{ newiopAug(OP_DIV, {a, a, b}); return a; }
-static inline IReg& operator /= (IReg& a, int64_t b)
-{ newiopAug(OP_DIV, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator %= (IReg& a, const IReg& b)
-{ newiopAug(OP_MOD, {a, a, b}); return a; }
-static inline IReg& operator %= (IReg& a, int64_t b)
-{ newiopAug(OP_MOD, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator >>= (IReg& a, const IReg& b)
-{ newiopAug(OP_SAR, {a, a, b}); return a; }
-static inline IReg& operator >>= (IReg& a, int64_t b)
-{ newiopAug(OP_SAR, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator <<= (IReg& a, const IReg& b)
-{ newiopAug(OP_SHL, {a, a, b}); return a; }
-static inline IReg& operator <<= (IReg& a, int64_t b)
-{ newiopAug(OP_SHL, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator &= (IReg& a, const IReg& b)
-{ newiopAug(OP_AND, {a, a, b}); return a; }
-static inline IReg& operator &= (IReg& a, int64_t b)
-{ newiopAug(OP_AND, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator |= (IReg& a, const IReg& b)
-{ newiopAug(OP_OR, {a, a, b}); return a; }
-static inline IReg& operator |= (IReg& a, int64_t b)
-{ newiopAug(OP_OR, {a, a, Arg(b)}, {2}); return a; }
-static inline IReg& operator ^= (IReg& a, const IReg& b)
-{ newiopAug(OP_XOR, {a, a, b}); return a; }
-static inline IReg& operator ^= (IReg& a, int64_t b)
-{ newiopAug(OP_XOR, {a, a, Arg(b)}, {2}); return a; }
+// Integer arithmetic and bitwise operations:
+static inline IRecipe operator + (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator + (const IRecipe& a, int64_t b);
+static inline IRecipe operator + (int64_t a, const IRecipe& b);
+static inline IRecipe operator - (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator - (const IRecipe& a, int64_t b);
+static inline IRecipe operator - (int64_t a, const IRecipe& b);
+static inline IRecipe operator * (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator * (const IRecipe& a, int64_t b);
+static inline IRecipe operator * (int64_t a, const IRecipe& b);
+static inline IRecipe operator / (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator / (const IRecipe& a, int64_t b);
+static inline IRecipe operator / (int64_t a, const IRecipe& b);
+static inline IRecipe operator % (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator % (const IRecipe& a, int64_t b);
+static inline IRecipe operator % (int64_t a, const IRecipe& b);
+static inline IRecipe operator - (const IRecipe& a);
+static inline IRecipe operator >> (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator >> (const IRecipe& a, int64_t b);
+static inline IRecipe operator >> (int64_t a, const IRecipe& b);
+static inline IRecipe ushift_right(const IRecipe& a, const IRecipe& b);
+static inline IRecipe ushift_right(const IRecipe& a, int64_t b);
+static inline IRecipe ushift_right(int64_t a, const IRecipe& b);
+static inline IRecipe operator <<(const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator <<(const IRecipe& a, int64_t b);
+static inline IRecipe operator <<(int64_t a, const IRecipe& b);
+static inline IRecipe operator & (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator & (const IRecipe& a, int64_t b);
+static inline IRecipe operator & (int64_t a, const IRecipe& b);
+static inline IRecipe operator | (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator | (const IRecipe& a, int64_t b);
+static inline IRecipe operator | (int64_t a, const IRecipe& b);
+static inline IRecipe operator ^ (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator ^ (const IRecipe& a, int64_t b);
+static inline IRecipe operator ^ (int64_t a, const IRecipe& b);
+static inline IRecipe operator ~ (const IRecipe& a);
+
+// Comparisson and logical operations:
+static inline IRecipe operator == (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator == (const IRecipe& a, int64_t b);
+static inline IRecipe operator == (int64_t a, const IRecipe& b);
+static inline IRecipe operator != (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator != (const IRecipe& a, int64_t b);
+static inline IRecipe operator != (int64_t a, const IRecipe& b);
+static inline IRecipe operator <= (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator <= (const IRecipe& a, int64_t b);
+static inline IRecipe operator <= (int64_t a, const IRecipe& b);
+static inline IRecipe ule(const IRecipe& a, const IRecipe& b);
+static inline IRecipe ule(const IRecipe& a, int64_t b);
+static inline IRecipe ule(int64_t a, const IRecipe& b);
+static inline IRecipe operator >= (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator >= (const IRecipe& a, int64_t b);
+static inline IRecipe operator >= (int64_t a, const IRecipe& b);
+static inline IRecipe uge(const IRecipe& a, const IRecipe& b);
+static inline IRecipe uge(const IRecipe& a, int64_t b);
+static inline IRecipe uge(int64_t a, const IRecipe& b);
+static inline IRecipe operator > (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator > (const IRecipe& a, int64_t b);
+static inline IRecipe operator >  (int64_t a, const IRecipe& b);
+static inline IRecipe ugt(const IRecipe& a, const IRecipe& b);
+static inline IRecipe ugt(const IRecipe& a, int64_t b);
+static inline IRecipe ugt(int64_t a, const IRecipe& b);
+static inline IRecipe operator < (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator < (const IRecipe& a, int64_t b);
+static inline IRecipe operator <  (int64_t a, const IRecipe& b);
+static inline IRecipe ult(const IRecipe& a, const IRecipe& b);
+static inline IRecipe ult(const IRecipe& a, int64_t b);
+static inline IRecipe ult(int64_t a, const IRecipe& b);
+static inline IRecipe operator && (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator || (const IRecipe& a, const IRecipe& b);
+static inline IRecipe operator ! (const IRecipe& a);
+
+//Augmenting operations:
+static inline IReg& operator += (IReg& a, const IRecipe& b);
+static inline IReg& operator += (IReg& a, int64_t b);
+static inline IReg& operator -= (IReg& a, const IRecipe& b);
+static inline IReg& operator -= (IReg& a, int64_t b);
+static inline IReg& operator *= (IReg& a, const IRecipe& b);
+static inline IReg& operator *= (IReg& a, int64_t b);
+static inline IReg& operator /= (IReg& a, const IRecipe& b);
+static inline IReg& operator /= (IReg& a, int64_t b);
+static inline IReg& operator %= (IReg& a, const IRecipe& b);
+static inline IReg& operator %= (IReg& a, int64_t b);
+static inline IReg& operator >>= (IReg& a, const IRecipe& b);
+static inline IReg& operator >>= (IReg& a, int64_t b);
+static inline IReg& operator <<= (IReg& a, const IRecipe& b);
+static inline IReg& operator <<= (IReg& a, int64_t b);
+static inline IReg& operator &= (IReg& a, const IRecipe& b);
+static inline IReg& operator &= (IReg& a, int64_t b);
+static inline IReg& operator |= (IReg& a, const IRecipe& b);
+static inline IReg& operator |= (IReg& a, int64_t b);
+static inline IReg& operator ^= (IReg& a, const IRecipe& b);
+static inline IReg& operator ^= (IReg& a, int64_t b);
+
+//Other integer operations:
+static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, const IRecipe& false_);
+static inline IRecipe select(const IRecipe& cond, int64_t true_, const IRecipe& false_);
+static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, int64_t false_);
+static inline IRecipe max(const IRecipe& a, const IRecipe& b);
+static inline IRecipe max(const IRecipe& a, int64_t b);
+static inline IRecipe max(int64_t a, const IRecipe& b);
+static inline IRecipe min(const IRecipe& a, const IRecipe& b);
+static inline IRecipe min(const IRecipe& a, int64_t b);
+static inline IRecipe min(int64_t a, const IRecipe& b);
+static inline IRecipe abs(const IRecipe& a);
+static inline IRecipe sign(const IRecipe& a);
+IRecipe pow(const IRecipe& a, int p);
 
 ///////////////////////////// vector operations ///////////////////////
-
-// load with zero/sign extension
-template<typename _Tp> VReg<_Tp> loadvec(const IReg& base)
-{ return newiopV<_Tp>(VOP_LOAD, {base}); }
-template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, const IReg& offset)
-{ return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
-template<typename _Tp> VReg<_Tp> loadvec(const IReg& base, int64_t offset)
-{ return newiopV<_Tp>(VOP_LOAD, {base, offset}); }
-template<typename _Tp> VReg<_Tp> loadlane(const IReg& base, int64_t lane_index)
-{ return newiopV<_Tp>(VOP_ARM_LD1, {lane_index, base}); }
+// Load with zero/sign extension:
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base);
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, const IRecipe& offset);
+template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, int64_t offset);
+template<typename _Tp> VRecipe<_Tp> loadlane(const IRecipe& base, int64_t lane_index);
 //TODO(ch): find a way to delete next warning:
 //WARNING! It's assumed here, that res1 and res2 are not initialized yet.
-template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IReg& base)
-{
-    if(res1.func || res2.func)
-        throw std::runtime_error("Load deinterleave doesn't support initilized results registers yet.");
-    std::vector<int> idxs = newiopNoret_initregs(VOP_ARM_LD2, {res1, res2, base}, {0,1});
-    res1.func = res2.func = base.func;
-    res1.idx = idxs[0];
-    res2.idx = idxs[1];
-}
+//template<typename _Tp> std::pair<Recipe, Recipe> loadvec_deinterleave2(const Recipe& base); //TODO(ch): optimal form of signature
+template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IRecipe& base);
 
-// cast and store
-template<typename _Tp> void storevec(const IReg& base, const VReg<_Tp>& r)
-{ newiopNoret(VOP_STORE, {base, r}); }
-template<typename _Tp> void storevec(const IReg& base, const IReg& offset, const VReg<_Tp>& r)
-{ newiopNoret(VOP_STORE, {base, offset, r}); }
-template<typename _Tp> void storelane(const IReg& base, const VReg<_Tp>& r, int64_t lane_index)
-{ newiopNoret(VOP_ARM_ST1, {base, r, lane_index}); }
+// Store:
+template<typename _Tp> void storevec(const IRecipe& base, const VRecipe<_Tp>& r);
+template<typename _Tp> void storevec(const IRecipe& base, const    VReg<_Tp>& r);
+template<typename _Tp> void storevec(const IRecipe& base, const IRecipe& offset, const VRecipe<_Tp>& r);
+template<typename _Tp> void storevec(const IRecipe& base, const IRecipe& offset, const    VReg<_Tp>& r);
+template<typename _Tp> void storelane(const IRecipe& base, const VRecipe<_Tp>& r, int64_t lane_index);
+template<typename _Tp> void storelane(const IRecipe& base, const    VReg<_Tp>& r, int64_t lane_index);
 
-template<typename _Tp> VReg<_Tp> broadcast(const IReg& scalar)
-{ return newiopV<_Tp>(VOP_BROADCAST, { scalar }); }
-template<typename _Tp> VReg<_Tp> broadcast(const VReg<_Tp>& inp, int64_t ilane_index)
-{ return newiopV<_Tp>(VOP_BROADCAST, { inp, ilane_index }); }
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VReg<_Tp>& r)
-{ return newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_LOW, { r }); }
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VReg<_Tp>& r)
-{ return newiopV<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_HIGH, { r }); }
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::halftype> shrink(const VReg<_Tp>& r0, const VReg<_Tp>& r1);
-template<typename _Tp> VReg<_Tp> reduce_max(const VReg<_Tp>& r)
-{ return newiopV<_Tp>(VOP_REDUCE_MAX, { r }); }
-template<typename _Tp> VReg<_Tp> reduce_min(const VReg<_Tp>& r)
-{ return newiopV<_Tp>(VOP_REDUCE_MIN, { r }); }
-template<typename _Tp> IReg getlane(const VReg<_Tp>& r, int64_t lane_index)
-{ return newiop(VOP_GETLANE, {r, lane_index}); }
-template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const IReg& i)
-{ newiopNoret(VOP_SETLANE, {v, lane_index, i}); }
-template<typename _Tp> void setlane(const VReg<_Tp>& v, int64_t lane_index, const VReg<_Tp>& inp, int64_t ilane_index)
-{ newiopNoret(VOP_SETLANE, {v, lane_index, inp, ilane_index}); }
+// Casts:
+//template<typename _Tp> VRecipe<_Tp> add_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+//template<typename _Tp> VRecipe<_Tp> sub_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Dp, typename _Tp> VRecipe<_Dp> cast(const VRecipe<_Tp>& a);
+template<typename _Dp, typename _Tp> VRecipe<_Dp> cast(const    VReg<_Tp>& a);
+template<typename _Dp, typename _Tp> VRecipe<_Dp> reinterpret(const VRecipe<_Tp>& a);
+template<typename _Dp, typename _Tp> VRecipe<_Dp> reinterpret(const    VReg<_Tp>& a);
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<f16_t>& a); //Convert with rounding to zero
+template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<f16_t>& a);
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<float>& a);
+template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<float>& a);
+template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<double>& a);
+template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<double>& a);
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<f16_t>& a); //Convert with rounding to minus infinity
+template<typename _Dp> VRecipe<_Dp> floor(const    VReg<f16_t>& a);
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<float>& a);
+template<typename _Dp> VRecipe<_Dp> floor(const    VReg<float>& a);
+template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<double>& a);
+template<typename _Dp> VRecipe<_Dp> floor(const    VReg<double>& a);
 
+//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
+template<typename _Tp> VRecipe<_Tp> broadcast(const IRecipe& scalar);
+template<typename _Tp> VRecipe<_Tp> broadcast(const VRecipe<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> VRecipe<_Tp> broadcast(const    VReg<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VRecipe<_Tp>& r);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_low(const    VReg<_Tp>& r);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VRecipe<_Tp>& r);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_high(const    VReg<_Tp>& r);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const VRecipe<_Tp>& r0, const VRecipe<_Tp>& r1);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const VRecipe<_Tp>& r0, const    VReg<_Tp>& r1);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const VRecipe<_Tp>& r1);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const    VReg<_Tp>& r1);
 
-template<typename _Tp> VReg<_Tp> operator + (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_ADD, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_SUB, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator * (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_MUL, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator / (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_DIV, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator - (const VReg<_Tp>& a)
-{ return newiopV<_Tp>(VOP_NEG, {a}); }
-template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c)
-{ return newiopV<_Tp>(VOP_FMA, {a, b, c}); }
-template<typename _Tp> VReg<_Tp> fma(const VReg<_Tp>& a, const VReg<_Tp>& b, const VReg<_Tp>& c, int64_t index)
-{ return newiopV<_Tp>(VOP_FMA, {a, b, c, index}); }
-template<typename _Tp> VReg<_Tp> ext(const VReg<_Tp>& n, const VReg<_Tp>& m, int64_t index)
-{ return newiopV<_Tp>(VOP_ARM_EXT, {n, m, index}); }
+//Lane manipulations:
+//template<typename _Tp> IRecipe all(VRecipe<_Tp>& a);
+//template<typename _Tp> IRecipe any(VRecipe<_Tp>& a);
+template<typename _Tp> IRecipe getlane(const VRecipe<_Tp>& r, int64_t lane_index);
+template<typename _Tp> IRecipe getlane(const    VReg<_Tp>& r, int64_t lane_index);
+template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const IRecipe& i);
+template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const IRecipe& i);
+template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const VRecipe<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const VRecipe<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> VRecipe<_Tp> reduce_max(const VRecipe<_Tp>& r);
+template<typename _Tp> VRecipe<_Tp> reduce_max(const    VReg<_Tp>& r);
+template<typename _Tp> VRecipe<_Tp> reduce_min(const VRecipe<_Tp>& r);
+template<typename _Tp> VRecipe<_Tp> reduce_min(const    VReg<_Tp>& r);
+template<typename _Tp> VRecipe<_Tp> ext(const VRecipe<_Tp>& n, const VRecipe<_Tp>& m, int64_t index);
+template<typename _Tp> VRecipe<_Tp> ext(const VRecipe<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
+template<typename _Tp> VRecipe<_Tp> ext(const    VReg<_Tp>& n, const VRecipe<_Tp>& m, int64_t index);
+template<typename _Tp> VRecipe<_Tp> ext(const    VReg<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
 
-//template<typename _Tp> VReg<_Tp> add_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> sub_wrap(const VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp> operator % (const VReg<_Tp>& a, const VReg<_Tp>& b);
+// Arithmetic and bitwise operations:
+template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator + (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator + (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator * (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator * (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator * (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator * (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator / (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator / (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator / (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator / (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+//template<typename _Tp> VRecipe<_Tp> operator % (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a);
+template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a);
 
-//template<typename _Tp, typename _Sp> VReg<_Tp> operator >> (const VReg<_Tp>& a, const VReg<_Sp>& b)
-//{
-//    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
-//    return newiopV<_Tp>(VOP_SAR, {a, b});
-//}
-template<typename _Tp> VReg<_Tp> operator >> (const VReg<_Tp>& a, int64_t b)
-{ return newiopV<_Tp>(VOP_SAR, {a, b}, {1}); }
-//template<typename _Tp, typename _Sp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, const VReg<_Sp>& b)
-//{
-//    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
-//    return newiopV<_Tp>(VOP_SHR, {a, b});
-//}
-template<typename _Tp> VReg<_Tp> ushift_right(const VReg<_Tp>& a, int64_t b)
-{ return newiopV<_Tp>(VOP_SHR, {a, b}, {1}); }
-template<typename _Tp, typename _Sp> VReg<_Tp> operator << (const VReg<_Tp>& a, const VReg<_Sp>& b)
-{
-    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
-    return newiopV<_Tp>(VOP_SAL, {a, b});
-}
-template<typename _Tp> VReg<_Tp> operator << (const VReg<_Tp>& a, int64_t b)
-{ return newiopV<_Tp>(VOP_SAL, {a, b}, {1}); }
-template<typename _Tp, typename _Sp> VReg<_Tp> ushift_left(const VReg<_Tp>& a, const VReg<_Sp>& b)
-{
-    static_assert(sizeof(_Tp) == sizeof(_Sp), "the # of lanes in the 1st and 2nd argument must be the same");
-    return newiopV<_Tp>(VOP_SHL, {a, b});
-}
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
+template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
 
-//TODO(ch): VOP_AND must be applicable on Vector of elements of same size, not only same elements.
-template<typename _Tp> VReg<_Tp> operator & (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_AND, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator | (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_OR, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator ^ (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_XOR, {a, b}); }
-template<typename _Tp> VReg<_Tp> operator ~ (const VReg<_Tp>& a)
-{ return newiopV<_Tp>(VOP_NOT, {a}); }
-// SSE, NEON etc. comparison operations on vectors produce vectors of the same type as the compared vectors.
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator == (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_EQ, {a, b});}
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator != (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_NE, {a, b});}
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator >= (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GE, {a, b});}
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator <= (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LE, {a, b});}
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator > (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_GT, {a, b});}
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::masktype> operator < (const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<typename ElemTraits<_Tp>::masktype>(VOP_LT, {a, b});}
-template<typename _Tp> VReg<_Tp> select(const VReg<typename ElemTraits<_Tp>::masktype>& flag, const VReg<_Tp>& iftrue, const VReg<_Tp>& iffalse)
-{ return newiopV<_Tp>(VOP_SELECT, {flag, iftrue, iffalse}); }
-template<typename _Tp> VReg<_Tp> max(const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_MAX, {a, b}); }
-template<typename _Tp> VReg<_Tp> min(const VReg<_Tp>& a, const VReg<_Tp>& b)
-{ return newiopV<_Tp>(VOP_MIN, {a, b}); }
-//template<typename _Tp> VReg<_Tp> abs(const VReg<_Tp>& a);
-//template<typename _Tp> VReg<_Tp> sign(const VReg<_Tp>& a);
-//
-template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p);
+template<typename _Tp> VRecipe<_Tp> pow(const VRecipe<_Tp>& a, int p);
+template<typename _Tp> VRecipe<_Tp> pow(const VReg<_Tp>& a, int p);
 
 struct exp_consts;
 exp_consts expInit(Context CTX);
-VReg<float> exp(const VReg<float>& x, const exp_consts& expt);
+VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt);
+static inline VRecipe<float> exp(const VReg<float>& x, const exp_consts& expt);
 
-template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_ADD, {Arg(a), Arg(a), Arg(b)}); return a; }
-template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_SUB, {Arg(a), Arg(a), Arg(b)}); return a; }
-template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_MUL, {Arg(a), Arg(a), Arg(b)}); return a; }
-template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_DIV, {Arg(a), Arg(a), Arg(b)}); return a; }
-//template<typename _Tp> VReg<_Tp>& operator %= (VReg<_Tp>& a, const VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, const VReg<_Tp>& b)
-//{ newiopAug(VOP_SAR, {a, a, b}); return a;}
-template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& a, int64_t b)
-{ newiopAug(VOP_SAR, {a, a, b}, {2}); return a; }
-template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_SAL, {a, a, b}); return a;}
-template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& a, int64_t b)
-{ newiopAug(VOP_SAL, {a, a, b}, {2}); return a; }
-template<typename _Tp> VReg<_Tp>& operator &= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_AND, {a, a, b} ); return a; }
-template<typename _Tp> VReg<_Tp>& operator |= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_OR, {a, a, b} ); return a; }
-template<typename _Tp> VReg<_Tp>& operator ^= (VReg<_Tp>& a, const VReg<_Tp>& b)
-{ newiopAug(VOP_XOR, {a, a, b} ); return a; }
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, int64_t b);
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_right(const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp> VRecipe<_Tp> ushift_right (const VRecipe<_Tp>& a, int64_t b);
+template<typename _Tp> VRecipe<_Tp> ushift_right (const VReg<_Tp>& a, int64_t b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const    VReg<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, int64_t b);
+//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left(const VRecipe<_Tp>& a, int64_t b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const    VReg<_Tp>& a, const VRecipe<_Sp>& b);
+template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const VRecipe<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp> VRecipe<_Tp> operator & (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator & (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator & (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator & (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator | (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator | (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator | (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator | (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator ^ (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator ^ (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator ^ (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator ^ (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> operator ~ (const VRecipe<_Tp>& a);
+template<typename _Tp> VRecipe<_Tp> operator ~ (const    VReg<_Tp>& a);
 
-//// if all/any of the elements is true
-//template<typename _Tp> IReg all(VReg<_Tp>& a);
-//template<typename _Tp> IReg any(VReg<_Tp>& a);
+// Vector comparisson and masking:
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> max(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> max(const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> min(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> min(const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
+template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
+//template<typename _Tp> VRecipe<_Tp> abs(const VRecipe<_Tp>& a);
+//template<typename _Tp> VRecipe<_Tp> sign(const VRecipe<_Tp>& a);
 
-// [TODO] need to add type conversion (including expansion etc.), type reinterpretation
-//TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
-template<typename _Dp> VReg<_Dp> trunc(const VReg<f16_t>& a)  //Convert with rounding to zero
-{
-    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_TRUNC, {a});
+//Augmenting operations:
+template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator %=  (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, int64_t _b);
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, int64_t _b);
+template<typename _Tp> VReg<_Tp>& operator  &= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  &= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  |= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  |= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  ^= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  ^= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
 }
-template<typename _Dp> VReg<_Dp> trunc(const VReg<float>& a)  //Convert with rounding to zero
-{
-    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_TRUNC, {a});
-}
-template<typename _Dp> VReg<_Dp> trunc(const VReg<double>& a)
-{
-    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_TRUNC, {a});
-}
-template<typename _Dp> VReg<_Dp> floor(const VReg<f16_t>& a) //Convert with rounding to minus infinity
-{
-    static_assert(sizeof(_Dp) == sizeof(f16_t), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_FLOOR, {a});
-}
-template<typename _Dp> VReg<_Dp> floor(const VReg<float>& a) //Convert with rounding to minus infinity
-{
-    static_assert(sizeof(_Dp) == sizeof(float), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_FLOOR, {a});
-}
-template<typename _Dp> VReg<_Dp> floor(const VReg<double>& a)
-{
-    static_assert(sizeof(_Dp) == sizeof(double), "Attempt to convert real number to integer of different size.");
-    return newiopV<_Dp>(VOP_FLOOR, {a});
-}
-
-template<typename _Dp, typename _Tp> VReg<_Dp> cast(const VReg<_Tp>& a)
-{ return newiopV<_Dp>(VOP_CAST, {a}); }
-
-template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a);
-
-
-//TODO(ch): These template implementations can be obviously moved to auxilary header:
-
-Context ExtractContext(const Arg& arg);
-
-template<typename _Tp>
-VReg<_Tp>::VReg(const VReg<_Tp>& r)
-{
-    if(r.func != nullptr)
-    {
-        VReg<_Tp> selfval = newiopV<_Tp>(OP_MOV, { r });
-        idx = selfval.idx;
-        func = selfval.func;
-    }
-    else
-    {
-        idx = NOIDX;
-        func = nullptr;
-    }
-}
-
-template<typename _Tp>
-VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
-{
-    if (r.func != func)
-        throw std::runtime_error("Registers of different functions as arguments of one instruction.");
-    if (func == nullptr)
-        throw std::runtime_error("Null motherfunction.");
-    newiopNoret(OP_MOV, {*this, r});
-    return (*this);
-}
-
-template<typename _Tp>
-void VReg<_Tp>::copyidx(const VReg<_Tp>& from)
-{
-    if(func != nullptr && func != from.func)
-        throw std::runtime_error("Registers of different functions in idx assignment.");
-    func = from.func;
-    idx = from.idx;
-}
-
-template<typename _Tp>
-Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)
-    , func(vr.func)
-    , tag(VREG)
-    , elemtype(ElemTraits<_Tp>::depth)
-    , flags(0){}
-
-VReg<uint8_t>  newiopV_U8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<int8_t>   newiopV_I8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<uint16_t> newiopV_U16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<int16_t>  newiopV_I16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<uint32_t> newiopV_U32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<int32_t>  newiopV_I32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<uint64_t> newiopV_U64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<int64_t>  newiopV_I64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<f16_t>   newiopV_FP16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-//VReg<...> newiopV_BF16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<float>    newiopV_FP32(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-VReg<double>   newiopV_FP64(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-
-template<> inline VReg<uint8_t> newiopV<uint8_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_U8(opcode, args, tryImmList); }
-template<> inline VReg<int8_t> newiopV<int8_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_I8(opcode, args, tryImmList); }
-template<> inline VReg<uint16_t> newiopV<uint16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_U16(opcode, args, tryImmList); }
-template<> inline VReg<int16_t> newiopV<int16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_I16(opcode, args, tryImmList); }
-template<> inline VReg<uint32_t> newiopV<uint32_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_U32(opcode, args, tryImmList); }
-template<> inline VReg<int32_t> newiopV<int32_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_I32(opcode, args, tryImmList); }
-template<> inline VReg<uint64_t> newiopV<uint64_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_U64(opcode, args, tryImmList); }
-template<> inline VReg<int64_t> newiopV<int64_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_I64(opcode, args, tryImmList); }
-template<> inline VReg<f16_t> newiopV<f16_t>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_FP16(opcode, args, tryImmList); }
-template<> inline VReg<float> newiopV<float>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_FP32(opcode, args, tryImmList); }
-template<> inline VReg<double> newiopV<double>(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{ return newiopV_FP64(opcode, args, tryImmList); }
-
-template<typename _Tp> VReg<_Tp> pow(const VReg<_Tp>& a, int p)
-{
-    USE_CONTEXT_(ExtractContext(a));
-    if(p == 0)
-        return VCONST_(_Tp, 1);
-    VReg<_Tp> _a = a;
-    VReg<_Tp>* pres;
-    while (p)
-        if (p & 1) {
-            pres = new VReg<_Tp>(_a);
-            --p;
-            break;
-        }
-        else {
-            _a *= _a;
-            p >>= 1;
-        }
-    VReg<_Tp>& res = *pres;
-    while (p)
-        if (p & 1) {
-            res *= _a;
-            --p;
-        }
-        else {
-            _a *= _a;
-            p >>= 1;
-        }
-    VReg<_Tp> ret = static_cast<VReg<_Tp>&&>(res);
-    delete pres;
-    return ret;
-}
-
-struct exp_consts
-{
-    VReg<float> lo, hi, half, one, LOG2EF, C1, C2, p0, p1, p2, p3, p4, p5;
-    VReg<int32_t> _7f;
-    exp_consts(Context CTX);
-};
-
-template<typename _Dp, typename _Tp> VReg<_Dp> reinterpret(const VReg<_Tp>& a)
-{
-    VReg<_Dp> res;
-    res.func = a.func;
-    res.idx = a.idx;
-    return res;
-}
-
-template<typename _Tp> VReg<typename ElemTraits<_Tp>::halftype> shrink(const VReg<_Tp>& r0, const VReg<_Tp>& r1)
-{//TODO(ch): Such operations must be unpacked via architecture-dependent snippets.
-    if(r0.idx == r1.idx)
-        throw std::runtime_error("Shrink two same halfes into same vector is not supported.");
-    VReg<typename ElemTraits<_Tp>::halftype> shrinked = newiopV<typename ElemTraits<_Tp>::halftype>(VOP_SHRINK_LOW, { r0 });
-    newiopNoret(VOP_SHRINK_HIGH, { shrinked, r1 });
-    return shrinked;
-}
-}
+#include "loops.ipp"
 #endif

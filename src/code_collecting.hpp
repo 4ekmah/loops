@@ -19,32 +19,21 @@ struct ControlFlowBracket
 {
     enum { WHILE, IF, ELSE };
     size_t tag;
-    size_t labelOrPos;
-    size_t elifRepeats;
-    std::vector<size_t> breaks;
-    std::vector<size_t> continues;
-    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t a_elifRep = 0) : tag(a_tag), labelOrPos(a_labelOrPos), elifRepeats(a_elifRep) {}
+    size_t label_or_pos; //Used as operation num in regeister allocator, as label id otherwise.
+    size_t auxfield; //Used as additional label id or as elif counter.
+    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
 };
 
-class CodeCollecting : public CompilerStage
+class CodeCollecting : public CompilerPass
 {
 public:
     CodeCollecting(Syntfunc& a_data, Func* a_func);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
-    virtual StageID stage_id() const override final;
+    virtual PassID pass_id() const override final;
 
-    inline IReg newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-    inline IReg newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-    inline IReg newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList = {});
-    inline void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-    inline std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init);
-    inline void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-    template<typename _Tp>
-    inline VReg<_Tp> newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList = {});
-
-    IReg const_(int64_t value);
-    IReg def_();
+    inline void newiopNoret(int opcode, ::std::initializer_list<Recipe> args);
+    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base);
     
     /*
     TODO(ch): Implement with RISC-V RVV
@@ -59,114 +48,47 @@ public:
     Divider is degree of two from 2 to 64(mf8 of m8), because it's better to consider constraints
     like relational.
     */
-
-    void while_(const IReg& r);
+    Arg reg_constr(Recipe& fromwho);
+    void reg_assign(const Arg& target, Recipe& fromwho);
+    void while_(Recipe& r);
     void endwhile_();
     void break_();
     void continue_();
-    void if_(const IReg& r);
-    void elif_(const IReg& r);
+    void if_(Recipe& r);
+    void elif_(Recipe& r);
     void else_();
-    void subst_elif(const IReg& r);
+    void subst_elif(Recipe& r);
     void subst_else();
     void endif_();
     void return_();
-    void return_(int64_t retval);
-    void return_(const IReg& retval);
-
-    void markConditionStart();
-
-    IReg select(const IReg& cond, const IReg& truev, const IReg& falsev);
-    inline IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
-    {
-        return select(cond, const_(truev), falsev);
-    }
-    inline IReg select(const IReg& cond, const IReg& truev, int64_t falsev)
-    {
-        return select(cond, truev, const_(falsev));
-    }
-
-    int m_cmpopcode; // TODO(ch): IMPORTANT(CMPLCOND) delete this trivial workaround ASAP;
+    void return_(Recipe& r);
 private:
+    enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2};
+    Arg unpack_recipe(Recipe& rcp, int flag = 0, Syntfunc* buffer = nullptr);
+    Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
+    Syntop unpack_condition_old(Recipe& rcp); //TODO(ch)[IMPORTANT]: temporary. Create select and int codition unpacking.
+    void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
+    enum {UC_CORRECT_PREFFERED = 1};
+    void unpack_condition_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, int flags = 0);
+    void reopen_endif(bool cond_prefix_allowed = false);
     Func* m_func;
-    int m_conditionStart;
-    bool m_substConditionBypass;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc& m_data;
-    std::unordered_map<size_t, std::pair<size_t, size_t> > m_ifLabelMap; //[label]=(ifpos, elifrep)
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
     int m_returnType;
-
-    int condition2jumptype(int cond);
-    void immediateImplantationAttempt(Syntop& op, size_t anumAdd, ::std::initializer_list<size_t> tryImmList);
+    
 };
 
-inline IReg CodeCollecting::newiop(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Recipe> args_)
 {
-    RegIdx retidx = m_data.provideIdx(RB_INT);
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, m_func) }), args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
-    m_data.program.emplace_back(toAdd);
-    return iregHid(retidx, m_func);
-}
-
-inline IReg CodeCollecting::newiop(int opcode, int depth, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{
-    RegIdx retidx = m_data.provideIdx(RB_INT);
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ iregHid(retidx, m_func), depth }), args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 2, tryImmList);
-    m_data.program.emplace_back(toAdd);
-    return iregHid(retidx, m_func);
-}
-
-inline IReg CodeCollecting::newiopPreret(int opcode, ::std::initializer_list<Arg> args, RegIdx retreg, ::std::initializer_list<size_t> tryImmList)
-{
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ argReg(RB_INT, retreg, m_func) }), args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
-    m_data.program.emplace_back(toAdd);
-    return iregHid(retreg, m_func);
-}
-
-inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{
-    Syntop toAdd(opcode, args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 0, tryImmList);
-    m_data.program.emplace_back(toAdd);
-}
-
-inline std::vector<int> CodeCollecting::newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init)
-{
-    std::vector<int> res;
-    res.reserve(regsn_to_init.size());
-    std::vector<Arg> args_vec = args;
-    for(size_t argn : regsn_to_init)
+    std::vector<Arg> args;
+    args.reserve(args_.size());
+    for(Recipe arg : args_) 
     {
-        Assert(argn<args_vec.size() && argn >=0 && (args_vec[argn].tag == Arg::IREG || args_vec[argn].tag == Arg::VREG));
-        RegIdx aidx = m_data.provideIdx((args_vec[argn].tag == Arg::IREG) ? RB_INT : RB_VEC);
-        args_vec[argn].idx = aidx;
-        res.push_back(aidx);
+        args.push_back(unpack_recipe(arg));
     }
-    Syntop toAdd(opcode, args_vec);
-    m_data.program.emplace_back(toAdd);
-    return res;
+    Syntop toAdd(opcode, args);
+    m_data.program.push_back(toAdd);
 }
-
-inline void CodeCollecting::newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ Arg(depth) }), args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
-    m_data.program.emplace_back(toAdd);
-}
-
-template<typename _Tp>
-VReg<_Tp> CodeCollecting::newiopV(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-{
-    RegIdx retidx = m_data.provideIdx(RB_VEC);
-    Syntop toAdd(opcode, std::initializer_list<Arg>({ vregHid<_Tp>(retidx, m_func) }), args);
-    if (tryImmList.size()) immediateImplantationAttempt(toAdd, 1, tryImmList);
-    m_data.program.emplace_back(toAdd);
-    return vregHid<_Tp>(retidx, m_func);
-}
-
 };
 #endif // __LOOPS_CODE_COLLECTING_HPP__

@@ -26,8 +26,7 @@ loops::Func genbresenham(loops::Context& CTX)
         WHILE_(canvas != 0) //TODO(ch): this is substitution of while(true)
         {
             store_<uint8_t>(canvas, y0 * w + x0, filler);
-            IF_(x0 == x1)
-                IF_(y0 == y1)
+            IF_(x0 == x1 && y0 == y1)
                 BREAK_;
             IReg e2 = error << 1;
             IF_(e2 >= dy)

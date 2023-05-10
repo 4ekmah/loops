@@ -34,7 +34,25 @@ std::string type_suffixes[] = { //TODO(ch): find a better place for this
 
 std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {OP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "load." << type_suffixes[op.args[1].value];
+        str << "load." << type_suffixes[op.args[0].elemtype];
+    }},
+    {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
+        str << "store." << type_suffixes[_Tp];
+    }},
+    {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE);
+        static std::unordered_map<int, std::string> cond_suffixes = {
+            {OP_EQ,      "eq"},
+            {OP_NE,      "ne"},
+            {OP_GE,      "ge"},
+            {OP_LE,      "le"},
+            {OP_ULE,     "ule"},
+            {OP_GT,      "gt"},
+            {OP_UGT,     "ugt"},
+            {OP_LT,      "gt"},
+        };
+        str << "jmp_" << cond_suffixes[op[0].value] << " "<< op[1].value;
     }},
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
@@ -133,6 +151,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_CAST_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
     }},
+    {VOP_SHRINK, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
+    }},
     {VOP_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
     }},
@@ -144,9 +165,6 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
-    }},
-    {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "store." << type_suffixes[op.args[0].value];
     }},
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
@@ -160,61 +178,71 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
 
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
+    {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
-    {OP_MOV,      "mov"},
-    {OP_XCHG,     "xchg"},
-    {OP_ADD,      "add"},
-    {OP_MUL,      "mul"},
-    {OP_SUB,      "sub"},
-    {OP_DIV,      "div"},
-    {OP_MOD,      "mod"},
-    {OP_SHL,      "shl"},
-    {OP_SHR,      "shr"},
-    {OP_SAR,      "sar"},
-    {OP_AND,      "and"},
-    {OP_OR,       "or"},
-    {OP_XOR,      "xor"},
-    {OP_NOT,      "not"},
-    {OP_NEG,      "neg"},
-    {OP_CMP,      "cmp"},
-    {OP_SELECT,   "select"},
-    {OP_MIN,      "min"},
-    {OP_MAX,      "max"},
-    {OP_ABS,      "abs"},
-    {OP_SIGN,     "sign"},
-    {OP_JMP,      "jmp"},
-    {OP_JMP_EQ,   "jmp_eq"},
-    {OP_JMP_NE,   "jmp_ne"},
-    {OP_JMP_GE,   "jmp_ge"},
-    {OP_JMP_LE,   "jmp_le"},
-    {OP_JMP_ULE,  "jmp_ule"},
-    {OP_JMP_GT,   "jmp_gt"},
-    {OP_JMP_UGT,  "jmp_ugt"},
-    {OP_JMP_LT,   "jmp_gt"},
-    {OP_SPILL,    "spill"},
-    {OP_UNSPILL,  "unspill"},
-    {OP_IF,       "annotation:if"},
-    {OP_ELSE,     "annotation:else"},
-    {OP_ENDIF,    "annotation:endif"},
-    {OP_WHILE,    "annotation:while"},
-    {OP_ENDWHILE, "annotation:endwhile"},
-    {OP_BREAK,    "annotation:break"},
-    {OP_CONTINUE, "annotation:continue"},
-    {VOP_AND,     "and"},
-    {VOP_OR,      "or"},
-    {VOP_XOR,     "xor"},
-    {VOP_NOT,     "not"},
-    {VOP_SELECT,  "select"},
-    {OP_RET,      "ret"},
-    {OP_X86_ADC,  "x86_adc"},
-    {OP_X86_CQO,  "x86_cqo"},
-    {OP_ARM_CINC, "arm_cinc"},
-    {OP_ARM_CNEG, "arm_cneg"},
-    {OP_ARM_MOVK, "arm_movk"},
-    {OP_DEF,      "def"},
+    {OP_MOV,         "mov"},
+    {OP_XCHG,        "xchg"},
+    {OP_ADD,         "add"},
+    {OP_MUL,         "mul"},
+    {OP_SUB,         "sub"},
+    {OP_DIV,         "div"},
+    {OP_MOD,         "mod"},
+    {OP_SHL,         "shl"},
+    {OP_SHR,         "shr"},
+    {OP_SAR,         "sar"},
+    {OP_AND,         "and"},
+    {OP_OR,          "or"},
+    {OP_XOR,         "xor"},
+    {OP_NOT,         "not"},
+    {OP_NEG,         "neg"},
+    {OP_CMP,         "cmp"},
+    {OP_SELECT,      "select"},
+    {OP_MIN,         "min"},
+    {OP_MAX,         "max"},
+    {OP_ABS,         "abs"},
+    {OP_SIGN,        "sign"},
+    {OP_GT,          "gt"},
+    {OP_UGT,         "ugt"},
+    {OP_GE,          "ge"},
+    {OP_LT,          "lt"},
+    {OP_LE,          "le"},
+    {OP_ULE,         "ule"},
+    {OP_NE,          "ne"},
+    {OP_EQ,          "eq"},
+    {OP_S,           "s"},
+    {OP_NS,          "ns"},
+    {OP_LOGICAL_AND, "log_and"},
+    {OP_LOGICAL_OR,  "log_or"},
+    {OP_LOGICAL_NOT, "log_not"},
+    {OP_JMP,         "jmp"},
+    {OP_SPILL,       "spill"},
+    {OP_UNSPILL,     "unspill"},
+    {OP_STEM_CSTART, "annotation:stemcstart"},
+    {OP_IF_CSTART,   "annotation:ifcstart"},
+    {OP_ELIF_CSTART, "annotation:elif"},
+    {OP_IF_CEND,     "annotation:ifcend"},
+    {OP_ELSE,        "annotation:else"},
+    {OP_ENDIF,       "annotation:endif"},
+    {OP_WHILE_CSTART,"annotation:whilecstart"},
+    {OP_WHILE_CEND,  "annotation:whilecend"},
+    {OP_ENDWHILE,    "annotation:endwhile"},
+    {OP_BREAK,       "annotation:break"},
+    {OP_CONTINUE,    "annotation:continue"},
+    {VOP_AND,        "and"},
+    {VOP_OR,         "or"},
+    {VOP_XOR,        "xor"},
+    {VOP_NOT,        "not"},
+    {VOP_SELECT,     "select"},
+    {OP_RET,         "ret"},
+    {OP_X86_ADC,     "x86_adc"},
+    {OP_X86_CQO,     "x86_cqo"},
+    {OP_ARM_CINC,    "arm_cinc"},
+    {OP_ARM_CNEG,    "arm_cneg"},
+    {OP_ARM_MOVK,    "arm_movk"},
+    {OP_DEF,         "def"},
 };
 
 FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
@@ -253,10 +281,41 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
-void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
+FuncImpl* FuncImpl::verifyArgs_(std::initializer_list<Recipe> args)
+{
+    FuncImpl* res = nullptr;
+    for(Recipe rcp : args)
+    {
+        if(rcp.opcode() == RECIPE_LEAF)
+        {
+            FuncImpl* pretender = (FuncImpl*)(rcp.leaf().func);
+            if(pretender != nullptr)
+            {
+                if(res == nullptr)
+                    res = pretender;
+                else if(res != pretender)
+                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }        
+        }
+        else for(int child_num = 0; child_num < rcp.children().size(); child_num++)
+        {
+            FuncImpl* pretender = verifyArgs_({rcp.children()[child_num]});
+            if(pretender != nullptr)
+            {
+                if(res == nullptr)
+                    res = pretender;
+                else if(res != pretender)
+                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }
+        }
+    }
+    return res;
+}
+
+void FuncImpl::printBytecode(std::ostream& out, int uptoPass)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until(uptoStage);
+    l_pipeline.run_until(uptoPass);
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
     printer.print(out, l_pipeline.get_data());
 }
@@ -264,7 +323,7 @@ void FuncImpl::printBytecode(std::ostream& out, int uptoStage)
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until_including(CS_BYTECODE_TO_ASSEMBLY);
+    l_pipeline.run_until_including(CP_BYTECODE_TO_ASSEMBLY);
     
     Backend* backend = m_context->getBackend();
     std::vector<Printer::ColPrinter> columnPrs;
@@ -287,20 +346,12 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
     printer.print(out, l_pipeline.get_data());
 }
 
-FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Arg> args)
+FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Recipe> args)
 {
-    FuncImpl* func = nullptr;
-    for (const Arg& arg : args)
-        if (arg.func != nullptr)
-        {
-            if (func == nullptr)
-                func = static_cast<FuncImpl*>(arg.func);
-            else if(func != static_cast<FuncImpl*>(arg.func))
-                throw std::runtime_error("Registers of different functions as arguments of one instruction.");
-        }
-    if (func == nullptr)
-        throw std::runtime_error("Cannot find mother function in registers.");
-    return func;
+    FuncImpl* res = verifyArgs_(args);
+    if (res == nullptr)
+        throw std::runtime_error("Cannot find mother function in expression arguments.");
+    return res;
 }
 
 const Syntfunc& FuncImpl::get_data() const
@@ -321,9 +372,9 @@ const FuncBodyBuf FuncImpl::get_hex_body()
 
 void FuncImpl::endFunc()
 {
-    m_pipeline->run_until_including(CS_COLLECTING);
+    m_pipeline->run_until_including(CP_COLLECTING);
     if (m_directTranslation)
-        m_pipeline->pass_until(CS_BYTECODE_TO_ASSEMBLY);
+        m_pipeline->pass_until(CP_BYTECODE_TO_ASSEMBLY);
     if (m_context->debug_mode())
         m_debug_pipeline = std::make_shared<Pipeline>(*(m_pipeline.get()));
 }

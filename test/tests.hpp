@@ -149,6 +149,24 @@ void print_channel(T* data, int H, int W, int stride)
     std::cout << std::endl;
 }
 
+template<typename _Tp>
+loops::Recipe iregtyped(const loops::Recipe& reg)
+{
+    Assert(reg.opcode() == loops::RECIPE_LEAF && reg.leaf().tag == loops::Arg::IREG);
+    loops::IReg ar; ar.func = reg.leaf().func; ar.idx = reg.leaf().idx;
+    loops::IRecipe ret(ar);
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret.notype();
+}
+
+template<typename _Tp>
+loops::Recipe immtyped(int64_t val, loops::Func* func)
+{
+    loops::Recipe ret(argIImm(val, func));
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret;
+}
+
 //TODO(ch): Interesting solution for test substitution is class derivation
 //with using RTTI for taking name of class. Still not really easy to decide what to 
 // do with fixtures, but there is a thought to think.
@@ -343,35 +361,36 @@ public:                                                         \
 funcname##_gfix_##_p1##_p2 inst##funcname##_gfix_##_p1##_p2
 
 
-#define LTESTcomposer(funcname, ...)                            \
-class funcname: public Test                                     \
-{                                                               \
-public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    virtual void generateCode() override                        \
-    {                                                           \
-        std::string TESTNAME = #funcname;                       \
-        CTX.startFunc(TESTNAME, {});                            \
-        __VA_ARGS__                                             \
-        loops::Func func = CTX.getFunc(TESTNAME);               \
-        getImpl(&func)->directTranslationOn();                  \
-        getImpl(&CTX)->endFunc();                               \
-    }                                                           \
-    virtual bool testExecution(const std::string& fixName)      \
-                                                     override   \
-    { return true; }                                            \
-    virtual std::vector<std::string> fixturesNames() const      \
-                                                     override   \
-    { return std::vector<std::string>(1, #funcname);}           \
-};                                                              \
-class funcname##_reg                                            \
-{                                                               \
-public:                                                         \
-    funcname##_reg()                                            \
-    {                                                           \
-        TestSuite::getInstance()->regTest<funcname>();          \
-    };                                                          \
-};                                                              \
+#define LTESTcomposer(funcname, ...)                                            \
+class funcname: public Test                                                     \
+{                                                                               \
+public:                                                                         \
+    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {}                 \
+    virtual void generateCode() override                                        \
+    {                                                                           \
+        std::string TESTNAME = #funcname;                                       \
+        if(__Loops_FuncScopeBracket_ __loops_func_{&CTX, (TESTNAME), {}}); else \
+        {                                                                       \
+            __VA_ARGS__                                                         \
+            loops::Func func = CTX.getFunc(TESTNAME);                           \
+            getImpl(&func)->directTranslationOn();                              \
+        }                                                                       \
+    }                                                                           \
+    virtual bool testExecution(const std::string& fixName)                      \
+                                                     override                   \
+    { return true; }                                                            \
+    virtual std::vector<std::string> fixturesNames() const                      \
+                                                     override                   \
+    { return std::vector<std::string>(1, #funcname);}                           \
+};                                                                              \
+class funcname##_reg                                                            \
+{                                                                               \
+public:                                                                         \
+    funcname##_reg()                                                            \
+    {                                                                           \
+        TestSuite::getInstance()->regTest<funcname>();                          \
+    };                                                                          \
+};                                                                              \
 funcname##_reg funcname##_reg_instance
 
 #endif//__LOOPS_TESTS_HPP__

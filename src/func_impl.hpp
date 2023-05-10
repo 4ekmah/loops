@@ -28,10 +28,10 @@ public:
     std::string name() const { return m_pipeline->get_data().name; }
     void* ptr();
     void endFunc();
-    void printBytecode(std::ostream& out, int uptoStage = CS_COLLECTING);
+    void printBytecode(std::ostream& out, int uptoPASS = CP_COLLECTING);
     void printAssembly(std::ostream& out, int columns);
 
-    static FuncImpl* verifyArgs(std::initializer_list<Arg> args);
+    static FuncImpl* verifyArgs(std::initializer_list<Recipe> args);
      inline ContextImpl* getContext() { return m_context; }
 
     const Syntfunc& get_data() const;
@@ -41,8 +41,8 @@ public:
         AssertMsg(m_pipeline.get(), "Attempt to add instruction to already finished function.");
         return m_pipeline->get_code_collecting();
     }
-    void set_compiled_ptr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" stage to "compile2buf" "writeBuf2exe"
-    //directTranslation == true avoids most part of stages, like register allocation or controlBlocks2Jumps.
+    void set_compiled_ptr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" pass to "compile2buf" "writeBuf2exe"
+    //directTranslation == true avoids most part of passes, like register allocation or controlBlocks2Jumps.
     //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
     inline void directTranslationOn() { m_directTranslation = true; }
     void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
@@ -52,6 +52,7 @@ public:
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
 private:
+    static FuncImpl* verifyArgs_(std::initializer_list<Recipe> args);
     ContextImpl* m_context;
 
     std::shared_ptr<Pipeline> m_pipeline;

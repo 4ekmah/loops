@@ -130,13 +130,26 @@ namespace loops
 
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
+    IReg::IReg(const IRecipe& fromwho)
+    {
+        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && fromwho.leaf().func == nullptr)
+            throw std::runtime_error("Direct immediate assignment must be done via CONST_ operator, e.g.:\n    IReg var = CONST_(val);\n");
+        Recipe fromwho_(fromwho.notype());
+        Arg unpacked = FuncImpl::verifyArgs({fromwho_})->get_code_collecting()->reg_constr(fromwho_);
+        Assert(unpacked.tag == Arg::IREG);
+        func = unpacked.func;
+        idx = unpacked.idx;
+    }
+
     IReg::IReg(const IReg& r)
     {
         if(r.func != nullptr)
         {
-            IReg selfval = newiop(OP_MOV, { r });
-            idx = selfval.idx;
-            func = selfval.func;
+            Recipe fromwho(r);
+            Arg unpacked = FuncImpl::verifyArgs({fromwho})->get_code_collecting()->reg_constr(fromwho);
+            Assert(unpacked.tag == Arg::IREG);
+            func = unpacked.func;
+            idx = unpacked.idx;
         }
         else
         {
@@ -153,19 +166,33 @@ namespace loops
         idx = from.idx;
     }
 
-    IReg::IReg(IReg&& a) noexcept : func(a.func), idx(a.idx) {}
+    void IReg::copyidx(const IRecipe& from)
+    {
+        if(from.is_leaf() && from.leaf().tag == Arg::IREG)
+        {
+            if(func != nullptr && func != from.leaf().func)
+                throw std::runtime_error("Registers of different functions in idx assignment.");
+            func = from.leaf().func;
+            idx = from.leaf().idx;
+        }
+        else
+            copyidx(IReg(from));
+    }
 
     IReg& IReg::operator=(const IReg& r)
     {
-        if (r.func == nullptr)
-            throw std::runtime_error("Cannot find motherfunction in registers.");
-        FuncImpl* funcimpl = static_cast<FuncImpl*>(func);
-        funcimpl->get_code_collecting()->newiopPreret(OP_MOV, { r }, idx);
+        IRecipe fromwho(r);
+        return operator=(fromwho);
+    }
+
+    IReg& IReg::operator=(const IRecipe& fromwho)
+    {
+        Recipe fromwho_(fromwho.notype());
+        Recipe me(*this);
+        FuncImpl::verifyArgs({me, fromwho_})->get_code_collecting()->reg_assign(Arg(*this), fromwho_);
         return (*this);
     }
 
-    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
-    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
     Arg::Arg(int64_t a_value, Context* ctx) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0)
     {
         if(ctx)
@@ -198,7 +225,7 @@ namespace loops
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
     void Func::printBytecode(std::ostream& out) const
     {
-        static_cast<FuncImpl*>(impl)->printBytecode(out, CS_BYTECODE_TO_ASSEMBLY);
+        static_cast<FuncImpl*>(impl)->printBytecode(out, CP_BYTECODE_TO_ASSEMBLY);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {
@@ -213,239 +240,41 @@ namespace loops
         return ret;
     }
     
-    Context ExtractContext(const Arg& arg)
+    Context ExtractContext(const Recipe& arg)
     {
         return FuncImpl::verifyArgs({arg})->getContext()->getOwner();
     }
 
-    IReg newiop(int opcode, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    void newiopNoret(int opcode, ::std::initializer_list<Recipe> args)
     {
-        return static_cast<IReg&&>(FuncImpl::verifyArgs(args)->get_code_collecting()->newiop(opcode, args, tryImmList));
+        FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret(opcode, args);
     }
 
-    IReg newiop(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    IRecipe pow(const IRecipe& a, int p)
     {
-        return FuncImpl::verifyArgs(args)->get_code_collecting()->newiop(opcode,depth,args, tryImmList);
-    }
-
-    void newiopNoret(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {
-        FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret(opcode, args, tryImmList);
-    }
-
-    std::vector<int> newiopNoret_initregs(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> regsn_to_init)
-    {
-        return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret_initregs(opcode, args, regsn_to_init);
-    }
-
-    void newiopNoret(int opcode, int depth, std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {
-        FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret(opcode, depth, args, tryImmList);
+        Context CTX = ExtractContext(a.notype());
+        USE_CONTEXT_(CTX);
+        if(p == 0)
+            return CONST_(1);
+        IRecipe _a = a;
+        IRecipe res;
+        while (p)
+            if (p & 1) 
+            {
+                res = (res.empty()) ? _a : res * _a;
+                --p;
+            }
+            else 
+            {
+                _a = _a * _a;
+                p >>= 1;
+            }
+        return res;
     }
     
-    void newiopAug(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
+    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IRecipe& base)
     {
-        return newiopNoret(opcode, args, tryImmList);
-    }
-
-    VReg<uint8_t> newiopV_U8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<uint8_t>(opcode, args, tryImmList);  }
-    VReg<int8_t> newiopV_I8  (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<int8_t>(opcode, args, tryImmList);  }
-    VReg<uint16_t> newiopV_U16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<uint16_t>(opcode, args, tryImmList);  }
-    VReg<int16_t> newiopV_I16 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<int16_t>(opcode, args, tryImmList);  }
-    VReg<uint32_t> newiopV_U32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<uint32_t>(opcode, args, tryImmList);  }
-    VReg<int32_t> newiopV_I32 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<int32_t>(opcode, args, tryImmList);  }
-    VReg<uint64_t> newiopV_U64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<uint64_t>(opcode, args, tryImmList);  }
-    VReg<int64_t> newiopV_I64 (int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<int64_t>(opcode, args, tryImmList);  }
-    VReg<f16_t> newiopV_FP16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<f16_t>(opcode, args, tryImmList);  }
-    //VReg<...> newiopV_BF16(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList);
-    VReg<float> newiopV_FP32(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<float>(opcode, args, tryImmList);  }
-    VReg<double> newiopV_FP64(int opcode, ::std::initializer_list<Arg> args, ::std::initializer_list<size_t> tryImmList)
-    {   return FuncImpl::verifyArgs(args)->get_code_collecting()->newiopV<double>(opcode, args, tryImmList);  }
-
-    IReg select(const IReg& cond, const IReg& truev, const IReg& falsev)
-    {
-        return FuncImpl::verifyArgs({ truev, falsev })->get_code_collecting()->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-
-    IReg select(const IReg& cond, int64_t truev, const IReg& falsev)
-    {
-        return FuncImpl::verifyArgs({ falsev })->get_code_collecting()->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-
-    IReg select(const IReg& cond, const IReg& truev, int64_t falsev)
-    {
-        return FuncImpl::verifyArgs({ truev })->get_code_collecting()->select(cond, truev, falsev); //TODO(ch): IMPORTANT(CMPLCOND)
-        //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-
-    IReg pow(const IReg& a, int p)
-    {
-        if(p == 0)
-            return FuncImpl::verifyArgs({ a })->get_code_collecting()->const_(1);
-        IReg _a = a;
-        IReg* pres;
-        while (p)
-            if (p & 1) {
-                pres = new IReg(_a);
-                --p;
-                break;
-            }
-            else {
-                _a *= _a;
-                p >>= 1;
-            }
-        IReg& res = *pres;
-        while (p)
-            if (p & 1) {
-                res *= _a;
-                --p;
-            }
-            else {
-                _a *= _a;
-                p >>= 1;
-            }
-        IReg ret = static_cast<IReg&&>(res);
-        delete pres;
-        return ret;
-    }
-
-    IReg operator == (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_EQ;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator == (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_EQ;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator != (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_NE;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator != (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_NE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator <= (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_LE;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator <= (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_LE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg ule(const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_ULE;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg ule(const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_ULE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator >= (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_GE;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator >= (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_GE;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg uge(const IReg& a, const IReg& b) //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
-    { return ule(b,a); }
-    IReg uge(const IReg& a, int64_t b) //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
-    {
-        USE_CONTEXT_(ExtractContext(a));
-        return ule(CONST_(b),a);
-    }
-    IReg operator > (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_GT;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator > (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_GT;
-        newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg ugt(const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_UGT;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg ugt(const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_UGT;
-        newiopNoret(OP_CMP, { a, Arg(b) },{ 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator < (const IReg& a, const IReg& b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({a,b});
-        fnc->get_code_collecting()->m_cmpopcode = IC_LT;
-        newiopNoret(OP_CMP, {a, b});
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-    IReg operator < (const IReg& a, int64_t b)
-    {
-        FuncImpl* fnc = FuncImpl::verifyArgs({ a });
-        fnc->get_code_collecting()->m_cmpopcode = IC_LT;
-        newiopNoret(OP_CMP, { a, Arg(b) }, { 1 });
-        return IReg(); //TODO(ch): IMPORTANT(CMPLCOND)
-    }
-
-    IReg ult(const IReg& a, const IReg& b)  //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
-    { return ugt(b,a); }
-
-    IReg ult(const IReg& a, int64_t b)  //TODO(ch): This implementation is formed by ARM. Check for better ideas on Intel.
-    {
-        USE_CONTEXT_(ExtractContext(a));
-        return ugt(CONST_(b),a);
+        FuncImpl::verifyArgs({base.notype()})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base.notype());
     }
 
     Context::Context() : impl(nullptr)
@@ -475,90 +304,82 @@ namespace loops
             delete impl;
     }
 
-    void Context::startFunc(const std::string& name, std::initializer_list<IReg*> params) { static_cast<ContextImpl*>(impl)->startFunc(name, params);    }
-    void Context::endFunc() { static_cast<ContextImpl*>(impl)->endFunc(); }
     Func Context::getFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->getFunc(name); }
     bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
-    IReg Context::const_(int64_t value)    { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->const_(value); }
-    IReg Context::def_()                   { return getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->def_(); }
-    void Context::while_(const IReg& r)  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->while_(r); }
-    void Context::endwhile_()  { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->endwhile_(); }
-    void Context::break_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->break_(); }
-    void Context::continue_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->continue_(); }
-
-    void Context::if_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->if_(r); }
-    void Context::elif_(const IReg& r) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->elif_(r); };
-    void Context::else_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->else_(); };
-    void Context::endif_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->endif_(); }
-
-    void Context::return_() { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(); }
-    void Context::return_(int64_t retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(retval); }
-    void Context::return_(const IReg& retval) { getImpl(static_cast<ContextImpl*>(impl)->getCurrentFunc())->get_code_collecting()->return_(retval); }
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
     size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
     void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
 
-    __Loops_ConditionMarker_::__Loops_ConditionMarker_(Context* _CTX)
+    __Loops_CondPrefixMarker_::__Loops_CondPrefixMarker_(Context& CTX_):CTX(&CTX_) 
     {
-        getImpl(getImpl(_CTX)->getCurrentFunc())->get_code_collecting()->markConditionStart();
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_STEM_CSTART, {});
     }
 
-    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context* _CTX, CFType _cftype, const IReg& condition) : CTX(_CTX), cftype(_cftype)
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const IRecipe& condition) : CTX(inh.CTX), cftype(_cftype)
     {
+        CodeCollecting* coll = getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting();
+        Recipe condition_(condition.notype());
         switch (_cftype)
         {
         case(IF):
-            CTX->if_(condition);
+            coll->if_(condition_);
             break;
         case(ELIF):
-            getImpl(getImpl(CTX)->getCurrentFunc())->get_code_collecting()->subst_elif(condition);
-            break;
-        case(ELSE):
-            getImpl(getImpl(CTX)->getCurrentFunc())->get_code_collecting()->subst_else();
+            coll->subst_elif(condition_);
             break;
         case(WHILE):
-            CTX->while_(condition);
+            coll->while_(condition_);
             break;
         default:
             Assert(false);
         }
     }
 
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(Context& _CTX) : CTX(&_CTX), cftype(ELSE)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->subst_else();
+    }
+
     __Loops_CFScopeBracket_::~__Loops_CFScopeBracket_()
     {
         if(cftype == WHILE)
-            CTX->endwhile_();
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->endwhile_();
         else
-            CTX->endif_();
+            getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->endif_();
     }
 
     __Loops_FuncScopeBracket_::__Loops_FuncScopeBracket_(Context* _CTX, const std::string& name, std::initializer_list<IReg*> params): CTX(_CTX)
-    {
-        CTX->startFunc(name, params);
-    }
+    { getImpl(CTX)->startFunc(name, params); }
 
-    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { CTX->endFunc(); }
+    __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { getImpl(CTX)->endFunc(); }
+
+    __Loops_CF_rvalue_::__Loops_CF_rvalue_(Context* _CTX) : CTX(_CTX) {}
+    void __Loops_CF_rvalue_::break_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(); }
+    void __Loops_CF_rvalue_::continue_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(); }
+    void __Loops_CF_rvalue_::return_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(); }
+    void __Loops_CF_rvalue_::return_(const IRecipe& r) { Recipe r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
+    void __Loops_CF_rvalue_::return_(int64_t r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
     exp_consts::exp_consts(Context CTX)
     {
         USE_CONTEXT_(CTX);
-        vregHidCopy(lo    , VCONST_(float, -88.3762626647949f));
-        vregHidCopy(hi    , VCONST_(float, 88.3762626647949f));
-        vregHidCopy(half  , VCONST_(float, 0.5f));
-        vregHidCopy(one   , VCONST_(float, 1.f));
-        vregHidCopy(LOG2EF, VCONST_(float, 1.44269504088896341f));
-        vregHidCopy(C1    , VCONST_(float, -0.693359375f));
-        vregHidCopy(C2    , VCONST_(float, 2.12194440e-4f));
-        vregHidCopy(p0    , VCONST_(float, 1.9875691500E-4f));
-        vregHidCopy(p1    , VCONST_(float, 1.3981999507E-3f));
-        vregHidCopy(p2    , VCONST_(float, 8.3334519073E-3f));
-        vregHidCopy(p3    , VCONST_(float, 4.1665795894E-2f));
-        vregHidCopy(p4    , VCONST_(float, 1.6666665459E-1f));
-        vregHidCopy(p5    , VCONST_(float, 5.0000001201E-1f));
-        vregHidCopy(_7f   , VCONST_(int32_t, 0x7f));
+        lo.copyidx(VReg<float>(VCONST_(float, -88.3762626647949f)));
+        hi.copyidx(VReg<float>(VCONST_(float, 88.3762626647949f)));
+        half.copyidx(VReg<float>(VCONST_(float, 0.5f)));
+        one.copyidx(VReg<float>(VCONST_(float, 1.f)));
+        LOG2EF.copyidx(VReg<float>(VCONST_(float, 1.44269504088896341f)));
+        C1.copyidx(VReg<float>(VCONST_(float, -0.693359375f)));
+        C2.copyidx(VReg<float>(VCONST_(float, 2.12194440e-4f)));
+        p0.copyidx(VReg<float>(VCONST_(float, 1.9875691500E-4f)));
+        p1.copyidx(VReg<float>(VCONST_(float, 1.3981999507E-3f)));
+        p2.copyidx(VReg<float>(VCONST_(float, 8.3334519073E-3f)));
+        p3.copyidx(VReg<float>(VCONST_(float, 4.1665795894E-2f)));
+        p4.copyidx(VReg<float>(VCONST_(float, 1.6666665459E-1f)));
+        p5.copyidx(VReg<float>(VCONST_(float, 5.0000001201E-1f)));
+        _7f.copyidx(VReg<int32_t>(VCONST_(int32_t, 0x7f)));
     }
 
     exp_consts expInit(Context CTX)
@@ -566,51 +387,69 @@ namespace loops
         return exp_consts(CTX);
     }
 
-    VReg<float> exp(const VReg<float>& x, const exp_consts& expt)
+    VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt)
     {
-        VReg<float> vexp_x = min(x, expt.hi);
+        VRecipe<float> vexp_x = min(x, expt.hi); 
         vexp_x = max(vexp_x, expt.lo);
-        VReg<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
-        VReg<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
+        VRecipe<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
+        VRecipe<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
         vexp_fx = cast<float>(vexp_mm);
-        vexp_mm += expt._7f;
-        vexp_mm <<= 23;
+        vexp_mm = vexp_mm + expt._7f;
+        vexp_mm = vexp_mm << 23;
         vexp_x = fma(vexp_x, vexp_fx, expt.C1);
         vexp_x = fma(vexp_x, vexp_fx, expt.C2);
-        VReg<float> vexp_z = vexp_x * vexp_x;
-        VReg<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
+        VRecipe<float> vexp_z = vexp_x * vexp_x;
+        VRecipe<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
         vexp_y = fma(expt.p2, vexp_y, vexp_x);
         vexp_y = fma(expt.p3, vexp_y, vexp_x);
         vexp_y = fma(expt.p4, vexp_y, vexp_x);
         vexp_y = fma(expt.p5, vexp_y, vexp_x);
         vexp_y = fma(vexp_x, vexp_y, vexp_z);
-        vexp_y += expt.one;
+        vexp_y = vexp_y + expt.one;
         return vexp_y * reinterpret<float>(vexp_mm);
     }
 
-    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0), spillPrefix(0), spillPostfix(0){}
-    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size), spillPrefix(fwho.spillPrefix), spillPostfix(fwho.spillPostfix)
+    void VReg_constr_(const Recipe& fromwho, int& idx, Func*& func, int restype)
+    {
+        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && fromwho.leaf().func == nullptr)
+            throw std::runtime_error("Direct immediate assignment must be done via VCONST_ operator, e.g.:\n    VReg<float> var = VCONST_(float, 3.14);\n");
+        Recipe fromwho_(fromwho);
+        Arg unpacked = FuncImpl::verifyArgs({fromwho})->get_code_collecting()->reg_constr(fromwho_);
+        Assert(unpacked.tag == Arg::VREG && unpacked.elemtype == restype);
+        func = unpacked.func;
+        idx = unpacked.idx;
+    }
+
+    void VReg_assign_(const Arg& target, const Recipe& fromwho)
+    {
+        Recipe fromwho_(fromwho);
+        Recipe me(target);
+        FuncImpl::verifyArgs({me, fromwho})->get_code_collecting()->reg_assign(target, fromwho_);
+    }
+
+    Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}
+    Syntop::Syntop(const Syntop& fwho) : opcode(fwho.opcode), args_size(fwho.args_size)
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size()), spillPrefix(0), spillPostfix(0)
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");

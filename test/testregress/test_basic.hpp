@@ -79,9 +79,9 @@ LTESTexe(min_max_scalar, {
     for(size_t num = 0; num < v.size(); num++)
     {
         if(v[rminpos] > v[num])
-            rminpos = v[num];
+            rminpos = num;
         if(v[rmaxpos] < v[num])
-            rmaxpos = v[num];
+            rmaxpos = num;
     }
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
@@ -130,9 +130,9 @@ LTESTexe(min_max_select, {
     for (size_t num = 0; num < v.size(); num++)
     {
         if (v[rminpos] > v[num])
-            rminpos = v[num];
+            rminpos = num;
         if (v[rmaxpos] < v[num])
-            rmaxpos = v[num];
+            rmaxpos = num;
     }
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
@@ -144,62 +144,21 @@ LTEST(triangle_types, {
     IReg a, b, c;
     STARTFUNC_(TESTNAME, &a, &b, &c)
     {
-        IF_(a <= 0)
+        IF_(a <= 0 || b <= 0 || c <= 0)
             RETURN_(NOT_A_TRIANGLE);
-        ELIF_(b <= 0)
-            RETURN_(NOT_A_TRIANGLE);
-        ELIF_(c <= 0)
-            RETURN_(NOT_A_TRIANGLE);
+        ELIF_(a > b + c || b > a + c || c > a + b)
+                RETURN_(NOT_A_TRIANGLE);
+        ELIF_(a == b && a == c)
+            RETURN_(EQUILATERAL_TRIANGLE);
+        ELIF_(a == b || a == c || b == c)
+            RETURN_(ISOSCELES_TRIANGLE);
+        ELIF_(a*a == b*b + c*c || b*b == a*a + c*c || c*c == a*a +b*b)
+            RETURN_(RIGHT_TRIANGLE);
+        ELIF_(a*a > b*b + c*c || b*b > a*a + c*c || c*c > a*a + b*b)
+            RETURN_(OBTUSE_TRIANGLE);
         ELSE_
-        {
-            IReg apb = a + b;
-            IReg apc = a + c;
-            IReg bpc = b + c;
-            IF_(a > bpc)
-                RETURN_(NOT_A_TRIANGLE);
-            ELIF_(b > apc)
-                RETURN_(NOT_A_TRIANGLE);
-            ELIF_(c > apb)
-                RETURN_(NOT_A_TRIANGLE);
-            ELSE_
-            {
-                IF_(a == b)
-                {
-                    IF_(b == c)
-                        RETURN_(EQUILATERAL_TRIANGLE);
-                    ELSE_
-                        RETURN_(ISOSCELES_TRIANGLE);
-                }
-                ELIF_(a == c)
-                    RETURN_(ISOSCELES_TRIANGLE);
-                ELIF_(b == c)
-                    RETURN_(ISOSCELES_TRIANGLE);
+            RETURN_(ACUTE_TRIANGLE);
 
-                IReg a2 = a*a;
-                IReg b2 = b*b;
-                IReg c2 = c*c;
-                IReg a2pb2 = a2+b2;
-                IReg a2pc2 = a2+c2;
-                IReg b2pc2 = b2+c2;
-                IF_(a2 == b2pc2)
-                    RETURN_(RIGHT_TRIANGLE);
-                ELIF_(b2 == a2pc2)
-                    RETURN_(RIGHT_TRIANGLE);
-                ELIF_(c2 == a2pb2)
-                    RETURN_(RIGHT_TRIANGLE);
-
-                IReg cosa = b2pc2 - a2;
-                IReg cosb = a2pc2 - b2;
-                IReg cosc = a2pb2 - c2;
-                IF_(cosa < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-                ELIF_(cosb < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-                ELIF_(cosc < 0)
-                    RETURN_(OBTUSE_TRIANGLE);
-            }
-        }
-        RETURN_(ACUTE_TRIANGLE);
     }
 });
 LTESTexe(triangle_types, {
@@ -265,7 +224,7 @@ LTEST(all_loads_all_stores, {
     {
         if (CTX.getPlatformName() == "AArch64")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4 }, { 0, 1, 2, 3, 4 }, {}, { 18, 19, 20, 21, 22 });
-        else if("Intel64" && OSname() == "Linux") 
+        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8 }, { 0 }, {}, { 12, 13, 14, 15 });
 
         IReg num = CONST_(0);
@@ -433,7 +392,7 @@ LTEST(bresenham, {
     {
         if (CTX.getPlatformName() == "AArch64")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6 }, { 0, 1, 2, 3, 4, 5, 6 }, {}, { 18, 19, 20, 21, 22 });
-        else if("Intel64" && OSname() == "Linux") 
+        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
             getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8, 9 }, { 0 }, {}, { 12, 13, 14, 15 });
 
         IReg dx = abs(x1 - x0);
@@ -444,9 +403,8 @@ LTEST(bresenham, {
         WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
         {
             store_<uint8_t>(canvas, y0* w + x0, filler);
-            IF_(x0 == x1)
-                IF_(y0 == y1)
-                    BREAK_;
+            IF_(x0 == x1 && y0 == y1)
+                BREAK_;
             IReg e2 = error << 1;
             IF_(e2 >= dy)
             {
@@ -505,7 +463,7 @@ bool memok(uint8_t* canvas, int64_t w, int64_t h)
                 std::cout << "    Memory writing violation at output [" << -1 << ", " << i << ", " << j << "]" << std::endl;
                 return false;
             }
-            if(canvas[2*h*w + i*w + j] != 0) 
+            if(canvas[2*h*w + i*w + j] != 0)
             {
                 std::cout << "    Memory writing violation at output ["<< 1 <<", "<< i <<", "<< j<<"]"<<std::endl;
                 return false;
@@ -543,37 +501,5 @@ LTESTexe(bresenham, {
     for (int symbn = 0; symbn < w * h; symbn++)
         EXPECT_EQ(optr[symbn], canvasRef[symbn]);
     });
-
-//TODO(ch): Obviously, this test must be rewritten without generator, when test system will be rewritten.
-LTEST(compl_condition_diagnostic_failure, {  
-    STARTFUNC_(TESTNAME)
-    {
-        RETURN_(0);
-    }
-});
-LTESTexe(compl_condition_diagnostic_failure, {
-    bool gotAFailure = false;
-    try
-    {
-        USE_CONTEXT_(CTX);
-        STARTFUNC_("complconditionfailure")
-        {
-            IReg i = CONST_(1);
-            IReg j = CONST_(2);
-            IF_(i+1>j)
-            {
-                j = j + 1;
-            }
-            RETURN_(j);
-        }
-    }
-    catch (std::runtime_error err)
-    {
-        if(std::string("Temporary condition solution: conditions bigger than one comparison of two simple arguments are not supported.") == err.what())
-            gotAFailure = true;
-    };
-    EXPECT_EQ(gotAFailure, true);
-});
-
 };
 #endif//__LOOPS_TEST_BASIC_HPP__

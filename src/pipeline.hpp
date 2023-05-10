@@ -19,35 +19,61 @@ namespace loops {
 
 enum
 {
-    CS_NOSTAGE = 0,
-    CS_COLLECTING,
-    CS_LIVENESS_ANALYSIS,
-    CS_REGISTER_ALLOCATION,
-    CS_CONTROLFLOW_TO_JUMPS,
-    CS_BYTECODE_TO_ASSEMBLY,
-    CS_ASSEMBLY_TO_HEX,
-    CS_ARCH_SPECIFIC,
+    CP_NOPASS = 0,
+    CP_COLLECTING,
+    CP_IMMEDIATE_IMPLANTATION,
+    CP_ELIF_ELIMINATION,
+    CP_LIVENESS_ANALYSIS,
+    CP_REGISTER_ALLOCATION,
+    CP_CONTROLFLOW_TO_JUMPS,
+    CP_BYTECODE_TO_ASSEMBLY,
+    CP_ASSEMBLY_TO_HEX,
+    CP_ARCH_SPECIFIC,
 };
 
-class Cf2jumps: public CompilerStage
+class ImmediateImplantation: public CompilerPass
+{
+public:
+    ImmediateImplantation(const Backend* a_backend);
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+    virtual bool is_inplace() const override final { return false; }
+    virtual PassID pass_id() const override final { return CP_IMMEDIATE_IMPLANTATION; }
+    virtual ~ImmediateImplantation() {}
+private:
+    int m_epilogueSize;
+};
+
+class ElifElimination: public CompilerPass
+{
+public:
+    ElifElimination(const Backend* a_backend);
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+    virtual bool is_inplace() const override final { return false; }
+    virtual PassID pass_id() const override final { return CP_ELIF_ELIMINATION; }
+    virtual ~ElifElimination() {}
+private:
+    int m_epilogueSize;
+};
+
+class Cf2jumps: public CompilerPass
 {
 public:
     Cf2jumps(const Backend* a_backend, int a_epilogueSize);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; }
-    virtual StageID stage_id() const override final { return CS_CONTROLFLOW_TO_JUMPS; }
+    virtual PassID pass_id() const override final { return CP_CONTROLFLOW_TO_JUMPS; }
     virtual ~Cf2jumps() {}
 private:
     int m_epilogueSize;
 };
 
-class Bytecode2Assembly : public CompilerStage
+class Bytecode2Assembly : public CompilerPass
 {
 public:
-    Bytecode2Assembly(const Backend* a_backend) : CompilerStage(a_backend) {}
+    Bytecode2Assembly(const Backend* a_backend) : CompilerPass(a_backend) {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; }
-    virtual StageID stage_id() const override final { return CS_BYTECODE_TO_ASSEMBLY; }
+    virtual PassID pass_id() const override final { return CP_BYTECODE_TO_ASSEMBLY; }
     virtual ~Bytecode2Assembly() override {}
 protected:
     struct label_ref_info
@@ -60,13 +86,13 @@ protected:
     };
 };
 
-class Assembly2Hex : public CompilerStage
+class Assembly2Hex : public CompilerPass
 {
 public:
-    Assembly2Hex(const Backend* a_backend) : CompilerStage(a_backend), m_bitstream(a_backend) {}
+    Assembly2Hex(const Backend* a_backend) : CompilerPass(a_backend), m_bitstream(a_backend) {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
-    virtual StageID stage_id() const override final { return CS_ASSEMBLY_TO_HEX; }
+    virtual PassID pass_id() const override final { return CP_ASSEMBLY_TO_HEX; }
     virtual ~Assembly2Hex() override {}
     const FuncBodyBuf result_buffer() const;
 private:
@@ -77,10 +103,10 @@ class Pipeline
 {
 public:
     Pipeline(Backend* a_backend, Func* a_func, const std::string& name, std::initializer_list<IReg*> params);
-    inline void full_run() { run_until_including(CS_ASSEMBLY_TO_HEX); }
-    void run_until(StageID a_stageID);
-    void run_until_including(StageID a_stageID);
-    void pass_until(StageID a_stageID);
+    inline void full_run() { run_until_including(CP_ASSEMBLY_TO_HEX); }
+    void run_until(PassID a_passID);
+    void run_until_including(PassID a_passID);
+    void pass_until(PassID a_passID);
     inline const Syntfunc& get_data() const { return m_data; }
     const FuncBodyBuf result_buffer() const { return m_buffer; }
     CodeCollecting* get_code_collecting();
@@ -90,16 +116,16 @@ public:
                                             const std::vector<size_t>&  a_calleeSavedRegisters);
 private:
     void run();
-    void run_stage(CompilerStage* a_stage);
+    void run_pass(CompilerPass* a_pass);
     Syntfunc m_data;
     CodeCollecting m_codecol;
     Backend* m_backend;
     Func* m_func;
     FuncBodyBuf m_buffer;
-    int m_current_stage;
-    int m_target_stage;
+    int m_current_pass;
+    int m_target_pass;
     int m_mode;
-    std::unordered_map<int, int> m_stage_ordering; //TODO(ch): make it static?
+    std::unordered_map<int, int> m_pass_ordering; //TODO(ch): make it static?
     enum {PM_FINDORDER, PM_REGULAR};
     std::vector<size_t> m_parameterRegistersO[RB_AMOUNT];
     std::vector<size_t> m_returnRegistersO[RB_AMOUNT];

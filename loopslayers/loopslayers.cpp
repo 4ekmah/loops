@@ -90,7 +90,7 @@ dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
        (activation_type != ACT_NONE && activation_type != ACT_RELU && activation_type != ACT_RELU6 && activation_type != ACT_LRELU))
         return 0;
-    try  
+    try
     {
         return (dwconv_f16_t)loops::DepthwiseconvGenerator<loops::f16_t>(CTX).generate(kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type, alpha);
     }

@@ -59,7 +59,7 @@ exp_f32(i0, i1, i2)
     57 : mov            i3, 0           
     58 : label 0:                       
     59 : cmp            i2, 0           
-    60 : jmp_le         1               
+    60 : jmp_le 2                       
     61 : vld.fp32       v3, i1, i3      
     62 : unspill        v29, 26         
     63 : min.fp32       v3, v3, v29     
@@ -71,51 +71,51 @@ exp_f32(i0, i1, i2)
     69 : fma.fp32       v2, v2, v3, v30 
     70 : floor.fp32_i32 v2, v2          
     71 : cast.i32_fp32  v1, v2          
-    72 : unspill        v29, 20         
-    73 : add.i32        v2, v2, v29     
-    74 : sal.i32        v2, v2, 23      
-    75 : unspill        v29, 4          
-    76 : fma.fp32       v3, v3, v1, v29 
-    77 : unspill        v29, 6          
-    78 : fma.fp32       v3, v3, v1, v29 
-    79 : mul.fp32       v1, v3, v3      
-    80 : unspill        v30, 8          
-    81 : unspill        v29, 10         
-    82 : mov            v0, v29         
-    83 : fma.fp32       v0, v0, v3, v30 
-    84 : unspill        v29, 12         
-    85 : spill          0, v1           
-    86 : mov            v1, v0          
-    87 : mov            v0, v29         
-    88 : fma.fp32       v0, v0, v1, v3  
-    89 : unspill        v1, 0           
-    90 : unspill        v29, 14         
-    91 : spill          0, v1           
-    92 : mov            v1, v0          
-    93 : mov            v0, v29         
-    94 : fma.fp32       v0, v0, v1, v3  
-    95 : unspill        v1, 0           
-    96 : unspill        v29, 16         
-    97 : spill          0, v1           
-    98 : mov            v1, v0          
-    99 : mov            v0, v29         
-   100 : fma.fp32       v0, v0, v1, v3  
-   101 : unspill        v1, 0           
-   102 : unspill        v29, 18         
-   103 : spill          0, v1           
-   104 : mov            v1, v0          
-   105 : mov            v0, v29         
-   106 : fma.fp32       v0, v0, v1, v3  
-   107 : unspill        v1, 0           
-   108 : fma.fp32       v3, v3, v0, v1  
-   109 : unspill        v29, 22         
-   110 : add.fp32       v0, v3, v29     
-   111 : mul.fp32       v0, v0, v2      
+    72 : unspill        v29, 4          
+    73 : fma.fp32       v3, v3, v1, v29 
+    74 : unspill        v29, 6          
+    75 : fma.fp32       v3, v3, v1, v29 
+    76 : unspill        v30, 8          
+    77 : unspill        v29, 10         
+    78 : mov            v1, v29         
+    79 : fma.fp32       v1, v1, v3, v30 
+    80 : unspill        v29, 12         
+    81 : spill          0, v0           
+    82 : mov            v0, v1          
+    83 : mov            v1, v29         
+    84 : fma.fp32       v1, v1, v0, v3  
+    85 : unspill        v0, 0           
+    86 : unspill        v29, 14         
+    87 : spill          0, v0           
+    88 : mov            v0, v1          
+    89 : mov            v1, v29         
+    90 : fma.fp32       v1, v1, v0, v3  
+    91 : unspill        v0, 0           
+    92 : unspill        v29, 16         
+    93 : spill          0, v0           
+    94 : mov            v0, v1          
+    95 : mov            v1, v29         
+    96 : fma.fp32       v1, v1, v0, v3  
+    97 : unspill        v0, 0           
+    98 : unspill        v29, 18         
+    99 : spill          0, v0           
+   100 : mov            v0, v1          
+   101 : mov            v1, v29         
+   102 : fma.fp32       v1, v1, v0, v3  
+   103 : unspill        v0, 0           
+   104 : mul.fp32       v0, v3, v3      
+   105 : fma.fp32       v3, v3, v1, v0  
+   106 : unspill        v29, 22         
+   107 : add.fp32       v0, v3, v29     
+   108 : unspill        v29, 20         
+   109 : add.i32        v1, v2, v29     
+   110 : sal.i32        v1, v1, 23      
+   111 : mul.fp32       v0, v0, v1      
    112 : vst.fp32       i0, i3, v0      
    113 : add            i3, i3, 16      
    114 : sub            i2, i2, 4       
    115 : jmp            0               
-   116 : label 1:                       
+   116 : label 2:                       
    117 : unspill        v29, 30         
    118 : unspill        v30, 32         
    119 : add            i31, i31, 272   

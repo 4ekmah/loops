@@ -8,7 +8,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
      6 : mov      v0, 1        
      7 : label 0:              
      8 : cmp      i18, i3      
-     9 : jmp_ge   1            
+     9 : jmp_ge 2              
     10 : vld.u32  v1, i0, i18  
     11 : shr.u32  v2, v1, 1    
     12 : or       v2, v1, v2   
@@ -31,7 +31,7 @@ nullify_msb_lsb_v(i0, i1, i2, i3)
     29 : vst.u32  i2, i18, v1  
     30 : add      i18, i18, 16 
     31 : jmp      0            
-    32 : label 1:              
+    32 : label 2:              
     33 : unspill  i18, 0       
     34 : unspill  i19, 1       
     35 : add      i31, i31, 16 

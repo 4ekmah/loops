@@ -43,7 +43,7 @@ namespace loops
         INTEL64_CMOVS,
         INTEL64_CMOVNS,
         INTEL64_JMP,
-        INTEL64_JNE,
+        INTEL64_JNE,//TODO(ch): implement JCC operation instead of this endless variations.
         INTEL64_JE,
         INTEL64_JL,
         INTEL64_JLE,
@@ -53,7 +53,7 @@ namespace loops
     };
 
     enum {
-        CS_INTEL64_SNIPPETS = CS_ARCH_SPECIFIC
+        CP_INTEL64_SNIPPETS = CP_ARCH_SPECIFIC
     };
 
     class Intel64Backend : public Backend

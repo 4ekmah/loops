@@ -411,7 +411,7 @@ namespace loops
         }
     }
 
-    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills) : CompilerStage(a_backend)
+    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills) : CompilerPass(a_backend)
         , m_live_intervals(a_live_intervals)
         , m_snippet_caused_spills(a_snippet_caused_spills)
         , m_pool(a_backend)
@@ -758,12 +758,8 @@ namespace loops
         {
             Syntop op = a_source.program[opnum];
             for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            {
-                op.spillPrefix += unspilledRenaming[basketNum][opnum].size();
-                op.spillPostfix += spilledRenaming[basketNum][opnum].size();
                 for (auto ar : unspilledRenaming[basketNum][opnum])
                     newProgUnbracketed.push_back(Syntop(OP_UNSPILL, { ar.second, argIImm(getSpillOffset(basketNum, ar.first)) }));
-            }
             for (size_t arnum = 0; arnum < op.size(); arnum++)
             {
                 Arg& ar = op[arnum];
@@ -851,7 +847,7 @@ namespace loops
 
     void LivenessAnalysisAlgo::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
-        //TODO(ch): Introduce inplace stages. 
+        //TODO(ch): Introduce inplace passes. 
         Assert(&a_dest == &a_source); 
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             m_subintervals[basketNum].resize(a_source.regAmount[basketNum], std::vector<LiveInterval>());
@@ -885,9 +881,9 @@ namespace loops
                 m_snippetCausedSpills = std::max(m_snippetCausedSpills, opSnippetSpills);
                 switch (op.opcode)
                 {
-                case (OP_IF):
+                case (OP_IF_CEND):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
+                    Assert(op.size() == 0);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
                     CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
                     continue;
@@ -908,13 +904,13 @@ namespace loops
                     size_t elsePos = LAEvent::NONDEF;
                     if (bracket.tag == ControlFlowBracket::ELSE)
                     {
-                        elsePos = bracket.labelOrPos;
+                        elsePos = bracket.label_or_pos;
                         Assert(flowstack.size());
                         bracket = flowstack.back();
                         flowstack.pop_back();
                     }
                     Assert(bracket.tag == ControlFlowBracket::IF);
-                    auto rator = CFqueue.find(bracket.labelOrPos);
+                    auto rator = CFqueue.find(bracket.label_or_pos);
                     Assert(rator != CFqueue.end());
                     size_t ifStart = rator->first;
                     rator->second.oppositeNestingSide = opnum;
@@ -923,13 +919,11 @@ namespace loops
                     rator->second.oppositeNestingSide = ifStart;
                     continue;
                 }
-                case (OP_WHILE):
+                case (OP_WHILE_CSTART):
                 {
-                    Assert(op.size() == 3 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IIMMEDIATE);
-                    if (opnum < 2)
-                        throw std::runtime_error("Temporary condition solution needs one instruction before WHILE cycle.");
-                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum - 1));
-                    CFqueue.insert(std::make_pair(opnum - 1, LAEvent(LAEvent::LAE_STARTLOOP))); //TODO(ch): IMPORTANT(CMPLCOND): This(opnum - 1) mean that condition can be one-instruction only.
+                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
+                    flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum));
+                    CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
                     continue;
                 }
                 case (OP_ENDWHILE):
@@ -938,7 +932,7 @@ namespace loops
                     Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
-                    auto rator = CFqueue.find(bracket.labelOrPos);
+                    auto rator = CFqueue.find(bracket.label_or_pos);
                     Assert(rator != CFqueue.end());
                     size_t whilePos = rator->first;
                     rator->second.oppositeNestingSide = opnum;
@@ -1233,7 +1227,7 @@ namespace loops
         }
     }
 
-    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerStage(a_owner)
+    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerPass(a_owner)
         , m_snippetCausedSpills(0)
     {}
 

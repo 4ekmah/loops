@@ -120,7 +120,7 @@ public:
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
     inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
     template<typename _Tp> inline int vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
-    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elemSize(elemtype); }
+    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elem_size(elemtype); }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
@@ -136,8 +136,8 @@ public:
     inline std::string name() const { return m_name; };
     virtual void switchOnSpillStressMode() = 0;
 
-    const std::vector<CompilerStagePtr>& getAfterRegAllocStages() const { return m_afterRegAllocStages; }
-    const std::vector<CompilerStagePtr>& getBeforeRegAllocStages() const { return m_beforeRegAllocStages; }
+    const std::vector<CompilerPassPtr>& getAfterRegAllocPasses() const { return m_afterRegAllocPasses; }
+    const std::vector<CompilerPassPtr>& getBeforeRegAllocPasses() const { return m_beforeRegAllocPasses; }
 
     inline BinTranslation lookS2b(const Syntop& index) const;
     inline SyntopTranslation lookS2s(const Syntop& index) const;
@@ -160,8 +160,8 @@ protected:
     std::vector<size_t> m_returnRegisters[RB_AMOUNT];
     std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
     std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
-    std::vector<CompilerStagePtr> m_afterRegAllocStages;
-    std::vector<CompilerStagePtr> m_beforeRegAllocStages;
+    std::vector<CompilerPassPtr> m_afterRegAllocPasses;
+    std::vector<CompilerPassPtr> m_beforeRegAllocPasses;
     std::string m_name;
 };
 
