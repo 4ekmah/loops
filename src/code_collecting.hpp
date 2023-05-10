@@ -66,7 +66,7 @@ private:
     enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2};
     Arg unpack_recipe(Recipe& rcp, int flag = 0, Syntfunc* buffer = nullptr);
     Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
-    Syntop unpack_condition_old(Recipe& rcp); //DUBUG:temporary
+    Syntop unpack_condition_old(Recipe& rcp); //TODO(ch)[IMPORTANT]: temporary. Create select and int codition unpacking.
     void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
     enum {UC_CORRECT_PREFFERED = 1};
     void unpack_condition_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, int flags = 0);

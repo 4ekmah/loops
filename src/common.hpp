@@ -76,6 +76,30 @@ namespace loops
         return res;
     }
 
+    static inline size_t elem_size(int typ)
+    {
+        switch (typ) {
+            case TYPE_I8:
+            case TYPE_U8:
+                return 1;
+            case TYPE_I16:
+            case TYPE_U16:
+            case TYPE_FP16:
+            case TYPE_BF16:
+                return 2;
+            case TYPE_I32:
+            case TYPE_U32:
+            case TYPE_FP32:
+                return 4;
+            case TYPE_I64:
+            case TYPE_U64:
+            case TYPE_FP64:
+                return 8;
+            default:
+                throw std::runtime_error("Unknown data type.");
+        }
+    }
+
     inline bool regOrSpi(const Arg &toCheck)
     {
         return toCheck.tag == Arg::IREG || toCheck.tag == Arg::ISPILLED;

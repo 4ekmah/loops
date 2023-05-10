@@ -166,6 +166,19 @@ namespace loops
         idx = from.idx;
     }
 
+    void IReg::copyidx(const IRecipe& from)
+    {
+        if(from.is_leaf() && from.leaf().tag == Arg::IREG)
+        {
+            if(func != nullptr && func != from.leaf().func)
+                throw std::runtime_error("Registers of different functions in idx assignment.");
+            func = from.leaf().func;
+            idx = from.leaf().idx;
+        }
+        else
+            copyidx(IReg(from));
+    }
+
     IReg& IReg::operator=(const IReg& r)
     {
         IRecipe fromwho(r);
@@ -180,8 +193,6 @@ namespace loops
         return (*this);
     }
 
-    Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
-    Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
     Arg::Arg(int64_t a_value, Context* ctx) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0)
     {
         if(ctx)
@@ -378,7 +389,7 @@ namespace loops
 
     VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt)
     {
-        VRecipe<float> vexp_x = min(x, expt.hi);
+        VRecipe<float> vexp_x = min(x, expt.hi); 
         vexp_x = max(vexp_x, expt.lo);
         VRecipe<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
         VRecipe<int32_t> vexp_mm = floor<int32_t>(vexp_fx);

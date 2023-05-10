@@ -47,6 +47,17 @@ namespace loops
             case (OP_LABEL):
                 a_dest.program.push_back(op);
                 break;
+            case (VOP_FMA):
+            {
+                //This case is handled separately due to non-standard index encoding on Arm. It can be better on Intel.
+                //TODO(ch): create universal mechanism(probably based on encoding attempt?)
+                if(op.size() == 5)
+                {
+                    Assert(op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG && op[4].tag == Arg::IIMMEDIATE && op[0].elemtype == op[1].elemtype && op[0].elemtype == op[2].elemtype && op[0].elemtype == op[3].elemtype && op[4].value < m_backend->vlanes(op[0].elemtype));
+                }
+                a_dest.program.push_back(op);
+                break;
+            }
             default:
             {
                 Syntop op_probe = op;
@@ -55,7 +66,7 @@ namespace loops
                 for (size_t arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
-                if (op.opcode == OP_SELECT) // DUBUGGG: don't forget to reconsider after finishing conditions task.
+                if (op.opcode == OP_SELECT) //TODO(ch): create universal mechanism(probably based on encoding attempt?)
                 {
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());

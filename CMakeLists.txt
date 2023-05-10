@@ -6,16 +6,17 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 #LOOPS LIBRARY
 file(GLOB loops_hdrs  "${CMAKE_CURRENT_SOURCE_DIR}/include/loops/*.hpp")
+file(GLOB loops_himp  "${CMAKE_CURRENT_SOURCE_DIR}/include/loops/*.ipp")
 file(GLOB loops_ihdrs "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB loops_srcs  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
-add_library(loops STATIC ${loops_hdrs} ${loops_srcs} ${loops_ihdrs})
+add_library(loops STATIC ${loops_hdrs} ${loops_himp} ${loops_srcs} ${loops_ihdrs})
 include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 #LOOPSLAYERS LIBRARY
 file(GLOB loopslayers_hdrs  "${CMAKE_CURRENT_SOURCE_DIR}/include/loopslayers/*.h")
 file(GLOB loopslayers_ihdrs "${CMAKE_CURRENT_SOURCE_DIR}/loopslayers/generators/*.hpp")
 file(GLOB loopslayers_srcs  "${CMAKE_CURRENT_SOURCE_DIR}/loopslayers/*.cpp" )
-add_library(loopslayers STATIC ${loops_hdrs} ${loopslayers_hdrs} ${loopslayers_srcs} ${loopslayers_ihdrs} ${loopslayers_hdrs})
+add_library(loopslayers STATIC ${loops_hdrs} ${loops_himp} ${loopslayers_hdrs} ${loopslayers_srcs} ${loopslayers_ihdrs} ${loopslayers_hdrs})
 include_directories(loopslayers "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(loopslayers loops)
 
