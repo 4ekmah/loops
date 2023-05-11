@@ -280,6 +280,7 @@ public:
     // inline IRecipe(const IRecipe& fromwho) : Recipe(fromwho) {}
     inline IRecipe(const IReg& a_leaf);
     inline IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children);
+    inline IRecipe(int a_opcode, int a_type, std::vector<Recipe> a_children);
     Recipe notype() const { return super; }
 
     inline int& opcode() {return super.opcode();} 
@@ -306,6 +307,7 @@ public:
     VRecipe() {}
     static inline VRecipe<_Tp> make(const VReg<_Tp>& a_leaf);
     inline VRecipe(int a_opcode, std::initializer_list<Recipe> a_children);
+    inline VRecipe(int a_opcode, std::vector<Recipe> a_children);
     Recipe notype() const {return super;}
 
     inline int& opcode() {return super.opcode();} 
@@ -384,15 +386,15 @@ protected:
 //TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be 
 //done independently of status of already evaluated conditions. It's result of code collection procedure traits. Probably, it should be fixed, but it's not easy.
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
-#define STARTFUNC_(funcname, ...) if(__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
-#define CONST_(x) __loops_const_(&__loops_ctx__, x)
-#define DEF_(x) __loops_def_<eltyp>(&__loops_ctx__)
-#define VCONST_(eltyp, x) __loops_vconst_<eltyp>(&__loops_ctx__, eltyp(x))
-#define VDEF_(eltyp) __loops_vdef_<eltyp>(&__loops_ctx__)
-#define IF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::IF, (expr)}) ; else
-#define ELIF_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::ELIF, (expr)}) ; else
-#define ELSE_ if(__Loops_CFScopeBracket_ __loops_cf_{__loops_ctx__}) ; else
-#define WHILE_(expr) if(__Loops_CFScopeBracket_ __loops_cf_{__Loops_CondPrefixMarker_(__loops_ctx__), __Loops_CFScopeBracket_::WHILE, (expr)}) ; else
+#define STARTFUNC_(funcname, ...) if(loops::__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
+#define CONST_(x) loops::__loops_const_(&__loops_ctx__, x)
+#define DEF_(x) loops::__loops_def_<eltyp>(&__loops_ctx__)
+#define VCONST_(eltyp, x) loops::__loops_vconst_<eltyp>(&__loops_ctx__, eltyp(x))
+#define VDEF_(eltyp) loops::__loops_vdef_<eltyp>(&__loops_ctx__)
+#define IF_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::IF, (expr)}) ; else
+#define ELIF_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::ELIF, (expr)}) ; else
+#define ELSE_ if(loops::__Loops_CFScopeBracket_ __loops_cf_{__loops_ctx__}) ; else
+#define WHILE_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::WHILE, (expr)}) ; else
 #define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
 #define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
 #define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
