@@ -241,6 +241,7 @@ inline IRecipe::IRecipe(const IReg& a_leaf)
     super.pointee->type = TYPE_I64;
     super.pointee->leaf = Arg(a_leaf);
 }
+
 inline IRecipe::IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children)
 {
     super.pointee = new __loops_RecipeStr_;
@@ -248,9 +249,17 @@ inline IRecipe::IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> 
     super.pointee->opcode = a_opcode;
     super.pointee->is_vector = false;
     super.pointee->type = a_type;
-    super.pointee->children.reserve(a_children.size());
-    for(const Recipe& child : a_children)
-        super.pointee->children.emplace_back(child);
+    super.pointee->children = a_children;
+}
+
+inline IRecipe::IRecipe(int a_opcode, int a_type, std::vector<Recipe> a_children)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = a_opcode;
+    super.pointee->is_vector = false;
+    super.pointee->type = a_type;
+    super.pointee->children = a_children;
 }
 
 template <typename _Tp>
@@ -274,9 +283,18 @@ inline VRecipe<_Tp>::VRecipe(int a_opcode, std::initializer_list<Recipe> a_child
     super.pointee->opcode = a_opcode;
     super.pointee->is_vector = true;
     super.pointee->type = ElemTraits<_Tp>::depth;
-    super.pointee->children.reserve(a_children.size());
-    for(const Recipe& child : a_children)
-        super.pointee->children.emplace_back(child);
+    super.pointee->children = a_children;
+}
+
+template <typename _Tp>
+inline VRecipe<_Tp>::VRecipe(int a_opcode, std::vector<Recipe> a_children)
+{
+    super.pointee = new __loops_RecipeStr_;
+    super.pointee->refcounter = 1;
+    super.pointee->opcode = a_opcode;
+    super.pointee->is_vector = true;
+    super.pointee->type = ElemTraits<_Tp>::depth;
+    super.pointee->children = a_children;
 }
 
 struct __Loops_CondPrefixMarker_
