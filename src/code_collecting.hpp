@@ -49,7 +49,7 @@ public:
     like relational.
     */
     Arg reg_constr(Recipe& fromwho);
-    void reg_assign(const Arg& target, Recipe& fromwho);
+    void reg_assign(Recipe& target, Recipe& fromwho);
     void while_(Recipe& r);
     void endwhile_();
     void break_();

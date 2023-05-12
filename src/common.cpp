@@ -127,17 +127,36 @@ namespace loops
     #endif 
     }
 
+    static FuncImpl* verify_owner(::std::initializer_list<Recipe> args)
+    {
+        Func* inferedfunc = nullptr;
+        for(Recipe arg : args)
+            if(arg.func() != nullptr) 
+            {
+                inferedfunc = arg.func();
+                break;
+            }
+        if (inferedfunc == nullptr)
+            throw std::runtime_error("Cannot find mother function in expression arguments.");
+        for(Recipe arg : args)
+            if(arg.func() == nullptr)
+                arg.infer_owner(inferedfunc);
+            else if(arg.func() != inferedfunc)
+                throw std::runtime_error("Registers of different functions as arguments of one expression.");
+        return static_cast<FuncImpl*>(inferedfunc);
+    }
 
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
     IReg::IReg(const IRecipe& fromwho)
     {
-        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && fromwho.leaf().func == nullptr)
+        Recipe from_(fromwho.notype());
+        func = verify_owner({from_});
+        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
             throw std::runtime_error("Direct immediate assignment must be done via CONST_ operator, e.g.:\n    IReg var = CONST_(val);\n");
         Recipe fromwho_(fromwho.notype());
-        Arg unpacked = FuncImpl::verifyArgs({fromwho_})->get_code_collecting()->reg_constr(fromwho_);
+        Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho_);
         Assert(unpacked.tag == Arg::IREG);
-        func = unpacked.func;
         idx = unpacked.idx;
     }
 
@@ -145,10 +164,10 @@ namespace loops
     {
         if(r.func != nullptr)
         {
-            Recipe fromwho(r);
-            Arg unpacked = FuncImpl::verifyArgs({fromwho})->get_code_collecting()->reg_constr(fromwho);
+            Recipe fromwho = IRecipe(r).notype();
+            func = verify_owner({fromwho});
+            Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho);
             Assert(unpacked.tag == Arg::IREG);
-            func = unpacked.func;
             idx = unpacked.idx;
         }
         else
@@ -170,9 +189,11 @@ namespace loops
     {
         if(from.is_leaf() && from.leaf().tag == Arg::IREG)
         {
-            if(func != nullptr && func != from.leaf().func)
+            Recipe from_(from.notype());
+            Func* newfunc = verify_owner({from_});
+            if(func != nullptr && func != newfunc)
                 throw std::runtime_error("Registers of different functions in idx assignment.");
-            func = from.leaf().func;
+            func = newfunc;
             idx = from.leaf().idx;
         }
         else
@@ -189,14 +210,30 @@ namespace loops
     {
         Recipe fromwho_(fromwho.notype());
         Recipe me(*this);
-        FuncImpl::verifyArgs({me, fromwho_})->get_code_collecting()->reg_assign(Arg(*this), fromwho_);
+        verify_owner({me, fromwho_})->get_code_collecting()->reg_assign(me, fromwho_);
         return (*this);
     }
 
-    Arg::Arg(int64_t a_value, Context* ctx) : idx(IReg::NOIDX), func(nullptr), tag(Arg::IIMMEDIATE), value(a_value), flags(0)
+    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), tag(Arg::IIMMEDIATE), value(a_value), flags(0){}
+
+    Func* Recipe::infer_owner(Func* preinfered)
     {
-        if(ctx)
-            func = getImpl(getImpl(ctx)->getCurrentFunc());
+        Func* inferedfunc = preinfered ? preinfered : func();
+        if(!is_leaf())
+        {
+            for(int i = 0; i < children().size() && inferedfunc == nullptr; i++) 
+                if(children()[i].func() != nullptr)
+                    inferedfunc = children()[i].func();
+            if(inferedfunc)
+                for(Recipe& child : children())
+                    if(child.func() == nullptr)
+                        child.infer_owner(inferedfunc);
+                    else if(child.func() != inferedfunc)
+                        throw std::runtime_error("Registers of different functions as arguments of one expression.");
+        }
+        if(inferedfunc)
+            func() = inferedfunc;
+        return inferedfunc;
     }
 
     Func::Func() : impl(nullptr) {}
@@ -242,12 +279,13 @@ namespace loops
     
     Context ExtractContext(const Recipe& arg)
     {
-        return FuncImpl::verifyArgs({arg})->getContext()->getOwner();
+        Recipe arg_(arg);
+        return verify_owner({arg_})->getContext()->getOwner();
     }
 
     void newiopNoret(int opcode, ::std::initializer_list<Recipe> args)
     {
-        FuncImpl::verifyArgs(args)->get_code_collecting()->newiopNoret(opcode, args);
+        verify_owner(args)->get_code_collecting()->newiopNoret(opcode, args);
     }
 
     IRecipe pow(const IRecipe& a, int p)
@@ -274,7 +312,7 @@ namespace loops
     
     void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IRecipe& base)
     {
-        FuncImpl::verifyArgs({base.notype()})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base.notype());
+        verify_owner({base.notype()})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base.notype());
     }
 
     Context::Context() : impl(nullptr)
@@ -363,6 +401,8 @@ namespace loops
     void __Loops_CF_rvalue_::return_(const IRecipe& r) { Recipe r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
     void __Loops_CF_rvalue_::return_(int64_t r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
+    void __setfunc_by_context_(Context* CTX, Recipe& recipe) { recipe.func() = getImpl(getImpl(CTX)->getCurrentFunc()); }
+
     exp_consts::exp_consts(Context CTX)
     {
         USE_CONTEXT_(CTX);
@@ -411,20 +451,30 @@ namespace loops
 
     void VReg_constr_(const Recipe& fromwho, int& idx, Func*& func, int restype)
     {
-        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && fromwho.leaf().func == nullptr)
-            throw std::runtime_error("Direct immediate assignment must be done via VCONST_ operator, e.g.:\n    VReg<float> var = VCONST_(float, 3.14);\n");
         Recipe fromwho_(fromwho);
-        Arg unpacked = FuncImpl::verifyArgs({fromwho})->get_code_collecting()->reg_constr(fromwho_);
+        func = verify_owner({fromwho_});
+        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
+            throw std::runtime_error("Direct immediate assignment must be done via VCONST_ operator, e.g.:\n    VReg<float> var = VCONST_(float, 3.14);\n");
+        Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho_);
         Assert(unpacked.tag == Arg::VREG && unpacked.elemtype == restype);
-        func = unpacked.func;
         idx = unpacked.idx;
     }
 
-    void VReg_assign_(const Arg& target, const Recipe& fromwho)
+    void VReg_assign_(const Recipe& target, const Recipe& from)
+    {
+        Recipe from_(from);
+        Recipe target_(target);
+        verify_owner({target_, from_})->get_code_collecting()->reg_assign(target_, from_);
+    }
+
+    void VReg_copyidx_(const Recipe& fromwho, int& idx, Func*& func)
     {
         Recipe fromwho_(fromwho);
-        Recipe me(target);
-        FuncImpl::verifyArgs({me, fromwho})->get_code_collecting()->reg_assign(target, fromwho_);
+        Func* newfunc = verify_owner({fromwho_});
+        if(func != nullptr && func != newfunc)
+            throw std::runtime_error("Registers of different functions in idx assignment.");
+        func = newfunc;
+        idx = fromwho_.leaf().idx;
     }
 
     Syntop::Syntop(): opcode(OP_NOINIT), args_size(0){}

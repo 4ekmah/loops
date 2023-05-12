@@ -42,8 +42,6 @@ namespace loops
             case (OP_CONTINUE):
             case (OP_JMP):
             case (OP_JCC):
-            case (OP_DEF):
-            case (VOP_DEF):
             case (OP_LABEL):
                 a_dest.program.push_back(op);
                 break;

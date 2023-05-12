@@ -27,7 +27,6 @@ namespace loops
     {
         Recipe b(base);
         Arg base_ = unpack_recipe(b);
-        res1.func = res2.func = m_func;
         res1.idx = m_data.provideIdx(RB_VEC);
         res2.idx = m_data.provideIdx(RB_VEC);
         m_data.program.emplace_back(Syntop(VOP_ARM_LD2, {res1, res2, base_}));
@@ -48,7 +47,6 @@ namespace loops
             std::vector<Arg> args;
             args.reserve(2);
             res.idx = m_data.provideIdx(fromwho.is_vector() ? RB_VEC : RB_INT);
-            res.func = m_func;
             res.tag = fromwho.is_vector() ? Arg::VREG : Arg::IREG;
             res.elemtype = fromwho.type();
             args.push_back(res);
@@ -61,15 +59,15 @@ namespace loops
         return res;
     }
 
-    void CodeCollecting::reg_assign(const Arg &target, Recipe &fromwho)
+    void CodeCollecting::reg_assign(Recipe& target, Recipe &fromwho)
     {
         Arg res;
-        Assert((target.tag == Arg::IREG && !fromwho.is_vector()) || (target.tag == Arg::VREG && fromwho.type() == target.elemtype));
+        Assert(target.is_leaf() && ((target.leaf().tag == Arg::IREG && !fromwho.is_vector()) || (target.leaf().tag == Arg::VREG && fromwho.type() == target.leaf().elemtype)));
         std::vector<Arg> args;
         if (fromwho.is_leaf())
         {
             args.reserve(2);
-            args.push_back(target);
+            args.push_back(target.leaf());
             args.push_back(fromwho.leaf());
             Syntop toAdd(OP_MOV, args);
             m_data.program.emplace_back(toAdd);
@@ -77,7 +75,7 @@ namespace loops
         else
         {
             unpack_recipe(fromwho, UR_NONEWIDX);
-            m_data.program.back()[0].idx = target.idx;
+            m_data.program.back()[0].idx = target.leaf().idx;
         }
     }
 
@@ -104,7 +102,7 @@ namespace loops
         m_cflowStack.pop_back();
         int continuelabel = bracket.label_or_pos;
         int breaklabel = bracket.auxfield;
-        m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(continuelabel, m_func), argIImm(breaklabel, m_func)}));
+        m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(continuelabel), argIImm(breaklabel)}));
     }
 
     void CodeCollecting::break_()
@@ -217,7 +215,7 @@ namespace loops
             throw std::runtime_error("Mixed return types");
         if (retval.is_vector())
             throw std::runtime_error("Vector return is not supported.");
-        m_data.program.push_back(Syntop(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG, m_func), unpack_recipe(retval)}));
+        m_data.program.push_back(Syntop(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG), unpack_recipe(retval)}));
         m_data.program.push_back(Syntop(OP_RET, {}));
     }
 
@@ -232,7 +230,6 @@ namespace loops
             if (flags & UR_WRAPIIMM && rcp.leaf().tag == Arg::IIMMEDIATE)
             {
                 res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
-                res.func = m_func;
                 res.tag = Arg::IREG;
                 Syntop toAdd(OP_MOV, {res, rcp.leaf()});
                 outbuf.program.emplace_back(toAdd);
@@ -260,7 +257,6 @@ namespace loops
             Syntop cmpop = unpack_condition_old(rcp.children()[0]);
             outbuf.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
-            res.func = m_func;
             res.tag = Arg::IREG;
             res.elemtype = rcp.type();
             outbuf.program.push_back(Syntop(OP_SELECT, {res, argIImm(cmpop.opcode), truev, falsev}));
@@ -274,7 +270,6 @@ namespace loops
             if (v0.idx == v1.idx)
                 throw std::runtime_error("Shrink two same halfes into vector is not supported.");
             res.idx = outbuf.provideIdx(RB_VEC);
-            res.func = m_func;
             res.tag = Arg::VREG;
             res.elemtype = rcp.type();
             outbuf.program.push_back(Syntop(OP_CMP, {res, v0, v1}));
@@ -285,7 +280,6 @@ namespace loops
             std::vector<Arg> args;
             args.reserve(rcp.children().size() + 1);
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(rcp.is_vector() ? RB_VEC : RB_INT);
-            res.func = m_func;
             res.tag = rcp.is_vector() ? Arg::VREG : Arg::IREG;
             res.elemtype = rcp.type();
             args.push_back(res);
