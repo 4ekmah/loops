@@ -213,6 +213,7 @@ template<typename _Tp> struct VReg
     generation situation.) 
     */   
     void copyidx(const VReg<_Tp>& from);
+    void copyidx(const VRecipe<_Tp>& from);
 
     int idx;
     Func* func;
@@ -235,11 +236,10 @@ struct Arg
     enum { EMPTY = 0, IREG = 1, IIMMEDIATE = 2, VREG = 3, ISPILLED = 4, VSPILLED = 5 };
     inline Arg();
     inline Arg(const IReg& r);
-    Arg(int64_t a_value, Context* ctx = nullptr);
+    Arg(int64_t a_value);
     template<typename _Tp>
     Arg(const VReg<_Tp>& vr);
     int idx;
-    Func* func;
     size_t tag;
     int64_t value;
     uint64_t flags;
@@ -262,12 +262,15 @@ public:
     inline int& type();
     inline Arg& leaf();
     inline std::vector<Recipe>& children();
+    inline Func*& func();
     inline int opcode() const;
     inline bool is_vector() const ;
     inline int type() const;
     inline const Arg& leaf() const;
     inline const std::vector<Recipe>& children() const;
-    inline bool empty() const ;
+    inline Func* func() const;
+    inline bool empty() const;
+    Func* infer_owner(Func* preinfered = nullptr); 
     //+add assertions on class construction.
     __loops_RecipeStr_* pointee;
 };
@@ -398,8 +401,6 @@ protected:
 #define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
 #define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
 #define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
-
-//TODO(ch)[IMPORTANT]: Keep func not in Args, but only in IReg/Vreg and Recipes. Args is used mostly beyond code collection pass, where func is always fully-determined.
 
 ///////////////////////////// integer operations ///////////////////////
 // Load with zero/sign extension:

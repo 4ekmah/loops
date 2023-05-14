@@ -106,6 +106,7 @@ VReg<_Tp>::VReg(const VReg<_Tp>& r)
     if(r.func != nullptr)
     {
         Recipe fromwho(r);
+        fromwho.func() = r.func;
         VReg_constr_(fromwho, idx, func, ElemTraits<_Tp>::depth);
     }
     else
@@ -128,12 +129,12 @@ VReg<_Tp>& VReg<_Tp>::operator=(const VReg<_Tp>& r)
     return operator=(fromwho);
 }
 
-void VReg_assign_(const Arg& target, const Recipe& fromwho);
+void VReg_assign_(const Recipe& target, const Recipe& from);
 
 template<typename _Tp>
 VReg<_Tp>& VReg<_Tp>::operator=(const VRecipe<_Tp>& fromwho)
 {
-    VReg_assign_(Arg(*this), fromwho.notype());
+    VReg_assign_(VRecipe<_Tp>::make(*this).notype(), fromwho.notype());
     return (*this);
 }
 
@@ -146,13 +147,23 @@ void VReg<_Tp>::copyidx(const VReg<_Tp>& from)
     idx = from.idx;
 }
 
-Arg::Arg() : idx(IReg::NOIDX), func(nullptr), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
+void VReg_copyidx_(const Recipe& fromwho, int& idx, Func*& func);
 
-Arg::Arg(const IReg& r) : idx(r.idx), func(r.func), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
+template<typename _Tp>
+void VReg<_Tp>::copyidx(const VRecipe<_Tp>& from)
+{
+    if(from.is_leaf() && from.leaf().tag == Arg::VREG)
+        VReg_copyidx_(from.notype(),idx,func); 
+    else
+        copyidx(VReg<_Tp>(from));
+}
+
+Arg::Arg() : idx(IReg::NOIDX), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
+
+Arg::Arg(const IReg& r) : idx(r.idx), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
 
 template<typename _Tp>
 Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)
-    , func(vr.func)
     , tag(VREG)
     , elemtype(ElemTraits<_Tp>::depth)
     , flags(0){}
@@ -164,8 +175,9 @@ struct __loops_RecipeStr_
     int type;
     Arg leaf;
     int refcounter;
+    Func* func;
     std::vector<Recipe> children;
-    __loops_RecipeStr_():refcounter(0){}
+    __loops_RecipeStr_():refcounter(0), func(nullptr) {}
 };
 
 Recipe::Recipe(): pointee(NULL) {}
@@ -189,6 +201,7 @@ Recipe::Recipe(const Arg& a_leaf): pointee(new __loops_RecipeStr_)
     pointee->is_vector = a_leaf.tag == Arg::VREG;
     pointee->leaf = a_leaf;
 }
+
 Recipe::Recipe(int64_t a_leaf): pointee(new __loops_RecipeStr_)
 {
     pointee->refcounter = 1;
@@ -208,6 +221,9 @@ Arg& Recipe::leaf()
     if(pointee->opcode != RECIPE_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
     return pointee->leaf;
 }
+
+Func*& Recipe::func() { if(!pointee) throw std::runtime_error("Null pointer in Recipe."); return pointee->func;}
+
 std::vector<Recipe>& Recipe::children()
 {
     if(!pointee) throw std::runtime_error("Null pointer in Recipe.");
@@ -230,6 +246,9 @@ const std::vector<Recipe>& Recipe::children() const
     if(pointee->opcode == RECIPE_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
     return pointee->children;
 }
+
+Func* Recipe::func() const { if(!pointee) throw std::runtime_error("Null pointer in Recipe."); return pointee->func;}
+
 bool Recipe::empty() const { return pointee == nullptr; }
 
 inline IRecipe::IRecipe(const IReg& a_leaf)
@@ -240,6 +259,7 @@ inline IRecipe::IRecipe(const IReg& a_leaf)
     super.pointee->is_vector = false;
     super.pointee->type = TYPE_I64;
     super.pointee->leaf = Arg(a_leaf);
+    super.pointee->func = a_leaf.func;
 }
 
 inline IRecipe::IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children)
@@ -250,6 +270,7 @@ inline IRecipe::IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> 
     super.pointee->is_vector = false;
     super.pointee->type = a_type;
     super.pointee->children = a_children;
+    super.infer_owner();
 }
 
 inline IRecipe::IRecipe(int a_opcode, int a_type, std::vector<Recipe> a_children)
@@ -260,6 +281,7 @@ inline IRecipe::IRecipe(int a_opcode, int a_type, std::vector<Recipe> a_children
     super.pointee->is_vector = false;
     super.pointee->type = a_type;
     super.pointee->children = a_children;
+    super.infer_owner();
 }
 
 template <typename _Tp>
@@ -272,6 +294,7 @@ inline VRecipe<_Tp> VRecipe<_Tp>::make(const VReg<_Tp>& a_leaf)
     res.super.pointee->is_vector = true;
     res.super.pointee->type = ElemTraits<_Tp>::depth;
     res.super.pointee->leaf = Arg(a_leaf);
+    res.super.pointee->func = a_leaf.func;
     return res;
 }
 
@@ -284,6 +307,7 @@ inline VRecipe<_Tp>::VRecipe(int a_opcode, std::initializer_list<Recipe> a_child
     super.pointee->is_vector = true;
     super.pointee->type = ElemTraits<_Tp>::depth;
     super.pointee->children = a_children;
+    super.infer_owner();
 }
 
 template <typename _Tp>
@@ -295,6 +319,7 @@ inline VRecipe<_Tp>::VRecipe(int a_opcode, std::vector<Recipe> a_children)
     super.pointee->is_vector = true;
     super.pointee->type = ElemTraits<_Tp>::depth;
     super.pointee->children = a_children;
+    super.infer_owner();
 }
 
 struct __Loops_CondPrefixMarker_
@@ -333,32 +358,41 @@ struct __Loops_CF_rvalue_
     void return_(int64_t r);
 };
 
+void __setfunc_by_context_(Context* CTX, Recipe& recipe);
+
 static inline IRecipe __loops_const_(Context* CTX, int64_t _val)
 {
-    Recipe val(Arg(_val, CTX));
+    Recipe val(_val);
+    __setfunc_by_context_(CTX, val);
     return IRecipe(OP_MOV, TYPE_I64, {val});
 }
 
 static inline IRecipe __loops_def_(Context* CTX)
 {
-    Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe.
-    return IRecipe(OP_DEF, TYPE_I64, {dummy});
+    IRecipe res(OP_DEF, TYPE_I64, {});
+    __setfunc_by_context_(CTX, res.super);
+    return res;
 }
+
+IRecipe __loops_const_(Context* CTX, int64_t _val);
+IRecipe __loops_def_(Context* CTX);
 
 template<typename _Tp>
 VRecipe<_Tp> __loops_vconst_(Context* CTX, _Tp _val)
 {
     int64_t val64 = 0;
     *(reinterpret_cast<_Tp*>(&val64)) = _val;
-    Recipe val(Arg(val64, CTX));
+    Recipe val(val64);
+    __setfunc_by_context_(CTX, val);
     return VRecipe<_Tp>(OP_MOV, {val});
 }
 
 template<typename _Tp>
 VRecipe<_Tp> __loops_vdef_(Context* CTX)
 {
-    Recipe dummy(Arg(0, CTX));//TODO(ch): this Arg(0) is a workaround for providing context to Recipe.
-    return VRecipe<_Tp>(VOP_DEF, {dummy});
+    VRecipe<_Tp> res(VOP_DEF, {});
+    __setfunc_by_context_(CTX, res.super);
+    return res;
 }
 
 void newiopNoret(int opcode, ::std::initializer_list<Recipe> args);
@@ -682,7 +716,7 @@ template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& re
     Arg r1(res1);
     Arg r2(res2);
     loadvec_deinterleave2_(r1, r2, base);
-    res1.func = res2.func = r1.func;
+    res1.func = res2.func = base.super.func();
     res1.idx = r1.idx;
     res2.idx = r2.idx;
 }

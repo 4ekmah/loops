@@ -49,30 +49,27 @@ namespace loops
         return ret;
     }
 
-    inline Arg argReg(int basketNum, RegIdx idx, Func *impl = nullptr)
+    inline Arg argReg(int basketNum, RegIdx idx)
     {
         Arg res;
         res.tag = basketNum == RB_INT ? Arg::IREG : Arg::VREG;
         res.idx = idx;
-        res.func = impl;
         return res;
     }
 
-    inline Arg argSpilled(int basketNum, size_t spOffset, Func *impl = nullptr)
+    inline Arg argSpilled(int basketNum, size_t spOffset)
     {
         Arg res;
         res.tag = basketNum == RB_INT ? Arg::ISPILLED : Arg::VSPILLED;
         res.value = spOffset;
-        res.func = impl;
         return res;
     }
 
-    inline Arg argIImm(int64_t val, Func *impl = nullptr)
+    inline Arg argIImm(int64_t val)
     {
         Arg res;
         res.tag = Arg::IIMMEDIATE;
         res.value = val;
-        res.func = impl;
         return res;
     }
 

@@ -153,7 +153,7 @@ template<typename _Tp>
 loops::Recipe iregtyped(const loops::Recipe& reg)
 {
     Assert(reg.opcode() == loops::RECIPE_LEAF && reg.leaf().tag == loops::Arg::IREG);
-    loops::IReg ar; ar.func = reg.leaf().func; ar.idx = reg.leaf().idx;
+    loops::IReg ar; ar.func = reg.func(); ar.idx = reg.leaf().idx;
     loops::IRecipe ret(ar);
     ret.type() = loops::ElemTraits<_Tp>::depth;
     return ret.notype();
@@ -162,7 +162,8 @@ loops::Recipe iregtyped(const loops::Recipe& reg)
 template<typename _Tp>
 loops::Recipe immtyped(int64_t val, loops::Func* func)
 {
-    loops::Recipe ret(argIImm(val, func));
+    loops::Recipe ret(val);
+    ret.func() = func;
     ret.type() = loops::ElemTraits<_Tp>::depth;
     return ret;
 }

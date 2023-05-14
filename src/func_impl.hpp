@@ -31,7 +31,6 @@ public:
     void printBytecode(std::ostream& out, int uptoPASS = CP_COLLECTING);
     void printAssembly(std::ostream& out, int columns);
 
-    static FuncImpl* verifyArgs(std::initializer_list<Recipe> args);
      inline ContextImpl* getContext() { return m_context; }
 
     const Syntfunc& get_data() const;
@@ -52,7 +51,6 @@ public:
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
 private:
-    static FuncImpl* verifyArgs_(std::initializer_list<Recipe> args);
     ContextImpl* m_context;
 
     std::shared_ptr<Pipeline> m_pipeline;

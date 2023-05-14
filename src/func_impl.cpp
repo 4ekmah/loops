@@ -281,37 +281,6 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_p
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
-FuncImpl* FuncImpl::verifyArgs_(std::initializer_list<Recipe> args)
-{
-    FuncImpl* res = nullptr;
-    for(Recipe rcp : args)
-    {
-        if(rcp.opcode() == RECIPE_LEAF)
-        {
-            FuncImpl* pretender = (FuncImpl*)(rcp.leaf().func);
-            if(pretender != nullptr)
-            {
-                if(res == nullptr)
-                    res = pretender;
-                else if(res != pretender)
-                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
-            }        
-        }
-        else for(int child_num = 0; child_num < rcp.children().size(); child_num++)
-        {
-            FuncImpl* pretender = verifyArgs_({rcp.children()[child_num]});
-            if(pretender != nullptr)
-            {
-                if(res == nullptr)
-                    res = pretender;
-                else if(res != pretender)
-                    throw std::runtime_error("Registers of different functions as arguments of one expression.");
-            }
-        }
-    }
-    return res;
-}
-
 void FuncImpl::printBytecode(std::ostream& out, int uptoPass)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
@@ -344,14 +313,6 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
     Printer printer(columnPrs);
     printer.setBackend(backend);
     printer.print(out, l_pipeline.get_data());
-}
-
-FuncImpl* FuncImpl::verifyArgs(std::initializer_list<Recipe> args)
-{
-    FuncImpl* res = verifyArgs_(args);
-    if (res == nullptr)
-        throw std::runtime_error("Cannot find mother function in expression arguments.");
-    return res;
 }
 
 const Syntfunc& FuncImpl::get_data() const
