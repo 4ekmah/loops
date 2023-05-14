@@ -106,6 +106,7 @@ VReg<_Tp>::VReg(const VReg<_Tp>& r)
     if(r.func != nullptr)
     {
         Recipe fromwho(r);
+        fromwho.func() = r.func;
         VReg_constr_(fromwho, idx, func, ElemTraits<_Tp>::depth);
     }
     else

@@ -2097,7 +2097,7 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
             if(idest.tag == Arg::VREG)
             {
                 wordAmount = elem_size(op[0].elemtype)/2;
-                idest = argReg(RB_INT, a_dest.provideIdx(RB_INT), idest.func);
+                idest = argReg(RB_INT, a_dest.provideIdx(RB_INT));
             }
             bool negative = (((op[0].tag == Arg::VREG && isSignedInteger(op[0].elemtype)) || op[0].tag == Arg::IREG ) && op[0].value < 0 );
             std::vector<int64_t> words(wordAmount, negative ? -1: 0);
@@ -2108,10 +2108,10 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
                     words[wNum] = word;
             }
             words[0] = negative ? ~((~op[1].value) & 0xFFFF) : (op[1].value & 0xFFFF);
-            a_dest.program.push_back(Syntop(OP_MOV, { idest, argIImm(words[0], op[0].func) }));
+            a_dest.program.push_back(Syntop(OP_MOV, { idest, argIImm(words[0]) }));
             for(size_t wNum = 1; wNum < wordAmount; wNum++)
                 if((negative && words[wNum]!=-1) || (!negative && words[wNum]!=0))
-                    a_dest.program.push_back(Syntop(OP_ARM_MOVK, { idest, argIImm(words[wNum], op[0].func), argIImm(wNum*16, op[0].func) }));
+                    a_dest.program.push_back(Syntop(OP_ARM_MOVK, { idest, argIImm(words[wNum]), argIImm(wNum*16) }));
             if(op[0].tag == Arg::VREG)
                 a_dest.program.push_back(Syntop(VOP_BROADCAST, { op[0], idest}));
             break;
