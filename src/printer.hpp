@@ -16,7 +16,10 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
+
+void print_address(::std::ostream& str, int64_t addr);
+
+static inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
 {
     switch (arg.tag)
     {

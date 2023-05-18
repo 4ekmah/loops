@@ -25,9 +25,11 @@ enum {
     AARCH64_LDRSH,
     AARCH64_LDRB,
     AARCH64_LDRSB,
+    AARCH64_LDP,
     AARCH64_STR,
     AARCH64_STRH,
     AARCH64_STRB,
+    AARCH64_STP,
     AARCH64_MOV,
     AARCH64_MOVN,
     AARCH64_MOVK,
@@ -87,7 +89,9 @@ enum {
     AARCH64_UCVTF,
     AARCH64_LD1,
     AARCH64_LD2,
+    AARCH64_LD4,
     AARCH64_ST1,
+    AARCH64_ST4,
     AARCH64_EXT,
     AARCH64_DUP,
     AARCH64_UMOV,
@@ -107,6 +111,7 @@ enum {
     AARCH64_B_GT,
     AARCH64_B_HI,
     AARCH64_B_GE,
+    AARCH64_BLR,
     AARCH64_RET
 };
 
@@ -125,6 +130,8 @@ public:
     virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const override final;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const override final;
+    virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
+    virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
     virtual Arg getSParg() const override final;
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;

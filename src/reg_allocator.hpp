@@ -47,10 +47,8 @@ public:
     virtual bool is_inplace() const override final { return true; }
     virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
 
-    size_t getSnippetCausedSpills() const
-    {
-        return m_snippetCausedSpills;
-    }
+    inline size_t getSnippetCausedSpills() const { return m_snippetCausedSpills; }
+    inline bool haveFunctionCalls() const { return m_haveFunctionCalls; }
 private:
     struct LAEvent //Liveness Analysis Event
     {
@@ -76,6 +74,7 @@ private:
     std::map<RegIdx, size_t>::const_iterator acs_end(int basketNum) const;
     std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
     size_t m_snippetCausedSpills;
+    bool m_haveFunctionCalls;
     inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
     inline size_t siAmount(int basketNum, RegIdx regNum) const;
     inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
@@ -163,7 +162,7 @@ class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
 public:
-    RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills);
+    RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
@@ -175,6 +174,7 @@ private:
     RegisterPool m_pool;
     const std::vector<LiveInterval>* m_live_intervals;
     int m_snippet_caused_spills;
+    bool m_have_function_calls;
     size_t m_epilogueSize;
 };
 };

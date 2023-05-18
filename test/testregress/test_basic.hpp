@@ -453,24 +453,6 @@ static void BresenhamRef(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int
         }
     }
 }
-bool memok(uint8_t* canvas, int64_t w, int64_t h)
-{
-    for(int i = 0; i < h; i++)
-        for (int j = 0; j < w; j++)
-        {
-            if (canvas[i * w + j] != 0)
-            {
-                std::cout << "    Memory writing violation at output [" << -1 << ", " << i << ", " << j << "]" << std::endl;
-                return false;
-            }
-            if(canvas[2*h*w + i*w + j] != 0)
-            {
-                std::cout << "    Memory writing violation at output ["<< 1 <<", "<< i <<", "<< j<<"]"<<std::endl;
-                return false;
-            }
-        }
-    return true;
-}
 LTESTexe(bresenham, {
     typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
     bresenham_f tested = reinterpret_cast<bresenham_f>(EXEPTR);

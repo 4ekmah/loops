@@ -376,6 +376,12 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             break;
     case (AARCH64_CINC): return BiT({ BTsta(0b10011010100, 11), BTreg(1,5,In), BTimm(2,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
     case (AARCH64_CNEG): return BiT({ BTsta(0b11011010100, 11), BTreg(1,5,In), BTimm(2,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
+    case (AARCH64_LDP):
+        if (index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE && index[2].idx != index[0].idx && index[2].idx != index[1].idx && index[0].idx != index[1].idx)
+            return BiT({ BTsta(0b1010100101, 10), BTimm(3,7), BTreg(1,5,Out), BTreg(2,5,In), BTreg(0,5,Out) });
+    case (AARCH64_STP):
+        if (index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE)
+            return BiT({ BTsta(0b1010100100, 10), BTimm(3,7), BTreg(1,5,In), BTreg(2,5,In), BTreg(0,5,In) });
     case (AARCH64_FADD):
         if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
                  index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
@@ -786,17 +792,10 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 return BiT({ BTsta(0b0110111001111001110110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
-    case (AARCH64_LD2):
-        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
-        {
-            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
-            int size_imm = size_imms[elem_size(index[0].elemtype)];
-            return BiT({ BTsta(0b01001100010000001000, 20), BTsta(size_imm, 2), BTreg(2, 5, In), BTreg(0, 5, Out), BTomm(1)});
-        }
     case (AARCH64_LD1):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
         {
-            int esize = elem_size(index[0].elemtype); 
+            int esize = elem_size(index[0].elemtype);
             static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100};
             int opcode = opcodes[esize];
             Assert(opcode != -1);
@@ -824,9 +823,35 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 S = (index[2].value & 0b100) >> 2;
                 size_field = index[2].value & 0b11;
             }
-            else 
+            else
                 break;
             return BiT({ BTsta(0b0, 1), BTsta(Q, 1), BTsta(0b00110101000000, 14), BTsta(opcode, 3), BTsta(S, 1), BTsta(size_field, 2), BTreg(1, 5, In), BTreg(0, 5, Out), BTomm(2) });
+        }
+        //WARNING: This is post-index form, post-incrementing pointing scalar register on 64 bytes.
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        {//This is post-index form, post-incrementing pointing scalar register on 64 bytes.
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001100110111110010, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, In) });
+        }
+        break;
+    case (AARCH64_LD2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            return BiT({ BTsta(0b01001100010000001000, 20), BTsta(size_imm, 2), BTreg(2, 5, In), BTreg(0, 5, Out), BTomm(1)});
+        }
+        break;
+    case (AARCH64_LD4):
+        //WARNING: This is post-index form, post-incrementing pointing scalar register on 64 bytes.
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001100110111110000, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_ST1):
@@ -863,6 +888,23 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             else 
                 break;
             return BiT({ BTsta(0b0, 1), BTsta(Q, 1), BTsta(0b00110100000000, 14), BTsta(opcode, 3), BTsta(S, 1), BTsta(size_field, 2), BTreg(2, 5, In), BTreg(0, 5, In), BTomm(1) });
+        }
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        {//This is post-index form, post-incrementing pointing scalar register on 64 bytes.
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001100100111110010, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, In) });
+        }
+        break;
+    case (AARCH64_ST4):
+        //WARNING: This is post-index form, post-incrementing pointing scalar register on 64 bytes.
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001100100111110000, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_EXT):
@@ -1000,6 +1042,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_B_GT): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_GT, 5) });
     case (AARCH64_B_HI): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_HI, 5) });
     case (AARCH64_B_GE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_GE, 5) });
+    case (AARCH64_BLR):
+        if(index.size() == 1 && index[0].tag == Arg::IREG)
+            return BiT({ BTsta(0b1101011000111111000000, 22), BTreg(0, 5, In), BTsta(0b00000, 5) });
     case (AARCH64_RET): return BiT({ BTsta(0x3597C0, 22), BTreg(0, 5, In), BTsta(0x0,5) });
     default:
         break;
@@ -1279,6 +1324,14 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         break;
     case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
     case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
+    case (OP_ARM_LDP):
+        if(index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG &&
+           index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE && index[2].idx != index[0].idx && index[2].idx != index[1].idx && index[0].idx != index[1].idx)
+            return SyT(AARCH64_LDP,{ SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+    case (OP_ARM_STP):
+        if(index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE &&
+                                index[2].tag == Arg::IREG && index[3].tag == Arg::IREG)
+            return SyT(AARCH64_STP,{ SAcop(2), SAcop(3), SAcop(0), SAcop(1) });
     case (VOP_LOAD):
         if(index.size() == 3)
         {
@@ -1290,19 +1343,24 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         else if(index.size() == 2)
             return SyT(AARCH64_LDR, { SAcop(0), SAcop(1), SAimm(0) });
         break;
-    case (VOP_ARM_LD2):
-        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
-            return SyT(AARCH64_LD2, { SAcop(0), SAcop(1), SAcop(2) });
-        break;
     case (VOP_ARM_LD1):
-
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
         {
             if(index[1].value < backend->vlanes(index[0].elemtype))
                 return SyT(AARCH64_LD1, { SAcop(0), SAcop(2), SAcop(1) });
         }
-        break;
+        else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+            return SyT(AARCH64_LD1, { SAcop(0), SAcop(1) });
 
+        break;
+    case (VOP_ARM_LD2):
+        if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
+            return SyT(AARCH64_LD2, { SAcop(0), SAcop(1), SAcop(2) });
+        break;
+//    case (VOP_ARM_LD4):
+//        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+//            return SyT(AARCH64_LD4, { SAcop(0), SAcop(1) });
+//        break;
     case (VOP_STORE):
         if(index.size() == 3)
         {
@@ -1322,7 +1380,13 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             if(index[2].value < backend->vlanes(index[1].elemtype))
                 return SyT(AARCH64_ST1, { SAcop(1), SAcop(2), SAcop(0) });
         }
+        else if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+            return SyT(AARCH64_ST1, { SAcop(1), SAcop(0) });
         break;
+//    case (VOP_ARM_ST4):
+//        if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+//            return SyT(AARCH64_ST4, { SAcop(1), SAcop(0) });
+//        break;
     case (VOP_ADD):
     case (VOP_SUB):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG
@@ -1665,7 +1729,9 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             break;
         };
         break;
-
+    case (OP_CALL_NORET):
+         if(index.size() == 1 && index[0].tag == Arg::IREG)
+             return SyT(AARCH64_BLR, { SAcop(0, AF_ADDRESS) });
     case (OP_JMP):      return SyT(AARCH64_B,   { SAcop(0, AF_PRINTOFFSET) });
     case (OP_RET):      return SyT(AARCH64_RET, { SAreg(LR) });
     default:
@@ -1719,6 +1785,7 @@ Aarch64Backend::Aarch64Backend()
     m_isMonowidthInstruction = true;
     m_instructionWidth = 4;
     m_offsetShift = 2;
+    m_callerStackIncrement = 2;
     m_postInstructionOffset = false;
     m_registersAmount = 7;
     m_name = "AArch64";
@@ -1760,11 +1827,23 @@ size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<siz
     return Backend::reusingPreferences(a_op, undefinedArgNums);
 }
 
+#if __LOOPS_OS == __LOOPS_MAC
+#define LOOPS_VCALLER_SAVED_AMOUNT 16
+#elif __LOOPS_OS == __LOOPS_LINUX
+#define LOOPS_VCALLER_SAVED_AMOUNT 8
+#else
+#error Unsupported OS
+#endif
+
+
 size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     if(basketNum == RB_INT)
         switch (a_op.opcode)
         {
+        case (OP_CALL):
+        case (OP_CALL_NORET):
+            return 18;
         case (OP_MOD):
             return 1;
             break;
@@ -1774,6 +1853,9 @@ size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     else if(basketNum == RB_VEC)
         switch (a_op.opcode)
         {
+        case (OP_CALL):
+        case (OP_CALL_NORET):
+            return LOOPS_VCALLER_SAVED_AMOUNT;
         case (VOP_FMA):
         case (VOP_SELECT):
             if(a_op.size() == 5) 
@@ -1817,6 +1899,37 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
                     return std::set<size_t>({1});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
                     return std::set<size_t>({0});
+            }
+            break;
+        }
+        case (OP_CALL):
+        case (OP_CALL_NORET):
+        {
+            bool allRegs = true;
+            for(int arnum = 0; arnum < a_op.size(); arnum++)
+                if(a_op[arnum].tag != Arg::IREG)
+                {
+                    allRegs = false;
+                    break;
+                }
+            Assert(allRegs);
+            if(basketNum == RB_VEC)
+                return std::set<size_t>({});
+            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            {
+                if (BinTranslation::Token::T_INPUT & flagmask)
+                {
+                    std::set<size_t> res;
+                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
+                    return res;
+                }
+                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                {
+                    if(a_op.opcode == OP_CALL)
+                        return std::set<size_t>({0});
+                    else
+                        return std::set<size_t>({});
+                }
             }
             break;
         }
@@ -1890,6 +2003,33 @@ size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
 }
 
+void Aarch64Backend::writeCallerPrologue(Syntfunc& prog, int stackGrowth) const
+{
+    if((stackGrowth - 2) < 64)
+    {
+        prog.program.push_back(Syntop(OP_ARM_STP, { argReg(RB_INT, SP), argIImm(stackGrowth-2), argReg(RB_INT, FP), argReg(RB_INT, LR) }));
+    }
+    else
+    {
+        prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-2), argReg(RB_INT, FP) }));
+        prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-1), argReg(RB_INT, LR) }));
+    }
+    prog.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, FP), argReg(RB_INT, SP)}));
+}
+
+void Aarch64Backend::writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const
+{
+    if((stackGrowth - 2) < 64)
+    {
+        prog.program.push_back(Syntop(OP_ARM_LDP, { argReg(RB_INT, FP), argReg(RB_INT, LR), argReg(RB_INT, SP), argIImm(stackGrowth-2) }));
+    }
+    else
+    {
+        prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, FP),   argIImm(stackGrowth-2) }));
+        prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, LR),   argIImm(stackGrowth-1) }));
+    }
+}
+
 Arg Aarch64Backend::getSParg() const
 {
     return argReg(RB_INT, SP);
@@ -1904,9 +2044,11 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_LDRSH, "ldrsh"},
         {AARCH64_LDRB,  "ldrb" },
         {AARCH64_LDRSB, "ldrsb"},
+        {AARCH64_LDP,   "ldp"  },
         {AARCH64_STR,   "str"  },
         {AARCH64_STRH,  "strh" },
         {AARCH64_STRB,  "strb" },
+        {AARCH64_STP,   "stp"  },
         {AARCH64_MOV,   "mov"  },
         {AARCH64_MOVN,  "movn" },
         {AARCH64_MOVK,  "movk" },
@@ -1966,7 +2108,9 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_UCVTF, "ucvtf"},
         {AARCH64_LD1,   "ld1"  },
         {AARCH64_LD2,   "ld2"  },
+        {AARCH64_LD4,   "ld4"  },
         {AARCH64_ST1,   "st1"  },
+        {AARCH64_ST4,   "st4"  },
         {AARCH64_EXT,   "ext"  },
         {AARCH64_DUP,   "dup"  },
         {AARCH64_UMOV,  "umov" },
@@ -1986,6 +2130,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_B_GE,  "b.ge" },
         {AARCH64_B_LE,  "b.le" },
         {AARCH64_B_LS,  "b.ls" },
+        {AARCH64_BLR,   "blr"  },
         {AARCH64_RET,   "ret"  }});
     return ret;
 }
@@ -2244,6 +2389,67 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholderfp16, 0 }));
             if(unspill)
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholder, placeholderSPoff }));
+            break;
+        }
+        case OP_CALL:
+        case OP_CALL_NORET:
+        {
+            Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10||
+                   op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10);
+            Arg sp = argReg(RB_INT, SP);
+            int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
+            std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {
+                {0, {R0, R1}}, {2, {R2, R3}}, {4, {R4, R5}}, {6, {R6, R7}},{8, {XR, R9}}, {10, {R10, R11}}, {12, {R12, R13}}, {14, {R14, R15}}, {16, {IP0, IP1}}} ;
+            //1.) Save scalar registers
+            for(auto layPair : spillLayout)
+                a_dest.program.push_back(Syntop(OP_ARM_STP, { sp, argIImm(layPair.first), argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second) }));
+            //2.) Prepare arguments accordingly to ABI. Call address must not be broken
+            Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
+            //TODO(ch) : make this algo optimized with help of permutation analysis.
+            std::set<int> brokenRegs;
+            for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
+            {
+                Assert(op[fargnum].tag == Arg::IREG);
+                int regnum = fargnum - (op.opcode == OP_CALL ? 2 : 1);
+                if(op[fargnum].idx != regnum)
+                {
+                    if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
+                        a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regnum), argReg(RB_INT,  op[fargnum].idx)}));
+                    else
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regnum), argIImm(op[fargnum].idx)}));
+                    brokenRegs.insert(regnum);
+                }
+            }
+            if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
+            {
+                addrkeeper.idx = R9;
+                a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm((op.opcode == OP_CALL ? op[1]: op[0]).idx)}));
+            }
+            //3.) Save vector registers
+            a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
+                a_dest.program.push_back(Syntop(VOP_ARM_ST1, { argReg(RB_INT, R10), vregHid<uint64_t>(_0idx, 0)}));
+            //4.) Call function
+            a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
+            //5.) Restore vector registers
+            a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
+                a_dest.program.push_back(Syntop(VOP_ARM_LD1, { vregHid<uint64_t>(_0idx, 0), argReg(RB_INT, R10)}));
+            //6.) Move result to output register
+            if(op.opcode == OP_CALL && retidx != 0)
+                a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, R0)}));
+            //7.) Restore scalar registers
+            for(auto layPair : spillLayout)
+            {
+                if(op.opcode == OP_CALL && (retidx == layPair.second.first || retidx == layPair.second.second))
+                {
+                    int unspillidx = retidx == layPair.second.first ? layPair.second.second : layPair.second.first;
+                    int unspillspc = layPair.first + (retidx == layPair.second.first ? 1 : 0);
+                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  unspillidx), argIImm(unspillspc)}));
+                }
+                else
+                    a_dest.program.push_back(Syntop(OP_ARM_LDP, { argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second), argReg(RB_INT, SP), argIImm(layPair.first) }));
+            }
             break;
         }
         default:

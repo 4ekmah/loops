@@ -1070,6 +1070,7 @@ namespace loops
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
         m_offsetShift = 0;
+        m_callerStackIncrement = 0;
         m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
@@ -1339,6 +1340,16 @@ namespace loops
     size_t Intel64Backend::stackGrowthAlignment(size_t stackGrowth) const
     {
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
+    }
+
+    void Intel64Backend::writeCallerPrologue(Syntfunc& prog, int stackGrowth) const
+    {
+        throw std::runtime_error("Loops: function call is not supported on Intel.");
+    }
+
+    void Intel64Backend::writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const
+    {
+        throw std::runtime_error("Loops: function call is not supported on Intel.");
     }
 
     Arg Intel64Backend::getSParg() const

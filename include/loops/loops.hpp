@@ -83,84 +83,88 @@ enum {
     OP_JMP          =  41, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
     OP_JCC          =  42, //OP_JCC <cmpcode>, <target_label>
     OP_RET          =  43,
-    OP_LABEL        =  44,
+    OP_CALL         =  44, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
+    OP_CALL_NORET   =  45, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
+    OP_LABEL        =  46,
     
-    OP_STEM_CSTART  =  45,
+    OP_STEM_CSTART  =  47,
     
-    OP_IF_CSTART    =  46,
-    OP_ELIF_CSTART  =  47, //OP_ELIF_CSTART <elselabel>, <outlabel>
-    OP_IF_CEND      =  48, //OP_IF_CEND
-    OP_ELSE         =  49, //OP_ELSE <elselabel>, <outlabel>
-    OP_ENDIF        =  50, //OP_ENDIF <outlabel>
+    OP_IF_CSTART    =  48,
+    OP_ELIF_CSTART  =  49, //OP_ELIF_CSTART <elselabel>, <outlabel>
+    OP_IF_CEND      =  50, //OP_IF_CEND
+    OP_ELSE         =  51, //OP_ELSE <elselabel>, <outlabel>
+    OP_ENDIF        =  52, //OP_ENDIF <outlabel>
 
-    OP_WHILE_CSTART =  51, //OP_WHILE_CSTART <continuelabel>
-    OP_WHILE_CEND   =  52, //OP_WHILE_CEND
-    OP_ENDWHILE     =  53, //OP_ENDWHILE <continuelabel>, <breaklabel>
-    OP_BREAK        =  54,
-    OP_CONTINUE     =  55,
-    VOP_LOAD        =  56,
-    VOP_STORE       =  57,
-    VOP_ADD         =  58,
-    VOP_SUB         =  59,
-    VOP_MUL         =  60,
-    VOP_DIV         =  61,
+    OP_WHILE_CSTART =  53, //OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND   =  54, //OP_WHILE_CEND
+    OP_ENDWHILE     =  55, //OP_ENDWHILE <continuelabel>, <breaklabel>
+    OP_BREAK        =  56,
+    OP_CONTINUE     =  57,
+    VOP_LOAD        =  58,
+    VOP_STORE       =  59,
+    VOP_ADD         =  60,
+    VOP_SUB         =  61,
+    VOP_MUL         =  62,
+    VOP_DIV         =  63,
 //    VOP_MOD,
-    VOP_FMA         =  62,
-    VOP_SAL         =  63,
-    VOP_SHL         =  64,
-    VOP_SAR         =  65,
-    VOP_SHR         =  66,
-    VOP_AND         =  67,
-    VOP_OR          =  68,
-    VOP_XOR         =  69,
-    VOP_NOT         =  70,
-    VOP_NEG         =  71,
+    VOP_FMA         =  64,
+    VOP_SAL         =  65,
+    VOP_SHL         =  66,
+    VOP_SAR         =  67,
+    VOP_SHR         =  68,
+    VOP_AND         =  69,
+    VOP_OR          =  70,
+    VOP_XOR         =  71,
+    VOP_NOT         =  72,
+    VOP_NEG         =  73,
 
-    VOP_MIN         =  72,
-    VOP_MAX         =  73,
+    VOP_MIN         =  74,
+    VOP_MAX         =  75,
 
-    VOP_GT          =  74,
-    VOP_GE          =  75,
-    VOP_LT          =  76,
-    VOP_LE          =  77,
-    VOP_NE          =  78,
-    VOP_EQ          =  79,
+    VOP_GT          =  76,
+    VOP_GE          =  77,
+    VOP_LT          =  78,
+    VOP_LE          =  79,
+    VOP_NE          =  80,
+    VOP_EQ          =  81,
 
-    VOP_SELECT      =  80,
+    VOP_SELECT      =  82,
     
-    VOP_ALL         =  81,
-    VOP_ANY         =  82,
-    VOP_TRUNC       =  83,
-    VOP_FLOOR       =  84,
-    VOP_CAST        =  85,
-    VOP_REINTERPRET =  86,
-    VOP_BROADCAST   =  87,
-    VOP_CAST_LOW    =  88,
-    VOP_CAST_HIGH   =  89,
-    VOP_SHRINK_LOW  =  90,
-    VOP_SHRINK_HIGH =  91,
-    VOP_SHRINK      =  92,
-    VOP_REDUCE_MAX  =  93,
-    VOP_REDUCE_MIN  =  94,
+    VOP_ALL         =  83,
+    VOP_ANY         =  84,
+    VOP_TRUNC       =  85,
+    VOP_FLOOR       =  86,
+    VOP_CAST        =  87,
+    VOP_REINTERPRET =  88,
+    VOP_BROADCAST   =  89,
+    VOP_CAST_LOW    =  90,
+    VOP_CAST_HIGH   =  91,
+    VOP_SHRINK_LOW  =  92,
+    VOP_SHRINK_HIGH =  93,
+    VOP_SHRINK      =  94,
+    VOP_REDUCE_MAX  =  95,
+    VOP_REDUCE_MIN  =  96,
 
 //Intel-only operations:
-    OP_X86_ADC      =  95, //Add with carry flag.
-    OP_X86_CQO      =  96,
+    OP_X86_ADC      =  97, //Add with carry flag.
+    OP_X86_CQO      =  98,
 //Aarch64-only operations:
-    OP_ARM_CINC     =  97,
-    OP_ARM_CNEG     =  98,
-    OP_ARM_MOVK     =  99, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    VOP_ARM_LD1     = 100, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    VOP_ARM_ST1     = 101,
-    VOP_ARM_LD2     = 102,
-    VOP_ARM_EXT     = 103,
-    VOP_GETLANE     = 104,
-    VOP_SETLANE     = 105,
+    OP_ARM_CINC     =  99, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG     = 100,
+    OP_ARM_MOVK     = 101, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP      = 102,
+    OP_ARM_STP      = 103,
+    VOP_ARM_LD1     = 104,
+    VOP_ARM_ST1     = 105,
+    VOP_ARM_LD2     = 106,
+    VOP_ARM_EXT     = 107,
+    VOP_GETLANE     = 108,
+    VOP_SETLANE     = 109,
 
-    OP_DEF          = 106,
-    VOP_DEF         = 107,
+    OP_DEF          = 110,
+    VOP_DEF         = 111,
 
-    OP_NOINIT,
+    OP_NOINIT       = 112,
 };
 
 enum
@@ -386,7 +390,28 @@ protected:
     Context* impl;
 };
 
-//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be 
+//Appropriate function types to be called
+typedef void (*funcptr0_noret_t)();
+typedef void (*funcptr1_noret_t)(int64_t);
+typedef void (*funcptr2_noret_t)(int64_t, int64_t);
+typedef void (*funcptr3_noret_t)(int64_t, int64_t, int64_t);
+typedef void (*funcptr4_noret_t)(int64_t, int64_t, int64_t, int64_t);
+typedef void (*funcptr5_noret_t)(int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef void (*funcptr6_noret_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef void (*funcptr7_noret_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef void (*funcptr8_noret_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+
+typedef int64_t (*funcptr0_t)();
+typedef int64_t (*funcptr1_t)(int64_t);
+typedef int64_t (*funcptr2_t)(int64_t, int64_t);
+typedef int64_t (*funcptr3_t)(int64_t, int64_t, int64_t);
+typedef int64_t (*funcptr4_t)(int64_t, int64_t, int64_t, int64_t);
+typedef int64_t (*funcptr5_t)(int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef int64_t (*funcptr6_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef int64_t (*funcptr7_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+
+//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be
 //done independently of status of already evaluated conditions. It's result of code collection procedure traits. Probably, it should be fixed, but it's not easy.
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(loops::__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
@@ -401,6 +426,31 @@ protected:
 #define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
 #define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
 #define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
+
+//TODO(ch):[IMPORTNANT] - unfortunately, now CALL_ works only on Aarch64. Add intel support and move call tests from test_aarch64.hpp to test_basic.hpp section.
+
+//Call signature:
+//
+//IReg CALL_(pfunc0 fptr);
+//IReg CALL_(pfunc1 fptr, const IRecipe& ar0);
+//...
+//IReg CALL_(pfunc8 fptr, const IRecipe& arg0, ..., const IRecipe& arg7);
+//
+//or
+//
+//CALL_(pfunc0_ret0 fptr);
+//CALL_(pfunc1_ret0 fptr, const IRecipe& ar0);
+//...
+//CALL_(pfunc8_ret0 fptr, const IRecipe& arg0, ..., const IRecipe& arg7);
+//
+//Note: first form returns IReg and can be used in expression. Calculation of expressions with functions can behave differently to
+//C++ behaviour, e.g in such condition:
+//if(a < b || func(c) < d)
+//func will not be called in C++ if first subcondition is correct.
+//Similar code generated by Loops WILL call function anyway.
+//General rule: if function is written in line, it will be called since execution have entered the line.
+#define CALL_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).call_(__VA_ARGS__)
+
 
 ///////////////////////////// integer operations ///////////////////////
 // Load with zero/sign extension:

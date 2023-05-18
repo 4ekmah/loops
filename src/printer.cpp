@@ -12,6 +12,15 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
+void print_address(::std::ostream& str, int64_t addr)
+{
+    static char hexsymb[] = "0123456789ABCDEF";
+    char* bytes = (char*)(&addr);
+    str<<"0x";
+    for(int i = 0; i < 8 ; i++)
+        str<<hexsymb[(bytes[7-i]&0xF0)>>4]<<hexsymb[bytes[7-i]&0x0F];
+}
+
 Printer::Printer(const std::vector<ColPrinter>& columns) : m_columns(columns), m_backend(nullptr) {}
 
 void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader, size_t firstop, size_t lastop) const
