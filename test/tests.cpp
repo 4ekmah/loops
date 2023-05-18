@@ -250,3 +250,39 @@ TestSuite::TestSuite(std::ostream& a_out) : m_out(&a_out), CTX()
     getImpl(&CTX)->getBackend()->switchOnSpillStressMode();
 }
 };
+
+bool memok(uint8_t* canvas, int64_t w, int64_t h)
+{
+    for(int i = 0; i < h; i++)
+        for (int j = 0; j < w; j++)
+        {
+            if (canvas[i * w + j] != 0)
+            {
+                std::cout << "    Memory writing violation at output [" << -1 << ", " << i << ", " << j << "]" << std::endl;
+                return false;
+            }
+            if(canvas[2*h*w + i*w + j] != 0)
+            {
+                std::cout << "    Memory writing violation at output ["<< 1 <<", "<< i <<", "<< j<<"]"<<std::endl;
+                return false;
+            }
+        }
+    return true;
+}
+
+::std::ostringstream test_stream;
+
+std::ostream& get_test_ostream()
+{
+    return test_stream;
+}
+
+void reset_test_ostream()
+{
+    test_stream = ::std::ostringstream();
+}
+
+std::string get_test_ostream_result()
+{
+    return test_stream.str();
+}

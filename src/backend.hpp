@@ -110,6 +110,16 @@ public:
     */
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
     virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
+    virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
+    virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
+//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, FP) }));
+//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, LR) }));
+//    a_dest.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, FP), argReg(RB_INT, SP)}));
+//
+//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, FP),   argIImm(18) }));
+//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, LR),   argIImm(19) }));
+//}
+
     virtual Arg getSParg() const = 0;
 
     virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
@@ -126,6 +136,7 @@ public:
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
     inline size_t instructionWidth() const { return m_instructionWidth; }
     inline size_t offsetShift() const { return m_offsetShift; }
+    inline size_t callerStackIncrement() const { return m_callerStackIncrement; }
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
     //from first byte after end of instruction.
     inline bool postInstructionOffset() const { return m_postInstructionOffset; }
@@ -155,6 +166,7 @@ protected:
     bool m_postInstructionOffset;
     size_t m_instructionWidth;
     size_t m_offsetShift;
+    size_t m_callerStackIncrement;
     size_t m_registersAmount;
     std::vector<size_t> m_parameterRegisters[RB_AMOUNT];
     std::vector<size_t> m_returnRegisters[RB_AMOUNT];

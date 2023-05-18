@@ -11,6 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <list>
 #include <iostream>
+#include <ostream>
 #include <iomanip>
 #include <math.h>
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -125,6 +126,8 @@ struct Timer
     }
 };
 
+bool memok(uint8_t* canvas, int64_t w, int64_t h);
+
 template<class T>
 void print_channel(T* data, int H, int W)
 {
@@ -167,6 +170,11 @@ loops::Recipe immtyped(int64_t val, loops::Func* func)
     ret.type() = loops::ElemTraits<_Tp>::depth;
     return ret;
 }
+
+//WARNING: test ostream is not thread-safe
+std::ostream& get_test_ostream();
+void reset_test_ostream();
+std::string get_test_ostream_result();
 
 //TODO(ch): Interesting solution for test substitution is class derivation
 //with using RTTI for taking name of class. Still not really easy to decide what to 

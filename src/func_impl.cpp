@@ -54,14 +54,19 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         };
         str << "jmp_" << cond_suffixes[op[0].value] << " "<< op[1].value;
     }},
+    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
+            throw std::runtime_error("Wrong LABEL format");
+        str << "label " << op.args[0] << ":";
+    }},
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ARM_LD2, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        str << "vld_deinterleave2." << type_suffixes[op.args[0].elemtype];
-    }},
     {VOP_ARM_LD1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld_lane." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_ARM_LD2, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "vld_deinterleave2." << type_suffixes[op.args[0].elemtype];
     }},
     {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
@@ -166,11 +171,6 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
     }},
-    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
-            throw std::runtime_error("Wrong LABEL format");
-        str << "label " << op.args[0] << ":";
-    }},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vdef." << type_suffixes[op.args[0].elemtype];
     }},
@@ -180,6 +180,21 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
     {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
+    {OP_CALL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        if (op.size() < 2 || (op.args[1].tag != Arg::IIMMEDIATE && op.args[1].tag != Arg::IREG))
+            throw std::runtime_error("Wrong CALL format");
+        str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
+        for(size_t anum = 2; anum + 1 < op.size(); anum++) str<<", "<<op[anum];
+        str << ")";
+    }},
+    {OP_CALL_NORET, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        if (op.size() < 1 || (op.args[0].tag != Arg::IIMMEDIATE && op.args[0].tag != Arg::IREG))
+            throw std::runtime_error("Wrong CALL_NORET format");
+        str << "["; if(op.args[0].tag == Arg::IIMMEDIATE) print_address(str, op.args[0].value); else str << op.args[0]; str << "](";
+        for(size_t anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
+        if(op.size() > 1) str<<op[op.size() - 1];
+        str << ")";
+    }}
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
@@ -237,11 +252,15 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {VOP_NOT,        "not"},
     {VOP_SELECT,     "select"},
     {OP_RET,         "ret"},
+    {OP_CALL,        "call"},
+    {OP_CALL_NORET,  "call_noret"},
     {OP_X86_ADC,     "x86_adc"},
     {OP_X86_CQO,     "x86_cqo"},
     {OP_ARM_CINC,    "arm_cinc"},
     {OP_ARM_CNEG,    "arm_cneg"},
     {OP_ARM_MOVK,    "arm_movk"},
+    {OP_ARM_LDP,     "arm_ldp"},
+    {OP_ARM_STP,     "arm_stp"},
     {OP_DEF,         "def"},
 };
 

@@ -356,6 +356,24 @@ struct __Loops_CF_rvalue_
     void return_();
     void return_(const IRecipe& r);
     void return_(int64_t r);
+    void call_(funcptr0_noret_t fptr);
+    void call_(funcptr1_noret_t fptr, const IRecipe& arg0);
+    void call_(funcptr2_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1);
+    void call_(funcptr3_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2);
+    void call_(funcptr4_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3);
+    void call_(funcptr5_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4);
+    void call_(funcptr6_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5);
+    void call_(funcptr7_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6);
+    void call_(funcptr8_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6, const IRecipe& arg7);
+    IReg call_(funcptr0_t fptr);
+    IReg call_(funcptr1_t fptr, const IRecipe& arg0);
+    IReg call_(funcptr2_t fptr, const IRecipe& arg0, const IRecipe& arg1);
+    IReg call_(funcptr3_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2);
+    IReg call_(funcptr4_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3);
+    IReg call_(funcptr5_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4);
+    IReg call_(funcptr6_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5);
+    IReg call_(funcptr7_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6);
+    IReg call_(funcptr8_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6, const IRecipe& arg7);
 };
 
 void __setfunc_by_context_(Context* CTX, Recipe& recipe);

@@ -411,9 +411,10 @@ namespace loops
         }
     }
 
-    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills) : CompilerPass(a_backend)
+    RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
         , m_live_intervals(a_live_intervals)
         , m_snippet_caused_spills(a_snippet_caused_spills)
+        , m_have_function_calls(a_have_function_calls)
         , m_pool(a_backend)
         , m_epilogueSize(0)
     {}
@@ -726,6 +727,8 @@ namespace loops
             nettoSpills[basketNum] += m_pool.usedCallee(basketNum).size();
             spAddAligned += nettoSpills[basketNum] * basketElemX[basketNum];
         }
+        if(m_have_function_calls)
+            spAddAligned += m_backend->callerStackIncrement();
         spAddAligned = m_backend->stackGrowthAlignment(spAddAligned);
 
         size_t basketOffset[RB_AMOUNT] = {0,0};
@@ -821,10 +824,14 @@ namespace loops
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { regReassignment[basketNum][idx], argIImm(spAddAligned + param.second) }));
                     }
                 }
+            if(m_have_function_calls)
+                m_backend->writeCallerPrologue(a_dest, spAddAligned);
         }
         a_dest.program.insert(a_dest.program.end(), newProgUnbracketed.begin(), newProgUnbracketed.end());
         m_epilogueSize = a_dest.program.size();
         { //Write epilogue
+            if(m_have_function_calls)
+                m_backend->writeCallerEpilogue(a_dest, spAddAligned);
             if (spAddAligned)
             {
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -879,6 +886,7 @@ namespace loops
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     opSnippetSpills += m_backend->spillSpaceNeeded(op, basketNum) * basketElemX[basketNum];
                 m_snippetCausedSpills = std::max(m_snippetCausedSpills, opSnippetSpills);
+                m_haveFunctionCalls = m_haveFunctionCalls || (op.opcode == OP_CALL_NORET || op.opcode == OP_CALL);
                 switch (op.opcode)
                 {
                 case (OP_IF_CEND):
@@ -1229,6 +1237,7 @@ namespace loops
 
     LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerPass(a_owner)
         , m_snippetCausedSpills(0)
+        , m_haveFunctionCalls(false)
     {}
 
     void LivenessAnalysisAlgo::push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]

@@ -424,7 +424,7 @@ namespace loops
             run_pass(braPass.get());
         LivenessAnalysisAlgo LAalgo(m_backend);
         run_pass(&LAalgo); // inplace
-        RegisterAllocator regalloc(m_backend, LAalgo.live_intervals(), LAalgo.getSnippetCausedSpills());
+        RegisterAllocator regalloc(m_backend, LAalgo.live_intervals(), LAalgo.getSnippetCausedSpills(), LAalgo.haveFunctionCalls());
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             if (m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)
                 regalloc.getRegisterPool().overrideRegisterSet(basketNum, m_parameterRegistersO[basketNum], m_returnRegistersO[basketNum], m_callerSavedRegistersO[basketNum], m_calleeSavedRegistersO[basketNum]);

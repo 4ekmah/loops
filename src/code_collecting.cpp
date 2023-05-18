@@ -333,7 +333,7 @@ namespace loops
             Assert(rcp.children().size() == 1);
             return IRecipe(inverseflag ? invertCondition(rcp.opcode()) : rcp.opcode(), TYPE_BOOLEAN, {rcp.children()[0]}).notype();
         default:
-            return IRecipe(inverseflag ? OP_NE : OP_EQ, TYPE_BOOLEAN, {rcp.children()[0], Recipe(0)}).notype();
+            return IRecipe((inverseflag ? OP_EQ : OP_NE), TYPE_BOOLEAN, {rcp, Recipe(0)}).notype();
         };
     }
 
