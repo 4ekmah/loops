@@ -267,6 +267,8 @@ LTESTexe(sort_double, {
         EXPECT_EQ(arr[pos], arr_ref[pos]);
     });
 
+//TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.
+
 #define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IRecipe name##_1(name##_0); Recipe name = name##_1.notype()
 LTESTcomposer(instruction_set_test, {
     FuncImpl* _f = getImpl(getImpl(&CTX)->getCurrentFunc());
