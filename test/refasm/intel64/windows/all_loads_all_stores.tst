@@ -29,8 +29,8 @@ all_loads_all_stores(i0, i1, i2, i3, i4)
     27 : cmovg  rax, r12           ; 49 0f 4f c4                          
     28 : mov    r13, [rsp+#0x60]   ; 4c 8b ac 24 60 00 00 00              
     29 : cmp    [rsp+#0x10], r13   ; 4c 39 ac 24 10 00 00 00              
-    30 : jge    [111]              ; 0f 8d c8 01 00 00                    
-    31 : mov    r12, #0            ; 49 c7 c4 00 00 00 00                 
+    30 : jge    [111]              ; 0f 8d c4 01 00 00                    
+    31 : xor    r12, r12           ; 4d 31 e4                             
     32 : cmp    rdx, #0            ; 48 83 fa 00                          
     33 : jne    [37]               ; 0f 85 12 00 00 00                    
     34 : mov    r13, [rsp]         ; 4c 8b ac 24 00 00 00 00              
@@ -109,7 +109,7 @@ all_loads_all_stores(i0, i1, i2, i3, i4)
    107 : add    [rsp], r13         ; 4c 01 ac 24 00 00 00 00              
    108 : add    [rsp+#0x08], rax   ; 48 01 84 24 08 00 00 00              
    109 : add    [rsp+#0x10], #0x01 ; 48 81 84 24 10 00 00 00 01 00 00 00  
-   110 : jmp    [28]               ; e9 22 fe ff ff                       
+   110 : jmp    [28]               ; e9 26 fe ff ff                       
    111 : mov    r12, [rsp+#0x20]   ; 4c 8b a4 24 20 00 00 00              
    112 : mov    r13, [rsp+#0x28]   ; 4c 8b ac 24 28 00 00 00              
    113 : add    rsp, #0x38         ; 48 83 c4 38                          

@@ -4,7 +4,7 @@ min_max_scalar(i0, i1, i2, i3)
      2 : mov    [rsp+#0x20], r9  ; 4c 89 4c 24 20              
      3 : mov    [rsp+#0x40], r12 ; 4c 89 64 24 40              
      4 : mov    [rsp+#0x48], r13 ; 4c 89 6c 24 48              
-     5 : mov    rax, #0          ; 48 c7 c0 00 00 00 00        
+     5 : xor    rax, rax         ; 48 31 c0                    
      6 : mov    [rsp+#0x38], #0  ; 48 c7 44 24 38 00 00 00 00  
      7 : mov    [rsp+#0x30], #0  ; 48 c7 44 24 30 00 00 00 00  
      8 : movsxd r8, rcx          ; 4c 63 01                    
@@ -44,7 +44,7 @@ min_max_scalar(i0, i1, i2, i3)
     42 : mov    [r13], edx       ; 41 89 55 00                 
     43 : mov    r13, [rsp+#0x20] ; 4c 8b ac 24 20 00 00 00     
     44 : mov    [r13], ecx       ; 41 89 4d 00                 
-    45 : mov    rax, #0          ; 48 c7 c0 00 00 00 00        
+    45 : xor    rax, rax         ; 48 31 c0                    
     46 : mov    r12, [rsp+#0x40] ; 4c 8b a4 24 40 00 00 00     
     47 : mov    r13, [rsp+#0x48] ; 4c 8b ac 24 48 00 00 00     
     48 : add    rsp, #0x58       ; 48 83 c4 58                 

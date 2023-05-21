@@ -473,38 +473,49 @@ instruction_set_test()
    471 : cmove  rax, [rsp+#0x100]       ; 48 0f 44 84 24 00 01 00 00           
    472 : cmove  rdi, [rsp+#0x100]       ; 48 0f 44 bc 24 00 01 00 00           
    473 : cmove  r8, [rsp+#0x100]        ; 4c 0f 44 84 24 00 01 00 00           
-   474 : adc    rax, rax                ; 48 11 c0                             
-   475 : adc    rdi, rax                ; 48 11 c7                             
-   476 : adc    rax, rdi                ; 48 11 f8                             
-   477 : adc    r8, rax                 ; 49 11 c0                             
-   478 : adc    rax, r8                 ; 4c 11 c0                             
-   479 : adc    r8, r8                  ; 4d 11 c0                             
-   480 : adc    rax, #0x100             ; 48 15 00 01 00 00                    
-   481 : adc    rcx, #0x100             ; 48 81 d1 00 01 00 00                 
-   482 : adc    rdi, #0x100             ; 48 81 d7 00 01 00 00                 
-   483 : adc    r8, #0x100              ; 49 81 d0 00 01 00 00                 
-   484 : adc    rax, [rsp+#0x100]       ; 48 13 84 24 00 01 00 00              
-   485 : adc    rdi, [rsp+#0x100]       ; 48 13 bc 24 00 01 00 00              
-   486 : adc    r8, [rsp+#0x100]        ; 4c 13 84 24 00 01 00 00              
-   487 : adc    [rsp+#0x100], rax       ; 48 11 84 24 00 01 00 00              
-   488 : adc    [rsp+#0x100], rdi       ; 48 11 bc 24 00 01 00 00              
-   489 : adc    [rsp+#0x100], r8        ; 4c 11 84 24 00 01 00 00              
-   490 : adc    [rsp+#0x100], #0x100    ; 48 81 94 24 00 01 00 00 00 01 00 00  
-   491 : cmp    rax, [rsp+#0xfff8]      ; 48 3b 84 24 f8 ff 00 00              
-   492 : cmp    rdi, [rsp+#0xfff8]      ; 48 3b bc 24 f8 ff 00 00              
-   493 : cmp    r8, [rsp+#0xfff8]       ; 4c 3b 84 24 f8 ff 00 00              
-   494 : cmp    r15, [rsp+#0xfff8]      ; 4c 3b bc 24 f8 ff 00 00              
-   495 : cmp    [rsp+#0xfff8], rax      ; 48 39 84 24 f8 ff 00 00              
-   496 : cmp    [rsp+#0xfff8], rdi      ; 48 39 bc 24 f8 ff 00 00              
-   497 : cmp    [rsp+#0xfff8], r8       ; 4c 39 84 24 f8 ff 00 00              
-   498 : cmp    [rsp+#0xfff8], r15      ; 4c 39 bc 24 f8 ff 00 00              
-   499 : cmp    [rsp+#0xfff8], #0x8888  ; 48 81 bc 24 f8 ff 00 00 88 88 00 00  
-   500 : add    rax, [rsp+#0xfff8]      ; 48 03 84 24 f8 ff 00 00              
-   501 : add    rdi, [rsp+#0xfff8]      ; 48 03 bc 24 f8 ff 00 00              
-   502 : add    r8, [rsp+#0xfff8]       ; 4c 03 84 24 f8 ff 00 00              
-   503 : add    r15, [rsp+#0xfff8]      ; 4c 03 bc 24 f8 ff 00 00              
-   504 : add    [rsp+#0xfff8], rax      ; 48 01 84 24 f8 ff 00 00              
-   505 : add    [rsp+#0xfff8], rdi      ; 48 01 bc 24 f8 ff 00 00              
-   506 : add    [rsp+#0xfff8], r8       ; 4c 01 84 24 f8 ff 00 00              
-   507 : add    [rsp+#0xfff8], r15      ; 4c 01 bc 24 f8 ff 00 00              
-   508 : add    [rsp+#0xfff8], #0x8888  ; 48 81 84 24 f8 ff 00 00 88 88 00 00  
+   474 : sete   rax                     ; 0f 94 c0                             
+   475 : setne  rax                     ; 0f 95 c0                             
+   476 : setl   rax                     ; 0f 9c c0                             
+   477 : setg   rax                     ; 0f 9f c0                             
+   478 : setle  rax                     ; 0f 9e c0                             
+   479 : setge  rax                     ; 0f 9d c0                             
+   480 : sets   rax                     ; 0f 98 c0                             
+   481 : setns  rax                     ; 0f 99 c0                             
+   482 : sete   rdi                     ; 40 0f 94 c7                          
+   483 : sete   r8                      ; 41 0f 94 c0                          
+   484 : sete   [rsp+#0x100]            ; 0f 94 84 24 00 01 00 00              
+   485 : adc    rax, rax                ; 48 11 c0                             
+   486 : adc    rdi, rax                ; 48 11 c7                             
+   487 : adc    rax, rdi                ; 48 11 f8                             
+   488 : adc    r8, rax                 ; 49 11 c0                             
+   489 : adc    rax, r8                 ; 4c 11 c0                             
+   490 : adc    r8, r8                  ; 4d 11 c0                             
+   491 : adc    rax, #0x100             ; 48 15 00 01 00 00                    
+   492 : adc    rcx, #0x100             ; 48 81 d1 00 01 00 00                 
+   493 : adc    rdi, #0x100             ; 48 81 d7 00 01 00 00                 
+   494 : adc    r8, #0x100              ; 49 81 d0 00 01 00 00                 
+   495 : adc    rax, [rsp+#0x100]       ; 48 13 84 24 00 01 00 00              
+   496 : adc    rdi, [rsp+#0x100]       ; 48 13 bc 24 00 01 00 00              
+   497 : adc    r8, [rsp+#0x100]        ; 4c 13 84 24 00 01 00 00              
+   498 : adc    [rsp+#0x100], rax       ; 48 11 84 24 00 01 00 00              
+   499 : adc    [rsp+#0x100], rdi       ; 48 11 bc 24 00 01 00 00              
+   500 : adc    [rsp+#0x100], r8        ; 4c 11 84 24 00 01 00 00              
+   501 : adc    [rsp+#0x100], #0x100    ; 48 81 94 24 00 01 00 00 00 01 00 00  
+   502 : cmp    rax, [rsp+#0xfff8]      ; 48 3b 84 24 f8 ff 00 00              
+   503 : cmp    rdi, [rsp+#0xfff8]      ; 48 3b bc 24 f8 ff 00 00              
+   504 : cmp    r8, [rsp+#0xfff8]       ; 4c 3b 84 24 f8 ff 00 00              
+   505 : cmp    r15, [rsp+#0xfff8]      ; 4c 3b bc 24 f8 ff 00 00              
+   506 : cmp    [rsp+#0xfff8], rax      ; 48 39 84 24 f8 ff 00 00              
+   507 : cmp    [rsp+#0xfff8], rdi      ; 48 39 bc 24 f8 ff 00 00              
+   508 : cmp    [rsp+#0xfff8], r8       ; 4c 39 84 24 f8 ff 00 00              
+   509 : cmp    [rsp+#0xfff8], r15      ; 4c 39 bc 24 f8 ff 00 00              
+   510 : cmp    [rsp+#0xfff8], #0x8888  ; 48 81 bc 24 f8 ff 00 00 88 88 00 00  
+   511 : add    rax, [rsp+#0xfff8]      ; 48 03 84 24 f8 ff 00 00              
+   512 : add    rdi, [rsp+#0xfff8]      ; 48 03 bc 24 f8 ff 00 00              
+   513 : add    r8, [rsp+#0xfff8]       ; 4c 03 84 24 f8 ff 00 00              
+   514 : add    r15, [rsp+#0xfff8]      ; 4c 03 bc 24 f8 ff 00 00              
+   515 : add    [rsp+#0xfff8], rax      ; 48 01 84 24 f8 ff 00 00              
+   516 : add    [rsp+#0xfff8], rdi      ; 48 01 bc 24 f8 ff 00 00              
+   517 : add    [rsp+#0xfff8], r8       ; 4c 01 84 24 f8 ff 00 00              
+   518 : add    [rsp+#0xfff8], r15      ; 4c 01 bc 24 f8 ff 00 00              
+   519 : add    [rsp+#0xfff8], #0x8888  ; 48 81 84 24 f8 ff 00 00 88 88 00 00  
