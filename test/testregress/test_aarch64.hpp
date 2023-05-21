@@ -269,7 +269,7 @@ LTESTexe(sort_double, {
 
 //TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.
 
-#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IRecipe name##_1(name##_0); Recipe name = name##_1.notype()
+#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
 LTESTcomposer(instruction_set_test, {
     FuncImpl* _f = getImpl(getImpl(&CTX)->getCurrentFunc());
     DEFINE_CERTAIN_REG(x0, 0);
@@ -277,35 +277,35 @@ LTESTcomposer(instruction_set_test, {
     DEFINE_CERTAIN_REG(x7, 7);
     DEFINE_CERTAIN_REG(x15, 15);
     DEFINE_CERTAIN_REG(w15, 15);
-    Recipe v0_16u = VRecipe<uint8_t>::make(vregHid<uint8_t>(0,_f)).notype();
-    Recipe v31_16u = VRecipe<uint8_t>::make(vregHid<uint8_t>(31,_f)).notype();
-    Recipe v0_8u = VRecipe<uint16_t>::make(vregHid<uint16_t>(0,_f)).notype();
-    Recipe v31_8u = VRecipe<uint16_t>::make(vregHid<uint16_t>(31,_f)).notype();
-    Recipe v0_4u = VRecipe<uint32_t>::make(vregHid<uint32_t>(0,_f)).notype();
-    Recipe v31_4u = VRecipe<uint32_t>::make(vregHid<uint32_t>(31,_f)).notype();
-    Recipe v0_2u = VRecipe<uint64_t>::make(vregHid<uint64_t>(0,_f)).notype();
-    Recipe v31_2u = VRecipe<uint64_t>::make(vregHid<uint64_t>(31,_f)).notype();
-    Recipe v0_16s = VRecipe<int8_t>::make(vregHid<int8_t>(0,_f)).notype();
-    Recipe v1_16s = VRecipe<int8_t>::make(vregHid<int8_t>(1,_f)).notype();
-    Recipe v31_16s = VRecipe<int8_t>::make(vregHid<int8_t>(31,_f)).notype();
-    Recipe v0_8s = VRecipe<int16_t>::make(vregHid<int16_t>(0,_f)).notype();
-    Recipe v1_8s = VRecipe<int16_t>::make(vregHid<int16_t>(1,_f)).notype();
-    Recipe v31_8s = VRecipe<int16_t>::make(vregHid<int16_t>(31,_f)).notype();
-    Recipe v0_4s = VRecipe<int32_t>::make(vregHid<int32_t>(0,_f)).notype();
-    Recipe v1_4s = VRecipe<int32_t>::make(vregHid<int32_t>(1,_f)).notype();
-    Recipe v31_4s = VRecipe<int32_t>::make(vregHid<int32_t>(31,_f)).notype();
-    Recipe v0_2s = VRecipe<int64_t>::make(vregHid<int64_t>(0,_f)).notype();
-    Recipe v1_2s = VRecipe<int64_t>::make(vregHid<int64_t>(1,_f)).notype();
-    Recipe v31_2s = VRecipe<int64_t>::make(vregHid<int64_t>(31,_f)).notype();
-    Recipe v0_8f = VRecipe<f16_t>::make(vregHid<f16_t>(0,_f)).notype();
-    Recipe v15_8f = VRecipe<f16_t>::make(vregHid<f16_t>(15,_f)).notype();
-    Recipe v31_8f = VRecipe<f16_t>::make(vregHid<f16_t>(31,_f)).notype();
-    Recipe v0_4f = VRecipe<float>::make(vregHid<float>(0,_f)).notype();
-    Recipe v31_4f = VRecipe<float>::make(vregHid<float>(31,_f)).notype();
-    Recipe v0_2f = VRecipe<double>::make(vregHid<double>(0,_f)).notype();
-    Recipe v31_2f = VRecipe<double>::make(vregHid<double>(31,_f)).notype();
-    Recipe q0 = VRecipe<uint64_t>::make(vregHid<uint64_t>(0,_f)).notype();
-    Recipe q31 = VRecipe<uint64_t>::make(vregHid<uint64_t>(31,_f)).notype();
+    Expr v0_16u = VExpr<uint8_t>::make(vregHid<uint8_t>(0,_f)).notype();
+    Expr v31_16u = VExpr<uint8_t>::make(vregHid<uint8_t>(31,_f)).notype();
+    Expr v0_8u = VExpr<uint16_t>::make(vregHid<uint16_t>(0,_f)).notype();
+    Expr v31_8u = VExpr<uint16_t>::make(vregHid<uint16_t>(31,_f)).notype();
+    Expr v0_4u = VExpr<uint32_t>::make(vregHid<uint32_t>(0,_f)).notype();
+    Expr v31_4u = VExpr<uint32_t>::make(vregHid<uint32_t>(31,_f)).notype();
+    Expr v0_2u = VExpr<uint64_t>::make(vregHid<uint64_t>(0,_f)).notype();
+    Expr v31_2u = VExpr<uint64_t>::make(vregHid<uint64_t>(31,_f)).notype();
+    Expr v0_16s = VExpr<int8_t>::make(vregHid<int8_t>(0,_f)).notype();
+    Expr v1_16s = VExpr<int8_t>::make(vregHid<int8_t>(1,_f)).notype();
+    Expr v31_16s = VExpr<int8_t>::make(vregHid<int8_t>(31,_f)).notype();
+    Expr v0_8s = VExpr<int16_t>::make(vregHid<int16_t>(0,_f)).notype();
+    Expr v1_8s = VExpr<int16_t>::make(vregHid<int16_t>(1,_f)).notype();
+    Expr v31_8s = VExpr<int16_t>::make(vregHid<int16_t>(31,_f)).notype();
+    Expr v0_4s = VExpr<int32_t>::make(vregHid<int32_t>(0,_f)).notype();
+    Expr v1_4s = VExpr<int32_t>::make(vregHid<int32_t>(1,_f)).notype();
+    Expr v31_4s = VExpr<int32_t>::make(vregHid<int32_t>(31,_f)).notype();
+    Expr v0_2s = VExpr<int64_t>::make(vregHid<int64_t>(0,_f)).notype();
+    Expr v1_2s = VExpr<int64_t>::make(vregHid<int64_t>(1,_f)).notype();
+    Expr v31_2s = VExpr<int64_t>::make(vregHid<int64_t>(31,_f)).notype();
+    Expr v0_8f = VExpr<f16_t>::make(vregHid<f16_t>(0,_f)).notype();
+    Expr v15_8f = VExpr<f16_t>::make(vregHid<f16_t>(15,_f)).notype();
+    Expr v31_8f = VExpr<f16_t>::make(vregHid<f16_t>(31,_f)).notype();
+    Expr v0_4f = VExpr<float>::make(vregHid<float>(0,_f)).notype();
+    Expr v31_4f = VExpr<float>::make(vregHid<float>(31,_f)).notype();
+    Expr v0_2f = VExpr<double>::make(vregHid<double>(0,_f)).notype();
+    Expr v31_2f = VExpr<double>::make(vregHid<double>(31,_f)).notype();
+    Expr q0 = VExpr<uint64_t>::make(vregHid<uint64_t>(0,_f)).notype();
+    Expr q31 = VExpr<uint64_t>::make(vregHid<uint64_t>(31,_f)).notype();
     
     newiopNoret(OP_MOV, {  x0, argIImm(         -1) });
     newiopNoret(OP_MOV, { x15, argIImm(         -1) });

@@ -63,7 +63,7 @@ namespace loops
         }
         });
 
-#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IRecipe name##_1(name##_0); Recipe name = name##_1.notype()
+#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
     LTESTcomposer(instruction_set_test, {
         Func * _f = getImpl(getImpl(&CTX)->getCurrentFunc());
 
@@ -94,8 +94,8 @@ namespace loops
         DEFINE_CERTAIN_REG(r12b, 12);
         DEFINE_CERTAIN_REG(r13b, 13);
 
-        Recipe spilled32(argSpilled(RB_INT, 32));
-        Recipe spilled0x1FFF(argSpilled(RB_INT, 0x1FFF));
+        Expr spilled32(argSpilled(RB_INT, 32));
+        Expr spilled0x1FFF(argSpilled(RB_INT, 0x1FFF));
         spilled32.func() = _f;
         spilled0x1FFF.func() = _f;
 

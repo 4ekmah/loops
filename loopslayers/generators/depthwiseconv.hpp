@@ -17,7 +17,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include "arm_neon.h"
 #include "test/tests.hpp"
-//TODO(ch): There must not be Recipes in user code.
+//TODO(ch): There must not be Exprs in user code.
 namespace loops
 {
 
@@ -51,7 +51,7 @@ private:
     void onlylineHandler(const VReg<uintM>& WcondV, IReg& yi, IReg& xo, const IReg& xi, IReg& base, const IReg& result_rs, int flags);
     void loadVector(const IReg& base, int64_t offset, VReg<_Tp>& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags = 0);
     void loadVectorStride(const IReg& base, std::vector<VReg<_Tp> >& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int retsneeded, int flags = 0);
-    IRecipe effective_const_mul(const IReg& m1, int m2);
+    IExpr effective_const_mul(const IReg& m1, int m2);
 
     //Common parameters and registers
     int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type;
@@ -252,12 +252,12 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         {
                             xo = select(xo > hldx , hldx , xo);
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             IReg data__ = data_rs + (xi << elemshift);
                             if(padhor||padver)
                             {
                                 IReg yi; if(padver) yi.copyidx(effective_const_mul(y, stride_y) - padding_top);
-                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IRecipe(xi);
+                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IExpr(xi);
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 {
                                     multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, 0);
@@ -291,13 +291,13 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                             WHILE_(xo < xie)
                             {
                                 IReg xi;
-                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                                 IReg data__ = data_rs + (xi << elemshift);
                                 if(padhor||padver)
                                 {
                                     IReg yi; if(padver) yi.copyidx(effective_const_mul(y, stride_y) - padding_top);
                                     IReg xcond;
-                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IRecipe(xi));
+                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IExpr(xi));
                                     IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                                     {
                                         onlylineHandler(WcondV, yi, xo, xi, data__, result_rs, 0);
@@ -313,7 +313,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         WHILE_(xo < scalarEnd)
                         {
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             VReg<_Tp> vres = vbias;
                             IReg data__ = data_rs + (xi << elemshift);
                             IReg kernel__ = kernel;
@@ -329,7 +329,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 if(padhor||padver)
                                 {
                                     IReg ex = xi + kcol;
-                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IRecipe(y)) + krow;
+                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IExpr(y)) + krow;
                                     select(ex < 0, W, ex);
                                     select(ey < 0, H, ey);
                                     IF_(ult(ex,W))
@@ -744,10 +744,10 @@ void DepthwiseconvGenerator<_Tp>::loadVectorStride(const IReg& base, std::vector
 }
 
 template<typename _Tp>
-IRecipe DepthwiseconvGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
+IExpr DepthwiseconvGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
 {
     if(m2 == 1)
-        return IRecipe(m1);
+        return IExpr(m1);
     else if(m2>0 && (((m2 - 1) & m2) == 0))
     {
         int degree = -1;

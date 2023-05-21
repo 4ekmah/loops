@@ -17,7 +17,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include "arm_neon.h"
 #include "test/tests.hpp"
-//TODO(ch): There must not be Recipes in user code.
+//TODO(ch): There must not be Exprs in user code.
 namespace loops
 {
 
@@ -64,7 +64,7 @@ private:
     VReg<intC> countingPattern, idx_step, idx_step1;
     VReg<_Tp> valpha, v0, v6;
     VReg<_Tp> activationFunction(VReg<_Tp>& res);
-    IRecipe effective_const_mul(const IReg& m1, int m2);
+    IExpr effective_const_mul(const IReg& m1, int m2);
 
     inline int upDiv(int numerator, int denominator)
     {
@@ -258,7 +258,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                         IReg yi; if(padver) yi.copyidx(effective_const_mul(y, stride_y) - padding_top);
                         if(padhor||padver)
                         {
-                            IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IRecipe(xi);
+                            IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IExpr(xi);
                             
                             IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 multilineInit(HcondV, WcondV, yi, xi, data_rs, vertMaxes, 0);
@@ -275,10 +275,10 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                             {
                                 xo = hldx;
                                 IReg xi;
-                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                                 if(padhor||padver)
                                 {
-                                    IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IRecipe(xi);
+                                    IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IExpr(xi);
                                     IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                         multilineInit(HcondV, WcondV, yi, xi, data_rs, vertMaxes, 0);
                                     ELSE_
@@ -288,10 +288,10 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                                     multilineInit(HcondV, WcondV, y, xi, data_rs, vertMaxes, 0);
                             }
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             if(padhor||padver)
                             {
-                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IRecipe(xi);
+                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IExpr(xi);
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                     multilineInitLast(HcondV, WcondV, yi, xi, data_rs, vertMaxes, 0);
                                 ELSE_
@@ -373,11 +373,11 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                                 for(int sNum = 0; sNum < stride_x; sNum++)
                                     vertMaxes[vRegNum][sNum].copyidx(VDEF_(_Tp));
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             if(padhor||padver)
                             {
                                 IReg xcond;
-                                xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IRecipe(xi));
+                                xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IExpr(xi));
                                 IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                                     onlylineInit(WcondV, yi, xi, data_rs, vertMaxes, 0);
                                 ELSE_
@@ -391,11 +391,11 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                             WHILE_(xo < xie)
                             {
                                 IReg xi;
-                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                                 if(padhor||padver)
                                 {
                                     IReg xcond;
-                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IRecipe(xi));
+                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IExpr(xi));
                                     IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                                         onlylineInitLast(WcondV, yi, xi, data_rs, vertMaxes, 0);
                                     ELSE_
@@ -448,7 +448,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                         WHILE_(xo < scalarEnd)
                         {
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             VReg<_Tp> vres = VDEF_(_Tp);
                             IReg res_already_init = CONST_(0);
                             IReg data__ = data_rs + (xi << elemshift);
@@ -462,7 +462,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                                 {
                                     VReg<_Tp> justloaded = VCONST_(_Tp, 0);
                                     IReg ex = xi + kcol;
-                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IRecipe(y)) + krow;
+                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IExpr(y)) + krow;
                                     select(ex < 0, W, ex);
                                     select(ey < 0, H, ey);
                                     IF_(ult(ex,W))
@@ -794,7 +794,7 @@ void MaxpoolGenerator<_Tp>::onlylineInit(const VReg<uintM>& WcondV, IReg& yi_, I
                 if(vRegNum + 2 < horVecsPerOut)
                     vertMaxesPtr += CTX.vbytes()*stride_x;
             }
-            vertMaxesPtr += defect_s ? (dstride - defect_s) : IRecipe(dstride);
+            vertMaxesPtr += defect_s ? (dstride - defect_s) : IExpr(dstride);
             yi += 1;
             krow += 1;
         }
@@ -819,7 +819,7 @@ void MaxpoolGenerator<_Tp>::onlylineInit(const VReg<uintM>& WcondV, IReg& yi_, I
                     vertMaxesPtr += CTX.vbytes()*stride_x;
             }
             if(krow + 1 < kh)
-                vertMaxesPtr += defect_s ? (dstride - defect_s) : IRecipe(dstride);
+                vertMaxesPtr += defect_s ? (dstride - defect_s) : IExpr(dstride);
         }
     }
 }
@@ -900,10 +900,10 @@ VReg<_Tp> MaxpoolGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
 }
 
 template<typename _Tp>
-IRecipe MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
+IExpr MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
 {
     if(m2 == 1)
-        return IRecipe(m1);
+        return IExpr(m1);
     else if(m2>0 && (((m2 - 1) & m2) == 0))
     {
         int degree = -1;
