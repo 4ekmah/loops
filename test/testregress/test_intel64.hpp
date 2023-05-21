@@ -647,6 +647,19 @@ namespace loops
         newiopNoret(OP_SELECT, { rdi, OP_EQ, argSpilled(RB_INT, 32), rdi });
         newiopNoret(OP_SELECT, { r8,  OP_EQ, argSpilled(RB_INT, 32), r8 });
 
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_EQ)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NE)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LT)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GT)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LE)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GE)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_S )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NS)});
+
+        newiopNoret(OP_IVERSON, { rdi, argIImm(OP_EQ) });
+        newiopNoret(OP_IVERSON, { r8 , argIImm(OP_EQ) });
+        newiopNoret(OP_IVERSON, { spilled32, argIImm(OP_EQ) });
+
         newiopNoret(OP_X86_ADC, { rax, rax, rax });
         newiopNoret(OP_X86_ADC, { rdi, rdi, rax });
         newiopNoret(OP_X86_ADC, { rax, rax, rdi });

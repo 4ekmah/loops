@@ -250,16 +250,19 @@ namespace loops
         }
         case (OP_SELECT):
         {
-            Assert(rcp.children().size() == 3);
+            Assert(rcp.children().size() == 3 && !rcp.children()[0].is_vector() && !rcp.children()[1].is_vector() && !rcp.children()[2].is_vector());
             // TODO(ch): In truth, i'm not sure, that select doesn't support immediates on all the archs, so, this usage of UR_WRAPIIMM must be reconsidered
             Arg truev = unpack_recipe(rcp.children()[1], UR_WRAPIIMM, &outbuf);
             Arg falsev = unpack_recipe(rcp.children()[2], UR_WRAPIIMM, &outbuf);
-            Syntop cmpop = unpack_condition_old(rcp.children()[0]);
-            outbuf.program.push_back(Syntop(OP_CMP, {cmpop[0], cmpop[1]}));
+            Recipe cond = eliminate_not(rcp.children()[0]);
+            if(cond.opcode() == OP_LOGICAL_AND || cond.opcode() == OP_LOGICAL_NOT)
+                cond = IRecipe(OP_NE, TYPE_BOOLEAN, {cond, Arg(0)}).notype();
+            Assert(cond.children().size() == 2 && !cond.children()[0].is_vector() && !cond.children()[1].is_vector());
+            outbuf.program.emplace_back(Syntop(OP_CMP, {unpack_recipe(cond.children()[0], 0, &outbuf), unpack_recipe(cond.children()[1], 0, &outbuf)}));
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
             res.tag = Arg::IREG;
             res.elemtype = rcp.type();
-            outbuf.program.push_back(Syntop(OP_SELECT, {res, argIImm(cmpop.opcode), truev, falsev}));
+            outbuf.program.push_back(Syntop(OP_SELECT, {res, argIImm(cond.opcode()), truev, falsev}));
             break;
         }
         case (VOP_SHRINK):
@@ -275,6 +278,40 @@ namespace loops
             outbuf.program.push_back(Syntop(OP_CMP, {res, v0, v1}));
             break;
         }
+        case (OP_LOGICAL_AND):
+        case (OP_LOGICAL_OR):
+        case (OP_LOGICAL_NOT):
+        {
+            if(flags & UR_LNOT_ELIMINATED == 0)
+            {
+                Recipe n_eliminated = eliminate_not(rcp);
+                res = unpack_recipe(n_eliminated, flags | UR_LNOT_ELIMINATED, buffer);
+            }
+            else
+            {
+                Assert(rcp.opcode() != OP_LOGICAL_NOT && rcp.children().size() == 2 && !rcp.children()[0].is_vector() && !rcp.children()[1].is_vector());
+                res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
+                res.tag = Arg::IREG;
+                res.elemtype = TYPE_BOOLEAN;
+                std::vector<Arg> args = {res, unpack_recipe(rcp.children()[0], 0, &outbuf), unpack_recipe(rcp.children()[1], 0, &outbuf)};
+                outbuf.program.emplace_back(Syntop(rcp.opcode() == OP_LOGICAL_AND ? OP_AND : OP_OR, args));
+            }
+            break;
+        }
+        case (OP_GT): case (OP_UGT): case (OP_GE): case (OP_LT):
+        case (OP_LE): case (OP_ULE): case (OP_NE): case (OP_EQ):
+        {
+            Assert(rcp.children().size() == 2 && !rcp.children()[0].is_vector() && !rcp.children()[1].is_vector());
+            outbuf.program.emplace_back(Syntop(OP_CMP, {unpack_recipe(rcp.children()[0], 0, &outbuf), unpack_recipe(rcp.children()[1], 0, &outbuf)}));
+            res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
+            res.tag = Arg::IREG;
+            res.elemtype = TYPE_BOOLEAN;
+            outbuf.program.emplace_back(Syntop(OP_IVERSON, {res, Arg(rcp.opcode())}));
+            break; 
+        }
+        case (OP_S):
+        case (OP_NS):
+            throw std::runtime_error("Condition deployment: unexpected Signed/Unsigned check.");
         default:
         {
             std::vector<Arg> args;
@@ -335,35 +372,6 @@ namespace loops
         default:
             return IRecipe((inverseflag ? OP_EQ : OP_NE), TYPE_BOOLEAN, {rcp, Recipe(0)}).notype();
         };
-    }
-
-    Syntop CodeCollecting::unpack_condition_old(Recipe &rcp)
-    {
-        switch (rcp.opcode())
-        {
-        case (OP_GT):
-        case (OP_UGT):
-        case (OP_GE):
-        case (OP_LT):
-        case (OP_LE):
-        case (OP_ULE):
-        case (OP_NE):
-        case (OP_EQ):
-        case (OP_S):
-        case (OP_NS):
-        {
-            Assert(rcp.children().size() == 2);
-            std::vector<Arg> args;
-            args.reserve(2);
-            args.push_back(unpack_recipe(rcp.children()[0]));
-            args.push_back(unpack_recipe(rcp.children()[1]));
-            Assert(args[0].tag == Arg::IREG || args[1].tag == Arg::IREG);
-            return Syntop(rcp.opcode(), args);
-        }
-        default:
-            throw std::runtime_error("Temporary condition solution: conditions other than one comparison of two simple arguments are not supported.");
-            break;
-        }
     }
 
     void CodeCollecting::unpack_condition(Recipe &rcp, int true_jmp, int false_jmp)

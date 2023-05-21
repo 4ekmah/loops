@@ -6,9 +6,9 @@ triangle_types(i0, i1, i2)
      4 : cmp  rsi, #0    ; 48 83 fe 00              
      5 : jle  [8]        ; 0f 8e 0a 00 00 00        
      6 : cmp  rdx, #0    ; 48 83 fa 00              
-     7 : jg   [10]       ; 0f 8f 0c 00 00 00        
-     8 : mov  rax, #0    ; 48 c7 c0 00 00 00 00     
-     9 : jmp  [95]       ; e9 5f 01 00 00           
+     7 : jg   [10]       ; 0f 8f 08 00 00 00        
+     8 : xor  rax, rax   ; 48 31 c0                 
+     9 : jmp  [95]       ; e9 5b 01 00 00           
     10 : mov  rcx, rsi   ; 48 89 f1                 
     11 : add  rcx, rdx   ; 48 01 d1                 
     12 : cmp  rdi, rcx   ; 48 39 cf                 
@@ -20,8 +20,8 @@ triangle_types(i0, i1, i2)
     18 : mov  rcx, rdi   ; 48 89 f9                 
     19 : add  rcx, rsi   ; 48 01 f1                 
     20 : cmp  rdx, rcx   ; 48 39 ca                 
-    21 : jle  [24]       ; 0f 8e 0c 00 00 00        
-    22 : mov  rax, #0    ; 48 c7 c0 00 00 00 00     
+    21 : jle  [24]       ; 0f 8e 08 00 00 00        
+    22 : xor  rax, rax   ; 48 31 c0                 
     23 : jmp  [95]       ; e9 26 01 00 00           
     24 : cmp  rdi, rsi   ; 48 39 f7                 
     25 : jne  [30]       ; 0f 85 15 00 00 00        

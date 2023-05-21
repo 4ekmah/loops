@@ -53,118 +53,119 @@ enum {
     OP_NEG          =  16,
     OP_CMP          =  17,
     OP_SELECT       =  18, //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
-    OP_MIN          =  19,
-    OP_MAX          =  20,
-    OP_ABS          =  21,
-    OP_SIGN         =  22,
+    OP_IVERSON      =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise 
+    OP_MIN          =  20,
+    OP_MAX          =  21,
+    OP_ABS          =  22,
+    OP_SIGN         =  23,
    
-    OP_ROUND        =  23,
-    OP_FLOOR        =  24,
-    OP_CEIL         =  25,
+    OP_ROUND        =  24,
+    OP_FLOOR        =  25,
+    OP_CEIL         =  26,
 
     //For service usage only
-    OP_SPILL        =  26, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
-    OP_UNSPILL      =  27, //OP_UNSPILL <reg>, <stack_pos>
-    OP_GT           =  28,
-    OP_UGT          =  29,
-    OP_GE           =  30,
-    OP_LT           =  31,
-    OP_LE           =  32,
-    OP_ULE          =  33,
-    OP_NE           =  34,
-    OP_EQ           =  35,
-    OP_S            =  36,
-    OP_NS           =  37,
+    OP_SPILL        =  27, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL      =  28, //OP_UNSPILL <reg>, <stack_pos>
+    OP_GT           =  29,
+    OP_UGT          =  30,
+    OP_GE           =  31,
+    OP_LT           =  32,
+    OP_LE           =  33,
+    OP_ULE          =  34,
+    OP_NE           =  35,
+    OP_EQ           =  36,
+    OP_S            =  37,
+    OP_NS           =  38,
     
-    OP_LOGICAL_AND  =  38,
-    OP_LOGICAL_OR   =  39,
-    OP_LOGICAL_NOT  =  40,
+    OP_LOGICAL_AND  =  39,
+    OP_LOGICAL_OR   =  40,
+    OP_LOGICAL_NOT  =  41,
     
-    OP_JMP          =  41, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
-    OP_JCC          =  42, //OP_JCC <cmpcode>, <target_label>
-    OP_RET          =  43,
-    OP_CALL         =  44, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
-    OP_CALL_NORET   =  45, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
-    OP_LABEL        =  46,
+    OP_JMP          =  42, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
+    OP_JCC          =  43, //OP_JCC <cmpcode>, <target_label>
+    OP_RET          =  44,
+    OP_CALL         =  45, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
+    OP_CALL_NORET   =  46, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
+    OP_LABEL        =  47,
     
-    OP_STEM_CSTART  =  47,
+    OP_STEM_CSTART  =  48,
     
-    OP_IF_CSTART    =  48,
-    OP_ELIF_CSTART  =  49, //OP_ELIF_CSTART <elselabel>, <outlabel>
-    OP_IF_CEND      =  50, //OP_IF_CEND
-    OP_ELSE         =  51, //OP_ELSE <elselabel>, <outlabel>
-    OP_ENDIF        =  52, //OP_ENDIF <outlabel>
+    OP_IF_CSTART    =  49,
+    OP_ELIF_CSTART  =  50, //OP_ELIF_CSTART <elselabel>, <outlabel>
+    OP_IF_CEND      =  51, //OP_IF_CEND
+    OP_ELSE         =  52, //OP_ELSE <elselabel>, <outlabel>
+    OP_ENDIF        =  53, //OP_ENDIF <outlabel>
 
-    OP_WHILE_CSTART =  53, //OP_WHILE_CSTART <continuelabel>
-    OP_WHILE_CEND   =  54, //OP_WHILE_CEND
-    OP_ENDWHILE     =  55, //OP_ENDWHILE <continuelabel>, <breaklabel>
-    OP_BREAK        =  56,
-    OP_CONTINUE     =  57,
-    VOP_LOAD        =  58,
-    VOP_STORE       =  59,
-    VOP_ADD         =  60,
-    VOP_SUB         =  61,
-    VOP_MUL         =  62,
-    VOP_DIV         =  63,
+    OP_WHILE_CSTART =  54, //OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND   =  55, //OP_WHILE_CEND
+    OP_ENDWHILE     =  56, //OP_ENDWHILE <continuelabel>, <breaklabel>
+    OP_BREAK        =  57,
+    OP_CONTINUE     =  58,
+    VOP_LOAD        =  59,
+    VOP_STORE       =  60,
+    VOP_ADD         =  61,
+    VOP_SUB         =  62,
+    VOP_MUL         =  63,
+    VOP_DIV         =  64,
 //    VOP_MOD,
-    VOP_FMA         =  64,
-    VOP_SAL         =  65,
-    VOP_SHL         =  66,
-    VOP_SAR         =  67,
-    VOP_SHR         =  68,
-    VOP_AND         =  69,
-    VOP_OR          =  70,
-    VOP_XOR         =  71,
-    VOP_NOT         =  72,
-    VOP_NEG         =  73,
+    VOP_FMA         =  65,
+    VOP_SAL         =  66,
+    VOP_SHL         =  67,
+    VOP_SAR         =  68,
+    VOP_SHR         =  69,
+    VOP_AND         =  70,
+    VOP_OR          =  71,
+    VOP_XOR         =  72,
+    VOP_NOT         =  73,
+    VOP_NEG         =  74,
 
-    VOP_MIN         =  74,
-    VOP_MAX         =  75,
+    VOP_MIN         =  75,
+    VOP_MAX         =  76,
 
-    VOP_GT          =  76,
-    VOP_GE          =  77,
-    VOP_LT          =  78,
-    VOP_LE          =  79,
-    VOP_NE          =  80,
-    VOP_EQ          =  81,
+    VOP_GT          =  77,
+    VOP_GE          =  78,
+    VOP_LT          =  79,
+    VOP_LE          =  80,
+    VOP_NE          =  81,
+    VOP_EQ          =  82,
 
-    VOP_SELECT      =  82,
+    VOP_SELECT      =  83,
     
-    VOP_ALL         =  83,
-    VOP_ANY         =  84,
-    VOP_TRUNC       =  85,
-    VOP_FLOOR       =  86,
-    VOP_CAST        =  87,
-    VOP_REINTERPRET =  88,
-    VOP_BROADCAST   =  89,
-    VOP_CAST_LOW    =  90,
-    VOP_CAST_HIGH   =  91,
-    VOP_SHRINK_LOW  =  92,
-    VOP_SHRINK_HIGH =  93,
-    VOP_SHRINK      =  94,
-    VOP_REDUCE_MAX  =  95,
-    VOP_REDUCE_MIN  =  96,
+    VOP_ALL         =  84,
+    VOP_ANY         =  85,
+    VOP_TRUNC       =  86,
+    VOP_FLOOR       =  87,
+    VOP_CAST        =  88,
+    VOP_REINTERPRET =  89,
+    VOP_BROADCAST   =  90,
+    VOP_CAST_LOW    =  91,
+    VOP_CAST_HIGH   =  92,
+    VOP_SHRINK_LOW  =  93,
+    VOP_SHRINK_HIGH =  94,
+    VOP_SHRINK      =  95,
+    VOP_REDUCE_MAX  =  96,
+    VOP_REDUCE_MIN  =  97,
 
 //Intel-only operations:
-    OP_X86_ADC      =  97, //Add with carry flag.
-    OP_X86_CQO      =  98,
+    OP_X86_ADC      =  98, //Add with carry flag.
+    OP_X86_CQO      =  99,
 //Aarch64-only operations:
-    OP_ARM_CINC     =  99, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG     = 100,
-    OP_ARM_MOVK     = 101, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP      = 102,
-    OP_ARM_STP      = 103,
-    VOP_ARM_LD1     = 104,
-    VOP_ARM_ST1     = 105,
-    VOP_ARM_LD2     = 106,
-    VOP_ARM_EXT     = 107,
-    VOP_GETLANE     = 108,
-    VOP_SETLANE     = 109,
+    OP_ARM_CINC     = 100, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG     = 101,
+    OP_ARM_MOVK     = 102, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP      = 103,
+    OP_ARM_STP      = 104,
+    VOP_ARM_LD1     = 105,
+    VOP_ARM_ST1     = 106,
+    VOP_ARM_LD2     = 107,
+    VOP_ARM_EXT     = 108,
+    VOP_GETLANE     = 109,
+    VOP_SETLANE     = 110,
 
-    OP_DEF          = 110,
-    VOP_DEF         = 111,
+    OP_DEF          = 111,
+    VOP_DEF         = 112,
 
-    OP_NOINIT       = 112,
+    OP_NOINIT       = 113,
 };
 
 enum

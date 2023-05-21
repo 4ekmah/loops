@@ -1,7 +1,7 @@
 nonnegative_odd(i0, i1)
      0 : sub    rsp, #0x28               ; 48 83 ec 28              
      1 : mov    [rsp+#0x20], r12         ; 4c 89 64 24 20           
-     2 : mov    rdx, #0                  ; 48 c7 c2 00 00 00 00     
+     2 : xor    rdx, rdx                 ; 48 31 d2                 
      3 : mov    rcx, #0xfffffffffffffffc ; 48 c7 c1 fc ff ff ff     
      4 : imul   rsi, #0x04               ; 48 6b f6 04              
      5 : cmp    rdx, rsi                 ; 48 39 f2                 
