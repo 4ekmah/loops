@@ -494,16 +494,17 @@ LTEST(conditionpainter, {
         IReg y = CONST_(ymin);
         WHILE_(y<=ymax)
         {
-            IReg offsety = (y - ymin) * w * sizeof(int64_t);
+            //TODO(ch): (CONST_(imm) in subtractions and comparissons is used because of bug of ARM encoding with negative immediates). Fix it and avoid ugly CONSTs.
+            IReg offsety = (y - CONST_(ymin)) * w * sizeof(int64_t);
             IReg x = CONST_(xmin);
             WHILE_(x<=xmax)
             {
-                IReg out = (y >= x + 3 && y <=4 && x >= -2 && x <= 0) || (y<=x-1 && x>=0 && y<=0 && x*x + y*y <= 9);
+                IReg out = (y >= x + 3 && y <=4 && x >= CONST_(-2) && x <= 0) || (y<=x-1 && x>=0 && y<=0 && x*x + y*y <= 9);
                 out += select(((x >= 2 && x <= 4) || (y >= 1 && y <= 3)) && (x*x + y*y <= 16), CONST_(2) , CONST_(0));
                 IF_(((2*y >=x && y<= -(x+3)*(x+3))||(y <= 2*x && y >= -(x+3)*(x+3))) && x <= 0)
                     out += 3;
                 // store_<int64_t>(ptr, offsety + ((x - xmin) << 3), out); //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
-                store_<int64_t>(ptr + offsety + ((x - xmin) << 3), out);
+                store_<int64_t>(ptr + offsety + ((x - CONST_(xmin)) << 3), out);
                 x += 1;
             }
             y += 1;

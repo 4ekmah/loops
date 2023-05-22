@@ -244,8 +244,8 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                         IReg result_rs = result + (W0 << elemshift) * y;
                         IReg Hcond; if (padver) Hcond.copyidx(max(H - ((MULTI_H - 1) * stride_y + kh - 1), CONST_(0)));
                         IReg Wcond; if (padhor) Wcond.copyidx(max(W - (kw + (lanes - 1) * stride_x - 1), CONST_(0)));
-                        VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
-                        VReg<uintM> HcondV = padver ? broadcast<uintM>(H) : VReg<uintM>();
+                        VReg<uintM> WcondV = padhor ? VReg<uintM>(broadcast<uintM>(W)) : VReg<uintM>();
+                        VReg<uintM> HcondV = padver ? VReg<uintM>(broadcast<uintM>(H)) : VReg<uintM>();
                         IReg hldx = W0 - lanes;
 
                         //[Multiline line number][SIMD-complete set of vectors][Deinterleaved load]
@@ -312,7 +312,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                                         VReg<_Tp> arg0;
                                         arg0.copyidx(i==1 ? vertMaxes[n][0][0] : res[n]); 
                                         VReg<_Tp> arg1;
-                                        arg1.copyidx(cur_ext_lane == 0 ? vertMaxes[n][cur_vr][cur_str_lane] : ext(vertMaxes[n][cur_vr][cur_str_lane], vertMaxes[n][cur_vr+1][cur_str_lane], cur_ext_lane));
+                                        arg1.copyidx(cur_ext_lane == 0 ? vertMaxes[n][cur_vr][cur_str_lane] : VReg<_Tp>(ext(vertMaxes[n][cur_vr][cur_str_lane], vertMaxes[n][cur_vr+1][cur_str_lane], cur_ext_lane)));
                                         if(i == 1)
                                             res[n].copyidx(max(arg0, arg1));
                                         else
@@ -365,7 +365,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                         {
                             IReg Wcond; if(padhor) Wcond.copyidx(max(W - (kw + (lanes - 1) * stride_x - 1), CONST_(0)));
                             IReg Hcond; if(padver) Hcond.copyidx(max(H - (kh - 1), CONST_(0)));
-                            VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
+                            VReg<uintM> WcondV = padhor ? VReg<uintM>(broadcast<uintM>(W)) : VReg<uintM>();
                             //[SIMD-complete set of vectors][Deinterleaved load]
                             std::vector<std::vector<VReg<_Tp> > > vertMaxes(horVecsPerOut, 
                                                     std::vector<VReg<_Tp> >(stride_x, VReg<_Tp>()));
@@ -415,7 +415,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
                                         VReg<_Tp> arg0;
                                         arg0.copyidx(i==1 ? vertMaxes[0][0] : res); 
                                         VReg<_Tp> arg1;
-                                        arg1.copyidx(cur_ext_lane == 0 ? vertMaxes[cur_vr][cur_str_lane] : ext(vertMaxes[cur_vr][cur_str_lane], vertMaxes[cur_vr+1][cur_str_lane], cur_ext_lane)); 
+                                        arg1.copyidx(cur_ext_lane == 0 ? vertMaxes[cur_vr][cur_str_lane] : VReg<_Tp>(ext(vertMaxes[cur_vr][cur_str_lane], vertMaxes[cur_vr+1][cur_str_lane], cur_ext_lane))); 
                                         if(i == 1)
                                             res.copyidx(max(arg0, arg1));
                                         else
@@ -619,7 +619,7 @@ void MaxpoolGenerator<_Tp>::loadVector(const IReg& base, std::vector<VReg<_Tp> >
                 else if(dnum > 0)
                     horIdxs += idx_step1;
                 VReg<uintM> mask;
-                mask.copyidx((flags & PADHOR) ? (reinterpret<uintM>(horIdxs) < WcondV) : verMask);
+                mask.copyidx((flags & PADHOR) ? VReg<uintM>(reinterpret<uintM>(horIdxs) < WcondV) : verMask);
                 dest[dnum] = reinterpret<_Tp>( mask & reinterpret<uintM>(dest[dnum]));
             }
         }
@@ -646,8 +646,8 @@ void MaxpoolGenerator<_Tp>::multilineInit(const VReg<uintM>& HcondV, const VReg<
         if(!current_line_is_needed)
             continue;
 
-        VReg<intC> horIdxs = (flags&PADHOR) ? broadcast<intC>(x) + countingPattern : VReg<intC>();
-        VReg<uintM> vertMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
+        VReg<intC> horIdxs = (flags&PADHOR) ? VReg<intC>(broadcast<intC>(x) + countingPattern) : VReg<intC>();
+        VReg<uintM> vertMask = (flags&PADVER) ? VReg<uintM>(broadcast<uintM>(yi) < HcondV) : VReg<uintM>();
         if((flags&PADVER)&&(flags&PADHOR))
         {
             VReg<intC> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
@@ -704,7 +704,7 @@ void MaxpoolGenerator<_Tp>::multilineInitLast(const VReg<uintM>& HcondV, const V
     int vRegNum = horVecsPerOut-1;
     IReg vertMaxesPtr = base + (vRegNum*CTX.vbytes()*stride_x) + (x << elemshift);
     IReg yi = yi_;
-    VReg<intC> horIdxs_ = (flags&PADHOR) ? broadcast<intC>(x+vRegNum*lanes*stride_x) + countingPattern : VReg<intC>();
+    VReg<intC> horIdxs_ = (flags&PADHOR) ? VReg<intC>(broadcast<intC>(x+vRegNum*lanes*stride_x) + countingPattern) : VReg<intC>();
     for(int lrow = 0; lrow < (MULTI_H - 1) * stride_y + kh; lrow++)
     {
         bool current_line_is_needed = false;
@@ -719,9 +719,9 @@ void MaxpoolGenerator<_Tp>::multilineInitLast(const VReg<uintM>& HcondV, const V
         if(!current_line_is_needed)
             continue;
 
-        VReg<uintM> vertMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
+        VReg<uintM> vertMask = (flags&PADVER) ? VReg<uintM>(broadcast<uintM>(yi) < HcondV) : VReg<uintM>();
         VReg<intC> horIdxs;
-        horIdxs.copyidx((flags&PADVER)&&(flags&PADHOR)? select(vertMask, horIdxs_, reinterpret<intC>(WcondV)): horIdxs_);
+        horIdxs.copyidx((flags&PADVER)&&(flags&PADHOR)? VReg<intC>(select(vertMask, horIdxs_, reinterpret<intC>(WcondV))): horIdxs_);
         bool load_into_vmax = (lrow%stride_y == 0) && (lrow/stride_y < MULTI_H);
         std::vector< VReg<_Tp> > loadedVector(stride_x, VReg<_Tp>());
         if(load_into_vmax)
@@ -774,7 +774,7 @@ void MaxpoolGenerator<_Tp>::onlylineInit(const VReg<uintM>& WcondV, IReg& yi_, I
         IReg yi = yi_;
         WHILE_(krow<kh)
         {
-            VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(x) + countingPattern : VReg<intC>();
+            VReg<intC> horIdxs = flags&PADHOR ? VReg<intC>(broadcast<intC>(x) + countingPattern) : VReg<intC>();
             for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
             {
                 std::vector<VReg<_Tp> > loadedVector(stride_x, VReg<_Tp>());
@@ -803,7 +803,7 @@ void MaxpoolGenerator<_Tp>::onlylineInit(const VReg<uintM>& WcondV, IReg& yi_, I
     {
         for(int krow = 0; krow < kh; krow++) 
         {
-            VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(x) + countingPattern : VReg<intC>();
+            VReg<intC> horIdxs = flags&PADHOR ? VReg<intC>(broadcast<intC>(x) + countingPattern) : VReg<intC>();
             for(int vRegNum = 0; vRegNum < horVecsPerOut-1; vRegNum++)
             {
                 if(krow > 0)
@@ -832,7 +832,7 @@ void MaxpoolGenerator<_Tp>::onlylineInitLast(const VReg<uintM>& WcondV, IReg& yi
     VReg<uintM> dummy;
     int lastVRegNum = horVecsPerOut-1;
     IReg vertMaxesPtr = base + lastVRegNum*CTX.vbytes()*stride_x + (x << elemshift);
-    VReg<intC> horIdxs_ = flags&PADHOR ? broadcast<intC>(x+(lastVRegNum*lanes*stride_x)) + countingPattern : VReg<intC>();
+    VReg<intC> horIdxs_ = flags&PADHOR ? VReg<intC>(broadcast<intC>(x+(lastVRegNum*lanes*stride_x)) + countingPattern) : VReg<intC>();
     int ldretsneeded = std::min(((lanes - 1)*stride_x + kw - 1)%(lanes*stride_x), stride_x);
     
     if(flags&PADVER)

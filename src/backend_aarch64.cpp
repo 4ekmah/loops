@@ -363,17 +363,21 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_CMP):
-            Assert(index.size() == 2 && index[0].tag == Arg::IREG);
-            if(index[1].tag == Arg::IREG)
-                return BiT({ BTsta(0x758,11), BTreg(1, 5, In), BTsta(0x0,6), BTreg(0, 5, In), BTsta(0x1F, 5) });
-            if(index[1].tag == Arg::IIMMEDIATE)
-                return BiT({ BTsta(0b1111000100, 10), BTimm(1, 12),  BTreg(0, 5, In), BTsta(0b11111,5)});
-            break;
+        Assert(index.size() == 2 && index[0].tag == Arg::IREG);
+        if(index[1].tag == Arg::IREG)
+            return BiT({ BTsta(0x758,11), BTreg(1, 5, In), BTsta(0x0,6), BTreg(0, 5, In), BTsta(0x1F, 5) });
+        if(index[1].tag == Arg::IIMMEDIATE)
+            return BiT({ BTsta(0b1111000100, 10), BTimm(1, 12),  BTreg(0, 5, In), BTsta(0b11111,5)});
+        break;
     case (AARCH64_CSEL):
-            if (index.size() != 4 || index[0].tag != Arg::IREG || index[1].tag != Arg::IREG || index[2].tag != Arg::IREG || index[3].tag != Arg::IIMMEDIATE)
-                break;
-            return BiT({ BTsta(0b10011010100, 11), BTreg(2, 5, In),  BTimm(3, 4), BTsta(0b00,2), BTreg(1, 5, In), BTreg(0, 5, Out)});
+        if (index.size() != 4 || index[0].tag != Arg::IREG || index[1].tag != Arg::IREG || index[2].tag != Arg::IREG || index[3].tag != Arg::IIMMEDIATE)
             break;
+        return BiT({ BTsta(0b10011010100, 11), BTreg(2, 5, In),  BTimm(3, 4), BTsta(0b00,2), BTreg(1, 5, In), BTreg(0, 5, Out)});
+        break;
+    case (AARCH64_CSET):
+        if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+            return BiT({ BTsta(0b1001101010011111, 16), BTimm(1,4), BTsta(0b0111111, 7), BTreg(0,5,Out) });
+        break;
     case (AARCH64_CINC): return BiT({ BTsta(0b10011010100, 11), BTreg(1,5,In), BTimm(2,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
     case (AARCH64_CNEG): return BiT({ BTsta(0b11011010100, 11), BTreg(1,5,In), BTimm(2,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
     case (AARCH64_LDP):
@@ -1236,6 +1240,10 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             int64_t lower5  = bitfield & 0b00011111;
             return SyT(tarOpcode, { SAcop(0), SAimm(lower5), SAimm(higher3) });
         }
+        else if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0)
+        {
+            return SyT(AARCH64_EOR, { SAcop(0), SAcop(0), SAcop(0) });
+        }
         else if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
         {
             uint64_t bitfield = static_cast<uint64_t>(index[1].value);
@@ -1306,21 +1314,12 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_NEG):      return SyT(AARCH64_NEG, { SAcop(0), SAcop(1) });
     case (OP_CMP):      return SyT(AARCH64_CMP, { SAcop(0), SAcop(1) });
     case (OP_SELECT):
-        if (index.size() == 4)
-        {
-            Assert(index[1].value == OP_NE  ||
-                   index[1].value == OP_EQ  ||
-                   index[1].value == OP_GE  ||
-                   index[1].value == OP_LE  ||
-                   index[1].value == OP_ULE ||
-                   index[1].value == OP_GT  ||
-                   index[1].value == OP_UGT ||
-                   index[1].value == OP_LT  ||
-                   index[1].value == OP_S   ||
-                   index[1].value == OP_NS);
-            
+        if (index.size() == 4 && index[1].value >= OP_GT && index[1].value <= OP_NS)
             return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(ICbytecode2Aarch64(index[1].value)) });
-        }
+        break;
+    case (OP_IVERSON):
+        if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
+            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[1].value))) });
         break;
     case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
     case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
@@ -1835,7 +1834,6 @@ size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<siz
 #error Unsupported OS
 #endif
 
-
 size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     if(basketNum == RB_INT)
@@ -1968,6 +1966,19 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             }
             break;
         }
+        case (OP_MOV):
+            //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
+            if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
+                 ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0) )
+            {
+                if(basketNum == RB_VEC)
+                    return std::set<size_t>({});
+                if (BinTranslation::Token::T_INPUT & flagmask)
+                    return std::set<size_t>({});
+                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                    return std::set<size_t>({0});
+            }
+            break;
         default:
             break;
     };
@@ -2067,6 +2078,7 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_BSL,   "bsl"  },
         {AARCH64_CMP,   "cmp"  },
         {AARCH64_CSEL,  "csel" },
+        {AARCH64_CSET,  "cset"},
         {AARCH64_CINC,  "cinc" },
         {AARCH64_CNEG,  "cneg" },
         {AARCH64_FADD,  "fadd" },
