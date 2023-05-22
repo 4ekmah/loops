@@ -871,6 +871,40 @@ namespace loops
                 }
             }
             break;
+        case (INTEL64_SETE ):
+        case (INTEL64_SETNE):
+        case (INTEL64_SETL ):
+        case (INTEL64_SETG ):
+        case (INTEL64_SETLE):
+        case (INTEL64_SETGE):
+        case (INTEL64_SETS):
+        case (INTEL64_SETNS):
+            if (index.size() == 1)
+            {
+                static uint64_t regbytes[4] = { 0x0f00, 0x400f00, 0x410f00 };
+                uint64_t stat = index.opcode == INTEL64_SETE  ? 0x94 : (
+                                index.opcode == INTEL64_SETNE ? 0x95 : (
+                                index.opcode == INTEL64_SETL  ? 0x9c : (
+                                index.opcode == INTEL64_SETG  ? 0x9f : (
+                                index.opcode == INTEL64_SETLE ? 0x9e : (
+                                index.opcode == INTEL64_SETGE ? 0x9d : (
+                                index.opcode == INTEL64_SETS  ? 0x98 : (
+                              /*index.opcode == INTEL64_SETNS?*/0x99 /*: (*/)))))));
+                if (index[0].tag == Arg::IREG)
+                {
+                    size_t statn = index[0].idx < 4 ? 0 : (index[0].idx < 8 ? 1 : 2);
+                    stat |= regbytes[statn];
+                    size_t n = index[0].idx < 4 ? 2 : 3;
+                    return BiT({ nBkb(n, stat, 5, 0b11000), BTreg(0, 3, Out) });
+                }
+                else if (index[0].tag == Arg::ISPILLED)
+                {
+                    size_t statn = ((index[0].idx < 8) ? 0 : 1);
+                    stat |= regbytes[statn];
+                    return BiT({ BTsta(0x0F948424, 32),  BTspl(0, 32) });
+                }
+            }
+            break;
         case (INTEL64_CQO): return BiT({ BTsta(0x4899, 16) });
         case (INTEL64_XCHG):
         {
@@ -985,7 +1019,16 @@ namespace loops
                 }
             }
             break;
-        case (OP_MOV):     return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
+        case (OP_MOV):
+            if(index.size() == 2)
+            {
+                //TODO(ch): This trick (mov ax, 0 -> xor ax, ax) must be done in different place and, obviously not in architecture-dependent code.
+                if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0) 
+                    return SyT(INTEL64_XOR,  { SAcop(0), SAcop(0) });
+                else
+                    return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
+            }
+            break;
         case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
         case (OP_X86_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
         case (OP_ADD):     return SyT(INTEL64_ADD,  { SAcop(0), SAcop(2) });
@@ -1018,6 +1061,21 @@ namespace loops
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
             break;
+        case (OP_IVERSON): 
+            if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
+            {
+                int tarcode = index[1].value == OP_NE ? INTEL64_SETNE : (
+                              index[1].value == OP_EQ ? INTEL64_SETE : (
+                              index[1].value == OP_GE ? INTEL64_SETGE : (
+                              index[1].value == OP_LE ? INTEL64_SETLE : (
+                              index[1].value == OP_GT ? INTEL64_SETG : (
+                              index[1].value == OP_LT ? INTEL64_SETL : (
+                              index[1].value == OP_S  ? INTEL64_SETS : (
+                            /*index[1].value == OP_NS?*/INTEL64_SETNS /* : throw error*/)))))));
+                return SyT(tarcode, { SAcop(0) });
+            }
+            break;
+
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
         case (OP_JCC):
@@ -1044,13 +1102,30 @@ namespace loops
         return SyntopTranslation();
     }
 
+    class Intel64BRASnippets : public CompilerPass
+    {
+    public:
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
+        virtual ~Intel64BRASnippets() override {}
+        virtual bool is_inplace() const override final { return false; }
+        virtual PassID pass_id() const override final { return CP_INTEL64_BRA_SNIPPETS; }
+        static CompilerPassPtr make(const Backend* a_backend)
+        {
+            std::shared_ptr<Intel64BRASnippets> res;
+            res.reset(new Intel64BRASnippets(a_backend));
+            return std::static_pointer_cast<CompilerPass>(res);
+        } 
+    private: 
+        Intel64BRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
+    };
+
     class Intel64ARASnippets : public CompilerPass
     {
     public:
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual PassID pass_id() const override final { return CP_INTEL64_SNIPPETS; }
+        virtual PassID pass_id() const override final { return CP_INTEL64_ARA_SNIPPETS; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64ARASnippets> res;
@@ -1074,6 +1149,7 @@ namespace loops
         m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
+        m_beforeRegAllocPasses.push_back(Intel64BRASnippets::make(this));
         m_afterRegAllocPasses.push_back(Intel64ARASnippets::make(this));
 #if __LOOPS_OS == __LOOPS_WINDOWS
         m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
@@ -1136,6 +1212,10 @@ namespace loops
         case(OP_SELECT):
             Assert(a_op.size() == 4);
             return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<size_t>({2}) : std::set<size_t>({});
+            break;
+        case(OP_IVERSON):
+            Assert(a_op.size() == 2);
+            return (toFilter.count(0) ? std::set<size_t>({0}) : std::set<size_t>({}));
             break;
         case(OP_ABS):
             Assert(a_op.size() == 2);
@@ -1279,6 +1359,29 @@ namespace loops
                 }
                 break;
             }
+            case (OP_IVERSON):
+            {
+                Assert(a_op.size() == 2);
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                {
+                    actualRegs = makeBitmask64({ 0 });
+                    inRegs = makeBitmask64({ 0 });     //Note: This is lie, appended because Iverson bracket on intel work only with preliminarly zeroing of output. 
+                    outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                break;
+            }
+            case (OP_MOV):
+                //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
+                if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
+                     (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0) )
+                {
+                    actualRegs = makeBitmask64({ 0 });
+                    inRegs = makeBitmask64({});
+                    outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                break;
             default:
                 break;
         };
@@ -1388,6 +1491,14 @@ namespace loops
             {INTEL64_CMOVGE, "cmovge"},
             {INTEL64_CMOVS,   "cmovs"},
             {INTEL64_CMOVNS, "cmovns"},
+            {INTEL64_SETE,     "sete"},
+            {INTEL64_SETNE,   "setne"},
+            {INTEL64_SETL,     "setl"},
+            {INTEL64_SETG,     "setg"},
+            {INTEL64_SETLE,   "setle"},
+            {INTEL64_SETGE,   "setge"},
+            {INTEL64_SETS,     "sets"},
+            {INTEL64_SETNS,   "setns"},
             {INTEL64_JMP,       "jmp"},
             {INTEL64_JNE,       "jne"},
             {INTEL64_JE,        "je" },
@@ -1477,6 +1588,29 @@ namespace loops
             if (address)
                 out << "]";
         };
+    }
+
+    void Intel64BRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    {
+        a_dest.name = a_source.name;
+        a_dest.params = a_source.params;
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+        a_dest.program.reserve(2 * a_source.program.size());
+        for (const Syntop& op : a_source.program)
+            switch (op.opcode)
+            {
+            case OP_IVERSON:
+                //Unfortunately, Intel's setcc works only with 8-bit wide reigsters, like al or r8b, so register must be preliminarily zeroed.
+                Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && (op[0].tag == Arg::IREG || op[0].tag == Arg::ISPILLED) &&
+                       a_dest.program.size() && a_dest.program.back().opcode == OP_CMP);
+                a_dest.program.insert(a_dest.program.end() - 1, Syntop(OP_MOV, { op[0], Arg(0) }));
+                a_dest.program.push_back(op);
+                break;
+            default:
+                a_dest.program.push_back(op);
+                break;
+            }
     }
 
     void Intel64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)

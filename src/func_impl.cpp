@@ -32,6 +32,19 @@ std::string type_suffixes[] = { //TODO(ch): find a better place for this
     "fp64",
 };
 
+static std::unordered_map<int, std::string> cond_suffixes = {
+    {OP_EQ,      "eq"},
+    {OP_NE,      "ne"},
+    {OP_GE,      "ge"},
+    {OP_LE,      "le"},
+    {OP_ULE,     "ule"},
+    {OP_GT,      "gt"},
+    {OP_UGT,     "ugt"},
+    {OP_LT,      "gt"},
+    {OP_S,       "s"},
+    {OP_NS,      "ns"},
+};
+
 std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {OP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "load." << type_suffixes[op.args[0].elemtype];
@@ -41,23 +54,21 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         str << "store." << type_suffixes[_Tp];
     }},
     {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE);
-        static std::unordered_map<int, std::string> cond_suffixes = {
-            {OP_EQ,      "eq"},
-            {OP_NE,      "ne"},
-            {OP_GE,      "ge"},
-            {OP_LE,      "le"},
-            {OP_ULE,     "ule"},
-            {OP_GT,      "gt"},
-            {OP_UGT,     "ugt"},
-            {OP_LT,      "gt"},
-        };
+        Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[0].value) != cond_suffixes.end());
         str << "jmp_" << cond_suffixes[op[0].value] << " "<< op[1].value;
     }},
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Wrong LABEL format");
         str << "label " << op.args[0] << ":";
+    }},
+    {OP_SELECT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        Assert(op.size() == 4 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[1].value) != cond_suffixes.end());
+        str << "select_" << cond_suffixes[op[1].value];
+    }},
+    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[1].value) != cond_suffixes.end());
+        str << "iverson_" << cond_suffixes[op[1].value];
     }},
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
@@ -194,7 +205,9 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
         for(size_t anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
         if(op.size() > 1) str<<op[op.size() - 1];
         str << ")";
-    }}
+    }},
+    {OP_SELECT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0]<<", "<< op[2]<<", "<<op[3];}},
+    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}},
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
@@ -214,7 +227,6 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
     {OP_NOT,         "not"},
     {OP_NEG,         "neg"},
     {OP_CMP,         "cmp"},
-    {OP_SELECT,      "select"},
     {OP_MIN,         "min"},
     {OP_MAX,         "max"},
     {OP_ABS,         "abs"},

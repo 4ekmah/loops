@@ -17,7 +17,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include "arm_neon.h"
 #include "test/tests.hpp"
-//TODO(ch): There must not be Recipes in user code.
+//TODO(ch): There must not be Exprs in user code.
 namespace loops
 {
 
@@ -51,7 +51,7 @@ private:
     void onlylineHandler(const VReg<uintM>& WcondV, IReg& yi, IReg& xo, const IReg& xi, IReg& base, const IReg& result_rs, int flags);
     void loadVector(const IReg& base, int64_t offset, VReg<_Tp>& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags = 0);
     void loadVectorStride(const IReg& base, std::vector<VReg<_Tp> >& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int retsneeded, int flags = 0);
-    IRecipe effective_const_mul(const IReg& m1, int m2);
+    IExpr effective_const_mul(const IReg& m1, int m2);
 
     //Common parameters and registers
     int kh, kw, elemsize, elemshift, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, activation_type;
@@ -244,20 +244,20 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         IReg xo = CONST_(0);
                         IReg Hcond; if(padver) Hcond.copyidx(max(H - ((MULTI_H - 1) * stride_y + kh - 1), CONST_(0)));
                         IReg Wcond; if(padhor) Wcond.copyidx(max(W - (kw + (CTX.vlanes<_Tp>() - 1) * stride_x - 1), CONST_(0)));
-                        VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
-                        VReg<uintM> HcondV = padver ? broadcast<uintM>(H) : VReg<uintM>();
+                        VReg<uintM> WcondV = padhor ? VReg<uintM>(broadcast<uintM>(W)) : VReg<uintM>();
+                        VReg<uintM> HcondV = padver ? VReg<uintM>(broadcast<uintM>(H)) : VReg<uintM>();
                         IReg hldx = W0 - CTX.vlanes<_Tp>();
                         IReg rstride = W0<<elemshift;
                         WHILE_(xo < W0)
                         {
                             xo = select(xo > hldx , hldx , xo);
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             IReg data__ = data_rs + (xi << elemshift);
                             if(padhor||padver)
                             {
                                 IReg yi; if(padver) yi.copyidx(effective_const_mul(y, stride_y) - padding_top);
-                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IRecipe(xi);
+                                IReg xcond = padver&&padhor ? select(ult(yi,Hcond), xi, Wcond) : IExpr(xi);
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 {
                                     multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, 0);
@@ -287,17 +287,17 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         {
                             IReg Wcond; if(padhor) Wcond.copyidx(max(W - (kw + (CTX.vlanes<_Tp>() - 1) * stride_x - 1), CONST_(0)));
                             IReg Hcond; if(padver) Hcond.copyidx(max(H - (kh - 1), CONST_(0)));
-                            VReg<uintM> WcondV = padhor ? broadcast<uintM>(W) : VReg<uintM>();
+                            VReg<uintM> WcondV = padhor ? VReg<uintM>(broadcast<uintM>(W)) : VReg<uintM>();
                             WHILE_(xo < xie)
                             {
                                 IReg xi;
-                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                                xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                                 IReg data__ = data_rs + (xi << elemshift);
                                 if(padhor||padver)
                                 {
                                     IReg yi; if(padver) yi.copyidx(effective_const_mul(y, stride_y) - padding_top);
                                     IReg xcond;
-                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IRecipe(xi));
+                                    xcond.copyidx(padhor && padver ? select(ult(yi, Hcond), xi, Wcond): IExpr(xi));
                                     IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                                     {
                                         onlylineHandler(WcondV, yi, xo, xi, data__, result_rs, 0);
@@ -313,7 +313,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                         WHILE_(xo < scalarEnd)
                         {
                             IReg xi;
-                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IRecipe(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
+                            xi.copyidx(stride_x == 1 && padding_left == 0 ? IExpr(xo) : (padding_left ? effective_const_mul(xo, stride_x) - padding_left : effective_const_mul(xo, stride_x)));
                             VReg<_Tp> vres = vbias;
                             IReg data__ = data_rs + (xi << elemshift);
                             IReg kernel__ = kernel;
@@ -329,7 +329,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 if(padhor||padver)
                                 {
                                     IReg ex = xi + kcol;
-                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IRecipe(y)) + krow;
+                                    IReg ey = (padver ? effective_const_mul(y, stride_y) - padding_top : IExpr(y)) + krow;
                                     select(ex < 0, W, ex);
                                     select(ey < 0, H, ey);
                                     IF_(ult(ex,W))
@@ -407,8 +407,8 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                 }
             if(!current_line_is_needed)
                 continue;
-            VReg<intC> horIdxs = (flags&PADHOR) ? broadcast<intC>(xi) + countingPattern : VReg<intC>();
-            VReg<uintM> verMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
+            VReg<intC> horIdxs = (flags&PADHOR) ? VReg<intC>(broadcast<intC>(xi) + countingPattern) : VReg<intC>();
+            VReg<uintM> verMask = (flags&PADVER) ? VReg<uintM>(broadcast<uintM>(yi) < HcondV) : VReg<uintM>();
             if((flags&PADVER)&&(flags&PADHOR))
             {
                 VReg<intC> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
@@ -460,8 +460,8 @@ void DepthwiseconvGenerator<_Tp>::multilineHandler(const VReg<uintM>& HcondV, co
                 }
             if(!current_line_is_needed)
                 continue;
-            VReg<intC> horIdxs = (flags&PADHOR) ? broadcast<intC>(xi) + countingPattern : VReg<intC>();
-            VReg<uintM> verMask = (flags&PADVER) ? broadcast<uintM>(yi) < HcondV : VReg<uintM>();
+            VReg<intC> horIdxs = (flags&PADHOR) ? VReg<intC>(broadcast<intC>(xi) + countingPattern) : VReg<intC>();
+            VReg<uintM> verMask = (flags&PADVER) ? VReg<uintM>(broadcast<uintM>(yi) < HcondV) : VReg<uintM>();
             if((flags&PADVER)&&(flags&PADHOR))
             {
                 VReg<intC> antiSpill = horIdxs; //TODO(ch): remove it when snippet management will be better.
@@ -567,7 +567,7 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
                 }
                 IReg kptr = kernel + krow * (kw * elemsize);
                 VReg<uintM> dummy;
-                VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(xi) + countingPattern : VReg<intC>();
+                VReg<intC> horIdxs = flags&PADHOR ? VReg<intC>(broadcast<intC>(xi) + countingPattern) : VReg<intC>();
                 std::vector< VReg<_Tp> > prev_loaded(stride_x, VReg<_Tp>());
                 for(int kcol = 0; kcol < kw; kcol++) 
                 {
@@ -648,7 +648,7 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
                 }
                 IReg kptr = kernel + krow * (kw * elemsize);
                 VReg<uintM> dummy;
-                VReg<intC> horIdxs = flags&PADHOR ? broadcast<intC>(xi) + countingPattern : VReg<intC>();
+                VReg<intC> horIdxs = flags&PADHOR ? VReg<intC>(broadcast<intC>(xi) + countingPattern) : VReg<intC>();
                 VReg<_Tp> loadedHalf0, loadedHalf1;
                 loadVector(base, 0, loadedHalf0, horIdxs, dummy, WcondV, INITDEST | lvflags);
                 if(kw > 1)
@@ -707,7 +707,7 @@ void DepthwiseconvGenerator<_Tp>::loadVector(const IReg& base, int64_t offset, V
             if((flags&PREINCREMENT_IDXS) && (flags & PADHOR))
                 horIdxs += idx_step;
             VReg<uintM> mask;
-            mask.copyidx((flags & PADHOR) ? (reinterpret<uintM>(horIdxs) < WcondV) : verMask);
+            mask.copyidx((flags & PADHOR) ? VReg<uintM>(reinterpret<uintM>(horIdxs) < WcondV) : verMask);
             dest = reinterpret<_Tp>( mask & reinterpret<uintM>(dest));
         }
     }
@@ -737,17 +737,17 @@ void DepthwiseconvGenerator<_Tp>::loadVectorStride(const IReg& base, std::vector
                 if(((flags&PREINCREMENT_IDXS) || (dnum > 0)) && (flags & PADHOR))
                     horIdxs += idx_step;
                 VReg<uintM> mask;
-                mask.copyidx((flags & PADHOR) ? (reinterpret<uintM>(horIdxs) < WcondV) : verMask);
+                mask.copyidx((flags & PADHOR) ? VReg<uintM>(reinterpret<uintM>(horIdxs) < WcondV) : verMask);
                 dest[dnum] = reinterpret<_Tp>( mask & reinterpret<uintM>(dest[dnum]));
             }
         }
 }
 
 template<typename _Tp>
-IRecipe DepthwiseconvGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
+IExpr DepthwiseconvGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
 {
     if(m2 == 1)
-        return IRecipe(m1);
+        return IExpr(m1);
     else if(m2>0 && (((m2 - 1) & m2) == 0))
     {
         int degree = -1;

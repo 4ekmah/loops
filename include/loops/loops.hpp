@@ -53,145 +53,146 @@ enum {
     OP_NEG          =  16,
     OP_CMP          =  17,
     OP_SELECT       =  18, //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
-    OP_MIN          =  19,
-    OP_MAX          =  20,
-    OP_ABS          =  21,
-    OP_SIGN         =  22,
+    OP_IVERSON      =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise 
+    OP_MIN          =  20,
+    OP_MAX          =  21,
+    OP_ABS          =  22,
+    OP_SIGN         =  23,
    
-    OP_ROUND        =  23,
-    OP_FLOOR        =  24,
-    OP_CEIL         =  25,
+    OP_ROUND        =  24,
+    OP_FLOOR        =  25,
+    OP_CEIL         =  26,
 
     //For service usage only
-    OP_SPILL        =  26, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
-    OP_UNSPILL      =  27, //OP_UNSPILL <reg>, <stack_pos>
-    OP_GT           =  28,
-    OP_UGT          =  29,
-    OP_GE           =  30,
-    OP_LT           =  31,
-    OP_LE           =  32,
-    OP_ULE          =  33,
-    OP_NE           =  34,
-    OP_EQ           =  35,
-    OP_S            =  36,
-    OP_NS           =  37,
+    OP_SPILL        =  27, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL      =  28, //OP_UNSPILL <reg>, <stack_pos>
+    OP_GT           =  29,
+    OP_UGT          =  30,
+    OP_GE           =  31,
+    OP_LT           =  32,
+    OP_LE           =  33,
+    OP_ULE          =  34,
+    OP_NE           =  35,
+    OP_EQ           =  36,
+    OP_S            =  37,
+    OP_NS           =  38,
     
-    OP_LOGICAL_AND  =  38,
-    OP_LOGICAL_OR   =  39,
-    OP_LOGICAL_NOT  =  40,
+    OP_LOGICAL_AND  =  39,
+    OP_LOGICAL_OR   =  40,
+    OP_LOGICAL_NOT  =  41,
     
-    OP_JMP          =  41, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
-    OP_JCC          =  42, //OP_JCC <cmpcode>, <target_label>
-    OP_RET          =  43,
-    OP_CALL         =  44, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
-    OP_CALL_NORET   =  45, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
-    OP_LABEL        =  46,
+    OP_JMP          =  42, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
+    OP_JCC          =  43, //OP_JCC <cmpcode>, <target_label>
+    OP_RET          =  44,
+    OP_CALL         =  45, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
+    OP_CALL_NORET   =  46, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
+    OP_LABEL        =  47,
     
-    OP_STEM_CSTART  =  47,
+    OP_STEM_CSTART  =  48,
     
-    OP_IF_CSTART    =  48,
-    OP_ELIF_CSTART  =  49, //OP_ELIF_CSTART <elselabel>, <outlabel>
-    OP_IF_CEND      =  50, //OP_IF_CEND
-    OP_ELSE         =  51, //OP_ELSE <elselabel>, <outlabel>
-    OP_ENDIF        =  52, //OP_ENDIF <outlabel>
+    OP_IF_CSTART    =  49,
+    OP_ELIF_CSTART  =  50, //OP_ELIF_CSTART <elselabel>, <outlabel>
+    OP_IF_CEND      =  51, //OP_IF_CEND
+    OP_ELSE         =  52, //OP_ELSE <elselabel>, <outlabel>
+    OP_ENDIF        =  53, //OP_ENDIF <outlabel>
 
-    OP_WHILE_CSTART =  53, //OP_WHILE_CSTART <continuelabel>
-    OP_WHILE_CEND   =  54, //OP_WHILE_CEND
-    OP_ENDWHILE     =  55, //OP_ENDWHILE <continuelabel>, <breaklabel>
-    OP_BREAK        =  56,
-    OP_CONTINUE     =  57,
-    VOP_LOAD        =  58,
-    VOP_STORE       =  59,
-    VOP_ADD         =  60,
-    VOP_SUB         =  61,
-    VOP_MUL         =  62,
-    VOP_DIV         =  63,
+    OP_WHILE_CSTART =  54, //OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND   =  55, //OP_WHILE_CEND
+    OP_ENDWHILE     =  56, //OP_ENDWHILE <continuelabel>, <breaklabel>
+    OP_BREAK        =  57,
+    OP_CONTINUE     =  58,
+    VOP_LOAD        =  59,
+    VOP_STORE       =  60,
+    VOP_ADD         =  61,
+    VOP_SUB         =  62,
+    VOP_MUL         =  63,
+    VOP_DIV         =  64,
 //    VOP_MOD,
-    VOP_FMA         =  64,
-    VOP_SAL         =  65,
-    VOP_SHL         =  66,
-    VOP_SAR         =  67,
-    VOP_SHR         =  68,
-    VOP_AND         =  69,
-    VOP_OR          =  70,
-    VOP_XOR         =  71,
-    VOP_NOT         =  72,
-    VOP_NEG         =  73,
+    VOP_FMA         =  65,
+    VOP_SAL         =  66,
+    VOP_SHL         =  67,
+    VOP_SAR         =  68,
+    VOP_SHR         =  69,
+    VOP_AND         =  70,
+    VOP_OR          =  71,
+    VOP_XOR         =  72,
+    VOP_NOT         =  73,
+    VOP_NEG         =  74,
 
-    VOP_MIN         =  74,
-    VOP_MAX         =  75,
+    VOP_MIN         =  75,
+    VOP_MAX         =  76,
 
-    VOP_GT          =  76,
-    VOP_GE          =  77,
-    VOP_LT          =  78,
-    VOP_LE          =  79,
-    VOP_NE          =  80,
-    VOP_EQ          =  81,
+    VOP_GT          =  77,
+    VOP_GE          =  78,
+    VOP_LT          =  79,
+    VOP_LE          =  80,
+    VOP_NE          =  81,
+    VOP_EQ          =  82,
 
-    VOP_SELECT      =  82,
+    VOP_SELECT      =  83,
     
-    VOP_ALL         =  83,
-    VOP_ANY         =  84,
-    VOP_TRUNC       =  85,
-    VOP_FLOOR       =  86,
-    VOP_CAST        =  87,
-    VOP_REINTERPRET =  88,
-    VOP_BROADCAST   =  89,
-    VOP_CAST_LOW    =  90,
-    VOP_CAST_HIGH   =  91,
-    VOP_SHRINK_LOW  =  92,
-    VOP_SHRINK_HIGH =  93,
-    VOP_SHRINK      =  94,
-    VOP_REDUCE_MAX  =  95,
-    VOP_REDUCE_MIN  =  96,
+    VOP_ALL         =  84,
+    VOP_ANY         =  85,
+    VOP_TRUNC       =  86,
+    VOP_FLOOR       =  87,
+    VOP_CAST        =  88,
+    VOP_REINTERPRET =  89,
+    VOP_BROADCAST   =  90,
+    VOP_CAST_LOW    =  91,
+    VOP_CAST_HIGH   =  92,
+    VOP_SHRINK_LOW  =  93,
+    VOP_SHRINK_HIGH =  94,
+    VOP_SHRINK      =  95,
+    VOP_REDUCE_MAX  =  96,
+    VOP_REDUCE_MIN  =  97,
 
 //Intel-only operations:
-    OP_X86_ADC      =  97, //Add with carry flag.
-    OP_X86_CQO      =  98,
+    OP_X86_ADC      =  98, //Add with carry flag.
+    OP_X86_CQO      =  99,
 //Aarch64-only operations:
-    OP_ARM_CINC     =  99, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG     = 100,
-    OP_ARM_MOVK     = 101, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP      = 102,
-    OP_ARM_STP      = 103,
-    VOP_ARM_LD1     = 104,
-    VOP_ARM_ST1     = 105,
-    VOP_ARM_LD2     = 106,
-    VOP_ARM_EXT     = 107,
-    VOP_GETLANE     = 108,
-    VOP_SETLANE     = 109,
+    OP_ARM_CINC     = 100, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG     = 101,
+    OP_ARM_MOVK     = 102, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP      = 103,
+    OP_ARM_STP      = 104,
+    VOP_ARM_LD1     = 105,
+    VOP_ARM_ST1     = 106,
+    VOP_ARM_LD2     = 107,
+    VOP_ARM_EXT     = 108,
+    VOP_GETLANE     = 109,
+    VOP_SETLANE     = 110,
 
-    OP_DEF          = 110,
-    VOP_DEF         = 111,
+    OP_DEF          = 111,
+    VOP_DEF         = 112,
 
-    OP_NOINIT       = 112,
+    OP_NOINIT       = 113,
 };
 
 enum
 {
-    RECIPE_LEAF = OP_NOINIT + 1
+    EXPR_LEAF = OP_NOINIT + 1
 };
 
 template<typename _Tp> struct ElemTraits {};
 class Func;
-class Recipe;
-class IRecipe;
+class Expr;
+class IExpr;
 
 struct IReg
 {
     IReg();
     IReg(const IReg& r); //Must generate copy(mov) code
-    IReg(const IRecipe& fromwho);
+    IReg(const IExpr& fromwho);
     IReg& operator=(const IReg& r); // may generate real code if 'this' is already initialized
-    IReg& operator=(const IRecipe& fromwho);
+    IReg& operator=(const IExpr& fromwho);
     // copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     // Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
     // Two most obvious usages are late initializtion for registers are elements of dynamic arrays and register
     // aliases(sometimes it's convinient to use different variables in one expression accordingly to current
     // generation situation.)
     void copyidx(const IReg& from);
-    // This one checks if IRecipe contains only register leaf and copies index. Otherwise it creates new register
-    void copyidx(const IRecipe& from);
+    // This one checks if IExpr contains only register leaf and copies index. Otherwise it creates new register
+    void copyidx(const IExpr& from);
 
     int idx;
     Func* func;
@@ -199,16 +200,16 @@ struct IReg
 };
 
 class Context;
-template <typename _Tp> class VRecipe;
+template <typename _Tp> class VExpr;
 template<typename _Tp> struct VReg
 {
     typedef _Tp elemtype;
 
     VReg() : idx(NOIDX), func(nullptr) {}
     VReg(const VReg<_Tp>& r);
-    VReg(const VRecipe<_Tp>& fromwho);
+    VReg(const VExpr<_Tp>& fromwho);
     VReg<_Tp>& operator=(const VReg<_Tp>& r);
-    VReg<_Tp>& operator=(const VRecipe<_Tp>& fromwho);
+    VReg<_Tp>& operator=(const VExpr<_Tp>& fromwho);
      /*
     copyidx is a way to work with IReg/VReg like with regular objects, like it needed for sophisticated generation logic.
     Unlike usual copy, this function doesn't have any effects, it doesn't change current buffer of function.
@@ -217,7 +218,7 @@ template<typename _Tp> struct VReg
     generation situation.) 
     */   
     void copyidx(const VReg<_Tp>& from);
-    void copyidx(const VRecipe<_Tp>& from);
+    void copyidx(const VExpr<_Tp>& from);
 
     int idx;
     Func* func;
@@ -250,88 +251,88 @@ struct Arg
     size_t elemtype;
 };
 
-struct __loops_RecipeStr_;
-class Recipe
+struct __loops_ExprStr_;
+class Expr
 {
 public:
-    inline Recipe();
-    inline Recipe(const Recipe& fromwho);
-    inline Recipe& operator=(const Recipe& fromwho);
-    inline Recipe(const Arg& a_leaf);
-    inline Recipe(int64_t a_leaf);
-    inline ~Recipe();
+    inline Expr();
+    inline Expr(const Expr& fromwho);
+    inline Expr& operator=(const Expr& fromwho);
+    inline Expr(const Arg& a_leaf);
+    inline Expr(int64_t a_leaf);
+    inline ~Expr();
     inline int& opcode();
     inline bool& is_vector();
     inline bool is_leaf() const;
     inline int& type();
     inline Arg& leaf();
-    inline std::vector<Recipe>& children();
+    inline std::vector<Expr>& children();
     inline Func*& func();
     inline int opcode() const;
     inline bool is_vector() const ;
     inline int type() const;
     inline const Arg& leaf() const;
-    inline const std::vector<Recipe>& children() const;
+    inline const std::vector<Expr>& children() const;
     inline Func* func() const;
     inline bool empty() const;
     Func* infer_owner(Func* preinfered = nullptr); 
     //+add assertions on class construction.
-    __loops_RecipeStr_* pointee;
+    __loops_ExprStr_* pointee;
 };
 
-class IRecipe
+class IExpr
 {
 public:
-    Recipe super;
-    IRecipe() {}
-    // inline IRecipe(const IRecipe& fromwho) : Recipe(fromwho) {}
-    inline IRecipe(const IReg& a_leaf);
-    inline IRecipe(int a_opcode, int a_type, std::initializer_list<Recipe> a_children);
-    inline IRecipe(int a_opcode, int a_type, std::vector<Recipe> a_children);
-    Recipe notype() const { return super; }
+    Expr super;
+    IExpr() {}
+    // inline IExpr(const IExpr& fromwho) : Expr(fromwho) {}
+    inline IExpr(const IReg& a_leaf);
+    inline IExpr(int a_opcode, int a_type, std::initializer_list<Expr> a_children);
+    inline IExpr(int a_opcode, int a_type, std::vector<Expr> a_children);
+    Expr notype() const { return super; }
 
     inline int& opcode() {return super.opcode();} 
     inline bool& is_vector() {return super.is_vector();} 
     inline bool is_leaf() const {return super.is_leaf();} 
     inline int& type() {return super.type();} 
     inline Arg& leaf() {return super.leaf();} 
-    inline std::vector<Recipe>& children() {return super.children();} 
+    inline std::vector<Expr>& children() {return super.children();} 
     inline int opcode() const {return super.opcode();} 
     inline bool is_vector() const {return super.is_vector();} 
     inline int type() const {return super.type();} 
     inline const Arg& leaf() const {return super.leaf();} 
-    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline const std::vector<Expr>& children() const {return super.children();} 
     inline bool empty() const {return super.empty();} 
 
 };
 
 template <typename _Tp>
-class VRecipe
+class VExpr
 {
 public:
-    Recipe super;
+    Expr super;
 
-    VRecipe() {}
-    static inline VRecipe<_Tp> make(const VReg<_Tp>& a_leaf);
-    inline VRecipe(int a_opcode, std::initializer_list<Recipe> a_children);
-    inline VRecipe(int a_opcode, std::vector<Recipe> a_children);
-    Recipe notype() const {return super;}
+    VExpr() {}
+    inline VExpr<_Tp>(const VReg<_Tp>& a_leaf);
+    inline VExpr(int a_opcode, std::initializer_list<Expr> a_children);
+    inline VExpr(int a_opcode, std::vector<Expr> a_children);
+    Expr notype() const {return super;}
 
     inline int& opcode() {return super.opcode();} 
     inline bool& is_vector() {return super.is_vector();} 
     inline bool is_leaf() const {return super.is_leaf();} 
     inline int& type() {return super.type();} 
     inline Arg& leaf() {return super.leaf();} 
-    inline std::vector<Recipe>& children() {return super.children();} 
+    inline std::vector<Expr>& children() {return super.children();} 
     inline int opcode() const {return super.opcode();} 
     inline bool is_vector() const {return super.is_vector();} 
     inline int type() const {return super.type();} 
     inline const Arg& leaf() const {return super.leaf();} 
-    inline const std::vector<Recipe>& children() const {return super.children();} 
+    inline const std::vector<Expr>& children() const {return super.children();} 
     inline bool empty() const {return super.empty();}     
 };
 
-Context ExtractContext(const Recipe& arg);
+Context ExtractContext(const Expr& arg);
 
 class Func
 {
@@ -432,16 +433,16 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 //Call signature:
 //
 //IReg CALL_(pfunc0 fptr);
-//IReg CALL_(pfunc1 fptr, const IRecipe& ar0);
+//IReg CALL_(pfunc1 fptr, const IExpr& ar0);
 //...
-//IReg CALL_(pfunc8 fptr, const IRecipe& arg0, ..., const IRecipe& arg7);
+//IReg CALL_(pfunc8 fptr, const IExpr& arg0, ..., const IExpr& arg7);
 //
 //or
 //
 //CALL_(pfunc0_ret0 fptr);
-//CALL_(pfunc1_ret0 fptr, const IRecipe& ar0);
+//CALL_(pfunc1_ret0 fptr, const IExpr& ar0);
 //...
-//CALL_(pfunc8_ret0 fptr, const IRecipe& arg0, ..., const IRecipe& arg7);
+//CALL_(pfunc8_ret0 fptr, const IExpr& arg0, ..., const IExpr& arg7);
 //
 //Note: first form returns IReg and can be used in expression. Calculation of expressions with functions can behave differently to
 //C++ behaviour, e.g in such condition:
@@ -454,351 +455,351 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 
 ///////////////////////////// integer operations ///////////////////////
 // Load with zero/sign extension:
-static inline IRecipe loadx(const IRecipe& base, int depth);
-static inline IRecipe loadx(const IRecipe& base, const IRecipe& offset, int depth);
-static inline IRecipe loadx(const IRecipe& base, int64_t offset, int depth);
+static inline IExpr loadx(const IExpr& base, int depth);
+static inline IExpr loadx(const IExpr& base, const IExpr& offset, int depth);
+static inline IExpr loadx(const IExpr& base, int64_t offset, int depth);
 
-template<typename _Tp> IRecipe load_(const IRecipe& base);
-template<typename _Tp> IRecipe load_(const IRecipe& base, const IRecipe& offset);
-template<typename _Tp> IRecipe load_(const IRecipe& base, int64_t offset);
+template<typename _Tp> IExpr load_(const IExpr& base);
+template<typename _Tp> IExpr load_(const IExpr& base, const IExpr& offset);
+template<typename _Tp> IExpr load_(const IExpr& base, int64_t offset);
 
 // store part of register
-static inline void storex(const IRecipe& base, const IRecipe& r, int depth);
-static inline void storex(const IRecipe& base, int64_t a, int depth);
-static inline void storex(const IRecipe& base, const IRecipe& offset, const IRecipe& r, int depth);
-static inline void storex(const IRecipe& base, int64_t offset, const IRecipe& r, int depth);
-static inline void storex(const IRecipe& base, const IRecipe& offset, int64_t a, int depth);
-static inline void storex(const IRecipe& base, int64_t offset, int64_t a, int depth);
-static inline void store(const IRecipe& base, const IRecipe& r);
-static inline void store(const IRecipe& base, const IRecipe& offset, const IRecipe& r);
-template<typename _Tp> void store_(const IRecipe& base, const IRecipe& r);
-template<typename _Tp> void store_(const IRecipe& base, int64_t a);
-template<typename _Tp> void store_(const IRecipe& base, const IRecipe& offset, const IRecipe& r);
-template<typename _Tp> void store_(const IRecipe& base, int64_t offset, const IRecipe& r);
-template<typename _Tp> void store_(const IRecipe& base, const IRecipe& offset, int64_t a);
-template<typename _Tp> void store_(const IRecipe& base, int64_t offset, int64_t a);
+static inline void storex(const IExpr& base, const IExpr& r, int depth);
+static inline void storex(const IExpr& base, int64_t a, int depth);
+static inline void storex(const IExpr& base, const IExpr& offset, const IExpr& r, int depth);
+static inline void storex(const IExpr& base, int64_t offset, const IExpr& r, int depth);
+static inline void storex(const IExpr& base, const IExpr& offset, int64_t a, int depth);
+static inline void storex(const IExpr& base, int64_t offset, int64_t a, int depth);
+static inline void store(const IExpr& base, const IExpr& r);
+static inline void store(const IExpr& base, const IExpr& offset, const IExpr& r);
+template<typename _Tp> void store_(const IExpr& base, const IExpr& r);
+template<typename _Tp> void store_(const IExpr& base, int64_t a);
+template<typename _Tp> void store_(const IExpr& base, const IExpr& offset, const IExpr& r);
+template<typename _Tp> void store_(const IExpr& base, int64_t offset, const IExpr& r);
+template<typename _Tp> void store_(const IExpr& base, const IExpr& offset, int64_t a);
+template<typename _Tp> void store_(const IExpr& base, int64_t offset, int64_t a);
 
 
 // Integer arithmetic and bitwise operations:
-static inline IRecipe operator + (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator + (const IRecipe& a, int64_t b);
-static inline IRecipe operator + (int64_t a, const IRecipe& b);
-static inline IRecipe operator - (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator - (const IRecipe& a, int64_t b);
-static inline IRecipe operator - (int64_t a, const IRecipe& b);
-static inline IRecipe operator * (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator * (const IRecipe& a, int64_t b);
-static inline IRecipe operator * (int64_t a, const IRecipe& b);
-static inline IRecipe operator / (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator / (const IRecipe& a, int64_t b);
-static inline IRecipe operator / (int64_t a, const IRecipe& b);
-static inline IRecipe operator % (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator % (const IRecipe& a, int64_t b);
-static inline IRecipe operator % (int64_t a, const IRecipe& b);
-static inline IRecipe operator - (const IRecipe& a);
-static inline IRecipe operator >> (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator >> (const IRecipe& a, int64_t b);
-static inline IRecipe operator >> (int64_t a, const IRecipe& b);
-static inline IRecipe ushift_right(const IRecipe& a, const IRecipe& b);
-static inline IRecipe ushift_right(const IRecipe& a, int64_t b);
-static inline IRecipe ushift_right(int64_t a, const IRecipe& b);
-static inline IRecipe operator <<(const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator <<(const IRecipe& a, int64_t b);
-static inline IRecipe operator <<(int64_t a, const IRecipe& b);
-static inline IRecipe operator & (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator & (const IRecipe& a, int64_t b);
-static inline IRecipe operator & (int64_t a, const IRecipe& b);
-static inline IRecipe operator | (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator | (const IRecipe& a, int64_t b);
-static inline IRecipe operator | (int64_t a, const IRecipe& b);
-static inline IRecipe operator ^ (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator ^ (const IRecipe& a, int64_t b);
-static inline IRecipe operator ^ (int64_t a, const IRecipe& b);
-static inline IRecipe operator ~ (const IRecipe& a);
+static inline IExpr operator + (const IExpr& a, const IExpr& b);
+static inline IExpr operator + (const IExpr& a, int64_t b);
+static inline IExpr operator + (int64_t a, const IExpr& b);
+static inline IExpr operator - (const IExpr& a, const IExpr& b);
+static inline IExpr operator - (const IExpr& a, int64_t b);
+static inline IExpr operator - (int64_t a, const IExpr& b);
+static inline IExpr operator * (const IExpr& a, const IExpr& b);
+static inline IExpr operator * (const IExpr& a, int64_t b);
+static inline IExpr operator * (int64_t a, const IExpr& b);
+static inline IExpr operator / (const IExpr& a, const IExpr& b);
+static inline IExpr operator / (const IExpr& a, int64_t b);
+static inline IExpr operator / (int64_t a, const IExpr& b);
+static inline IExpr operator % (const IExpr& a, const IExpr& b);
+static inline IExpr operator % (const IExpr& a, int64_t b);
+static inline IExpr operator % (int64_t a, const IExpr& b);
+static inline IExpr operator - (const IExpr& a);
+static inline IExpr operator >> (const IExpr& a, const IExpr& b);
+static inline IExpr operator >> (const IExpr& a, int64_t b);
+static inline IExpr operator >> (int64_t a, const IExpr& b);
+static inline IExpr ushift_right(const IExpr& a, const IExpr& b);
+static inline IExpr ushift_right(const IExpr& a, int64_t b);
+static inline IExpr ushift_right(int64_t a, const IExpr& b);
+static inline IExpr operator <<(const IExpr& a, const IExpr& b);
+static inline IExpr operator <<(const IExpr& a, int64_t b);
+static inline IExpr operator <<(int64_t a, const IExpr& b);
+static inline IExpr operator & (const IExpr& a, const IExpr& b);
+static inline IExpr operator & (const IExpr& a, int64_t b);
+static inline IExpr operator & (int64_t a, const IExpr& b);
+static inline IExpr operator | (const IExpr& a, const IExpr& b);
+static inline IExpr operator | (const IExpr& a, int64_t b);
+static inline IExpr operator | (int64_t a, const IExpr& b);
+static inline IExpr operator ^ (const IExpr& a, const IExpr& b);
+static inline IExpr operator ^ (const IExpr& a, int64_t b);
+static inline IExpr operator ^ (int64_t a, const IExpr& b);
+static inline IExpr operator ~ (const IExpr& a);
 
 // Comparisson and logical operations:
-static inline IRecipe operator == (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator == (const IRecipe& a, int64_t b);
-static inline IRecipe operator == (int64_t a, const IRecipe& b);
-static inline IRecipe operator != (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator != (const IRecipe& a, int64_t b);
-static inline IRecipe operator != (int64_t a, const IRecipe& b);
-static inline IRecipe operator <= (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator <= (const IRecipe& a, int64_t b);
-static inline IRecipe operator <= (int64_t a, const IRecipe& b);
-static inline IRecipe ule(const IRecipe& a, const IRecipe& b);
-static inline IRecipe ule(const IRecipe& a, int64_t b);
-static inline IRecipe ule(int64_t a, const IRecipe& b);
-static inline IRecipe operator >= (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator >= (const IRecipe& a, int64_t b);
-static inline IRecipe operator >= (int64_t a, const IRecipe& b);
-static inline IRecipe uge(const IRecipe& a, const IRecipe& b);
-static inline IRecipe uge(const IRecipe& a, int64_t b);
-static inline IRecipe uge(int64_t a, const IRecipe& b);
-static inline IRecipe operator > (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator > (const IRecipe& a, int64_t b);
-static inline IRecipe operator >  (int64_t a, const IRecipe& b);
-static inline IRecipe ugt(const IRecipe& a, const IRecipe& b);
-static inline IRecipe ugt(const IRecipe& a, int64_t b);
-static inline IRecipe ugt(int64_t a, const IRecipe& b);
-static inline IRecipe operator < (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator < (const IRecipe& a, int64_t b);
-static inline IRecipe operator <  (int64_t a, const IRecipe& b);
-static inline IRecipe ult(const IRecipe& a, const IRecipe& b);
-static inline IRecipe ult(const IRecipe& a, int64_t b);
-static inline IRecipe ult(int64_t a, const IRecipe& b);
-static inline IRecipe operator && (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator || (const IRecipe& a, const IRecipe& b);
-static inline IRecipe operator ! (const IRecipe& a);
+static inline IExpr operator == (const IExpr& a, const IExpr& b);
+static inline IExpr operator == (const IExpr& a, int64_t b);
+static inline IExpr operator == (int64_t a, const IExpr& b);
+static inline IExpr operator != (const IExpr& a, const IExpr& b);
+static inline IExpr operator != (const IExpr& a, int64_t b);
+static inline IExpr operator != (int64_t a, const IExpr& b);
+static inline IExpr operator <= (const IExpr& a, const IExpr& b);
+static inline IExpr operator <= (const IExpr& a, int64_t b);
+static inline IExpr operator <= (int64_t a, const IExpr& b);
+static inline IExpr ule(const IExpr& a, const IExpr& b);
+static inline IExpr ule(const IExpr& a, int64_t b);
+static inline IExpr ule(int64_t a, const IExpr& b);
+static inline IExpr operator >= (const IExpr& a, const IExpr& b);
+static inline IExpr operator >= (const IExpr& a, int64_t b);
+static inline IExpr operator >= (int64_t a, const IExpr& b);
+static inline IExpr uge(const IExpr& a, const IExpr& b);
+static inline IExpr uge(const IExpr& a, int64_t b);
+static inline IExpr uge(int64_t a, const IExpr& b);
+static inline IExpr operator > (const IExpr& a, const IExpr& b);
+static inline IExpr operator > (const IExpr& a, int64_t b);
+static inline IExpr operator >  (int64_t a, const IExpr& b);
+static inline IExpr ugt(const IExpr& a, const IExpr& b);
+static inline IExpr ugt(const IExpr& a, int64_t b);
+static inline IExpr ugt(int64_t a, const IExpr& b);
+static inline IExpr operator < (const IExpr& a, const IExpr& b);
+static inline IExpr operator < (const IExpr& a, int64_t b);
+static inline IExpr operator <  (int64_t a, const IExpr& b);
+static inline IExpr ult(const IExpr& a, const IExpr& b);
+static inline IExpr ult(const IExpr& a, int64_t b);
+static inline IExpr ult(int64_t a, const IExpr& b);
+static inline IExpr operator && (const IExpr& a, const IExpr& b);
+static inline IExpr operator || (const IExpr& a, const IExpr& b);
+static inline IExpr operator ! (const IExpr& a);
 
 //Augmenting operations:
-static inline IReg& operator += (IReg& a, const IRecipe& b);
+static inline IReg& operator += (IReg& a, const IExpr& b);
 static inline IReg& operator += (IReg& a, int64_t b);
-static inline IReg& operator -= (IReg& a, const IRecipe& b);
+static inline IReg& operator -= (IReg& a, const IExpr& b);
 static inline IReg& operator -= (IReg& a, int64_t b);
-static inline IReg& operator *= (IReg& a, const IRecipe& b);
+static inline IReg& operator *= (IReg& a, const IExpr& b);
 static inline IReg& operator *= (IReg& a, int64_t b);
-static inline IReg& operator /= (IReg& a, const IRecipe& b);
+static inline IReg& operator /= (IReg& a, const IExpr& b);
 static inline IReg& operator /= (IReg& a, int64_t b);
-static inline IReg& operator %= (IReg& a, const IRecipe& b);
+static inline IReg& operator %= (IReg& a, const IExpr& b);
 static inline IReg& operator %= (IReg& a, int64_t b);
-static inline IReg& operator >>= (IReg& a, const IRecipe& b);
+static inline IReg& operator >>= (IReg& a, const IExpr& b);
 static inline IReg& operator >>= (IReg& a, int64_t b);
-static inline IReg& operator <<= (IReg& a, const IRecipe& b);
+static inline IReg& operator <<= (IReg& a, const IExpr& b);
 static inline IReg& operator <<= (IReg& a, int64_t b);
-static inline IReg& operator &= (IReg& a, const IRecipe& b);
+static inline IReg& operator &= (IReg& a, const IExpr& b);
 static inline IReg& operator &= (IReg& a, int64_t b);
-static inline IReg& operator |= (IReg& a, const IRecipe& b);
+static inline IReg& operator |= (IReg& a, const IExpr& b);
 static inline IReg& operator |= (IReg& a, int64_t b);
-static inline IReg& operator ^= (IReg& a, const IRecipe& b);
+static inline IReg& operator ^= (IReg& a, const IExpr& b);
 static inline IReg& operator ^= (IReg& a, int64_t b);
 
 //Other integer operations:
-static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, const IRecipe& false_);
-static inline IRecipe select(const IRecipe& cond, int64_t true_, const IRecipe& false_);
-static inline IRecipe select(const IRecipe& cond, const IRecipe& true_, int64_t false_);
-static inline IRecipe max(const IRecipe& a, const IRecipe& b);
-static inline IRecipe max(const IRecipe& a, int64_t b);
-static inline IRecipe max(int64_t a, const IRecipe& b);
-static inline IRecipe min(const IRecipe& a, const IRecipe& b);
-static inline IRecipe min(const IRecipe& a, int64_t b);
-static inline IRecipe min(int64_t a, const IRecipe& b);
-static inline IRecipe abs(const IRecipe& a);
-static inline IRecipe sign(const IRecipe& a);
-IRecipe pow(const IRecipe& a, int p);
+static inline IExpr select(const IExpr& cond, const IExpr& true_, const IExpr& false_);
+static inline IExpr select(const IExpr& cond, int64_t true_, const IExpr& false_);
+static inline IExpr select(const IExpr& cond, const IExpr& true_, int64_t false_);
+static inline IExpr max(const IExpr& a, const IExpr& b);
+static inline IExpr max(const IExpr& a, int64_t b);
+static inline IExpr max(int64_t a, const IExpr& b);
+static inline IExpr min(const IExpr& a, const IExpr& b);
+static inline IExpr min(const IExpr& a, int64_t b);
+static inline IExpr min(int64_t a, const IExpr& b);
+static inline IExpr abs(const IExpr& a);
+static inline IExpr sign(const IExpr& a);
+IExpr pow(const IExpr& a, int p);
 
 ///////////////////////////// vector operations ///////////////////////
 // Load with zero/sign extension:
-template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base);
-template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, const IRecipe& offset);
-template<typename _Tp> VRecipe<_Tp> loadvec(const IRecipe& base, int64_t offset);
-template<typename _Tp> VRecipe<_Tp> loadlane(const IRecipe& base, int64_t lane_index);
+template<typename _Tp> VExpr<_Tp> loadvec(const IExpr& base);
+template<typename _Tp> VExpr<_Tp> loadvec(const IExpr& base, const IExpr& offset);
+template<typename _Tp> VExpr<_Tp> loadvec(const IExpr& base, int64_t offset);
+template<typename _Tp> VExpr<_Tp> loadlane(const IExpr& base, int64_t lane_index);
 //TODO(ch): find a way to delete next warning:
 //WARNING! It's assumed here, that res1 and res2 are not initialized yet.
-//template<typename _Tp> std::pair<Recipe, Recipe> loadvec_deinterleave2(const Recipe& base); //TODO(ch): optimal form of signature
-template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IRecipe& base);
+//template<typename _Tp> std::pair<Expr, Expr> loadvec_deinterleave2(const Expr& base); //TODO(ch): optimal form of signature
+template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IExpr& base);
 
 // Store:
-template<typename _Tp> void storevec(const IRecipe& base, const VRecipe<_Tp>& r);
-template<typename _Tp> void storevec(const IRecipe& base, const    VReg<_Tp>& r);
-template<typename _Tp> void storevec(const IRecipe& base, const IRecipe& offset, const VRecipe<_Tp>& r);
-template<typename _Tp> void storevec(const IRecipe& base, const IRecipe& offset, const    VReg<_Tp>& r);
-template<typename _Tp> void storelane(const IRecipe& base, const VRecipe<_Tp>& r, int64_t lane_index);
-template<typename _Tp> void storelane(const IRecipe& base, const    VReg<_Tp>& r, int64_t lane_index);
+template<typename _Tp> void storevec(const IExpr& base, const VExpr<_Tp>& r);
+template<typename _Tp> void storevec(const IExpr& base, const    VReg<_Tp>& r);
+template<typename _Tp> void storevec(const IExpr& base, const IExpr& offset, const VExpr<_Tp>& r);
+template<typename _Tp> void storevec(const IExpr& base, const IExpr& offset, const    VReg<_Tp>& r);
+template<typename _Tp> void storelane(const IExpr& base, const VExpr<_Tp>& r, int64_t lane_index);
+template<typename _Tp> void storelane(const IExpr& base, const    VReg<_Tp>& r, int64_t lane_index);
 
 // Casts:
-//template<typename _Tp> VRecipe<_Tp> add_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-//template<typename _Tp> VRecipe<_Tp> sub_wrap(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Dp, typename _Tp> VRecipe<_Dp> cast(const VRecipe<_Tp>& a);
-template<typename _Dp, typename _Tp> VRecipe<_Dp> cast(const    VReg<_Tp>& a);
-template<typename _Dp, typename _Tp> VRecipe<_Dp> reinterpret(const VRecipe<_Tp>& a);
-template<typename _Dp, typename _Tp> VRecipe<_Dp> reinterpret(const    VReg<_Tp>& a);
-template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<f16_t>& a); //Convert with rounding to zero
-template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<f16_t>& a);
-template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<float>& a);
-template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<float>& a);
-template<typename _Dp> VRecipe<_Dp> trunc(const VRecipe<double>& a);
-template<typename _Dp> VRecipe<_Dp> trunc(const    VReg<double>& a);
-template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<f16_t>& a); //Convert with rounding to minus infinity
-template<typename _Dp> VRecipe<_Dp> floor(const    VReg<f16_t>& a);
-template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<float>& a);
-template<typename _Dp> VRecipe<_Dp> floor(const    VReg<float>& a);
-template<typename _Dp> VRecipe<_Dp> floor(const VRecipe<double>& a);
-template<typename _Dp> VRecipe<_Dp> floor(const    VReg<double>& a);
+//template<typename _Tp> VExpr<_Tp> add_wrap(const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+//template<typename _Tp> VExpr<_Tp> sub_wrap(const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Dp, typename _Tp> VExpr<_Dp> cast(const VExpr<_Tp>& a);
+template<typename _Dp, typename _Tp> VExpr<_Dp> cast(const    VReg<_Tp>& a);
+template<typename _Dp, typename _Tp> VExpr<_Dp> reinterpret(const VExpr<_Tp>& a);
+template<typename _Dp, typename _Tp> VExpr<_Dp> reinterpret(const    VReg<_Tp>& a);
+template<typename _Dp> VExpr<_Dp> trunc(const VExpr<f16_t>& a); //Convert with rounding to zero
+template<typename _Dp> VExpr<_Dp> trunc(const    VReg<f16_t>& a);
+template<typename _Dp> VExpr<_Dp> trunc(const VExpr<float>& a);
+template<typename _Dp> VExpr<_Dp> trunc(const    VReg<float>& a);
+template<typename _Dp> VExpr<_Dp> trunc(const VExpr<double>& a);
+template<typename _Dp> VExpr<_Dp> trunc(const    VReg<double>& a);
+template<typename _Dp> VExpr<_Dp> floor(const VExpr<f16_t>& a); //Convert with rounding to minus infinity
+template<typename _Dp> VExpr<_Dp> floor(const    VReg<f16_t>& a);
+template<typename _Dp> VExpr<_Dp> floor(const VExpr<float>& a);
+template<typename _Dp> VExpr<_Dp> floor(const    VReg<float>& a);
+template<typename _Dp> VExpr<_Dp> floor(const VExpr<double>& a);
+template<typename _Dp> VExpr<_Dp> floor(const    VReg<double>& a);
 
 //TODO(ch): cvtTp -> ceil, cvtTe -> round, also cast(double <=> float, float <=> f16_t)
-template<typename _Tp> VRecipe<_Tp> broadcast(const IRecipe& scalar);
-template<typename _Tp> VRecipe<_Tp> broadcast(const VRecipe<_Tp>& inp, int64_t ilane_index);
-template<typename _Tp> VRecipe<_Tp> broadcast(const    VReg<_Tp>& inp, int64_t ilane_index);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VRecipe<_Tp>& r);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_low(const    VReg<_Tp>& r);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VRecipe<_Tp>& r);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::duplicatetype> cast_high(const    VReg<_Tp>& r);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const VRecipe<_Tp>& r0, const VRecipe<_Tp>& r1);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const VRecipe<_Tp>& r0, const    VReg<_Tp>& r1);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const VRecipe<_Tp>& r1);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const    VReg<_Tp>& r1);
+template<typename _Tp> VExpr<_Tp> broadcast(const IExpr& scalar);
+template<typename _Tp> VExpr<_Tp> broadcast(const VExpr<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> VExpr<_Tp> broadcast(const    VReg<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_low(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_low(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_high(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const VExpr<_Tp>& r0, const VExpr<_Tp>& r1);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const VExpr<_Tp>& r0, const    VReg<_Tp>& r1);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const VExpr<_Tp>& r1);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const    VReg<_Tp>& r0, const    VReg<_Tp>& r1);
 
 //Lane manipulations:
-//template<typename _Tp> IRecipe all(VRecipe<_Tp>& a);
-//template<typename _Tp> IRecipe any(VRecipe<_Tp>& a);
-template<typename _Tp> IRecipe getlane(const VRecipe<_Tp>& r, int64_t lane_index);
-template<typename _Tp> IRecipe getlane(const    VReg<_Tp>& r, int64_t lane_index);
-template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const IRecipe& i);
-template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const IRecipe& i);
-template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const VRecipe<_Tp>& inp, int64_t ilane_index);
-template<typename _Tp> void setlane(const VRecipe<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index);
-template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const VRecipe<_Tp>& inp, int64_t ilane_index);
+//template<typename _Tp> IExpr all(VExpr<_Tp>& a);
+//template<typename _Tp> IExpr any(VExpr<_Tp>& a);
+template<typename _Tp> IExpr getlane(const VExpr<_Tp>& r, int64_t lane_index);
+template<typename _Tp> IExpr getlane(const    VReg<_Tp>& r, int64_t lane_index);
+template<typename _Tp> void setlane(const VExpr<_Tp>& v, int64_t lane_index, const IExpr& i);
+template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const IExpr& i);
+template<typename _Tp> void setlane(const VExpr<_Tp>& v, int64_t lane_index, const VExpr<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> void setlane(const VExpr<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index);
+template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const VExpr<_Tp>& inp, int64_t ilane_index);
 template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index);
-template<typename _Tp> VRecipe<_Tp> reduce_max(const VRecipe<_Tp>& r);
-template<typename _Tp> VRecipe<_Tp> reduce_max(const    VReg<_Tp>& r);
-template<typename _Tp> VRecipe<_Tp> reduce_min(const VRecipe<_Tp>& r);
-template<typename _Tp> VRecipe<_Tp> reduce_min(const    VReg<_Tp>& r);
-template<typename _Tp> VRecipe<_Tp> ext(const VRecipe<_Tp>& n, const VRecipe<_Tp>& m, int64_t index);
-template<typename _Tp> VRecipe<_Tp> ext(const VRecipe<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
-template<typename _Tp> VRecipe<_Tp> ext(const    VReg<_Tp>& n, const VRecipe<_Tp>& m, int64_t index);
-template<typename _Tp> VRecipe<_Tp> ext(const    VReg<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
+template<typename _Tp> VExpr<_Tp> reduce_max(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> reduce_max(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> reduce_min(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> reduce_min(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const VExpr<_Tp>& m, int64_t index);
+template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
+template<typename _Tp> VExpr<_Tp> ext(const    VReg<_Tp>& n, const VExpr<_Tp>& m, int64_t index);
+template<typename _Tp> VExpr<_Tp> ext(const    VReg<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
 
 // Arithmetic and bitwise operations:
-template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator + (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator + (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator + (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator * (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator * (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator * (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator * (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator / (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator / (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator / (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator / (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-//template<typename _Tp> VRecipe<_Tp> operator % (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator - (const VRecipe<_Tp>& a);
-template<typename _Tp> VRecipe<_Tp> operator - (const    VReg<_Tp>& a);
+template<typename _Tp> VExpr<_Tp> operator + (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator + (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator + (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator + (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator - (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator - (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator - (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator - (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator * (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator * (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator * (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator * (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator / (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator / (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator / (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator / (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+//template<typename _Tp> VExpr<_Tp> operator % (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator - (const VExpr<_Tp>& a);
+template<typename _Tp> VExpr<_Tp> operator - (const    VReg<_Tp>& a);
 
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const VRecipe<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const VRecipe<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VRecipe<_Tp>& c, int64_t index);
-template<typename _Tp> VRecipe<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const VExpr<_Tp>& b, const VExpr<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const VExpr<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const    VReg<_Tp>& b, const VExpr<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const VExpr<_Tp>& b, const VExpr<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const VExpr<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VExpr<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const VExpr<_Tp>& b, const VExpr<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const VExpr<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const    VReg<_Tp>& b, const VExpr<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const VExpr<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const VExpr<_Tp>& b, const VExpr<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const VExpr<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const VExpr<_Tp>& c, int64_t index);
+template<typename _Tp> VExpr<_Tp> fma(const    VReg<_Tp>& a, const    VReg<_Tp>& b, const    VReg<_Tp>& c, int64_t index);
 
-template<typename _Tp> VRecipe<_Tp> pow(const VRecipe<_Tp>& a, int p);
-template<typename _Tp> VRecipe<_Tp> pow(const VReg<_Tp>& a, int p);
+template<typename _Tp> VExpr<_Tp> pow(const VExpr<_Tp>& a, int p);
+template<typename _Tp> VExpr<_Tp> pow(const VReg<_Tp>& a, int p);
 
 struct exp_consts;
 exp_consts expInit(Context CTX);
-VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt);
-static inline VRecipe<float> exp(const VReg<float>& x, const exp_consts& expt);
+VExpr<float> exp(const VExpr<float>& x, const exp_consts& expt);
+static inline VExpr<float> exp(const VReg<float>& x, const exp_consts& expt);
 
-//template<typename _Tp, typename _Sp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp> VRecipe<_Tp> operator >> (const VRecipe<_Tp>& a, int64_t b);
-//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_right(const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp> VRecipe<_Tp> ushift_right (const VRecipe<_Tp>& a, int64_t b);
-template<typename _Tp> VRecipe<_Tp> ushift_right (const VReg<_Tp>& a, int64_t b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const    VReg<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, const    VReg<_Sp>& b);
-template<typename _Tp> VRecipe<_Tp> operator << (const VRecipe<_Tp>& a, int64_t b);
-//template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left(const VRecipe<_Tp>& a, int64_t b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const VRecipe<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const    VReg<_Tp>& a, const VRecipe<_Sp>& b);
-template<typename _Tp, typename _Sp> VRecipe<_Tp> ushift_left (const VRecipe<_Tp>& a, const    VReg<_Sp>& b);
-template<typename _Tp> VRecipe<_Tp> operator & (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator & (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator & (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator & (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator | (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator | (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator | (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator | (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator ^ (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator ^ (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator ^ (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator ^ (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> operator ~ (const VRecipe<_Tp>& a);
-template<typename _Tp> VRecipe<_Tp> operator ~ (const    VReg<_Tp>& a);
+//template<typename _Tp, typename _Sp> VExpr<_Tp> operator >> (const VExpr<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp> VExpr<_Tp> operator >> (const VExpr<_Tp>& a, int64_t b);
+//template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_right(const VExpr<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp> VExpr<_Tp> ushift_right (const VExpr<_Tp>& a, int64_t b);
+template<typename _Tp> VExpr<_Tp> ushift_right (const VReg<_Tp>& a, int64_t b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> operator << (const VExpr<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> operator << (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> operator << (const    VReg<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> operator << (const VExpr<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp> VExpr<_Tp> operator << (const VExpr<_Tp>& a, int64_t b);
+//template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_left(const VExpr<_Tp>& a, int64_t b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_left (const VExpr<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_left (const    VReg<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_left (const    VReg<_Tp>& a, const VExpr<_Sp>& b);
+template<typename _Tp, typename _Sp> VExpr<_Tp> ushift_left (const VExpr<_Tp>& a, const    VReg<_Sp>& b);
+template<typename _Tp> VExpr<_Tp> operator & (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator & (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator & (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator & (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator | (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator | (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator | (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator | (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator ^ (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator ^ (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator ^ (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator ^ (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> operator ~ (const VExpr<_Tp>& a);
+template<typename _Tp> VExpr<_Tp> operator ~ (const    VReg<_Tp>& a);
 
 // Vector comparisson and masking:
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator == (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator != (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >= (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <= (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator >  (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<typename ElemTraits<_Tp>::masktype> operator <  (const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const VRecipe<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VRecipe<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VRecipe<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
-template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> max(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> max(const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> max(const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> min(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> min(const    VReg<_Tp>& a, const VRecipe<_Tp>& b);
-template<typename _Tp> VRecipe<_Tp> min(const VRecipe<_Tp>& a, const    VReg<_Tp>& b);
-//template<typename _Tp> VRecipe<_Tp> abs(const VRecipe<_Tp>& a);
-//template<typename _Tp> VRecipe<_Tp> sign(const VRecipe<_Tp>& a);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator != (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator != (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator != (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >= (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >= (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >= (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <= (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <= (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <= (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >  (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >  (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator >  (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <  (const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <  (const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator <  (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> select(const VExpr<typename ElemTraits<_Tp>::masktype>& flag, const VExpr<_Tp>& iftrue, const VExpr<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const VExpr<typename ElemTraits<_Tp>::masktype>& flag, const VExpr<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const VExpr<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VExpr<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const VExpr<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VExpr<_Tp>& iftrue, const VExpr<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const VExpr<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const VExpr<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> select(const    VReg<typename ElemTraits<_Tp>::masktype>& flag, const    VReg<_Tp>& iftrue, const    VReg<_Tp>& iffalse);
+template<typename _Tp> VExpr<_Tp> max(const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> max(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> max(const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> max(const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> min(const VExpr<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> min(const    VReg<_Tp>& a, const    VReg<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> min(const    VReg<_Tp>& a, const VExpr<_Tp>& b);
+template<typename _Tp> VExpr<_Tp> min(const VExpr<_Tp>& a, const    VReg<_Tp>& b);
+//template<typename _Tp> VExpr<_Tp> abs(const VExpr<_Tp>& a);
+//template<typename _Tp> VExpr<_Tp> sign(const VExpr<_Tp>& a);
 
 //Augmenting operations:
-template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator += (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator -= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator *= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator /= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator %=  (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
-//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const VRecipe<_Tp>& b)
+//template<typename _Tp> VReg<_Tp>& operator %=  (VReg<_Tp>& _a, const VExpr<_Tp>& b);
+//template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const VExpr<_Tp>& b)
 template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, int64_t _b);
-template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator >>= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator <<= (VReg<_Tp>& _a, int64_t _b);
-template<typename _Tp> VReg<_Tp>& operator  &= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  &= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator  &= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator  |= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  |= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator  |= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
-template<typename _Tp> VReg<_Tp>& operator  ^= (VReg<_Tp>& _a, const VRecipe<_Tp>& b);
+template<typename _Tp> VReg<_Tp>& operator  ^= (VReg<_Tp>& _a, const VExpr<_Tp>& b);
 template<typename _Tp> VReg<_Tp>& operator  ^= (VReg<_Tp>& _a, const    VReg<_Tp>& b);
 }
 #include "loops.ipp"

@@ -127,10 +127,10 @@ namespace loops
     #endif 
     }
 
-    static FuncImpl* verify_owner(::std::initializer_list<Recipe> args)
+    static FuncImpl* verify_owner(::std::initializer_list<Expr> args)
     {
         Func* inferedfunc = nullptr;
-        for(Recipe arg : args)
+        for(Expr arg : args)
             if(arg.func() != nullptr) 
             {
                 inferedfunc = arg.func();
@@ -138,7 +138,7 @@ namespace loops
             }
         if (inferedfunc == nullptr)
             throw std::runtime_error("Cannot find mother function in expression arguments.");
-        for(Recipe arg : args)
+        for(Expr arg : args)
             if(arg.func() == nullptr)
                 arg.infer_owner(inferedfunc);
             else if(arg.func() != inferedfunc)
@@ -148,13 +148,13 @@ namespace loops
 
     IReg::IReg() : idx(NOIDX), func(nullptr) {}
 
-    IReg::IReg(const IRecipe& fromwho)
+    IReg::IReg(const IExpr& fromwho)
     {
-        Recipe from_(fromwho.notype());
+        Expr from_(fromwho.notype());
         func = verify_owner({from_});
-        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
+        if(fromwho.opcode() == EXPR_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
             throw std::runtime_error("Direct immediate assignment must be done via CONST_ operator, e.g.:\n    IReg var = CONST_(val);\n");
-        Recipe fromwho_(fromwho.notype());
+        Expr fromwho_(fromwho.notype());
         Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho_);
         Assert(unpacked.tag == Arg::IREG);
         idx = unpacked.idx;
@@ -164,7 +164,7 @@ namespace loops
     {
         if(r.func != nullptr)
         {
-            Recipe fromwho = IRecipe(r).notype();
+            Expr fromwho = IExpr(r).notype();
             func = verify_owner({fromwho});
             Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho);
             Assert(unpacked.tag == Arg::IREG);
@@ -185,11 +185,11 @@ namespace loops
         idx = from.idx;
     }
 
-    void IReg::copyidx(const IRecipe& from)
+    void IReg::copyidx(const IExpr& from)
     {
         if(from.is_leaf() && from.leaf().tag == Arg::IREG)
         {
-            Recipe from_(from.notype());
+            Expr from_(from.notype());
             Func* newfunc = verify_owner({from_});
             if(func != nullptr && func != newfunc)
                 throw std::runtime_error("Registers of different functions in idx assignment.");
@@ -202,21 +202,21 @@ namespace loops
 
     IReg& IReg::operator=(const IReg& r)
     {
-        IRecipe fromwho(r);
+        IExpr fromwho(r);
         return operator=(fromwho);
     }
 
-    IReg& IReg::operator=(const IRecipe& fromwho)
+    IReg& IReg::operator=(const IExpr& fromwho)
     {
-        Recipe fromwho_(fromwho.notype());
-        Recipe me(*this);
+        Expr fromwho_(fromwho.notype());
+        Expr me(*this);
         verify_owner({me, fromwho_})->get_code_collecting()->reg_assign(me, fromwho_);
         return (*this);
     }
 
     Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), tag(Arg::IIMMEDIATE), value(a_value), flags(0){}
 
-    Func* Recipe::infer_owner(Func* preinfered)
+    Func* Expr::infer_owner(Func* preinfered)
     {
         Func* inferedfunc = preinfered ? preinfered : func();
         if(!is_leaf())
@@ -225,7 +225,7 @@ namespace loops
                 if(children()[i].func() != nullptr)
                     inferedfunc = children()[i].func();
             if(inferedfunc)
-                for(Recipe& child : children())
+                for(Expr& child : children())
                     if(child.func() == nullptr)
                         child.infer_owner(inferedfunc);
                     else if(child.func() != inferedfunc)
@@ -277,25 +277,25 @@ namespace loops
         return ret;
     }
     
-    Context ExtractContext(const Recipe& arg)
+    Context ExtractContext(const Expr& arg)
     {
-        Recipe arg_(arg);
+        Expr arg_(arg);
         return verify_owner({arg_})->getContext()->getOwner();
     }
 
-    void newiopNoret(int opcode, ::std::initializer_list<Recipe> args)
+    void newiopNoret(int opcode, ::std::initializer_list<Expr> args)
     {
         verify_owner(args)->get_code_collecting()->newiopNoret(opcode, args);
     }
 
-    IRecipe pow(const IRecipe& a, int p)
+    IExpr pow(const IExpr& a, int p)
     {
         Context CTX = ExtractContext(a.notype());
         USE_CONTEXT_(CTX);
         if(p == 0)
             return CONST_(1);
-        IRecipe _a = a;
-        IRecipe res;
+        IExpr _a = a;
+        IExpr res;
         while (p)
             if (p & 1) 
             {
@@ -310,7 +310,7 @@ namespace loops
         return res;
     }
     
-    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IRecipe& base)
+    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IExpr& base)
     {
         verify_owner({base.notype()})->get_code_collecting()->loadvec_deinterleave2_(res1, res2, base.notype());
     }
@@ -356,10 +356,10 @@ namespace loops
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_STEM_CSTART, {});
     }
 
-    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const IRecipe& condition) : CTX(inh.CTX), cftype(_cftype)
+    __Loops_CFScopeBracket_::__Loops_CFScopeBracket_(const __Loops_CondPrefixMarker_& inh, CFType _cftype, const IExpr& condition) : CTX(inh.CTX), cftype(_cftype)
     {
         CodeCollecting* coll = getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting();
-        Recipe condition_(condition.notype());
+        Expr condition_(condition.notype());
         switch (_cftype)
         {
         case(IF):
@@ -398,127 +398,127 @@ namespace loops
     void __Loops_CF_rvalue_::break_(){ getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(); }
     void __Loops_CF_rvalue_::continue_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(); }
     void __Loops_CF_rvalue_::return_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(); }
-    void __Loops_CF_rvalue_::return_(const IRecipe& r) { Recipe r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
-    void __Loops_CF_rvalue_::return_(int64_t r) { Recipe r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
+    void __Loops_CF_rvalue_::return_(const IExpr& r) { Expr r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
+    void __Loops_CF_rvalue_::return_(int64_t r) { Expr r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
     void __Loops_CF_rvalue_::call_(funcptr0_noret_t fptr)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)) });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)) });
     }
     
-    void __Loops_CF_rvalue_::call_(funcptr1_noret_t fptr, const IRecipe& arg0)
+    void __Loops_CF_rvalue_::call_(funcptr1_noret_t fptr, const IExpr& arg0)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr2_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1)
+    void __Loops_CF_rvalue_::call_(funcptr2_noret_t fptr, const IExpr& arg0, const IExpr& arg1)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr3_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2)
+    void __Loops_CF_rvalue_::call_(funcptr3_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr4_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3)
+    void __Loops_CF_rvalue_::call_(funcptr4_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr5_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4)
+    void __Loops_CF_rvalue_::call_(funcptr5_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr6_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5)
+    void __Loops_CF_rvalue_::call_(funcptr6_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr7_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6)
+    void __Loops_CF_rvalue_::call_(funcptr7_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr8_noret_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6, const IRecipe& arg7)
+    void __Loops_CF_rvalue_::call_(funcptr8_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
     {
-        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Recipe(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype() });
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype() });
     }
 
     IReg __Loops_CF_rvalue_::call_(funcptr0_t fptr)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr1_t fptr, const IRecipe& arg0)
+    IReg __Loops_CF_rvalue_::call_(funcptr1_t fptr, const IExpr& arg0)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr2_t fptr, const IRecipe& arg0, const IRecipe& arg1)
+    IReg __Loops_CF_rvalue_::call_(funcptr2_t fptr, const IExpr& arg0, const IExpr& arg1)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr3_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2)
+    IReg __Loops_CF_rvalue_::call_(funcptr3_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr4_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3)
+    IReg __Loops_CF_rvalue_::call_(funcptr4_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr5_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4)
+    IReg __Loops_CF_rvalue_::call_(funcptr5_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr6_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5)
+    IReg __Loops_CF_rvalue_::call_(funcptr6_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype()});
         return IReg(res);
     }
         
-    IReg __Loops_CF_rvalue_::call_(funcptr7_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6)
+    IReg __Loops_CF_rvalue_::call_(funcptr7_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype()});
         return IReg(res);
     }
 
-    IReg __Loops_CF_rvalue_::call_(funcptr8_t fptr, const IRecipe& arg0, const IRecipe& arg1, const IRecipe& arg2, const IRecipe& arg3, const IRecipe& arg4, const IRecipe& arg5, const IRecipe& arg6, const IRecipe& arg7)
+    IReg __Loops_CF_rvalue_::call_(funcptr8_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
     {
-        Recipe fptr_ = Recipe(int64_t(fptr));
+        Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
-        IRecipe res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype()});
+        IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype()});
         return IReg(res);
     }
 
-    void __setfunc_by_context_(Context* CTX, Recipe& recipe) { recipe.func() = getImpl(getImpl(CTX)->getCurrentFunc()); }
+    void __setfunc_by_context_(Context* CTX, Expr& expr) { expr.func() = getImpl(getImpl(CTX)->getCurrentFunc()); }
 
     exp_consts::exp_consts(Context CTX)
     {
@@ -544,19 +544,19 @@ namespace loops
         return exp_consts(CTX);
     }
 
-    VRecipe<float> exp(const VRecipe<float>& x, const exp_consts& expt)
+    VExpr<float> exp(const VExpr<float>& x, const exp_consts& expt)
     {
-        VRecipe<float> vexp_x = min(x, expt.hi); 
+        VExpr<float> vexp_x = min(x, expt.hi); 
         vexp_x = max(vexp_x, expt.lo);
-        VRecipe<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
-        VRecipe<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
+        VExpr<float> vexp_fx = fma(expt.half, vexp_x, expt.LOG2EF);
+        VExpr<int32_t> vexp_mm = floor<int32_t>(vexp_fx);
         vexp_fx = cast<float>(vexp_mm);
         vexp_mm = vexp_mm + expt._7f;
         vexp_mm = vexp_mm << 23;
         vexp_x = fma(vexp_x, vexp_fx, expt.C1);
         vexp_x = fma(vexp_x, vexp_fx, expt.C2);
-        VRecipe<float> vexp_z = vexp_x * vexp_x;
-        VRecipe<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
+        VExpr<float> vexp_z = vexp_x * vexp_x;
+        VExpr<float> vexp_y = fma(expt.p1, vexp_x, expt.p0);
         vexp_y = fma(expt.p2, vexp_y, vexp_x);
         vexp_y = fma(expt.p3, vexp_y, vexp_x);
         vexp_y = fma(expt.p4, vexp_y, vexp_x);
@@ -566,27 +566,27 @@ namespace loops
         return vexp_y * reinterpret<float>(vexp_mm);
     }
 
-    void VReg_constr_(const Recipe& fromwho, int& idx, Func*& func, int restype)
+    void VReg_constr_(const Expr& fromwho, int& idx, Func*& func, int restype)
     {
-        Recipe fromwho_(fromwho);
+        Expr fromwho_(fromwho);
         func = verify_owner({fromwho_});
-        if(fromwho.opcode() == RECIPE_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
+        if(fromwho.opcode() == EXPR_LEAF && fromwho.leaf().tag == Arg::IIMMEDIATE && func == nullptr)
             throw std::runtime_error("Direct immediate assignment must be done via VCONST_ operator, e.g.:\n    VReg<float> var = VCONST_(float, 3.14);\n");
         Arg unpacked = static_cast<FuncImpl*>(func)->get_code_collecting()->reg_constr(fromwho_);
         Assert(unpacked.tag == Arg::VREG && unpacked.elemtype == restype);
         idx = unpacked.idx;
     }
 
-    void VReg_assign_(const Recipe& target, const Recipe& from)
+    void VReg_assign_(const Expr& target, const Expr& from)
     {
-        Recipe from_(from);
-        Recipe target_(target);
+        Expr from_(from);
+        Expr target_(target);
         verify_owner({target_, from_})->get_code_collecting()->reg_assign(target_, from_);
     }
 
-    void VReg_copyidx_(const Recipe& fromwho, int& idx, Func*& func)
+    void VReg_copyidx_(const Expr& fromwho, int& idx, Func*& func)
     {
-        Recipe fromwho_(fromwho);
+        Expr fromwho_(fromwho);
         Func* newfunc = verify_owner({fromwho_});
         if(func != nullptr && func != newfunc)
             throw std::runtime_error("Registers of different functions in idx assignment.");

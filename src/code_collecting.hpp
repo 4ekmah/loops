@@ -32,8 +32,8 @@ public:
     virtual bool is_inplace() const override final { return true; }
     virtual PassID pass_id() const override final;
 
-    inline void newiopNoret(int opcode, ::std::initializer_list<Recipe> args);
-    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Recipe& base);
+    inline void newiopNoret(int opcode, ::std::initializer_list<Expr> args);
+    void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Expr& base);
     
     /*
     TODO(ch): Implement with RISC-V RVV
@@ -48,28 +48,27 @@ public:
     Divider is degree of two from 2 to 64(mf8 of m8), because it's better to consider constraints
     like relational.
     */
-    Arg reg_constr(Recipe& fromwho);
-    void reg_assign(Recipe& target, Recipe& fromwho);
-    void while_(Recipe& r);
+    Arg reg_constr(Expr& fromwho);
+    void reg_assign(Expr& target, Expr& fromwho);
+    void while_(Expr& r);
     void endwhile_();
     void break_();
     void continue_();
-    void if_(Recipe& r);
-    void elif_(Recipe& r);
+    void if_(Expr& r);
+    void elif_(Expr& r);
     void else_();
-    void subst_elif(Recipe& r);
+    void subst_elif(Expr& r);
     void subst_else();
     void endif_();
     void return_();
-    void return_(Recipe& r);
+    void return_(Expr& r);
 private:
-    enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2};
-    Arg unpack_recipe(Recipe& rcp, int flag = 0, Syntfunc* buffer = nullptr);
-    Recipe eliminate_not(Recipe& rcp, bool inverseflag = false);
-    Syntop unpack_condition_old(Recipe& rcp); //TODO(ch)[IMPORTANT]: temporary. Create select and int codition unpacking.
-    void unpack_condition(Recipe& rcp, int true_jmp, int false_jmp);
+    enum {UR_WRAPIIMM = 1, UR_NONEWIDX = 2, UR_LNOT_ELIMINATED = 4};
+    Arg unpack_expr(Expr& expr, int flag = 0, Syntfunc* buffer = nullptr);
+    Expr eliminate_not(Expr& expr, bool inverseflag = false);
+    void unpack_condition(Expr& expr, int true_jmp, int false_jmp);
     enum {UC_CORRECT_PREFFERED = 1};
-    void unpack_condition_(Syntfunc& condition_buffer, Recipe& rcp, int labeltrue, int labelfalse, int flags = 0);
+    void unpack_condition_(Syntfunc& condition_buffer, Expr& expr, int labeltrue, int labelfalse, int flags = 0);
     void reopen_endif(bool cond_prefix_allowed = false);
     Func* m_func;
     std::deque<ControlFlowBracket> m_cflowStack;
@@ -79,13 +78,13 @@ private:
     
 };
 
-inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Recipe> args_)
+inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Expr> args_)
 {
     std::vector<Arg> args;
     args.reserve(args_.size());
-    for(Recipe arg : args_) 
+    for(Expr arg : args_) 
     {
-        args.push_back(unpack_recipe(arg));
+        args.push_back(unpack_expr(arg));
     }
     Syntop toAdd(opcode, args);
     m_data.program.push_back(toAdd);

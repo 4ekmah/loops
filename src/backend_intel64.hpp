@@ -14,46 +14,55 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
     enum {
-        INTEL64_MOV = 0,
-        INTEL64_MOVSX,
-        INTEL64_MOVSXD,
-        INTEL64_MOVZX,
-        INTEL64_ADC,
-        INTEL64_ADD,
-        INTEL64_SUB,
-        INTEL64_IMUL,
-        INTEL64_IDIV,
-        INTEL64_SHL,
-        INTEL64_SHR,
-        INTEL64_SAR,
-        INTEL64_AND,
-        INTEL64_OR,
-        INTEL64_XOR,
-        INTEL64_NOT,
-        INTEL64_NEG,
-        INTEL64_CQO,
-        INTEL64_XCHG,
-        INTEL64_CMP,
-        INTEL64_CMOVE,
-        INTEL64_CMOVNE,
-        INTEL64_CMOVL,
-        INTEL64_CMOVG,
-        INTEL64_CMOVLE,
-        INTEL64_CMOVGE,
-        INTEL64_CMOVS,
-        INTEL64_CMOVNS,
-        INTEL64_JMP,
-        INTEL64_JNE,//TODO(ch): implement JCC operation instead of this endless variations.
-        INTEL64_JE,
-        INTEL64_JL,
-        INTEL64_JLE,
-        INTEL64_JG,
-        INTEL64_JGE,
-        INTEL64_RET
+        INTEL64_MOV    =  0,
+        INTEL64_MOVSX  =  1,
+        INTEL64_MOVSXD =  2,
+        INTEL64_MOVZX  =  3,
+        INTEL64_ADC    =  4,
+        INTEL64_ADD    =  5,
+        INTEL64_SUB    =  6,
+        INTEL64_IMUL   =  7,
+        INTEL64_IDIV   =  8,
+        INTEL64_SHL    =  9,
+        INTEL64_SHR    = 10,
+        INTEL64_SAR    = 11,
+        INTEL64_AND    = 12,
+        INTEL64_OR     = 13,
+        INTEL64_XOR    = 14,
+        INTEL64_NOT    = 15,
+        INTEL64_NEG    = 16,
+        INTEL64_CQO    = 17,
+        INTEL64_XCHG   = 18,
+        INTEL64_CMP    = 19,
+        INTEL64_CMOVE  = 20, //TODO(ch)[printer]: implement CMOVCC operation instead of this endless variations.
+        INTEL64_CMOVNE = 21,
+        INTEL64_CMOVL  = 22,
+        INTEL64_CMOVG  = 23,
+        INTEL64_CMOVLE = 24,
+        INTEL64_CMOVGE = 25,
+        INTEL64_CMOVS  = 26,
+        INTEL64_CMOVNS = 27,
+        INTEL64_SETE   = 28, //TODO(ch)[printer]: implement SETCC operation instead of this endless variations.
+        INTEL64_SETNE  = 29,
+        INTEL64_SETL   = 30,
+        INTEL64_SETG   = 31,
+        INTEL64_SETLE  = 32,
+        INTEL64_SETGE  = 33,
+        INTEL64_SETS   = 34,
+        INTEL64_SETNS  = 35,
+        INTEL64_JMP    = 36,
+        INTEL64_JNE    = 37, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
+        INTEL64_JE     = 38,
+        INTEL64_JL     = 39,
+        INTEL64_JLE    = 40,
+        INTEL64_JG     = 41,
+        INTEL64_JGE    = 42,
+        INTEL64_RET    = 43 
     };
 
     enum {
-        CP_INTEL64_SNIPPETS = CP_ARCH_SPECIFIC
+        CP_INTEL64_BRA_SNIPPETS = CP_ARCH_SPECIFIC,
+        CP_INTEL64_ARA_SNIPPETS
     };
 
     class Intel64Backend : public Backend

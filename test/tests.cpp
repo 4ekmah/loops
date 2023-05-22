@@ -36,8 +36,7 @@ bool Test::testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong)
     std::string tarcname = CTX.getPlatformName();
     std::string arcOSsuffix = toLower(tarcname);
     std::string bfilename(LOOPS_TEST_DIR"/refasm/");
-    if(tarcname == "Intel64")
-        arcOSsuffix += std::string("/") + toLower(OSname());
+    arcOSsuffix += std::string("/") + toLower(OSname());
     std::string tfilename = bfilename;
     bool result = true;
     { //Bytecode check
