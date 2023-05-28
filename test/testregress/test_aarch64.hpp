@@ -267,6 +267,139 @@ LTESTexe(sort_double, {
         EXPECT_EQ(arr[pos], arr_ref[pos]);
     });
 
+enum {TBI_SCALARS, TBI_I8_0, TBI_I8_1, TBI_I16_0, TBI_I16_1, TBI_I32_0, TBI_I32_1, TBI_I64_0, TBI_I64_1, TBI_I64_2};
+LTEST(big_immediates, {
+    IReg targetptr, tasknum;
+    STARTFUNC_(TESTNAME, &targetptr, &tasknum)
+    {
+        IF_(tasknum == TBI_SCALARS)
+        {
+            double e = 2.718281828459045235360287471352;
+            store_<uint64_t>(targetptr, CONST_(65535)); targetptr += sizeof(uint64_t);
+            store_<uint64_t>(targetptr, CONST_(65536)); targetptr += sizeof(uint64_t);
+            store_<int64_t>(targetptr, CONST_(-32768)); targetptr += sizeof(uint64_t);
+            store_<int64_t>(targetptr, CONST_(-32769)); targetptr += sizeof(uint64_t);
+            store_<uint64_t>(targetptr, CONST_(0x5F3759DF)); targetptr += sizeof(uint64_t);
+            store_<uint64_t>(targetptr, CONST_(*((int64_t*)&e))); targetptr += sizeof(uint64_t);
+        }
+        ELIF_(tasknum == TBI_I8_0)
+        {
+            storevec(targetptr, VCONST_(uint8_t, 0));   targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint8_t, 255)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I8_1)
+        {
+            storevec(targetptr, VCONST_(int8_t, -128)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I16_0)
+        {
+            storevec(targetptr, VCONST_(uint16_t, 0));   targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint16_t, 255)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint16_t, 256)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I16_1)
+        {
+            storevec(targetptr, VCONST_(int16_t, -128)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int16_t, -129)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I32_0)
+        {
+            storevec(targetptr, VCONST_(uint32_t, 0));   targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint32_t, 255)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint32_t, 256)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I32_1)
+        {
+            storevec(targetptr, VCONST_(int32_t, -128)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int32_t, -129)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I64_0)
+        {
+            storevec(targetptr, VCONST_(uint64_t, 0));   targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 255)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 0xff00)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I64_1)
+        {
+            storevec(targetptr, VCONST_(int64_t, -256)); targetptr += CTX.vbytes();
+        }
+        ELIF_(tasknum == TBI_I64_2)
+        {
+            storevec(targetptr, VCONST_(uint64_t, 256)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 254)); targetptr += CTX.vbytes();
+        }
+        RETURN_();
+    }
+    });
+LTESTexe(big_immediates, {
+    typedef void(*big_immediates_f)(void*, int64_t);
+    big_immediates_f tested = reinterpret_cast<big_immediates_f>(EXEPTR);
+    double e = 2.718281828459045235360287471352;
+    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, *((int64_t*)&e)};
+    std::vector<int64_t> scalars(scalars_ref.size(), 0);
+    tested((void*)&(scalars[0]), TBI_SCALARS);
+    for(int i = 0; i < scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
+    
+    const std::vector<uint8_t> i8_0_ref = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                           255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
+    std::vector<uint8_t> i8_0(i8_0_ref.size(), 0);
+    tested((void*)&(i8_0[0]), TBI_I8_0);
+    for(int i = 0; i < i8_0.size(); i++) EXPECT_EQ(i8_0[i], i8_0_ref[i]);
+
+    const std::vector<int8_t> i8_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128};
+    std::vector<int8_t> i8_1(i8_1_ref.size(), 0);
+    tested((void*)&(i8_1[0]), TBI_I8_1);
+    for(int i = 0; i < i8_1.size(); i++) EXPECT_EQ(i8_1[i], i8_1_ref[i]);
+
+
+    const std::vector<uint16_t> i16_0_ref = {0,0,0,0,0,0,0,0,
+                                             255,255,255,255,255,255,255,255,
+                                             256,256,256,256,256,256,256,256};
+    std::vector<uint16_t> i16_0(i16_0_ref.size(), 0);
+    tested((void*)&(i16_0[0]), TBI_I16_0);
+    for(int i = 0; i < i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
+
+    
+    const std::vector<int16_t> i16_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,
+                                            -129,-129,-129,-129,-129,-129,-129,-129};
+    std::vector<int16_t> i16_1(i16_1_ref.size(), 0);
+    tested((void*)&(i16_1[0]), TBI_I16_1);
+    for(int i = 0; i < i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
+
+    
+    const std::vector<uint32_t> i32_0_ref = {0,0,0,0,
+                                             255,255,255,255,
+                                             256,256,256,256};
+    std::vector<uint32_t> i32_0(i32_0_ref.size(), 0);
+    tested((void*)&(i32_0[0]), TBI_I32_0);
+    for(int i = 0; i < i32_0.size(); i++) EXPECT_EQ(i32_0[i], i32_0_ref[i]);
+
+    const std::vector<int32_t> i32_1_ref = {-128,-128,-128,-128,
+                                            -129,-129,-129,-129};
+    std::vector<int32_t> i32_1(i32_1_ref.size(), 0);
+    tested((void*)&(i32_1[0]), TBI_I32_1);
+    for(int i = 0; i < i32_1.size(); i++) EXPECT_EQ(i32_1[i], i32_1_ref[i]);
+
+
+    const std::vector<uint64_t> i64_0_ref= {0,0,
+                                            255,255,
+                                            0xff00,0xff00};
+    std::vector<uint64_t> i64_0(i64_0_ref.size(), 0);
+    tested((void*)&(i64_0[0]), TBI_I64_0);
+    for(int i = 0; i < i64_0.size(); i++) EXPECT_EQ(i64_0[i], i64_0_ref[i]);
+
+    const std::vector<int64_t> i64_1_ref = {-256,-256};
+    std::vector<int64_t> i64_1(i64_1_ref.size(), 0);
+    tested((void*)&(i64_1[0]), TBI_I64_1);
+    for(int i = 0; i < i64_1.size(); i++) EXPECT_EQ(i64_1[i], i64_1_ref[i]);
+
+    const std::vector<uint64_t> i64_2_ref = {256,256,
+                                             254,254};
+    std::vector<uint64_t> i64_2(i64_2_ref.size(), 0);
+    tested((void*)&(i64_2[0]), TBI_I64_2);
+    for(int i = 0; i < i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
+});
+
 //TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.
 
 #define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
@@ -766,6 +899,12 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_MOV, {  v0_4s, argIImm(  -1) });
     newiopNoret(OP_MOV, { v31_4s, argIImm(  -1) });
     newiopNoret(OP_MOV, {  v0_4s, argIImm(-256) });
+    newiopNoret(OP_MOV, { v0_2u,  argIImm(0)  });
+    newiopNoret(OP_MOV, { v31_2u,  argIImm(0)  });
+    newiopNoret(OP_MOV, { v0_2u,  argIImm(255)  });
+    newiopNoret(OP_MOV, { v31_2u,  argIImm(255)  });
+    newiopNoret(OP_MOV, { v0_2u,  argIImm(static_cast<int64_t>(uint64_t(0xff00ff00ff00ff00)))});
+    newiopNoret(OP_MOV, { v31_2u,  argIImm(static_cast<int64_t>(uint64_t(0xff00ff00ff00ff00)))});
 
     newiopNoret(VOP_MIN, { v0_8f,  v0_8f, v0_8f  });
     newiopNoret(VOP_MIN, { v31_8f, v0_8f, v0_8f  });
@@ -875,6 +1014,40 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GT, { v31_2u, v0_2f , v0_2f });
     newiopNoret(VOP_GT, { v0_2u , v31_2f, v0_2f });
     newiopNoret(VOP_GT, { v0_2u , v0_2f , v31_2f});
+    
+    newiopNoret(VOP_GT, { v0_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_GT, { v31_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_GT, { v0_16u, v31_16u, v0_16u});
+    newiopNoret(VOP_GT, { v0_16u, v0_16u, v31_16u});
+    newiopNoret(VOP_GT, { v0_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_GT, { v31_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_GT, { v0_8u, v31_8u, v0_8u});
+    newiopNoret(VOP_GT, { v0_8u, v0_8u, v31_8u});
+    newiopNoret(VOP_GT, { v0_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_GT, { v31_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_GT, { v0_4u, v31_4u, v0_4u});
+    newiopNoret(VOP_GT, { v0_4u, v0_4u, v31_4u});
+    newiopNoret(VOP_GT, { v0_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_GT, { v31_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_GT, { v0_2u, v31_2u, v0_2u});
+    newiopNoret(VOP_GT, { v0_2u, v0_2u, v31_2u});
+
+    newiopNoret(VOP_GT, { v0_16u, v0_16s, v0_16s});
+    newiopNoret(VOP_GT, { v31_16u, v0_16s, v0_16s});
+    newiopNoret(VOP_GT, { v0_16u, v31_16s, v0_16s});
+    newiopNoret(VOP_GT, { v0_16u, v0_16s, v31_16s});
+    newiopNoret(VOP_GT, { v0_8u, v0_8s, v0_8s});
+    newiopNoret(VOP_GT, { v31_8u, v0_8s, v0_8s});
+    newiopNoret(VOP_GT, { v0_8u, v31_8s, v0_8s});
+    newiopNoret(VOP_GT, { v0_8u, v0_8s, v31_8s});
+    newiopNoret(VOP_GT, { v0_4u, v0_4s, v0_4s});
+    newiopNoret(VOP_GT, { v31_4u, v0_4s, v0_4s});
+    newiopNoret(VOP_GT, { v0_4u, v31_4s, v0_4s});
+    newiopNoret(VOP_GT, { v0_4u, v0_4s, v31_4s});
+    newiopNoret(VOP_GT, { v0_2u, v0_2s, v0_2s});
+    newiopNoret(VOP_GT, { v31_2u, v0_2s, v0_2s});
+    newiopNoret(VOP_GT, { v0_2u, v31_2s, v0_2s});
+    newiopNoret(VOP_GT, { v0_2u, v0_2s, v31_2s});
 
     newiopNoret(VOP_GE, { v0_8u , v0_8f , v0_8f });
     newiopNoret(VOP_GE, { v31_8u, v0_8f , v0_8f });
@@ -888,6 +1061,40 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GE, { v31_2u, v0_2f , v0_2f });
     newiopNoret(VOP_GE, { v0_2u , v31_2f, v0_2f });
     newiopNoret(VOP_GE, { v0_2u , v0_2f , v31_2f});
+    
+    newiopNoret(VOP_GE, { v0_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_GE, { v31_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_GE, { v0_16u, v31_16u, v0_16u});
+    newiopNoret(VOP_GE, { v0_16u, v0_16u, v31_16u});
+    newiopNoret(VOP_GE, { v0_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_GE, { v31_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_GE, { v0_8u, v31_8u, v0_8u});
+    newiopNoret(VOP_GE, { v0_8u, v0_8u, v31_8u});
+    newiopNoret(VOP_GE, { v0_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_GE, { v31_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_GE, { v0_4u, v31_4u, v0_4u});
+    newiopNoret(VOP_GE, { v0_4u, v0_4u, v31_4u});
+    newiopNoret(VOP_GE, { v0_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_GE, { v31_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_GE, { v0_2u, v31_2u, v0_2u});
+    newiopNoret(VOP_GE, { v0_2u, v0_2u, v31_2u});
+
+    newiopNoret(VOP_GE, { v0_16u, v0_16s, v0_16s});
+    newiopNoret(VOP_GE, { v31_16u, v0_16s, v0_16s});
+    newiopNoret(VOP_GE, { v0_16u, v31_16s, v0_16s});
+    newiopNoret(VOP_GE, { v0_16u, v0_16s, v31_16s});
+    newiopNoret(VOP_GE, { v0_8u, v0_8s, v0_8s});
+    newiopNoret(VOP_GE, { v31_8u, v0_8s, v0_8s});
+    newiopNoret(VOP_GE, { v0_8u, v31_8s, v0_8s});
+    newiopNoret(VOP_GE, { v0_8u, v0_8s, v31_8s});
+    newiopNoret(VOP_GE, { v0_4u, v0_4s, v0_4s});
+    newiopNoret(VOP_GE, { v31_4u, v0_4s, v0_4s});
+    newiopNoret(VOP_GE, { v0_4u, v31_4s, v0_4s});
+    newiopNoret(VOP_GE, { v0_4u, v0_4s, v31_4s});
+    newiopNoret(VOP_GE, { v0_2u, v0_2s, v0_2s});
+    newiopNoret(VOP_GE, { v31_2u, v0_2s, v0_2s});
+    newiopNoret(VOP_GE, { v0_2u, v31_2s, v0_2s});
+    newiopNoret(VOP_GE, { v0_2u, v0_2s, v31_2s});
 
     newiopNoret(VOP_EQ, { v0_8u , v0_8f , v0_8f });
     newiopNoret(VOP_EQ, { v31_8u, v0_8f , v0_8f });
@@ -901,6 +1108,23 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_EQ, { v31_2u, v0_2f , v0_2f });
     newiopNoret(VOP_EQ, { v0_2u , v31_2f, v0_2f });
     newiopNoret(VOP_EQ, { v0_2u , v0_2f , v31_2f});
+
+    newiopNoret(VOP_EQ, { v0_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_EQ, { v31_16u, v0_16u, v0_16u});
+    newiopNoret(VOP_EQ, { v0_16u, v31_16u, v0_16u});
+    newiopNoret(VOP_EQ, { v0_16u, v0_16u, v31_16u});
+    newiopNoret(VOP_EQ, { v0_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_EQ, { v31_8u, v0_8u, v0_8u});
+    newiopNoret(VOP_EQ, { v0_8u, v31_8u, v0_8u});
+    newiopNoret(VOP_EQ, { v0_8u, v0_8u, v31_8u});
+    newiopNoret(VOP_EQ, { v0_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_EQ, { v31_4u, v0_4u, v0_4u});
+    newiopNoret(VOP_EQ, { v0_4u, v31_4u, v0_4u});
+    newiopNoret(VOP_EQ, { v0_4u, v0_4u, v31_4u});
+    newiopNoret(VOP_EQ, { v0_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_EQ, { v31_2u, v0_2u, v0_2u});
+    newiopNoret(VOP_EQ, { v0_2u, v31_2u, v0_2u});
+    newiopNoret(VOP_EQ, { v0_2u, v0_2u, v31_2u});
 
     newiopNoret(VOP_NEG, { v0_16s , v0_16s });
     newiopNoret(VOP_NEG, { v31_16s , v0_16s });
@@ -1233,91 +1457,6 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_FMA, { v0_2f, v0_2f, v31_2f, v0_2f, argIImm(0)});
     newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v31_2f, argIImm(0)});
     newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(1)});
-
-    newiopNoret(VOP_GT, { v0_16u, v0_16u, v0_16u});
-    newiopNoret(VOP_GT, { v31_16u, v0_16u, v0_16u});
-    newiopNoret(VOP_GT, { v0_16u, v31_16u, v0_16u});
-    newiopNoret(VOP_GT, { v0_16u, v0_16u, v31_16u});
-    newiopNoret(VOP_GT, { v0_8u, v0_8u, v0_8u});
-    newiopNoret(VOP_GT, { v31_8u, v0_8u, v0_8u});
-    newiopNoret(VOP_GT, { v0_8u, v31_8u, v0_8u});
-    newiopNoret(VOP_GT, { v0_8u, v0_8u, v31_8u});
-    newiopNoret(VOP_GT, { v0_4u, v0_4u, v0_4u});
-    newiopNoret(VOP_GT, { v31_4u, v0_4u, v0_4u});
-    newiopNoret(VOP_GT, { v0_4u, v31_4u, v0_4u});
-    newiopNoret(VOP_GT, { v0_4u, v0_4u, v31_4u});
-    newiopNoret(VOP_GT, { v0_2u, v0_2u, v0_2u});
-    newiopNoret(VOP_GT, { v31_2u, v0_2u, v0_2u});
-    newiopNoret(VOP_GT, { v0_2u, v31_2u, v0_2u});
-    newiopNoret(VOP_GT, { v0_2u, v0_2u, v31_2u});
-
-    newiopNoret(VOP_GE, { v0_16u, v0_16u, v0_16u});
-    newiopNoret(VOP_GE, { v31_16u, v0_16u, v0_16u});
-    newiopNoret(VOP_GE, { v0_16u, v31_16u, v0_16u});
-    newiopNoret(VOP_GE, { v0_16u, v0_16u, v31_16u});
-    newiopNoret(VOP_GE, { v0_8u, v0_8u, v0_8u});
-    newiopNoret(VOP_GE, { v31_8u, v0_8u, v0_8u});
-    newiopNoret(VOP_GE, { v0_8u, v31_8u, v0_8u});
-    newiopNoret(VOP_GE, { v0_8u, v0_8u, v31_8u});
-    newiopNoret(VOP_GE, { v0_4u, v0_4u, v0_4u});
-    newiopNoret(VOP_GE, { v31_4u, v0_4u, v0_4u});
-    newiopNoret(VOP_GE, { v0_4u, v31_4u, v0_4u});
-    newiopNoret(VOP_GE, { v0_4u, v0_4u, v31_4u});
-    newiopNoret(VOP_GE, { v0_2u, v0_2u, v0_2u});
-    newiopNoret(VOP_GE, { v31_2u, v0_2u, v0_2u});
-    newiopNoret(VOP_GE, { v0_2u, v31_2u, v0_2u});
-    newiopNoret(VOP_GE, { v0_2u, v0_2u, v31_2u});
-
-    newiopNoret(VOP_EQ, { v0_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_EQ, { v31_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_EQ, { v0_16u, v31_16s, v0_16s});
-    newiopNoret(VOP_EQ, { v0_16u, v0_16s, v31_16s});
-    newiopNoret(VOP_EQ, { v0_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_EQ, { v31_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_EQ, { v0_8u, v31_8s, v0_8s});
-    newiopNoret(VOP_EQ, { v0_8u, v0_8s, v31_8s});
-    newiopNoret(VOP_EQ, { v0_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_EQ, { v31_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_EQ, { v0_4u, v31_4s, v0_4s});
-    newiopNoret(VOP_EQ, { v0_4u, v0_4s, v31_4s});
-    newiopNoret(VOP_EQ, { v0_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_EQ, { v31_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_EQ, { v0_2u, v31_2s, v0_2s});
-    newiopNoret(VOP_EQ, { v0_2u, v0_2s, v31_2s});
-
-    newiopNoret(VOP_GE, { v0_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_GE, { v31_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_GE, { v0_16u, v31_16s, v0_16s});
-    newiopNoret(VOP_GE, { v0_16u, v0_16s, v31_16s});
-    newiopNoret(VOP_GE, { v0_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_GE, { v31_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_GE, { v0_8u, v31_8s, v0_8s});
-    newiopNoret(VOP_GE, { v0_8u, v0_8s, v31_8s});
-    newiopNoret(VOP_GE, { v0_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_GE, { v31_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_GE, { v0_4u, v31_4s, v0_4s});
-    newiopNoret(VOP_GE, { v0_4u, v0_4s, v31_4s});
-    newiopNoret(VOP_GE, { v0_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_GE, { v31_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_GE, { v0_2u, v31_2s, v0_2s});
-    newiopNoret(VOP_GE, { v0_2u, v0_2s, v31_2s});
-
-    newiopNoret(VOP_GT, { v0_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_GT, { v31_16u, v0_16s, v0_16s});
-    newiopNoret(VOP_GT, { v0_16u, v31_16s, v0_16s});
-    newiopNoret(VOP_GT, { v0_16u, v0_16s, v31_16s});
-    newiopNoret(VOP_GT, { v0_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_GT, { v31_8u, v0_8s, v0_8s});
-    newiopNoret(VOP_GT, { v0_8u, v31_8s, v0_8s});
-    newiopNoret(VOP_GT, { v0_8u, v0_8s, v31_8s});
-    newiopNoret(VOP_GT, { v0_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_GT, { v31_4u, v0_4s, v0_4s});
-    newiopNoret(VOP_GT, { v0_4u, v31_4s, v0_4s});
-    newiopNoret(VOP_GT, { v0_4u, v0_4s, v31_4s});
-    newiopNoret(VOP_GT, { v0_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_GT, { v31_2u, v0_2s, v0_2s});
-    newiopNoret(VOP_GT, { v0_2u, v31_2s, v0_2s});
-    newiopNoret(VOP_GT, { v0_2u, v0_2s, v31_2s});
 
     newiopNoret(VOP_GETLANE, { x0,  v0_16u, argIImm(0)});
     newiopNoret(VOP_GETLANE, { x15, v0_16u, argIImm(0)});

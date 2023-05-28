@@ -410,530 +410,536 @@ instruction_set_test()
    408 : mov                      v0, -1                     
    409 : mov                      v31, -1                    
    410 : mov                      v0, -256                   
-   411 : min.fp16                 v0, v0, v0                 
-   412 : min.fp16                 v31, v0, v0                
-   413 : min.fp16                 v0, v31, v0                
-   414 : min.fp16                 v0, v0, v31                
-   415 : min.fp32                 v0, v0, v0                 
-   416 : min.fp32                 v31, v0, v0                
-   417 : min.fp32                 v0, v31, v0                
-   418 : min.fp32                 v0, v0, v31                
-   419 : min.fp64                 v0, v0, v0                 
-   420 : min.fp64                 v31, v0, v0                
-   421 : min.fp64                 v0, v31, v0                
-   422 : min.fp64                 v0, v0, v31                
-   423 : max.fp16                 v0, v0, v0                 
-   424 : max.fp16                 v31, v0, v0                
-   425 : max.fp16                 v0, v31, v0                
-   426 : max.fp16                 v0, v0, v31                
-   427 : max.fp32                 v0, v0, v0                 
-   428 : max.fp32                 v31, v0, v0                
-   429 : max.fp32                 v0, v31, v0                
-   430 : max.fp32                 v0, v0, v31                
-   431 : max.fp64                 v0, v0, v0                 
-   432 : max.fp64                 v31, v0, v0                
-   433 : max.fp64                 v0, v31, v0                
-   434 : max.fp64                 v0, v0, v31                
-   435 : fma.fp16                 v0, v0, v0, v0             
-   436 : fma.fp16                 v31, v31, v0, v0           
-   437 : fma.fp16                 v0, v0, v31, v0            
-   438 : fma.fp16                 v0, v0, v0, v31            
-   439 : fma.fp32                 v0, v0, v0, v0             
-   440 : fma.fp32                 v31, v31, v0, v0           
-   441 : fma.fp32                 v0, v0, v31, v0            
-   442 : fma.fp32                 v0, v0, v0, v31            
-   443 : fma.fp64                 v0, v0, v0, v0             
-   444 : fma.fp64                 v31, v31, v0, v0           
-   445 : fma.fp64                 v0, v0, v31, v0            
-   446 : fma.fp64                 v0, v0, v0, v31            
-   447 : trunc.fp16_i16           v0, v0                     
-   448 : trunc.fp16_i16           v31, v0                    
-   449 : trunc.fp16_i16           v0, v31                    
-   450 : trunc.fp32_i32           v0, v0                     
-   451 : trunc.fp32_i32           v31, v0                    
-   452 : trunc.fp32_i32           v0, v31                    
-   453 : trunc.fp64_i64           v0, v0                     
-   454 : trunc.fp64_i64           v31, v0                    
-   455 : trunc.fp64_i64           v0, v31                    
-   456 : trunc.fp16_u16           v0, v0                     
-   457 : trunc.fp16_u16           v31, v0                    
-   458 : trunc.fp16_u16           v0, v31                    
-   459 : trunc.fp32_u32           v0, v0                     
-   460 : trunc.fp32_u32           v31, v0                    
-   461 : trunc.fp32_u32           v0, v31                    
-   462 : trunc.fp64_u64           v0, v0                     
-   463 : trunc.fp64_u64           v31, v0                    
-   464 : trunc.fp64_u64           v0, v31                    
-   465 : floor.fp16_i16           v0, v0                     
-   466 : floor.fp16_i16           v31, v0                    
-   467 : floor.fp16_i16           v0, v31                    
-   468 : floor.fp32_i32           v0, v0                     
-   469 : floor.fp32_i32           v31, v0                    
-   470 : floor.fp32_i32           v0, v31                    
-   471 : floor.fp64_i64           v0, v0                     
-   472 : floor.fp64_i64           v31, v0                    
-   473 : floor.fp64_i64           v0, v31                    
-   474 : floor.fp16_u16           v0, v0                     
-   475 : floor.fp16_u16           v31, v0                    
-   476 : floor.fp16_u16           v0, v31                    
-   477 : floor.fp32_u32           v0, v0                     
-   478 : floor.fp32_u32           v31, v0                    
-   479 : floor.fp32_u32           v0, v31                    
-   480 : floor.fp64_u64           v0, v0                     
-   481 : floor.fp64_u64           v31, v0                    
-   482 : floor.fp64_u64           v0, v31                    
-   483 : cast.i16_fp16            v0, v0                     
-   484 : cast.i16_fp16            v31, v0                    
-   485 : cast.i16_fp16            v0, v31                    
-   486 : cast.i32_fp32            v0, v0                     
-   487 : cast.i32_fp32            v31, v0                    
-   488 : cast.i32_fp32            v0, v31                    
-   489 : cast.i64_fp64            v0, v0                     
-   490 : cast.i64_fp64            v31, v0                    
-   491 : cast.i64_fp64            v0, v31                    
-   492 : cast.u16_fp16            v0, v0                     
-   493 : cast.u16_fp16            v31, v0                    
-   494 : cast.u16_fp16            v0, v31                    
-   495 : cast.u32_fp32            v0, v0                     
-   496 : cast.u32_fp32            v31, v0                    
-   497 : cast.u32_fp32            v0, v31                    
-   498 : cast.u64_fp64            v0, v0                     
-   499 : cast.u64_fp64            v31, v0                    
-   500 : cast.u64_fp64            v0, v31                    
-   501 : gt.u16                   v0, v0, v0                 
-   502 : gt.u16                   v31, v0, v0                
-   503 : gt.u16                   v0, v31, v0                
-   504 : gt.u16                   v0, v0, v31                
-   505 : gt.u32                   v0, v0, v0                 
-   506 : gt.u32                   v31, v0, v0                
-   507 : gt.u32                   v0, v31, v0                
-   508 : gt.u32                   v0, v0, v31                
-   509 : gt.u64                   v0, v0, v0                 
-   510 : gt.u64                   v31, v0, v0                
-   511 : gt.u64                   v0, v31, v0                
-   512 : gt.u64                   v0, v0, v31                
-   513 : ge.u16                   v0, v0, v0                 
-   514 : ge.u16                   v31, v0, v0                
-   515 : ge.u16                   v0, v31, v0                
-   516 : ge.u16                   v0, v0, v31                
-   517 : ge.u32                   v0, v0, v0                 
-   518 : ge.u32                   v31, v0, v0                
-   519 : ge.u32                   v0, v31, v0                
-   520 : ge.u32                   v0, v0, v31                
-   521 : ge.u64                   v0, v0, v0                 
-   522 : ge.u64                   v31, v0, v0                
-   523 : ge.u64                   v0, v31, v0                
-   524 : ge.u64                   v0, v0, v31                
-   525 : eq.u16                   v0, v0, v0                 
-   526 : eq.u16                   v31, v0, v0                
-   527 : eq.u16                   v0, v31, v0                
-   528 : eq.u16                   v0, v0, v31                
-   529 : eq.u32                   v0, v0, v0                 
-   530 : eq.u32                   v31, v0, v0                
-   531 : eq.u32                   v0, v31, v0                
-   532 : eq.u32                   v0, v0, v31                
-   533 : eq.u64                   v0, v0, v0                 
-   534 : eq.u64                   v31, v0, v0                
-   535 : eq.u64                   v0, v31, v0                
-   536 : eq.u64                   v0, v0, v31                
-   537 : neg.i8                   v0, v0                     
-   538 : neg.i8                   v31, v0                    
-   539 : neg.i8                   v0, v31                    
-   540 : neg.i16                  v0, v0                     
-   541 : neg.i16                  v31, v0                    
-   542 : neg.i16                  v0, v31                    
-   543 : neg.i32                  v0, v0                     
-   544 : neg.i32                  v31, v0                    
-   545 : neg.i32                  v0, v31                    
-   546 : neg.i64                  v0, v0                     
-   547 : neg.i64                  v31, v0                    
-   548 : neg.i64                  v0, v31                    
-   549 : neg.fp16                 v0, v0                     
-   550 : neg.fp16                 v31, v0                    
-   551 : neg.fp16                 v0, v31                    
-   552 : neg.fp32                 v0, v0                     
-   553 : neg.fp32                 v31, v0                    
-   554 : neg.fp32                 v0, v31                    
-   555 : neg.fp64                 v0, v0                     
-   556 : neg.fp64                 v31, v0                    
-   557 : neg.fp64                 v0, v31                    
-   558 : arm_movk                 i0, 0, 16                  
-   559 : arm_movk                 i15, 0, 16                 
-   560 : arm_movk                 i0, 65535, 16              
-   561 : arm_movk                 i0, 0, 32                  
-   562 : arm_movk                 i15, 0, 32                 
-   563 : arm_movk                 i0, 65535, 32              
-   564 : arm_movk                 i0, 0, 48                  
-   565 : arm_movk                 i15, 0, 48                 
-   566 : arm_movk                 i0, 65535, 48              
-   567 : broadcast.i8             v0, i0                     
-   568 : broadcast.i8             v31, i0                    
-   569 : broadcast.i8             v0, i15                    
-   570 : broadcast.i16            v0, i0                     
-   571 : broadcast.i16            v31, i0                    
-   572 : broadcast.i16            v0, i15                    
-   573 : broadcast.i32            v0, i0                     
-   574 : broadcast.i32            v31, i0                    
-   575 : broadcast.i32            v0, i15                    
-   576 : broadcast.i64            v0, i0                     
-   577 : broadcast.i64            v31, i0                    
-   578 : broadcast.i64            v0, i15                    
-   579 : broadcast.u8             v0, v0, 0                  
-   580 : broadcast.u8             v31, v0, 0                 
-   581 : broadcast.u8             v0, v31, 0                 
-   582 : broadcast.u8             v0, v0, 15                 
-   583 : broadcast.u16            v0, v0, 0                  
-   584 : broadcast.u16            v31, v0, 0                 
-   585 : broadcast.u16            v0, v31, 0                 
-   586 : broadcast.u16            v0, v0, 7                  
-   587 : broadcast.u32            v0, v0, 0                  
-   588 : broadcast.u32            v31, v0, 0                 
-   589 : broadcast.u32            v0, v31, 0                 
-   590 : broadcast.u32            v0, v0, 3                  
-   591 : broadcast.u64            v0, v0, 0                  
-   592 : broadcast.u64            v31, v0, 0                 
-   593 : broadcast.u64            v0, v31, 0                 
-   594 : broadcast.u64            v0, v0, 1                  
-   595 : cast.i16.from.i8.low     v0, v0                     
-   596 : cast.i16.from.i8.low     v31, v0                    
-   597 : cast.i16.from.i8.low     v0, v31                    
-   598 : cast.i32.from.i16.low    v0, v0                     
-   599 : cast.i32.from.i16.low    v31, v0                    
-   600 : cast.i32.from.i16.low    v0, v31                    
-   601 : cast.i64.from.i32.low    v0, v0                     
-   602 : cast.i64.from.i32.low    v31, v0                    
-   603 : cast.i64.from.i32.low    v0, v31                    
-   604 : cast.u16.from.u8.low     v0, v0                     
-   605 : cast.u16.from.u8.low     v31, v0                    
-   606 : cast.u16.from.u8.low     v0, v31                    
-   607 : cast.u32.from.u16.low    v0, v0                     
-   608 : cast.u32.from.u16.low    v31, v0                    
-   609 : cast.u32.from.u16.low    v0, v31                    
-   610 : cast.u64.from.u32.low    v0, v0                     
-   611 : cast.u64.from.u32.low    v31, v0                    
-   612 : cast.u64.from.u32.low    v0, v31                    
-   613 : cast.i16.from.i8.high    v0, v0                     
-   614 : cast.i16.from.i8.high    v31, v0                    
-   615 : cast.i16.from.i8.high    v0, v31                    
-   616 : cast.i32.from.i16.high   v0, v0                     
-   617 : cast.i32.from.i16.high   v31, v0                    
-   618 : cast.i32.from.i16.high   v0, v31                    
-   619 : cast.i64.from.i32.high   v0, v0                     
-   620 : cast.i64.from.i32.high   v31, v0                    
-   621 : cast.i64.from.i32.high   v0, v31                    
-   622 : cast.u16.from.u8.high    v0, v0                     
-   623 : cast.u16.from.u8.high    v31, v0                    
-   624 : cast.u16.from.u8.high    v0, v31                    
-   625 : cast.u32.from.u16.high   v0, v0                     
-   626 : cast.u32.from.u16.high   v31, v0                    
-   627 : cast.u32.from.u16.high   v0, v31                    
-   628 : cast.u64.from.u32.high   v0, v0                     
-   629 : cast.u64.from.u32.high   v31, v0                    
-   630 : cast.u64.from.u32.high   v0, v31                    
-   631 : shrink.i8.from.i16.low   v0, v0                     
-   632 : shrink.i8.from.i16.low   v31, v0                    
-   633 : shrink.i8.from.i16.low   v0, v31                    
-   634 : shrink.i16.from.i32.low  v0, v0                     
-   635 : shrink.i16.from.i32.low  v31, v0                    
-   636 : shrink.i16.from.i32.low  v0, v31                    
-   637 : shrink.i32.from.i64.low  v0, v0                     
-   638 : shrink.i32.from.i64.low  v31, v0                    
-   639 : shrink.i32.from.i64.low  v0, v31                    
-   640 : shrink.i8.from.i16.high  v0, v0                     
-   641 : shrink.i8.from.i16.high  v31, v0                    
-   642 : shrink.i8.from.i16.high  v0, v31                    
-   643 : shrink.i16.from.i32.high v0, v0                     
-   644 : shrink.i16.from.i32.high v31, v0                    
-   645 : shrink.i16.from.i32.high v0, v31                    
-   646 : shrink.i32.from.i64.high v0, v0                     
-   647 : shrink.i32.from.i64.high v31, v0                    
-   648 : shrink.i32.from.i64.high v0, v31                    
-   649 : reduce.max.i8            v0, v0                     
-   650 : reduce.max.i8            v31, v0                    
-   651 : reduce.max.i8            v0, v31                    
-   652 : reduce.max.i16           v0, v0                     
-   653 : reduce.max.i16           v31, v0                    
-   654 : reduce.max.i16           v0, v31                    
-   655 : reduce.max.i32           v0, v0                     
-   656 : reduce.max.i32           v31, v0                    
-   657 : reduce.max.i32           v0, v31                    
-   658 : reduce.max.u8            v0, v0                     
-   659 : reduce.max.u8            v31, v0                    
-   660 : reduce.max.u8            v0, v31                    
-   661 : reduce.max.u16           v0, v0                     
-   662 : reduce.max.u16           v31, v0                    
-   663 : reduce.max.u16           v0, v31                    
-   664 : reduce.max.u32           v0, v0                     
-   665 : reduce.max.u32           v31, v0                    
-   666 : reduce.max.u32           v0, v31                    
-   667 : reduce.max.fp16          v0, v0                     
-   668 : reduce.max.fp16          v31, v0                    
-   669 : reduce.max.fp16          v0, v31                    
-   670 : reduce.max.fp32          v0, v0                     
-   671 : reduce.max.fp32          v31, v0                    
-   672 : reduce.max.fp32          v0, v31                    
-   673 : reduce.max.i8            v0, v0                     
-   674 : reduce.max.i8            v31, v0                    
-   675 : reduce.max.i8            v0, v31                    
-   676 : reduce.max.i16           v0, v0                     
-   677 : reduce.max.i16           v31, v0                    
-   678 : reduce.max.i16           v0, v31                    
-   679 : reduce.max.i32           v0, v0                     
-   680 : reduce.max.i32           v31, v0                    
-   681 : reduce.max.i32           v0, v31                    
-   682 : reduce.max.u8            v0, v0                     
-   683 : reduce.max.u8            v31, v0                    
-   684 : reduce.max.u8            v0, v31                    
-   685 : reduce.max.u16           v0, v0                     
-   686 : reduce.max.u16           v31, v0                    
-   687 : reduce.max.u16           v0, v31                    
-   688 : reduce.max.u32           v0, v0                     
-   689 : reduce.max.u32           v31, v0                    
-   690 : reduce.max.u32           v0, v31                    
-   691 : reduce.max.fp16          v0, v0                     
-   692 : reduce.max.fp16          v31, v0                    
-   693 : reduce.max.fp16          v0, v31                    
-   694 : reduce.max.fp32          v0, v0                     
-   695 : reduce.max.fp32          v31, v0                    
-   696 : reduce.max.fp32          v0, v31                    
-   697 : vld_lane.i8              v0, 0, i0                  
-   698 : vld_lane.i8              v31, 0, i0                 
-   699 : vld_lane.i8              v0, 15, i0                 
-   700 : vld_lane.i8              v0, 0, i15                 
-   701 : vld_lane.i16             v0, 0, i0                  
-   702 : vld_lane.i16             v31, 0, i0                 
-   703 : vld_lane.i16             v0, 7, i0                  
-   704 : vld_lane.i16             v0, 0, i15                 
-   705 : vld_lane.i32             v0, 0, i0                  
-   706 : vld_lane.i32             v31, 0, i0                 
-   707 : vld_lane.i32             v0, 3, i0                  
-   708 : vld_lane.i32             v0, 0, i15                 
-   709 : vld_lane.i64             v0, 0, i0                  
-   710 : vld_lane.i64             v31, 0, i0                 
-   711 : vld_lane.i64             v0, 1, i0                  
-   712 : vld_lane.i64             v0, 0, i15                 
-   713 : vld_deinterleave2.i8     v0, v1, i0                 
-   714 : vld_deinterleave2.i8     v31, v0, i0                
-   715 : vld_deinterleave2.i8     v0, v1, i15                
-   716 : vld_deinterleave2.i16    v0, v1, i0                 
-   717 : vld_deinterleave2.i16    v31, v0, i0                
-   718 : vld_deinterleave2.i16    v0, v1, i15                
-   719 : vld_deinterleave2.i32    v0, v1, i0                 
-   720 : vld_deinterleave2.i32    v31, v0, i0                
-   721 : vld_deinterleave2.i32    v0, v1, i15                
-   722 : vld_deinterleave2.i64    v0, v1, i0                 
-   723 : vld_deinterleave2.i64    v31, v0, i0                
-   724 : vld_deinterleave2.i64    v0, v1, i15                
-   725 : vld_lane.i8              v0, i0                     
-   726 : vld_lane.i8              v31, i0                    
-   727 : vld_lane.i8              v0, i15                    
-   728 : vld_lane.i16             v0, i0                     
-   729 : vld_lane.i16             v31, i0                    
-   730 : vld_lane.i16             v0, i15                    
-   731 : vld_lane.i32             v0, i0                     
-   732 : vld_lane.i32             v31, i0                    
-   733 : vld_lane.i32             v0, i15                    
-   734 : vld_lane.i64             v0, i0                     
-   735 : vld_lane.i64             v31, i0                    
-   736 : vld_lane.i64             v0, i15                    
-   737 : vst_lane.i8              i0, v0, 0                  
-   738 : vst_lane.i8              i0, v31, 0                 
-   739 : vst_lane.i8              i0, v0, 15                 
-   740 : vst_lane.i8              i15, v0, 0                 
-   741 : vst_lane.i16             i0, v0, 0                  
-   742 : vst_lane.i16             i0, v31, 0                 
-   743 : vst_lane.i16             i0, v0, 7                  
-   744 : vst_lane.i16             i15, v0, 0                 
-   745 : vst_lane.i32             i0, v0, 0                  
-   746 : vst_lane.i32             i0, v31, 0                 
-   747 : vst_lane.i32             i0, v0, 3                  
-   748 : vst_lane.i32             i15, v0, 0                 
-   749 : vst_lane.i64             i0, v0, 0                  
-   750 : vst_lane.i64             i0, v31, 0                 
-   751 : vst_lane.i64             i0, v0, 1                  
-   752 : vst_lane.i64             i15, v0, 0                 
-   753 : vst_lane.i8              i0, v0                     
-   754 : vst_lane.i8              i15, v0                    
-   755 : vst_lane.i8              i0, v31                    
-   756 : vst_lane.i16             i0, v0                     
-   757 : vst_lane.i16             i15, v0                    
-   758 : vst_lane.i16             i0, v31                    
-   759 : vst_lane.i32             i0, v0                     
-   760 : vst_lane.i32             i15, v0                    
-   761 : vst_lane.i32             i0, v31                    
-   762 : vst_lane.i64             i0, v0                     
-   763 : vst_lane.i64             i15, v0                    
-   764 : vst_lane.i64             i0, v31                    
-   765 : ext.i8                   v0, v0, v0, 0              
-   766 : ext.i8                   v31, v0, v0, 0             
-   767 : ext.i8                   v0, v31, v0, 0             
-   768 : ext.i8                   v0, v0, v31, 0             
-   769 : ext.i8                   v0, v0, v0, 15             
-   770 : ext.i16                  v0, v0, v0, 0              
-   771 : ext.i16                  v31, v0, v0, 0             
-   772 : ext.i16                  v0, v31, v0, 0             
-   773 : ext.i16                  v0, v0, v31, 0             
-   774 : ext.i16                  v0, v0, v0, 7              
-   775 : ext.i32                  v0, v0, v0, 0              
-   776 : ext.i32                  v31, v0, v0, 0             
-   777 : ext.i32                  v0, v31, v0, 0             
-   778 : ext.i32                  v0, v0, v31, 0             
-   779 : ext.i32                  v0, v0, v0, 3              
-   780 : ext.i64                  v0, v0, v0, 0              
-   781 : ext.i64                  v31, v0, v0, 0             
-   782 : ext.i64                  v0, v31, v0, 0             
-   783 : ext.i64                  v0, v0, v31, 0             
-   784 : ext.i64                  v0, v0, v0, 1              
-   785 : fma.fp16                 v0, v0, v0, v0, 0          
-   786 : fma.fp16                 v31, v31, v0, v0, 0        
-   787 : fma.fp16                 v0, v0, v31, v0, 0         
-   788 : fma.fp16                 v0, v0, v0, v15, 0         
-   789 : fma.fp16                 v0, v0, v0, v0, 7          
-   790 : fma.fp32                 v0, v0, v0, v0, 0          
-   791 : fma.fp32                 v31, v31, v0, v0, 0        
-   792 : fma.fp32                 v0, v0, v31, v0, 0         
-   793 : fma.fp32                 v0, v0, v0, v31, 0         
-   794 : fma.fp32                 v0, v0, v0, v0, 3          
-   795 : fma.fp64                 v0, v0, v0, v0, 0          
-   796 : fma.fp64                 v31, v31, v0, v0, 0        
-   797 : fma.fp64                 v0, v0, v31, v0, 0         
-   798 : fma.fp64                 v0, v0, v0, v31, 0         
-   799 : fma.fp64                 v0, v0, v0, v0, 1          
-   800 : gt.u8                    v0, v0, v0                 
-   801 : gt.u8                    v31, v0, v0                
-   802 : gt.u8                    v0, v31, v0                
-   803 : gt.u8                    v0, v0, v31                
-   804 : gt.u16                   v0, v0, v0                 
-   805 : gt.u16                   v31, v0, v0                
-   806 : gt.u16                   v0, v31, v0                
-   807 : gt.u16                   v0, v0, v31                
-   808 : gt.u32                   v0, v0, v0                 
-   809 : gt.u32                   v31, v0, v0                
-   810 : gt.u32                   v0, v31, v0                
-   811 : gt.u32                   v0, v0, v31                
-   812 : gt.u64                   v0, v0, v0                 
-   813 : gt.u64                   v31, v0, v0                
-   814 : gt.u64                   v0, v31, v0                
-   815 : gt.u64                   v0, v0, v31                
-   816 : ge.u8                    v0, v0, v0                 
-   817 : ge.u8                    v31, v0, v0                
-   818 : ge.u8                    v0, v31, v0                
-   819 : ge.u8                    v0, v0, v31                
-   820 : ge.u16                   v0, v0, v0                 
-   821 : ge.u16                   v31, v0, v0                
-   822 : ge.u16                   v0, v31, v0                
-   823 : ge.u16                   v0, v0, v31                
-   824 : ge.u32                   v0, v0, v0                 
-   825 : ge.u32                   v31, v0, v0                
-   826 : ge.u32                   v0, v31, v0                
-   827 : ge.u32                   v0, v0, v31                
-   828 : ge.u64                   v0, v0, v0                 
-   829 : ge.u64                   v31, v0, v0                
-   830 : ge.u64                   v0, v31, v0                
-   831 : ge.u64                   v0, v0, v31                
-   832 : eq.u8                    v0, v0, v0                 
-   833 : eq.u8                    v31, v0, v0                
-   834 : eq.u8                    v0, v31, v0                
-   835 : eq.u8                    v0, v0, v31                
-   836 : eq.u16                   v0, v0, v0                 
-   837 : eq.u16                   v31, v0, v0                
-   838 : eq.u16                   v0, v31, v0                
-   839 : eq.u16                   v0, v0, v31                
-   840 : eq.u32                   v0, v0, v0                 
-   841 : eq.u32                   v31, v0, v0                
-   842 : eq.u32                   v0, v31, v0                
-   843 : eq.u32                   v0, v0, v31                
-   844 : eq.u64                   v0, v0, v0                 
-   845 : eq.u64                   v31, v0, v0                
-   846 : eq.u64                   v0, v31, v0                
-   847 : eq.u64                   v0, v0, v31                
-   848 : ge.u8                    v0, v0, v0                 
-   849 : ge.u8                    v31, v0, v0                
-   850 : ge.u8                    v0, v31, v0                
-   851 : ge.u8                    v0, v0, v31                
-   852 : ge.u16                   v0, v0, v0                 
-   853 : ge.u16                   v31, v0, v0                
-   854 : ge.u16                   v0, v31, v0                
-   855 : ge.u16                   v0, v0, v31                
-   856 : ge.u32                   v0, v0, v0                 
-   857 : ge.u32                   v31, v0, v0                
-   858 : ge.u32                   v0, v31, v0                
-   859 : ge.u32                   v0, v0, v31                
-   860 : ge.u64                   v0, v0, v0                 
-   861 : ge.u64                   v31, v0, v0                
-   862 : ge.u64                   v0, v31, v0                
-   863 : ge.u64                   v0, v0, v31                
-   864 : gt.u8                    v0, v0, v0                 
-   865 : gt.u8                    v31, v0, v0                
-   866 : gt.u8                    v0, v31, v0                
-   867 : gt.u8                    v0, v0, v31                
-   868 : gt.u16                   v0, v0, v0                 
-   869 : gt.u16                   v31, v0, v0                
-   870 : gt.u16                   v0, v31, v0                
-   871 : gt.u16                   v0, v0, v31                
-   872 : gt.u32                   v0, v0, v0                 
-   873 : gt.u32                   v31, v0, v0                
-   874 : gt.u32                   v0, v31, v0                
-   875 : gt.u32                   v0, v0, v31                
-   876 : gt.u64                   v0, v0, v0                 
-   877 : gt.u64                   v31, v0, v0                
-   878 : gt.u64                   v0, v31, v0                
-   879 : gt.u64                   v0, v0, v31                
-   880 : getlane.u8               i0, v0, 0                  
-   881 : getlane.u8               i15, v0, 0                 
-   882 : getlane.u8               i0, v31, 0                 
-   883 : getlane.u8               i0, v0, 15                 
-   884 : getlane.u16              i0, v0, 0                  
-   885 : getlane.u16              i15, v0, 0                 
-   886 : getlane.u16              i0, v31, 0                 
-   887 : getlane.u16              i0, v0, 7                  
-   888 : getlane.u32              i0, v0, 0                  
-   889 : getlane.u32              i15, v0, 0                 
-   890 : getlane.u32              i0, v31, 0                 
-   891 : getlane.u32              i0, v0, 3                  
-   892 : getlane.u64              i0, v0, 0                  
-   893 : getlane.u64              i15, v0, 0                 
-   894 : getlane.u64              i0, v31, 0                 
-   895 : getlane.u64              i0, v0, 1                  
-   896 : setlane.u8               v0, 0, i0                  
-   897 : setlane.u8               v31, 0, i0                 
-   898 : setlane.u8               v0, 15, i0                 
-   899 : setlane.u8               v0, 0, i15                 
-   900 : setlane.u16              v0, 0, i0                  
-   901 : setlane.u16              v31, 0, i0                 
-   902 : setlane.u16              v0, 7, i0                  
-   903 : setlane.u16              v0, 0, i15                 
-   904 : setlane.u32              v0, 0, i0                  
-   905 : setlane.u32              v31, 0, i0                 
-   906 : setlane.u32              v0, 3, i0                  
-   907 : setlane.u32              v0, 0, i15                 
-   908 : setlane.u64              v0, 0, i0                  
-   909 : setlane.u64              v31, 0, i0                 
-   910 : setlane.u64              v0, 1, i0                  
-   911 : setlane.u64              v0, 0, i15                 
-   912 : setlane.u8               v0, 0, v0, 0               
-   913 : setlane.u8               v31, 0, v0, 0              
-   914 : setlane.u8               v0, 15, v0, 0              
-   915 : setlane.u8               v0, 0, v31, 0              
-   916 : setlane.u8               v0, 0, v0, 15              
-   917 : setlane.u16              v0, 0, v0, 0               
-   918 : setlane.u16              v31, 0, v0, 0              
-   919 : setlane.u16              v0, 7, v0, 0               
-   920 : setlane.u16              v0, 0, v31, 0              
-   921 : setlane.u16              v0, 0, v0, 7               
-   922 : setlane.u32              v0, 0, v0, 0               
-   923 : setlane.u32              v31, 0, v0, 0              
-   924 : setlane.u32              v0, 3, v0, 0               
-   925 : setlane.u32              v0, 0, v31, 0              
-   926 : setlane.u32              v0, 0, v0, 3               
-   927 : setlane.u64              v0, 0, v0, 0               
-   928 : setlane.u64              v31, 0, v0, 0              
-   929 : setlane.u64              v0, 1, v0, 0               
-   930 : setlane.u64              v0, 0, v31, 0              
-   931 : setlane.u64              v0, 0, v0, 1               
-   932 : select                   v0, v0, v0, v0             
-   933 : select                   v31, v31, v0, v0           
-   934 : select                   v0, v0, v31, v0            
-   935 : select                   v0, v0, v0, v31            
-   936 : call_noret               [i0]()                     
-   937 : call_noret               [i15]()                    
+   411 : mov                      v0, 0                      
+   412 : mov                      v31, 0                     
+   413 : mov                      v0, 255                    
+   414 : mov                      v31, 255                   
+   415 : mov                      v0, -71777214294589696     
+   416 : mov                      v31, -71777214294589696    
+   417 : min.fp16                 v0, v0, v0                 
+   418 : min.fp16                 v31, v0, v0                
+   419 : min.fp16                 v0, v31, v0                
+   420 : min.fp16                 v0, v0, v31                
+   421 : min.fp32                 v0, v0, v0                 
+   422 : min.fp32                 v31, v0, v0                
+   423 : min.fp32                 v0, v31, v0                
+   424 : min.fp32                 v0, v0, v31                
+   425 : min.fp64                 v0, v0, v0                 
+   426 : min.fp64                 v31, v0, v0                
+   427 : min.fp64                 v0, v31, v0                
+   428 : min.fp64                 v0, v0, v31                
+   429 : max.fp16                 v0, v0, v0                 
+   430 : max.fp16                 v31, v0, v0                
+   431 : max.fp16                 v0, v31, v0                
+   432 : max.fp16                 v0, v0, v31                
+   433 : max.fp32                 v0, v0, v0                 
+   434 : max.fp32                 v31, v0, v0                
+   435 : max.fp32                 v0, v31, v0                
+   436 : max.fp32                 v0, v0, v31                
+   437 : max.fp64                 v0, v0, v0                 
+   438 : max.fp64                 v31, v0, v0                
+   439 : max.fp64                 v0, v31, v0                
+   440 : max.fp64                 v0, v0, v31                
+   441 : fma.fp16                 v0, v0, v0, v0             
+   442 : fma.fp16                 v31, v31, v0, v0           
+   443 : fma.fp16                 v0, v0, v31, v0            
+   444 : fma.fp16                 v0, v0, v0, v31            
+   445 : fma.fp32                 v0, v0, v0, v0             
+   446 : fma.fp32                 v31, v31, v0, v0           
+   447 : fma.fp32                 v0, v0, v31, v0            
+   448 : fma.fp32                 v0, v0, v0, v31            
+   449 : fma.fp64                 v0, v0, v0, v0             
+   450 : fma.fp64                 v31, v31, v0, v0           
+   451 : fma.fp64                 v0, v0, v31, v0            
+   452 : fma.fp64                 v0, v0, v0, v31            
+   453 : trunc.fp16_i16           v0, v0                     
+   454 : trunc.fp16_i16           v31, v0                    
+   455 : trunc.fp16_i16           v0, v31                    
+   456 : trunc.fp32_i32           v0, v0                     
+   457 : trunc.fp32_i32           v31, v0                    
+   458 : trunc.fp32_i32           v0, v31                    
+   459 : trunc.fp64_i64           v0, v0                     
+   460 : trunc.fp64_i64           v31, v0                    
+   461 : trunc.fp64_i64           v0, v31                    
+   462 : trunc.fp16_u16           v0, v0                     
+   463 : trunc.fp16_u16           v31, v0                    
+   464 : trunc.fp16_u16           v0, v31                    
+   465 : trunc.fp32_u32           v0, v0                     
+   466 : trunc.fp32_u32           v31, v0                    
+   467 : trunc.fp32_u32           v0, v31                    
+   468 : trunc.fp64_u64           v0, v0                     
+   469 : trunc.fp64_u64           v31, v0                    
+   470 : trunc.fp64_u64           v0, v31                    
+   471 : floor.fp16_i16           v0, v0                     
+   472 : floor.fp16_i16           v31, v0                    
+   473 : floor.fp16_i16           v0, v31                    
+   474 : floor.fp32_i32           v0, v0                     
+   475 : floor.fp32_i32           v31, v0                    
+   476 : floor.fp32_i32           v0, v31                    
+   477 : floor.fp64_i64           v0, v0                     
+   478 : floor.fp64_i64           v31, v0                    
+   479 : floor.fp64_i64           v0, v31                    
+   480 : floor.fp16_u16           v0, v0                     
+   481 : floor.fp16_u16           v31, v0                    
+   482 : floor.fp16_u16           v0, v31                    
+   483 : floor.fp32_u32           v0, v0                     
+   484 : floor.fp32_u32           v31, v0                    
+   485 : floor.fp32_u32           v0, v31                    
+   486 : floor.fp64_u64           v0, v0                     
+   487 : floor.fp64_u64           v31, v0                    
+   488 : floor.fp64_u64           v0, v31                    
+   489 : cast.i16_fp16            v0, v0                     
+   490 : cast.i16_fp16            v31, v0                    
+   491 : cast.i16_fp16            v0, v31                    
+   492 : cast.i32_fp32            v0, v0                     
+   493 : cast.i32_fp32            v31, v0                    
+   494 : cast.i32_fp32            v0, v31                    
+   495 : cast.i64_fp64            v0, v0                     
+   496 : cast.i64_fp64            v31, v0                    
+   497 : cast.i64_fp64            v0, v31                    
+   498 : cast.u16_fp16            v0, v0                     
+   499 : cast.u16_fp16            v31, v0                    
+   500 : cast.u16_fp16            v0, v31                    
+   501 : cast.u32_fp32            v0, v0                     
+   502 : cast.u32_fp32            v31, v0                    
+   503 : cast.u32_fp32            v0, v31                    
+   504 : cast.u64_fp64            v0, v0                     
+   505 : cast.u64_fp64            v31, v0                    
+   506 : cast.u64_fp64            v0, v31                    
+   507 : gt.u16                   v0, v0, v0                 
+   508 : gt.u16                   v31, v0, v0                
+   509 : gt.u16                   v0, v31, v0                
+   510 : gt.u16                   v0, v0, v31                
+   511 : gt.u32                   v0, v0, v0                 
+   512 : gt.u32                   v31, v0, v0                
+   513 : gt.u32                   v0, v31, v0                
+   514 : gt.u32                   v0, v0, v31                
+   515 : gt.u64                   v0, v0, v0                 
+   516 : gt.u64                   v31, v0, v0                
+   517 : gt.u64                   v0, v31, v0                
+   518 : gt.u64                   v0, v0, v31                
+   519 : gt.u8                    v0, v0, v0                 
+   520 : gt.u8                    v31, v0, v0                
+   521 : gt.u8                    v0, v31, v0                
+   522 : gt.u8                    v0, v0, v31                
+   523 : gt.u16                   v0, v0, v0                 
+   524 : gt.u16                   v31, v0, v0                
+   525 : gt.u16                   v0, v31, v0                
+   526 : gt.u16                   v0, v0, v31                
+   527 : gt.u32                   v0, v0, v0                 
+   528 : gt.u32                   v31, v0, v0                
+   529 : gt.u32                   v0, v31, v0                
+   530 : gt.u32                   v0, v0, v31                
+   531 : gt.u64                   v0, v0, v0                 
+   532 : gt.u64                   v31, v0, v0                
+   533 : gt.u64                   v0, v31, v0                
+   534 : gt.u64                   v0, v0, v31                
+   535 : gt.u8                    v0, v0, v0                 
+   536 : gt.u8                    v31, v0, v0                
+   537 : gt.u8                    v0, v31, v0                
+   538 : gt.u8                    v0, v0, v31                
+   539 : gt.u16                   v0, v0, v0                 
+   540 : gt.u16                   v31, v0, v0                
+   541 : gt.u16                   v0, v31, v0                
+   542 : gt.u16                   v0, v0, v31                
+   543 : gt.u32                   v0, v0, v0                 
+   544 : gt.u32                   v31, v0, v0                
+   545 : gt.u32                   v0, v31, v0                
+   546 : gt.u32                   v0, v0, v31                
+   547 : gt.u64                   v0, v0, v0                 
+   548 : gt.u64                   v31, v0, v0                
+   549 : gt.u64                   v0, v31, v0                
+   550 : gt.u64                   v0, v0, v31                
+   551 : ge.u16                   v0, v0, v0                 
+   552 : ge.u16                   v31, v0, v0                
+   553 : ge.u16                   v0, v31, v0                
+   554 : ge.u16                   v0, v0, v31                
+   555 : ge.u32                   v0, v0, v0                 
+   556 : ge.u32                   v31, v0, v0                
+   557 : ge.u32                   v0, v31, v0                
+   558 : ge.u32                   v0, v0, v31                
+   559 : ge.u64                   v0, v0, v0                 
+   560 : ge.u64                   v31, v0, v0                
+   561 : ge.u64                   v0, v31, v0                
+   562 : ge.u64                   v0, v0, v31                
+   563 : ge.u8                    v0, v0, v0                 
+   564 : ge.u8                    v31, v0, v0                
+   565 : ge.u8                    v0, v31, v0                
+   566 : ge.u8                    v0, v0, v31                
+   567 : ge.u16                   v0, v0, v0                 
+   568 : ge.u16                   v31, v0, v0                
+   569 : ge.u16                   v0, v31, v0                
+   570 : ge.u16                   v0, v0, v31                
+   571 : ge.u32                   v0, v0, v0                 
+   572 : ge.u32                   v31, v0, v0                
+   573 : ge.u32                   v0, v31, v0                
+   574 : ge.u32                   v0, v0, v31                
+   575 : ge.u64                   v0, v0, v0                 
+   576 : ge.u64                   v31, v0, v0                
+   577 : ge.u64                   v0, v31, v0                
+   578 : ge.u64                   v0, v0, v31                
+   579 : ge.u8                    v0, v0, v0                 
+   580 : ge.u8                    v31, v0, v0                
+   581 : ge.u8                    v0, v31, v0                
+   582 : ge.u8                    v0, v0, v31                
+   583 : ge.u16                   v0, v0, v0                 
+   584 : ge.u16                   v31, v0, v0                
+   585 : ge.u16                   v0, v31, v0                
+   586 : ge.u16                   v0, v0, v31                
+   587 : ge.u32                   v0, v0, v0                 
+   588 : ge.u32                   v31, v0, v0                
+   589 : ge.u32                   v0, v31, v0                
+   590 : ge.u32                   v0, v0, v31                
+   591 : ge.u64                   v0, v0, v0                 
+   592 : ge.u64                   v31, v0, v0                
+   593 : ge.u64                   v0, v31, v0                
+   594 : ge.u64                   v0, v0, v31                
+   595 : eq.u16                   v0, v0, v0                 
+   596 : eq.u16                   v31, v0, v0                
+   597 : eq.u16                   v0, v31, v0                
+   598 : eq.u16                   v0, v0, v31                
+   599 : eq.u32                   v0, v0, v0                 
+   600 : eq.u32                   v31, v0, v0                
+   601 : eq.u32                   v0, v31, v0                
+   602 : eq.u32                   v0, v0, v31                
+   603 : eq.u64                   v0, v0, v0                 
+   604 : eq.u64                   v31, v0, v0                
+   605 : eq.u64                   v0, v31, v0                
+   606 : eq.u64                   v0, v0, v31                
+   607 : eq.u8                    v0, v0, v0                 
+   608 : eq.u8                    v31, v0, v0                
+   609 : eq.u8                    v0, v31, v0                
+   610 : eq.u8                    v0, v0, v31                
+   611 : eq.u16                   v0, v0, v0                 
+   612 : eq.u16                   v31, v0, v0                
+   613 : eq.u16                   v0, v31, v0                
+   614 : eq.u16                   v0, v0, v31                
+   615 : eq.u32                   v0, v0, v0                 
+   616 : eq.u32                   v31, v0, v0                
+   617 : eq.u32                   v0, v31, v0                
+   618 : eq.u32                   v0, v0, v31                
+   619 : eq.u64                   v0, v0, v0                 
+   620 : eq.u64                   v31, v0, v0                
+   621 : eq.u64                   v0, v31, v0                
+   622 : eq.u64                   v0, v0, v31                
+   623 : neg.i8                   v0, v0                     
+   624 : neg.i8                   v31, v0                    
+   625 : neg.i8                   v0, v31                    
+   626 : neg.i16                  v0, v0                     
+   627 : neg.i16                  v31, v0                    
+   628 : neg.i16                  v0, v31                    
+   629 : neg.i32                  v0, v0                     
+   630 : neg.i32                  v31, v0                    
+   631 : neg.i32                  v0, v31                    
+   632 : neg.i64                  v0, v0                     
+   633 : neg.i64                  v31, v0                    
+   634 : neg.i64                  v0, v31                    
+   635 : neg.fp16                 v0, v0                     
+   636 : neg.fp16                 v31, v0                    
+   637 : neg.fp16                 v0, v31                    
+   638 : neg.fp32                 v0, v0                     
+   639 : neg.fp32                 v31, v0                    
+   640 : neg.fp32                 v0, v31                    
+   641 : neg.fp64                 v0, v0                     
+   642 : neg.fp64                 v31, v0                    
+   643 : neg.fp64                 v0, v31                    
+   644 : arm_movk                 i0, 0, 16                  
+   645 : arm_movk                 i15, 0, 16                 
+   646 : arm_movk                 i0, 65535, 16              
+   647 : arm_movk                 i0, 0, 32                  
+   648 : arm_movk                 i15, 0, 32                 
+   649 : arm_movk                 i0, 65535, 32              
+   650 : arm_movk                 i0, 0, 48                  
+   651 : arm_movk                 i15, 0, 48                 
+   652 : arm_movk                 i0, 65535, 48              
+   653 : broadcast.i8             v0, i0                     
+   654 : broadcast.i8             v31, i0                    
+   655 : broadcast.i8             v0, i15                    
+   656 : broadcast.i16            v0, i0                     
+   657 : broadcast.i16            v31, i0                    
+   658 : broadcast.i16            v0, i15                    
+   659 : broadcast.i32            v0, i0                     
+   660 : broadcast.i32            v31, i0                    
+   661 : broadcast.i32            v0, i15                    
+   662 : broadcast.i64            v0, i0                     
+   663 : broadcast.i64            v31, i0                    
+   664 : broadcast.i64            v0, i15                    
+   665 : broadcast.u8             v0, v0, 0                  
+   666 : broadcast.u8             v31, v0, 0                 
+   667 : broadcast.u8             v0, v31, 0                 
+   668 : broadcast.u8             v0, v0, 15                 
+   669 : broadcast.u16            v0, v0, 0                  
+   670 : broadcast.u16            v31, v0, 0                 
+   671 : broadcast.u16            v0, v31, 0                 
+   672 : broadcast.u16            v0, v0, 7                  
+   673 : broadcast.u32            v0, v0, 0                  
+   674 : broadcast.u32            v31, v0, 0                 
+   675 : broadcast.u32            v0, v31, 0                 
+   676 : broadcast.u32            v0, v0, 3                  
+   677 : broadcast.u64            v0, v0, 0                  
+   678 : broadcast.u64            v31, v0, 0                 
+   679 : broadcast.u64            v0, v31, 0                 
+   680 : broadcast.u64            v0, v0, 1                  
+   681 : cast.i16.from.i8.low     v0, v0                     
+   682 : cast.i16.from.i8.low     v31, v0                    
+   683 : cast.i16.from.i8.low     v0, v31                    
+   684 : cast.i32.from.i16.low    v0, v0                     
+   685 : cast.i32.from.i16.low    v31, v0                    
+   686 : cast.i32.from.i16.low    v0, v31                    
+   687 : cast.i64.from.i32.low    v0, v0                     
+   688 : cast.i64.from.i32.low    v31, v0                    
+   689 : cast.i64.from.i32.low    v0, v31                    
+   690 : cast.u16.from.u8.low     v0, v0                     
+   691 : cast.u16.from.u8.low     v31, v0                    
+   692 : cast.u16.from.u8.low     v0, v31                    
+   693 : cast.u32.from.u16.low    v0, v0                     
+   694 : cast.u32.from.u16.low    v31, v0                    
+   695 : cast.u32.from.u16.low    v0, v31                    
+   696 : cast.u64.from.u32.low    v0, v0                     
+   697 : cast.u64.from.u32.low    v31, v0                    
+   698 : cast.u64.from.u32.low    v0, v31                    
+   699 : cast.i16.from.i8.high    v0, v0                     
+   700 : cast.i16.from.i8.high    v31, v0                    
+   701 : cast.i16.from.i8.high    v0, v31                    
+   702 : cast.i32.from.i16.high   v0, v0                     
+   703 : cast.i32.from.i16.high   v31, v0                    
+   704 : cast.i32.from.i16.high   v0, v31                    
+   705 : cast.i64.from.i32.high   v0, v0                     
+   706 : cast.i64.from.i32.high   v31, v0                    
+   707 : cast.i64.from.i32.high   v0, v31                    
+   708 : cast.u16.from.u8.high    v0, v0                     
+   709 : cast.u16.from.u8.high    v31, v0                    
+   710 : cast.u16.from.u8.high    v0, v31                    
+   711 : cast.u32.from.u16.high   v0, v0                     
+   712 : cast.u32.from.u16.high   v31, v0                    
+   713 : cast.u32.from.u16.high   v0, v31                    
+   714 : cast.u64.from.u32.high   v0, v0                     
+   715 : cast.u64.from.u32.high   v31, v0                    
+   716 : cast.u64.from.u32.high   v0, v31                    
+   717 : shrink.i8.from.i16.low   v0, v0                     
+   718 : shrink.i8.from.i16.low   v31, v0                    
+   719 : shrink.i8.from.i16.low   v0, v31                    
+   720 : shrink.i16.from.i32.low  v0, v0                     
+   721 : shrink.i16.from.i32.low  v31, v0                    
+   722 : shrink.i16.from.i32.low  v0, v31                    
+   723 : shrink.i32.from.i64.low  v0, v0                     
+   724 : shrink.i32.from.i64.low  v31, v0                    
+   725 : shrink.i32.from.i64.low  v0, v31                    
+   726 : shrink.i8.from.i16.high  v0, v0                     
+   727 : shrink.i8.from.i16.high  v31, v0                    
+   728 : shrink.i8.from.i16.high  v0, v31                    
+   729 : shrink.i16.from.i32.high v0, v0                     
+   730 : shrink.i16.from.i32.high v31, v0                    
+   731 : shrink.i16.from.i32.high v0, v31                    
+   732 : shrink.i32.from.i64.high v0, v0                     
+   733 : shrink.i32.from.i64.high v31, v0                    
+   734 : shrink.i32.from.i64.high v0, v31                    
+   735 : reduce.max.i8            v0, v0                     
+   736 : reduce.max.i8            v31, v0                    
+   737 : reduce.max.i8            v0, v31                    
+   738 : reduce.max.i16           v0, v0                     
+   739 : reduce.max.i16           v31, v0                    
+   740 : reduce.max.i16           v0, v31                    
+   741 : reduce.max.i32           v0, v0                     
+   742 : reduce.max.i32           v31, v0                    
+   743 : reduce.max.i32           v0, v31                    
+   744 : reduce.max.u8            v0, v0                     
+   745 : reduce.max.u8            v31, v0                    
+   746 : reduce.max.u8            v0, v31                    
+   747 : reduce.max.u16           v0, v0                     
+   748 : reduce.max.u16           v31, v0                    
+   749 : reduce.max.u16           v0, v31                    
+   750 : reduce.max.u32           v0, v0                     
+   751 : reduce.max.u32           v31, v0                    
+   752 : reduce.max.u32           v0, v31                    
+   753 : reduce.max.fp16          v0, v0                     
+   754 : reduce.max.fp16          v31, v0                    
+   755 : reduce.max.fp16          v0, v31                    
+   756 : reduce.max.fp32          v0, v0                     
+   757 : reduce.max.fp32          v31, v0                    
+   758 : reduce.max.fp32          v0, v31                    
+   759 : reduce.max.i8            v0, v0                     
+   760 : reduce.max.i8            v31, v0                    
+   761 : reduce.max.i8            v0, v31                    
+   762 : reduce.max.i16           v0, v0                     
+   763 : reduce.max.i16           v31, v0                    
+   764 : reduce.max.i16           v0, v31                    
+   765 : reduce.max.i32           v0, v0                     
+   766 : reduce.max.i32           v31, v0                    
+   767 : reduce.max.i32           v0, v31                    
+   768 : reduce.max.u8            v0, v0                     
+   769 : reduce.max.u8            v31, v0                    
+   770 : reduce.max.u8            v0, v31                    
+   771 : reduce.max.u16           v0, v0                     
+   772 : reduce.max.u16           v31, v0                    
+   773 : reduce.max.u16           v0, v31                    
+   774 : reduce.max.u32           v0, v0                     
+   775 : reduce.max.u32           v31, v0                    
+   776 : reduce.max.u32           v0, v31                    
+   777 : reduce.max.fp16          v0, v0                     
+   778 : reduce.max.fp16          v31, v0                    
+   779 : reduce.max.fp16          v0, v31                    
+   780 : reduce.max.fp32          v0, v0                     
+   781 : reduce.max.fp32          v31, v0                    
+   782 : reduce.max.fp32          v0, v31                    
+   783 : vld_lane.i8              v0, 0, i0                  
+   784 : vld_lane.i8              v31, 0, i0                 
+   785 : vld_lane.i8              v0, 15, i0                 
+   786 : vld_lane.i8              v0, 0, i15                 
+   787 : vld_lane.i16             v0, 0, i0                  
+   788 : vld_lane.i16             v31, 0, i0                 
+   789 : vld_lane.i16             v0, 7, i0                  
+   790 : vld_lane.i16             v0, 0, i15                 
+   791 : vld_lane.i32             v0, 0, i0                  
+   792 : vld_lane.i32             v31, 0, i0                 
+   793 : vld_lane.i32             v0, 3, i0                  
+   794 : vld_lane.i32             v0, 0, i15                 
+   795 : vld_lane.i64             v0, 0, i0                  
+   796 : vld_lane.i64             v31, 0, i0                 
+   797 : vld_lane.i64             v0, 1, i0                  
+   798 : vld_lane.i64             v0, 0, i15                 
+   799 : vld_deinterleave2.i8     v0, v1, i0                 
+   800 : vld_deinterleave2.i8     v31, v0, i0                
+   801 : vld_deinterleave2.i8     v0, v1, i15                
+   802 : vld_deinterleave2.i16    v0, v1, i0                 
+   803 : vld_deinterleave2.i16    v31, v0, i0                
+   804 : vld_deinterleave2.i16    v0, v1, i15                
+   805 : vld_deinterleave2.i32    v0, v1, i0                 
+   806 : vld_deinterleave2.i32    v31, v0, i0                
+   807 : vld_deinterleave2.i32    v0, v1, i15                
+   808 : vld_deinterleave2.i64    v0, v1, i0                 
+   809 : vld_deinterleave2.i64    v31, v0, i0                
+   810 : vld_deinterleave2.i64    v0, v1, i15                
+   811 : vld_lane.i8              v0, i0                     
+   812 : vld_lane.i8              v31, i0                    
+   813 : vld_lane.i8              v0, i15                    
+   814 : vld_lane.i16             v0, i0                     
+   815 : vld_lane.i16             v31, i0                    
+   816 : vld_lane.i16             v0, i15                    
+   817 : vld_lane.i32             v0, i0                     
+   818 : vld_lane.i32             v31, i0                    
+   819 : vld_lane.i32             v0, i15                    
+   820 : vld_lane.i64             v0, i0                     
+   821 : vld_lane.i64             v31, i0                    
+   822 : vld_lane.i64             v0, i15                    
+   823 : vst_lane.i8              i0, v0, 0                  
+   824 : vst_lane.i8              i0, v31, 0                 
+   825 : vst_lane.i8              i0, v0, 15                 
+   826 : vst_lane.i8              i15, v0, 0                 
+   827 : vst_lane.i16             i0, v0, 0                  
+   828 : vst_lane.i16             i0, v31, 0                 
+   829 : vst_lane.i16             i0, v0, 7                  
+   830 : vst_lane.i16             i15, v0, 0                 
+   831 : vst_lane.i32             i0, v0, 0                  
+   832 : vst_lane.i32             i0, v31, 0                 
+   833 : vst_lane.i32             i0, v0, 3                  
+   834 : vst_lane.i32             i15, v0, 0                 
+   835 : vst_lane.i64             i0, v0, 0                  
+   836 : vst_lane.i64             i0, v31, 0                 
+   837 : vst_lane.i64             i0, v0, 1                  
+   838 : vst_lane.i64             i15, v0, 0                 
+   839 : vst_lane.i8              i0, v0                     
+   840 : vst_lane.i8              i15, v0                    
+   841 : vst_lane.i8              i0, v31                    
+   842 : vst_lane.i16             i0, v0                     
+   843 : vst_lane.i16             i15, v0                    
+   844 : vst_lane.i16             i0, v31                    
+   845 : vst_lane.i32             i0, v0                     
+   846 : vst_lane.i32             i15, v0                    
+   847 : vst_lane.i32             i0, v31                    
+   848 : vst_lane.i64             i0, v0                     
+   849 : vst_lane.i64             i15, v0                    
+   850 : vst_lane.i64             i0, v31                    
+   851 : ext.i8                   v0, v0, v0, 0              
+   852 : ext.i8                   v31, v0, v0, 0             
+   853 : ext.i8                   v0, v31, v0, 0             
+   854 : ext.i8                   v0, v0, v31, 0             
+   855 : ext.i8                   v0, v0, v0, 15             
+   856 : ext.i16                  v0, v0, v0, 0              
+   857 : ext.i16                  v31, v0, v0, 0             
+   858 : ext.i16                  v0, v31, v0, 0             
+   859 : ext.i16                  v0, v0, v31, 0             
+   860 : ext.i16                  v0, v0, v0, 7              
+   861 : ext.i32                  v0, v0, v0, 0              
+   862 : ext.i32                  v31, v0, v0, 0             
+   863 : ext.i32                  v0, v31, v0, 0             
+   864 : ext.i32                  v0, v0, v31, 0             
+   865 : ext.i32                  v0, v0, v0, 3              
+   866 : ext.i64                  v0, v0, v0, 0              
+   867 : ext.i64                  v31, v0, v0, 0             
+   868 : ext.i64                  v0, v31, v0, 0             
+   869 : ext.i64                  v0, v0, v31, 0             
+   870 : ext.i64                  v0, v0, v0, 1              
+   871 : fma.fp16                 v0, v0, v0, v0, 0          
+   872 : fma.fp16                 v31, v31, v0, v0, 0        
+   873 : fma.fp16                 v0, v0, v31, v0, 0         
+   874 : fma.fp16                 v0, v0, v0, v15, 0         
+   875 : fma.fp16                 v0, v0, v0, v0, 7          
+   876 : fma.fp32                 v0, v0, v0, v0, 0          
+   877 : fma.fp32                 v31, v31, v0, v0, 0        
+   878 : fma.fp32                 v0, v0, v31, v0, 0         
+   879 : fma.fp32                 v0, v0, v0, v31, 0         
+   880 : fma.fp32                 v0, v0, v0, v0, 3          
+   881 : fma.fp64                 v0, v0, v0, v0, 0          
+   882 : fma.fp64                 v31, v31, v0, v0, 0        
+   883 : fma.fp64                 v0, v0, v31, v0, 0         
+   884 : fma.fp64                 v0, v0, v0, v31, 0         
+   885 : fma.fp64                 v0, v0, v0, v0, 1          
+   886 : getlane.u8               i0, v0, 0                  
+   887 : getlane.u8               i15, v0, 0                 
+   888 : getlane.u8               i0, v31, 0                 
+   889 : getlane.u8               i0, v0, 15                 
+   890 : getlane.u16              i0, v0, 0                  
+   891 : getlane.u16              i15, v0, 0                 
+   892 : getlane.u16              i0, v31, 0                 
+   893 : getlane.u16              i0, v0, 7                  
+   894 : getlane.u32              i0, v0, 0                  
+   895 : getlane.u32              i15, v0, 0                 
+   896 : getlane.u32              i0, v31, 0                 
+   897 : getlane.u32              i0, v0, 3                  
+   898 : getlane.u64              i0, v0, 0                  
+   899 : getlane.u64              i15, v0, 0                 
+   900 : getlane.u64              i0, v31, 0                 
+   901 : getlane.u64              i0, v0, 1                  
+   902 : setlane.u8               v0, 0, i0                  
+   903 : setlane.u8               v31, 0, i0                 
+   904 : setlane.u8               v0, 15, i0                 
+   905 : setlane.u8               v0, 0, i15                 
+   906 : setlane.u16              v0, 0, i0                  
+   907 : setlane.u16              v31, 0, i0                 
+   908 : setlane.u16              v0, 7, i0                  
+   909 : setlane.u16              v0, 0, i15                 
+   910 : setlane.u32              v0, 0, i0                  
+   911 : setlane.u32              v31, 0, i0                 
+   912 : setlane.u32              v0, 3, i0                  
+   913 : setlane.u32              v0, 0, i15                 
+   914 : setlane.u64              v0, 0, i0                  
+   915 : setlane.u64              v31, 0, i0                 
+   916 : setlane.u64              v0, 1, i0                  
+   917 : setlane.u64              v0, 0, i15                 
+   918 : setlane.u8               v0, 0, v0, 0               
+   919 : setlane.u8               v31, 0, v0, 0              
+   920 : setlane.u8               v0, 15, v0, 0              
+   921 : setlane.u8               v0, 0, v31, 0              
+   922 : setlane.u8               v0, 0, v0, 15              
+   923 : setlane.u16              v0, 0, v0, 0               
+   924 : setlane.u16              v31, 0, v0, 0              
+   925 : setlane.u16              v0, 7, v0, 0               
+   926 : setlane.u16              v0, 0, v31, 0              
+   927 : setlane.u16              v0, 0, v0, 7               
+   928 : setlane.u32              v0, 0, v0, 0               
+   929 : setlane.u32              v31, 0, v0, 0              
+   930 : setlane.u32              v0, 3, v0, 0               
+   931 : setlane.u32              v0, 0, v31, 0              
+   932 : setlane.u32              v0, 0, v0, 3               
+   933 : setlane.u64              v0, 0, v0, 0               
+   934 : setlane.u64              v31, 0, v0, 0              
+   935 : setlane.u64              v0, 1, v0, 0               
+   936 : setlane.u64              v0, 0, v31, 0              
+   937 : setlane.u64              v0, 0, v0, 1               
+   938 : select                   v0, v0, v0, v0             
+   939 : select                   v31, v31, v0, v0           
+   940 : select                   v0, v0, v31, v0            
+   941 : select                   v0, v0, v0, v31            
+   942 : call_noret               [i0]()                     
+   943 : call_noret               [i15]()                    
