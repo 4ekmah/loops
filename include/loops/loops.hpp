@@ -578,6 +578,7 @@ static inline IReg& operator ^= (IReg& a, int64_t b);
 static inline IExpr select(const IExpr& cond, const IExpr& true_, const IExpr& false_);
 static inline IExpr select(const IExpr& cond, int64_t true_, const IExpr& false_);
 static inline IExpr select(const IExpr& cond, const IExpr& true_, int64_t false_);
+static inline IExpr select(const IExpr& cond, int64_t true_, int64_t false_);
 static inline IExpr max(const IExpr& a, const IExpr& b);
 static inline IExpr max(const IExpr& a, int64_t b);
 static inline IExpr max(int64_t a, const IExpr& b);

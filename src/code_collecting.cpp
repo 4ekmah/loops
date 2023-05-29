@@ -282,7 +282,7 @@ namespace loops
         case (OP_LOGICAL_OR):
         case (OP_LOGICAL_NOT):
         {
-            if(flags & UR_LNOT_ELIMINATED == 0)
+            if((flags & UR_LNOT_ELIMINATED) == 0)
             {
                 Expr n_eliminated = eliminate_not(expr);
                 res = unpack_expr(n_eliminated, flags | UR_LNOT_ELIMINATED, buffer);
