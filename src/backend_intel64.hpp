@@ -57,7 +57,8 @@ namespace loops
         INTEL64_JLE    = 40,
         INTEL64_JG     = 41,
         INTEL64_JGE    = 42,
-        INTEL64_RET    = 43 
+        INTEL64_CALL   = 43,
+        INTEL64_RET    = 44 
     };
 
     enum {

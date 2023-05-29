@@ -190,16 +190,16 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
     {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
-    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
+    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0]; }}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
     {OP_CALL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        if (op.size() < 2 || (op.args[1].tag != Arg::IIMMEDIATE && op.args[1].tag != Arg::IREG))
+        if (op.size() < 2 || op.args[0].tag == Arg::VREG)
             throw std::runtime_error("Wrong CALL format");
         str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
         for(size_t anum = 2; anum + 1 < op.size(); anum++) str<<", "<<op[anum];
         str << ")";
     }},
     {OP_CALL_NORET, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        if (op.size() < 1 || (op.args[0].tag != Arg::IIMMEDIATE && op.args[0].tag != Arg::IREG))
+        if (op.size() < 1 || op.args[0].tag == Arg::VREG)
             throw std::runtime_error("Wrong CALL_NORET format");
         str << "["; if(op.args[0].tag == Arg::IIMMEDIATE) print_address(str, op.args[0].value); else str << op.args[0]; str << "](";
         for(size_t anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";

@@ -519,3 +519,8 @@ instruction_set_test()
    517 : add        s8191, s8191, i8    
    518 : add        s8191, s8191, i15   
    519 : add        s8191, s8191, 34952 
+   520 : call_noret [i0]()              
+   521 : call_noret [i7]()              
+   522 : call_noret [i8]()              
+   523 : call_noret [i15]()             
+   524 : call_noret [s32]()             

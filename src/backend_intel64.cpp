@@ -898,11 +898,7 @@ namespace loops
                     return BiT({ nBkb(n, stat, 5, 0b11000), BTreg(0, 3, Out) });
                 }
                 else if (index[0].tag == Arg::ISPILLED)
-                {
-                    size_t statn = ((index[0].idx < 8) ? 0 : 1);
-                    stat |= regbytes[statn];
                     return BiT({ BTsta(0x0F948424, 32),  BTspl(0, 32) });
-                }
             }
             break;
         case (INTEL64_CQO): return BiT({ BTsta(0x4899, 16) });
@@ -940,6 +936,19 @@ namespace loops
         case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BToff(0, 32) });
         case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BToff(0, 32) });
         case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BToff(0, 32) });
+        case (INTEL64_CALL):
+            if (index.size() == 1)
+            {
+                if (index[0].tag == Arg::IREG)
+                {
+                    size_t n = index[0].idx < 8 ? 1 : 2;
+                    size_t stat = index[0].idx < 8 ? 0xff : 0x41ff;
+                    return BiT({ nBkb(n, stat, 5, 0b11010), BTreg(0, 3, In) });
+                }
+                else if (index[0].tag == Arg::ISPILLED)
+                    return BiT({ BTsta(0xff9424, 24),  BTspl(0, 32) });
+            }
+            break;
         case (INTEL64_RET): return BiT({ BTsta(0xC3, 8) });
         default:
             break;
@@ -1093,7 +1102,10 @@ namespace loops
             };
             break;
         case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0, AF_PRINTOFFSET) });
-
+        case (OP_CALL_NORET):
+            if(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED))
+                return SyT(INTEL64_CALL, { SAcop(0, AF_ADDRESS) });
+            break;
         case (OP_RET):     return SyT(INTEL64_RET, {});
         default:
             break;
@@ -1289,6 +1301,9 @@ namespace loops
             case (OP_SIGN):
                 return 1;
                 break;
+            case (OP_CALL):
+            case (OP_CALL_NORET):
+                return 18;  //DUBUG: set real value, it's from Arm.
             default:
                 break;
             }
@@ -1382,6 +1397,30 @@ namespace loops
                     bypass = false;
                 }
                 break;
+            case (OP_CALL):
+            case (OP_CALL_NORET):
+            {
+                bool allRegs = true;
+                for(int arnum = 0; arnum < a_op.size(); arnum++)
+                    if(a_op[arnum].tag != Arg::IREG)
+                    {
+                        allRegs = false;
+                        break;
+                    }
+                Assert(allRegs);
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                {
+                    outRegs = actualRegs = makeBitmask64({ 0 });
+                    inRegs = makeBitmask64({});
+                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
+                    {
+                        inRegs |= (1 << arnum);
+                        actualRegs |= (1 << arnum);
+                    }
+                    bypass = false;
+                }
+                break;
+            }
             default:
                 break;
         };
@@ -1503,9 +1542,10 @@ namespace loops
             {INTEL64_JNE,       "jne"},
             {INTEL64_JE,        "je" },
             {INTEL64_JL,        "jl" },
+            {INTEL64_JLE,       "jle"},
             {INTEL64_JG,        "jg" },
             {INTEL64_JGE,       "jge"},
-            {INTEL64_JLE,       "jle"},
+            {INTEL64_CALL,     "call"},
             {INTEL64_RET,       "ret"} });
     }
 
@@ -1835,6 +1875,68 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
                 break;
             }
+            // case OP_CALL:      //DUBUG:
+            // case OP_CALL_NORET:
+            // {
+            //     Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10||
+            //         op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10);
+            //     Arg sp = argReg(RB_INT, SP);
+            //     int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
+            //     std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {
+            //         {0, {R0, R1}}, {2, {R2, R3}}, {4, {R4, R5}}, {6, {R6, R7}},{8, {XR, R9}}, {10, {R10, R11}}, {12, {R12, R13}}, {14, {R14, R15}}, {16, {IP0, IP1}}} ;
+            //     //1.) Save scalar registers
+            //     for(auto layPair : spillLayout)
+            //         a_dest.program.push_back(Syntop(OP_ARM_STP, { sp, argIImm(layPair.first), argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second) }));
+            //     //2.) Prepare arguments accordingly to ABI. Call address must not be broken
+            //     Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
+            //     //TODO(ch) : make this algo optimized with help of permutation analysis.
+            //     std::set<int> brokenRegs;
+            //     for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
+            //     {
+            //         Assert(op[fargnum].tag == Arg::IREG);
+            //         int regnum = fargnum - (op.opcode == OP_CALL ? 2 : 1);
+            //         if(op[fargnum].idx != regnum)
+            //         {
+            //             if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
+            //                 a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regnum), argReg(RB_INT,  op[fargnum].idx)}));
+            //             else
+            //                 a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regnum), argIImm(op[fargnum].idx)}));
+            //             brokenRegs.insert(regnum);
+            //         }
+            //     }
+            //     if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
+            //     {
+            //         addrkeeper.idx = R9;
+            //         a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm((op.opcode == OP_CALL ? op[1]: op[0]).idx)}));
+            //     }
+            //     //3.) Save vector registers
+            //     a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            //     for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
+            //         a_dest.program.push_back(Syntop(VOP_ARM_ST1, { argReg(RB_INT, R10), vregHid<uint64_t>(_0idx, 0)}));
+            //     //4.) Call function
+            //     a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
+            //     //5.) Restore vector registers
+            //     a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            //     for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
+            //         a_dest.program.push_back(Syntop(VOP_ARM_LD1, { vregHid<uint64_t>(_0idx, 0), argReg(RB_INT, R10)}));
+            //     //6.) Move result to output register
+            //     if(op.opcode == OP_CALL && retidx != 0)
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, R0)}));
+            //     //7.) Restore scalar registers
+            //     for(auto layPair : spillLayout)
+            //     {
+            //         if(op.opcode == OP_CALL && (retidx == layPair.second.first || retidx == layPair.second.second))
+            //         {
+            //             int unspillidx = retidx == layPair.second.first ? layPair.second.second : layPair.second.first;
+            //             int unspillspc = layPair.first + (retidx == layPair.second.first ? 1 : 0);
+            //             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  unspillidx), argIImm(unspillspc)}));
+            //         }
+            //         else
+            //             a_dest.program.push_back(Syntop(OP_ARM_LDP, { argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second), argReg(RB_INT, SP), argIImm(layPair.first) }));
+            //     }
+            //     break;
+            // }
+
             default:
                 a_dest.program.push_back(op);
                 break;

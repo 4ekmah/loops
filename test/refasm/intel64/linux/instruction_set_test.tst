@@ -519,3 +519,8 @@ instruction_set_test()
    517 : add    [rsp+#0xfff8], r8       ; 4c 01 84 24 f8 ff 00 00              
    518 : add    [rsp+#0xfff8], r15      ; 4c 01 bc 24 f8 ff 00 00              
    519 : add    [rsp+#0xfff8], #0x8888  ; 48 81 84 24 f8 ff 00 00 88 88 00 00  
+   520 : call   [rax]                   ; ff d0                                
+   521 : call   [rdi]                   ; ff d7                                
+   522 : call   [r8]                    ; 41 ff d0                             
+   523 : call   [r15]                   ; 41 ff d7                             
+   524 : call   [[rsp+#0x100]]          ; ff 94 24 00 01 00 00                 
