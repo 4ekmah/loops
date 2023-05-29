@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include <inttypes.h>
 #include <ostream>
+#include <limits>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -488,13 +489,19 @@ template<typename _Tp> void store_(const IExpr& base, int64_t offset, int64_t a)
 static inline IExpr operator + (const IExpr& a, const IExpr& b)
 { return IExpr(OP_ADD, a.type(), {a.notype(), b.notype()}); }
 static inline IExpr operator + (const IExpr& a, int64_t b)
-{ return IExpr(OP_ADD, a.type(), {a.notype(), Expr(b)}); }
+{
+    if(b == std::numeric_limits<int64_t>::min())
+        throw std::runtime_error(std::string("Direct addition of " + std::to_string(std::numeric_limits<int64_t>::min()) + " is not supported. Use CONST_() macro."));
+    int opcode = b < 0 ? OP_SUB : OP_ADD;
+    b = b < 0 ? -b : b;
+    return IExpr(opcode, a.type(), {a.notype(), Expr(b)});
+}
 static inline IExpr operator + (int64_t a, const IExpr& b)
 { return IExpr(OP_ADD, b.type(), {b.notype(), Expr(a)}); }
 static inline IExpr operator - (const IExpr& a, const IExpr& b)
 { return IExpr(OP_SUB, a.type(), {a.notype(), b.notype()}); }
 static inline IExpr operator - (const IExpr& a, int64_t b)
-{ return IExpr(OP_SUB, a.type(), {a.notype(), Expr(b)}); }
+{ return a + (-b); }
 static inline IExpr operator - (int64_t a, const IExpr& b)
 { return IExpr(OP_SUB, b.type(), {Expr(a), b.notype()}); }
 static inline IExpr operator * (const IExpr& a, const IExpr& b)
@@ -663,6 +670,8 @@ static inline IExpr select(const IExpr& cond, int64_t true_, const IExpr& false_
 { return IExpr(OP_SELECT, false_.type(), {cond.notype(), Expr(true_), false_.notype()}); }
 static inline IExpr select(const IExpr& cond, const IExpr& true_, int64_t false_)
 { return IExpr(OP_SELECT, true_.type(), {cond.notype(), true_.notype(), Expr(false_)}); }
+static inline IExpr select(const IExpr& cond, int64_t true_, int64_t false_)
+{ return IExpr(OP_SELECT, TYPE_I64, {cond.notype(), Expr(true_), Expr(false_)}); }
 static inline IExpr max(const IExpr& a, const IExpr& b)
 { return IExpr(OP_MAX, a.type(), {a.notype(), b.notype()}); }
 static inline IExpr max(const IExpr& a, int64_t b)

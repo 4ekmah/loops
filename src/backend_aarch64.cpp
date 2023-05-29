@@ -159,38 +159,33 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_LDRSW):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b10111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b1011100110, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_LDRH):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b01111000011, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0111100101, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_LDRSH):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b01111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0111100110, 10), BTimm(2,12), BTreg(1,5,In), BTreg(0,5,Out) });
         break;
     case (AARCH64_LDRB):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b00111000011, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In), BTreg(0,5,Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0011100101, 10), BTimm(2,12), BTreg(1,5,In), BTreg(0,5,Out) });
         break;
     case (AARCH64_LDRSB):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b00111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In), BTreg(0,5,Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0011100110, 10), BTimm(2,12), BTreg(1,5,In), BTreg(0,5,Out) });
         break;
     case (AARCH64_STR):
@@ -213,26 +208,23 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_STRH):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b01111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In), BTreg(0, 5, In) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0111100100, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, In) });
         break;
     case (AARCH64_STRB):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b00111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In), BTreg(0, 5, In) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b0011100100, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, In) });
         break;
     case (AARCH64_MOV):
-        Assert(index.size() == 2);
-        if (index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
+        if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             return BiT({ BTsta(0x550,11), BTreg(1, 5, In), BTsta(0x1F ,11), BTreg(0, 5, Out) });
-        else if (index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0x694,11), BTimm(1, 16), BTreg(0, 5, Out) });
-        else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+        else if (index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
             return BiT({ BTsta(0b01001110101, 11), BTreg(1, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_MOVN):
@@ -245,12 +237,11 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, Out) });
         break;
     case (AARCH64_ADD):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0x458, 11), BTreg(2, 5, In), BTsta(0x0, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && index[2].value >= 0)
             return BiT({ BTsta(0x244, 10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+        else if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
                  index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && isInteger(index[0].elemtype))
         {
             uint64_t sizeStat = intSizeStats[index[0].elemtype];
@@ -258,12 +249,11 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_SUB):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0x658,11), BTreg(2, 5, In), BTsta(0x0,6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && index[2].value >= 0 )
             return BiT({ BTsta(0x344,10), BTimm(2, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+        else if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
                  index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && isInteger(index[0].elemtype))
         {
             uint64_t sizeStat = intSizeStats[index[0].elemtype];
@@ -271,10 +261,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_MUL):
-        Assert(index.size() == 3);
-        if(index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0x4D8,11), BTreg(2, 5, In), BTsta(0x1F, 6), BTreg(1, 5, In), BTreg(0,5,Out) });
-        else if (index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+        else if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
                  index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && isInteger(index[0].elemtype) && index[0].elemtype <= TYPE_I32)
         {
             uint64_t sizeStat = intSizeStats[index[0].elemtype];
@@ -282,8 +271,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_SDIV):
-        Assert(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
-        if(index[2].tag == Arg::IREG)
+        if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0x4D6,11), BTreg(2, 5, In), BTsta(0x3, 6), BTreg(1, 5, In), BTreg(0,5,Out) });
         break;
     case (AARCH64_LSL):
@@ -293,17 +281,15 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b1101001101, 10), BTimm(2, 6), BTimm(3, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_LSR):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b10011010110, 11), BTreg(2, 5, In), BTsta(0b001001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b1101001101, 10), BTimm(2, 6), BTsta(0b111111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_ASR):
-        Assert(index.size() == 3);
-        if (index[2].tag == Arg::IREG)
+        if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b10011010110, 11), BTreg(2, 5, In), BTsta(0b001010, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index[2].tag == Arg::IIMMEDIATE)
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             return BiT({ BTsta(0b1001001101, 10), BTimm(2, 6), BTsta(0b111111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_AND):
@@ -364,10 +350,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_CMP):
-        Assert(index.size() == 2 && index[0].tag == Arg::IREG);
-        if(index[1].tag == Arg::IREG)
+        if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             return BiT({ BTsta(0x758,11), BTreg(1, 5, In), BTsta(0x0,6), BTreg(0, 5, In), BTsta(0x1F, 5) });
-        if(index[1].tag == Arg::IIMMEDIATE)
+        if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value >= 0)
             return BiT({ BTsta(0b1111000100, 10), BTimm(1, 12),  BTreg(0, 5, In), BTsta(0b11111,5)});
         break;
     case (AARCH64_CSEL):
@@ -1736,20 +1721,20 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         }
         break;
     case (OP_JCC):
-        Assert(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE);
-        switch (index[0].value)
-        {
-        case (OP_NE):   return SyT(AARCH64_B_NE,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_EQ):   return SyT(AARCH64_B_EQ,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_LT):   return SyT(AARCH64_B_LT,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_GT):   return SyT(AARCH64_B_GT,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_UGT):  return SyT(AARCH64_B_HI,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_LE):   return SyT(AARCH64_B_LE,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_ULE):  return SyT(AARCH64_B_LS,{ SAcop(1, AF_PRINTOFFSET) });
-        case (OP_GE):   return SyT(AARCH64_B_GE,{ SAcop(1, AF_PRINTOFFSET) });
-        default:
-            break;
-        };
+        if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE)
+            switch (index[0].value)
+            {
+            case (OP_NE):   return SyT(AARCH64_B_NE,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_EQ):   return SyT(AARCH64_B_EQ,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_LT):   return SyT(AARCH64_B_LT,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_GT):   return SyT(AARCH64_B_GT,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_UGT):  return SyT(AARCH64_B_HI,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_LE):   return SyT(AARCH64_B_LE,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_ULE):  return SyT(AARCH64_B_LS,{ SAcop(1, AF_PRINTOFFSET) });
+            case (OP_GE):   return SyT(AARCH64_B_GE,{ SAcop(1, AF_PRINTOFFSET) });
+            default:
+                break;
+            };
         break;
     case (OP_CALL_NORET):
         if(index.size() == 1 && index[0].tag == Arg::IREG)
