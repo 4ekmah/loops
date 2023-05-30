@@ -1654,11 +1654,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 return SyT(AARCH64_USHLL2, { SAcop(0), SAcop(1), SAimm(0) });
         }
         break;
-    case (VOP_SHRINK_LOW):
+    case (VOP_ARM_SHRINK_LOW):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && 2 * elem_size(index[0].elemtype) == elem_size(index[1].elemtype) && isInteger(index[0].elemtype))
             return SyT(AARCH64_XTN, { SAcop(0), SAcop(1) });
         break;
-    case (VOP_SHRINK_HIGH):
+    case (VOP_ARM_SHRINK_HIGH):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && 2 * elem_size(index[0].elemtype) == elem_size(index[1].elemtype) && isInteger(index[0].elemtype))
             return SyT(AARCH64_XTN2, { SAcop(0), SAcop(1) });
         break;
@@ -2231,6 +2231,7 @@ void Aarch64Backend::switchOnSpillStressMode()
 
 void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
+    //Note: Also handle some before-register-allocation snippets.
     a_dest.name = a_source.name;
     a_dest.params = a_source.params;
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -2276,7 +2277,16 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 a_dest.program.push_back(Syntop(VOP_BROADCAST, { op[0], idest}));
             break;
         }
+        case VOP_SHRINK:
+        {
+            Assert(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG &&
+                   op[1].elemtype == op[2].elemtype && 2 * elem_size(op[0].elemtype) == elem_size(op[1].elemtype));
+            a_dest.program.push_back(Syntop(VOP_ARM_SHRINK_LOW, { op[0], op[1]}));
+            a_dest.program.push_back(Syntop(VOP_ARM_SHRINK_HIGH, { op[0], op[2]}));
+            break;
+        }
         default:
+
             a_dest.program.push_back(op);
             break;
         }
