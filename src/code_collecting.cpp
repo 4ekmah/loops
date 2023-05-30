@@ -265,19 +265,6 @@ namespace loops
             outbuf.program.push_back(Syntop(OP_SELECT, {res, argIImm(cond.opcode()), truev, falsev}));
             break;
         }
-        case (VOP_SHRINK):
-        {
-            Assert(expr.children().size() == 2);
-            Arg v0 = unpack_expr(expr.children()[0], UR_WRAPIIMM, &outbuf);
-            Arg v1 = unpack_expr(expr.children()[1], UR_WRAPIIMM, &outbuf);
-            if (v0.idx == v1.idx)
-                throw std::runtime_error("Shrink two same halfes into vector is not supported.");
-            res.idx = outbuf.provideIdx(RB_VEC);
-            res.tag = Arg::VREG;
-            res.elemtype = expr.type();
-            outbuf.program.push_back(Syntop(OP_CMP, {res, v0, v1}));
-            break;
-        }
         case (OP_LOGICAL_AND):
         case (OP_LOGICAL_OR):
         case (OP_LOGICAL_NOT):

@@ -1226,25 +1226,25 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_CAST_HIGH, { v31_2u, v0_4u });
     newiopNoret(VOP_CAST_HIGH, { v0_2u, v31_4u });
 
-    newiopNoret(VOP_SHRINK_LOW, { v0_16s, v0_8s });
-    newiopNoret(VOP_SHRINK_LOW, { v31_16s, v0_8s });
-    newiopNoret(VOP_SHRINK_LOW, { v0_16s, v31_8s });
-    newiopNoret(VOP_SHRINK_LOW, { v0_8s, v0_4s });
-    newiopNoret(VOP_SHRINK_LOW, { v31_8s, v0_4s });
-    newiopNoret(VOP_SHRINK_LOW, { v0_8s, v31_4s });
-    newiopNoret(VOP_SHRINK_LOW, { v0_4s, v0_2s });
-    newiopNoret(VOP_SHRINK_LOW, { v31_4s, v0_2s });
-    newiopNoret(VOP_SHRINK_LOW, { v0_4s, v31_2s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_16s, v0_8s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v31_16s, v0_8s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_16s, v31_8s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_8s, v0_4s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v31_8s, v0_4s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_8s, v31_4s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_4s, v0_2s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v31_4s, v0_2s });
+    newiopNoret(VOP_ARM_SHRINK_LOW, { v0_4s, v31_2s });
 
-    newiopNoret(VOP_SHRINK_HIGH, { v0_16s, v0_8s });
-    newiopNoret(VOP_SHRINK_HIGH, { v31_16s, v0_8s });
-    newiopNoret(VOP_SHRINK_HIGH, { v0_16s, v31_8s });
-    newiopNoret(VOP_SHRINK_HIGH, { v0_8s, v0_4s });
-    newiopNoret(VOP_SHRINK_HIGH, { v31_8s, v0_4s });
-    newiopNoret(VOP_SHRINK_HIGH, { v0_8s, v31_4s });
-    newiopNoret(VOP_SHRINK_HIGH, { v0_4s, v0_2s });
-    newiopNoret(VOP_SHRINK_HIGH, { v31_4s, v0_2s });
-    newiopNoret(VOP_SHRINK_HIGH, { v0_4s, v31_2s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_16s, v0_8s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v31_16s, v0_8s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_16s, v31_8s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_8s, v0_4s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v31_8s, v0_4s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_8s, v31_4s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_4s, v0_2s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v31_4s, v0_2s });
+    newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_4s, v31_2s });
 
     newiopNoret(VOP_REDUCE_MAX, { v0_16s, v0_16s });
     newiopNoret(VOP_REDUCE_MAX, { v31_16s, v0_16s });
