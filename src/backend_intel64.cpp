@@ -1157,7 +1157,7 @@ namespace loops
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
         m_offsetShift = 0;
-        m_callerStackIncrement = 0;
+        m_callerStackIncrement = 1;
         m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
@@ -1167,12 +1167,12 @@ namespace loops
         m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX };
         m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, RBP, R12, R13, R14, R15 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, R12, R13, R14, R15 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
         m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX, RDX };
         m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, RBP, R12, R13, R14, R15 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, R12, R13, R14, R15 };
 #else
 #error Unknown OS
 #endif
@@ -1303,7 +1303,13 @@ namespace loops
                 break;
             case (OP_CALL):
             case (OP_CALL_NORET):
-                return 18;  //DUBUG: set real value, it's from Arm.
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                return 7;
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+                return 9;
+#else
+    #error Unknown OS.
+#endif        
             default:
                 break;
             }
@@ -1486,12 +1492,14 @@ namespace loops
 
     void Intel64Backend::writeCallerPrologue(Syntfunc& prog, int stackGrowth) const
     {
-        throw std::runtime_error("Loops: function call is not supported on Intel.");
+        prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-1), argReg(RB_INT, RBP) }));
+        prog.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, RBP), argReg(RB_INT, RSP) }));
+        prog.program.push_back(Syntop(OP_ADD,   { argReg(RB_INT, RBP), argReg(RB_INT, RBP), argIImm((stackGrowth-1) * 8) }));
     }
 
     void Intel64Backend::writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const
     {
-        throw std::runtime_error("Loops: function call is not supported on Intel.");
+        prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RBP), argIImm(stackGrowth-1) }));
     }
 
     Arg Intel64Backend::getSParg() const
@@ -1875,68 +1883,65 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
                 break;
             }
-            // case OP_CALL:      //DUBUG:
-            // case OP_CALL_NORET:
-            // {
-            //     Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10||
-            //         op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10);
-            //     Arg sp = argReg(RB_INT, SP);
-            //     int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
-            //     std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {
-            //         {0, {R0, R1}}, {2, {R2, R3}}, {4, {R4, R5}}, {6, {R6, R7}},{8, {XR, R9}}, {10, {R10, R11}}, {12, {R12, R13}}, {14, {R14, R15}}, {16, {IP0, IP1}}} ;
-            //     //1.) Save scalar registers
-            //     for(auto layPair : spillLayout)
-            //         a_dest.program.push_back(Syntop(OP_ARM_STP, { sp, argIImm(layPair.first), argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second) }));
-            //     //2.) Prepare arguments accordingly to ABI. Call address must not be broken
-            //     Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
-            //     //TODO(ch) : make this algo optimized with help of permutation analysis.
-            //     std::set<int> brokenRegs;
-            //     for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
-            //     {
-            //         Assert(op[fargnum].tag == Arg::IREG);
-            //         int regnum = fargnum - (op.opcode == OP_CALL ? 2 : 1);
-            //         if(op[fargnum].idx != regnum)
-            //         {
-            //             if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
-            //                 a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regnum), argReg(RB_INT,  op[fargnum].idx)}));
-            //             else
-            //                 a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regnum), argIImm(op[fargnum].idx)}));
-            //             brokenRegs.insert(regnum);
-            //         }
-            //     }
-            //     if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
-            //     {
-            //         addrkeeper.idx = R9;
-            //         a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm((op.opcode == OP_CALL ? op[1]: op[0]).idx)}));
-            //     }
-            //     //3.) Save vector registers
-            //     a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
-            //     for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
-            //         a_dest.program.push_back(Syntop(VOP_ARM_ST1, { argReg(RB_INT, R10), vregHid<uint64_t>(_0idx, 0)}));
-            //     //4.) Call function
-            //     a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
-            //     //5.) Restore vector registers
-            //     a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
-            //     for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
-            //         a_dest.program.push_back(Syntop(VOP_ARM_LD1, { vregHid<uint64_t>(_0idx, 0), argReg(RB_INT, R10)}));
-            //     //6.) Move result to output register
-            //     if(op.opcode == OP_CALL && retidx != 0)
-            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, R0)}));
-            //     //7.) Restore scalar registers
-            //     for(auto layPair : spillLayout)
-            //     {
-            //         if(op.opcode == OP_CALL && (retidx == layPair.second.first || retidx == layPair.second.second))
-            //         {
-            //             int unspillidx = retidx == layPair.second.first ? layPair.second.second : layPair.second.first;
-            //             int unspillspc = layPair.first + (retidx == layPair.second.first ? 1 : 0);
-            //             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  unspillidx), argIImm(unspillspc)}));
-            //         }
-            //         else
-            //             a_dest.program.push_back(Syntop(OP_ARM_LDP, { argReg(RB_INT,  layPair.second.first), argReg(RB_INT,  layPair.second.second), argReg(RB_INT, SP), argIImm(layPair.first) }));
-            //     }
-            //     break;
-            // }
+            case OP_CALL:       //DUBUG: You need big immediates support for keeping adressess.
+            case OP_CALL_NORET:
+            {
 
+                std::vector<size_t> parameterRegisters = m_backend->parameterRegisters(RB_INT);
+                std::vector<size_t> returnRegisters = m_backend->parameterRegisters(RB_INT);
+                std::vector<size_t> callerSavedRegisters = m_backend->parameterRegisters(RB_INT);
+                std::set<size_t> allSaved;
+                allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
+                allSaved.insert(returnRegisters.begin(), returnRegisters.end());
+                allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
+                Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= (parameterRegisters.size() + 2) ||
+                    op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= (parameterRegisters.size() + 1));
+                Arg sp = argReg(RB_INT, RSP);
+                int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
+
+                //1.) Save scalar registers
+                {
+                    auto iter = allSaved.begin();
+                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                        a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(i), argReg(RB_INT,  *iter)}));
+                }
+                //2.) Prepare arguments accordingly to ABI. Call address must not be broken
+                Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
+                //TODO(ch) : make this algo optimized with help of permutation analysis.
+                std::set<int> brokenRegs;
+                for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
+                {
+                    Assert(op[fargnum].tag == Arg::IREG);
+                    int regidx = parameterRegisters[fargnum - (op.opcode == OP_CALL ? 2 : 1)];
+                    if(op[fargnum].idx != regidx)
+                    {
+                        if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
+                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regidx), argReg(RB_INT,  op[fargnum].idx)}));
+                        else
+                            a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(op[fargnum].idx)}));
+                        brokenRegs.insert(regidx);
+                    }
+                }
+                if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
+                {
+                    addrkeeper.idx = R10;
+                    a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm((op.opcode == OP_CALL ? op[1]: op[0]).idx)}));
+                }
+                //3.) Call function
+                a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
+                //4.) Move result to output register
+                if(op.opcode == OP_CALL && retidx != returnRegisters[0])
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, returnRegisters[0])}));
+                //5.) Restore scalar registers
+                {
+                    auto iter = allSaved.begin();
+                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                        if(op.opcode == OP_CALL_NORET || *iter != retidx)
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
+
+                }
+                break;
+            }
             default:
                 a_dest.program.push_back(op);
                 break;
