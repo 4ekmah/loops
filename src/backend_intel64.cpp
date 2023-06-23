@@ -40,10 +40,6 @@ namespace loops
     {
         //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
         //fixed sizes(in most cases = 32). For space economy, it's better to implement different cases.
-        //TODO(ch): IMPORTANT: many BTspl uses 8bit form, which works only for offsets [-63, +64]. At least there needed diagnostic
-        //error messages, when spill cannot fit. Next level of solution is to change form of most part of BTspl from 8bit to
-        //32bit. Perfect solution is introducing adaptive encoding - 8/32/64 bit. 
-        
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
@@ -110,14 +106,13 @@ namespace loops
             }
             break;
         case (INTEL64_MOVSXD):
-            Assert((index.size() == 2 || index.size() == 3 ) && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG);
-            if (index.size() == 2)
+            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
                 static uint64_t stats[4] = { 0x1218C , 0x1318C, 0x1258C, 0x1358C };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                 return BiT({ BTsta(stats[statn], 18), BTreg(0, 3, Out), BTreg(1, 3, In) });
             }
-            else if (index.size() == 3)
+            else if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
                 if (index.args[2].tag == Arg::IREG)
                 {
@@ -133,7 +128,6 @@ namespace loops
                 }
             }
             break;
-
         case (INTEL64_MOVZX):
             if ((index.size() != 2 && index.size() != 3) || index[0].tag != Arg::IREG || index[1].tag != Arg::IREG)
                 break;
@@ -317,16 +311,20 @@ namespace loops
                                     return  BiT({ index[0].idx < 8 ? nBkb(2, 0x48c7, 5, 0) : nBkb(2, 0x49c7, 5, 0), BTreg(0, 3, In), BTimm(1, 32) });//mov qword ptr [rax], <imm>
                             };
                         }
-                        else
-                            return  BiT({ BTsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm>
+                        else if(index[1].value > int64_t(0x7fffffff) || index[1].value < (-(int64_t(0x7fffffff) + 1)))
+                        {
+                            return BiT({ nBkb(1, index[0].idx < 8 ? 0x48 : 0x49, 5, 0b10111), BTreg(0, 3, Out), BTimm(1, 64) });   //mov rax, <imm64>
+                        }
+                        else 
+                            return  BiT({ BTsta(index[0].idx < 8 ? 0x918F8 : 0x938F8, 21), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm32>
                     }
                 }
                 else if (index[0].tag == Arg::ISPILLED)
                 {
                     if (index[1].tag == Arg::IREG)
-                        return BiT({ BTsta(index[1].idx < 8 ? 0x12225 : 0x13225, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //mov [rsp + offset], rbx
+                        return BiT({ nBkb(2, index[1].idx < 8 ? 0x4889 : 0x4c89, 2, 0b10), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });   //mov [rsp + offset], rbx
                     else if (index[1].tag == Arg::IIMMEDIATE)
-                        return BiT({ BTsta(0x48c74424, 32), BTspl(0, 8), BTimm(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
+                        return BiT({ BTsta(0x48c78424, 32), BTspl(0, 32), BTimm(1, 32) });  //mov QWORD PTR [rsp + offset], <imm>
                 }
             }
             else if (index.size() == 3)
@@ -565,8 +563,7 @@ namespace loops
             }
             break;
         case (INTEL64_ADD):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -577,9 +574,14 @@ namespace loops
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ BTsta(index[0].idx < 8 ? 0x1200E : 0x1300E, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //add rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ (index[0].idx < 8) ? nBkb(2,0x4883,5,0b11000) : nBkb(2,0x4983,5,0b11000), BTreg(0, 3, In | Out), BTimm(1, 8) });
+                {
+                    if(index[0].idx == RAX) 
+                        return BiT({ BTsta(0b01001, 5), BTreg(0, 3, Out), BTsta(0x05, 8), BTimm(1, 32) }); //add rax, <imm32>
+                    else
+                        return BiT({ nBkb(2, index[0].idx < 8 ? 0x4881 : 0x4981, 5,0b11000), BTreg(0, 3, Out), BTimm(1, 32) });  //add rcx, <imm32>
+                }
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BTsta(index[1].idx < 8 ? 0x12006 : 0x13006, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });   //add [rsp + offset], rbx
@@ -588,8 +590,7 @@ namespace loops
             }
             break;
         case (INTEL64_ADC):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -607,7 +608,7 @@ namespace loops
                 else if (index[1].tag == Arg::ISPILLED)
                     return BiT({ nBkb(2, (index[0].idx < 8) ? 0x4813 : 0x4c13, 2, 0b10), BTreg(0, 3, IO), BTsta(0x424, 11), BTspl(1, 32) }); //adc rax, [rsp + offset]
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ nBkb(2, index[1].idx < 8 ? 0x4811 : 0x4c11, 2, 0b10), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });    //adc [rsp + offset], rbx
@@ -615,10 +616,8 @@ namespace loops
                     return BiT({ BTsta(0x48819424, 32), BTspl(0, 32), BTimm(1, 32) });  //adc QWORD PTR [rsp + offset], <imm>
             }
             break;
-
         case (INTEL64_SUB):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -627,37 +626,40 @@ namespace loops
                     return BiT({ BTsta(stats[statn], 18), BTreg(1, 3, In), BTreg(0, 3, In | Out) });           //sub rax, rbx
                 }
                 else if (index[1].tag == Arg::ISPILLED)
-                    return BiT({ BTsta(index[0].idx < 8 ? 0x120AD : 0x130AD, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 8) }); //sub rax, [rsp + offset]
+                    return BiT({ nBkb(2, index[0].idx < 8 ? 0x482b : 0x4c2b, 2, 0b10), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //sub rax, [rsp + offset]
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(index[0].idx < 8 ? 0x9107D : 0x9307D, 21), BTreg(0, 3, Out), BTimm(1, 8) });//sub rax, <imm>
+                {
+                    if(index[0].idx == RAX) 
+                        return BiT({ BTsta(0b01001, 5), BTreg(0, 3, Out), BTsta(0x2d, 8), BTimm(1, 32) }); //sub rax, <imm32>
+                    else
+                        return BiT({ nBkb(2, index[0].idx < 8 ? 0x4881 : 0x4981, 5,0b11101), BTreg(0, 3, Out), BTimm(1, 32) });  //sub rcx, <imm32>
+                }
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
-                    return BiT({ BTsta(index[1].idx < 8 ? 0x120A5 : 0x130A5, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 8) });   //sub [rsp + offset], rbx
+                    return BiT({ nBkb(2, index[1].idx < 8 ? 0x4829 : 0x4c29, 2, 0b10), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });   //sub [rsp + offset], rbx
                 else if (index[1].tag == Arg::IIMMEDIATE)
-                    return BiT({ BTsta(0x48836c24, 32), BTspl(0, 8), BTimm(1, 8) });  //sub QWORD PTR [rsp + offset], <imm>
+                    return BiT({ BTsta(0x4881ac24, 32), BTspl(0, 32), BTimm(1, 32) });  //sub QWORD PTR [rsp + offset], <imm>
             }
             break;
         case (INTEL64_IMUL):
-            Assert(index.size() == 2 && index[0].tag == Arg::IREG);
-            if (index[1].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
                 static uint64_t stats[4] = { 0x1203EBF, 0x1303EBF, 0x1243EBF, 0x1343EBF };
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                 return BiT({ BTsta(stats[statn], 26), BTreg(0, 3, In | Out), BTreg(1, 3, In) });
             }
-            else if(index[1].tag == Arg::ISPILLED)
-                return BiT({ BTsta(index[0].idx < 8 ? 0x1203EBD : 0x1303EBD, 26), BTreg(0, 3, In | Out), BTsta(0x424, 11), BTspl(1, 8) });
-            else if (index[1].tag == Arg::IIMMEDIATE)
+            else if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::ISPILLED)
+                return BiT({ nBkb(3, index[0].idx < 8 ? 0x480faf : 0x4c0faf, 2, 0b10), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //imul rax, [rsp + offset]
+            else if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
                 return BiT({ index[0].idx < 8 ? nBkb(2, 0x486b, 2, 0b11) : nBkb(2, 0x4d6b, 2, 0b11), BTreg(0, 3, In | Out) , BTreg(0, 3, In | Out), BTimm(1, 8) });
             break;
         case (INTEL64_IDIV):
-            Assert(index.size() == 1);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 1 && index[0].tag == Arg::IREG)
                 return BiT({ BTsta(index[0].idx < 8 ? 0x91EFF : 0x93EFF, 21), BTreg(0, 3, In) });
-            else if(index[0].tag == Arg::ISPILLED)
-                return BiT({ BTsta(0x48f77c24, 32), BTspl(0, 8) });
+            else if(index.size() == 1 && index[0].tag == Arg::ISPILLED)
+                return BiT({ BTsta(0x48f7bc24, 32), BTspl(0, 32) });
             break;
         case (INTEL64_SHL):
             if (index.size() == 2)
@@ -717,8 +719,7 @@ namespace loops
             }
             break;
         case (INTEL64_AND):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -736,17 +737,16 @@ namespace loops
                         return BiT({ (index[0].idx < 8) ? nBkb(2, 0x4881, 5, 0b11100) : nBkb(2, 0x4981, 5, 0b11100), BTreg(0, 3, Out), BTimm(1, 32) });
                 }
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ index[1].idx < 8 ? nBkb(2, 0x4821, 2, 0b10) : nBkb(2, 0x4c21, 2, 0b10), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ BTsta(0x4881a424, 32), BTspl(0, 32), BTimm(1, 32) });
             }
-        break;
+            break;
         case (INTEL64_OR):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -764,7 +764,7 @@ namespace loops
                         return BiT({ (index[0].idx < 8) ? nBkb(2, 0x4881, 5, 0b11001) : nBkb(2, 0x4981, 5, 0b11001), BTreg(0, 3, Out), BTimm(1, 32) });
                 }
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ index[1].idx < 8 ? nBkb(2, 0x4809, 2, 0b10) : nBkb(2, 0x4c09, 2, 0b10), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });
@@ -773,8 +773,7 @@ namespace loops
             }
             break;
         case (INTEL64_XOR):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -801,23 +800,19 @@ namespace loops
             }
             break;
         case (INTEL64_NOT):
-            Assert(index.size() == 1);
-            
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 1 && index[0].tag == Arg::IREG)
                 return BiT({ (index[0].idx < 8) ? nBkb(2, 0x48f7, 5, 0b11010) : nBkb(2, 0x49f7, 5, 0b11010), BTreg(0, 3, In | Out) });
-            else if(index[0].tag == Arg::ISPILLED)
+            else if(index.size() == 1 && index[0].tag == Arg::ISPILLED)
                 return BiT({ BTsta(0x48f79424, 32), BTspl(0, 32) });
             break;
         case (INTEL64_NEG):
-            Assert(index.size() == 1);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 1 && index[0].tag == Arg::IREG)
                 return BiT({ BTsta((index[0].idx < 8) ? 0x91EFB : 0x93EFB, 21), BTreg(0, 3, In | Out) });
-            else if(index[0].tag == Arg::ISPILLED)
-                return BiT({ BTsta(0x48f75c24, 32), BTspl(0, 8) });
+            else if(index.size() == 1 && index[0].tag == Arg::ISPILLED)
+                return BiT({ BTsta(0x48f79c24, 32), BTspl(0, 32) });
             break;
         case (INTEL64_CMP):
-            Assert(index.size() == 2);
-            if (index[0].tag == Arg::IREG)
+            if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 if (index[1].tag == Arg::IREG)
                 {
@@ -830,7 +825,7 @@ namespace loops
                 else if (index[1].tag == Arg::IIMMEDIATE)
                     return BiT({ nBkb(2, index[0].idx < 8 ? 0x4883 : 0x4983, 5, 0b11111), BTreg(0, 3, In), BTimm(1, 8) });
             }
-            else if (index[0].tag == Arg::ISPILLED)
+            else if (index.size() == 2 && index[0].tag == Arg::ISPILLED)
             {
                 if (index[1].tag == Arg::IREG)
                     return BiT({ BTsta(index[1].idx < 8 ? 0x120E6 : 0x130E6, 18), BTreg(1, 3, In), BTsta(0x424, 11), BTspl(0, 32) });
@@ -898,11 +893,7 @@ namespace loops
                     return BiT({ nBkb(n, stat, 5, 0b11000), BTreg(0, 3, Out) });
                 }
                 else if (index[0].tag == Arg::ISPILLED)
-                {
-                    size_t statn = ((index[0].idx < 8) ? 0 : 1);
-                    stat |= regbytes[statn];
                     return BiT({ BTsta(0x0F948424, 32),  BTspl(0, 32) });
-                }
             }
             break;
         case (INTEL64_CQO): return BiT({ BTsta(0x4899, 16) });
@@ -940,6 +931,19 @@ namespace loops
         case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BToff(0, 32) });
         case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BToff(0, 32) });
         case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BToff(0, 32) });
+        case (INTEL64_CALL):
+            if (index.size() == 1)
+            {
+                if (index[0].tag == Arg::IREG)
+                {
+                    size_t n = index[0].idx < 8 ? 1 : 2;
+                    size_t stat = index[0].idx < 8 ? 0xff : 0x41ff;
+                    return BiT({ nBkb(n, stat, 5, 0b11010), BTreg(0, 3, In) });
+                }
+                else if (index[0].tag == Arg::ISPILLED)
+                    return BiT({ BTsta(0xff9424, 24),  BTspl(0, 32) });
+            }
+            break;
         case (INTEL64_RET): return BiT({ BTsta(0xC3, 8) });
         default:
             break;
@@ -955,7 +959,6 @@ namespace loops
         switch (index.opcode)
         {
         case(OP_LOAD):
-            Assert(index.size() > 1);
             if (index.size() == 2)
             {
                 switch (index[0].elemtype)
@@ -965,7 +968,9 @@ namespace loops
                 case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16) });
                 case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16) });
                 case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(1) });
+                case (TYPE_FP32):
                 case (TYPE_U32): return SyT(INTEL64_MOV,   { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS) });
+                case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
                 default: break;
@@ -980,7 +985,9 @@ namespace loops
                 case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
                 case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
                 case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(1), SAcop(2) });
+                case (TYPE_FP32):
                 case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+                case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
                 default: break;
@@ -996,8 +1003,10 @@ namespace loops
                 case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER8) });
                 case (TYPE_I16):
                 case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER16) });
+                case (TYPE_FP32):
                 case (TYPE_I32): 
                 case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER32) });
+                case (TYPE_FP64):
                 case (TYPE_I64): 
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1) });
                 default: break;
@@ -1011,8 +1020,10 @@ namespace loops
                 case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER8) });
                 case (TYPE_I16):
                 case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER16) });
+                case (TYPE_FP32):
                 case (TYPE_I32):
                 case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
+                case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
                 default: break;
@@ -1049,7 +1060,6 @@ namespace loops
         case (OP_SELECT): 
             if (index.size() == 4)
             {
-                Assert(index[1].value >= OP_GT && index[1].value <= OP_NS);
                 int tarcode = index[1].value == OP_NE ? INTEL64_CMOVNE : (
                               index[1].value == OP_EQ ? INTEL64_CMOVE : (
                               index[1].value == OP_GE ? INTEL64_CMOVGE : (
@@ -1057,7 +1067,8 @@ namespace loops
                               index[1].value == OP_GT ? INTEL64_CMOVG : (
                               index[1].value == OP_LT ? INTEL64_CMOVL : (
                               index[1].value == OP_S  ? INTEL64_CMOVS : (
-                            /*index[1].value == OP_NS?*/INTEL64_CMOVNS /* : throw error*/)))))));
+                              index[1].value == OP_NS ? INTEL64_CMOVNS : -1)))))));
+                Assert(tarcode != -1);
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
             break;
@@ -1071,29 +1082,34 @@ namespace loops
                               index[1].value == OP_GT ? INTEL64_SETG : (
                               index[1].value == OP_LT ? INTEL64_SETL : (
                               index[1].value == OP_S  ? INTEL64_SETS : (
-                            /*index[1].value == OP_NS?*/INTEL64_SETNS /* : throw error*/)))))));
+                              index[1].value == OP_NS ? INTEL64_SETNS : -1)))))));
+                Assert(tarcode != -1);
                 return SyT(tarcode, { SAcop(0) });
             }
             break;
-
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
         case (OP_JCC):
-            Assert(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE);
-            switch (index[0].value)
+            if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE)
             {
-            case (OP_NE):  return SyT(INTEL64_JNE, { SAcop(1, AF_PRINTOFFSET) });
-            case (OP_EQ):  return SyT(INTEL64_JE,  { SAcop(1, AF_PRINTOFFSET) });
-            case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1, AF_PRINTOFFSET) });
-            case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1, AF_PRINTOFFSET) });
-            case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1, AF_PRINTOFFSET) });
-            case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1, AF_PRINTOFFSET) });
-            default:
-                break;
-            };
+                switch (index[0].value)
+                {
+                case (OP_NE):  return SyT(INTEL64_JNE, { SAcop(1, AF_PRINTOFFSET) });
+                case (OP_EQ):  return SyT(INTEL64_JE,  { SAcop(1, AF_PRINTOFFSET) });
+                case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1, AF_PRINTOFFSET) });
+                case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1, AF_PRINTOFFSET) });
+                case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1, AF_PRINTOFFSET) });
+                case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1, AF_PRINTOFFSET) });
+                default:
+                    break;
+                };
+            }
             break;
         case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0, AF_PRINTOFFSET) });
-
+        case (OP_CALL_NORET):
+            if(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED))
+                return SyT(INTEL64_CALL, { SAcop(0, AF_ADDRESS) });
+            break;
         case (OP_RET):     return SyT(INTEL64_RET, {});
         default:
             break;
@@ -1145,7 +1161,7 @@ namespace loops
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
         m_offsetShift = 0;
-        m_callerStackIncrement = 0;
+        m_callerStackIncrement = 1;
         m_postInstructionOffset = true;
         m_registersAmount = 40;
         m_name = "Intel64";
@@ -1155,12 +1171,12 @@ namespace loops
         m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX };
         m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, RBP, R12, R13, R14, R15 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, R12, R13, R14, R15 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
         m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX, R8, R9 };
         m_returnRegisters[RB_INT] = { RAX, RDX };
         m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, RBP, R12, R13, R14, R15 };
+        m_calleeSavedRegisters[RB_INT] = { RBX, R12, R13, R14, R15 };
 #else
 #error Unknown OS
 #endif
@@ -1170,7 +1186,12 @@ namespace loops
     {
         switch (a_op.opcode)
         {
-        case(OP_MOV): return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 1 });
+        case(OP_MOV):
+            if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
+                && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
+                return std::set<size_t>({});
+            else 
+                return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 1 });
         case(OP_AND):
         case(OP_OR):
         case(OP_XOR):
@@ -1221,6 +1242,9 @@ namespace loops
             Assert(a_op.size() == 2);
             return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<size_t>({ 1 }) : std::set<size_t>({});
             break;
+        case(OP_CALL):
+        case(OP_CALL_NORET):
+            return std::set<size_t>({});
         default:
             break;
         }
@@ -1289,6 +1313,15 @@ namespace loops
             case (OP_SIGN):
                 return 1;
                 break;
+            case (OP_CALL):
+            case (OP_CALL_NORET):
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                return 7;
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+                return 9;
+#else
+    #error Unknown OS.
+#endif        
             default:
                 break;
             }
@@ -1382,6 +1415,30 @@ namespace loops
                     bypass = false;
                 }
                 break;
+            case (OP_CALL):
+            case (OP_CALL_NORET):
+            {
+                bool allRegs = true;
+                for(int arnum = 0; arnum < a_op.size(); arnum++)
+                    if(a_op[arnum].tag != Arg::IREG)
+                    {
+                        allRegs = false;
+                        break;
+                    }
+                Assert(allRegs);
+                if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+                {
+                    outRegs = actualRegs = makeBitmask64({ 0 });
+                    inRegs = makeBitmask64({});
+                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
+                    {
+                        inRegs |= (1 << arnum);
+                        actualRegs |= (1 << arnum);
+                    }
+                    bypass = false;
+                }
+                break;
+            }
             default:
                 break;
         };
@@ -1411,7 +1468,7 @@ namespace loops
     void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
     {
     #if __LOOPS_OS == __LOOPS_WINDOWS
-        size_t sp2parShift = 5;; //+5 is because of return address kept in stack + 32 bytes of shadow space
+        size_t sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
         size_t sp2parShift = 1; //+1 is because of return address kept in stack 
     #else
@@ -1447,12 +1504,14 @@ namespace loops
 
     void Intel64Backend::writeCallerPrologue(Syntfunc& prog, int stackGrowth) const
     {
-        throw std::runtime_error("Loops: function call is not supported on Intel.");
+        prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-1), argReg(RB_INT, RBP) }));
+        prog.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, RBP), argReg(RB_INT, RSP) }));
+        prog.program.push_back(Syntop(OP_ADD,   { argReg(RB_INT, RBP), argReg(RB_INT, RBP), argIImm((stackGrowth-1) * 8) }));
     }
 
     void Intel64Backend::writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const
     {
-        throw std::runtime_error("Loops: function call is not supported on Intel.");
+        prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RBP), argIImm(stackGrowth-1) }));
     }
 
     Arg Intel64Backend::getSParg() const
@@ -1503,9 +1562,10 @@ namespace loops
             {INTEL64_JNE,       "jne"},
             {INTEL64_JE,        "je" },
             {INTEL64_JL,        "jl" },
+            {INTEL64_JLE,       "jle"},
             {INTEL64_JG,        "jg" },
             {INTEL64_JGE,       "jge"},
-            {INTEL64_JLE,       "jle"},
+            {INTEL64_CALL,     "call"},
             {INTEL64_RET,       "ret"} });
     }
 
@@ -1833,6 +1893,84 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
                 a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
+                break;
+            }
+            case OP_CALL:
+            case OP_CALL_NORET:
+            {
+
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                std::vector<size_t> parameterRegisters = { RCX, RDX, R8, R9 };
+                std::vector<size_t> returnRegisters = { RAX };
+                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+                std::vector<size_t> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
+                std::vector<size_t> returnRegisters = { RAX, RDX };
+                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+#else
+#error Unknown OS
+#endif
+                std::set<size_t> allSaved;
+                allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
+                allSaved.insert(returnRegisters.begin(), returnRegisters.end());
+                allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
+                Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= (parameterRegisters.size() + 2) ||
+                    op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= (parameterRegisters.size() + 1));
+                Arg sp = argReg(RB_INT, RSP);
+                int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
+
+                Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
+                size_t addrkeeper_spilled = size_t(-1);
+                //1.) Save scalar registers
+                {
+                    auto iter = allSaved.begin();
+                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                    {
+                        a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(i), argReg(RB_INT,  *iter)}));
+                        if(*iter == addrkeeper.idx)
+                            addrkeeper_spilled = i;
+                    }
+                }
+                //2.) Prepare arguments accordingly to ABI. Call address must not be broken
+                //TODO(ch) : make this algo optimized with help of permutation analysis.
+                std::set<int> brokenRegs;
+                for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
+                {
+                    Assert(op[fargnum].tag == Arg::IREG);
+                    int regidx = parameterRegisters[fargnum - (op.opcode == OP_CALL ? 2 : 1)];
+                    if(op[fargnum].idx != regidx)
+                    {
+                        if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
+                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regidx), argReg(RB_INT,  op[fargnum].idx)}));
+                        else
+                            a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(op[fargnum].idx)}));
+                        brokenRegs.insert(regidx);
+                    }
+                }
+                if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
+                {
+                    addrkeeper.idx = R10;
+                    a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm(addrkeeper_spilled)}));
+                }
+                //3.) Call function
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                a_dest.program.push_back(Syntop(OP_SUB, { sp, sp, argIImm(32)})); //Reserving shadow space
+#endif        
+                a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                a_dest.program.push_back(Syntop(OP_ADD, { sp, sp, argIImm(32)})); //Freeing shadow space
+#endif        
+                //4.) Move result to output register
+                if(op.opcode == OP_CALL && retidx != returnRegisters[0])
+                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, returnRegisters[0])}));
+                //5.) Restore scalar registers
+                {
+                    auto iter = allSaved.begin();
+                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                        if(op.opcode == OP_CALL_NORET || *iter != retidx)
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
+
+                }
                 break;
             }
             default:

@@ -19,15 +19,15 @@ sort_double(i0, i1)
     17 : cmp          i20, i21          
     18 : jmp_ge 2                       
     19 : unspill      i20, 50           
-    20 : add          i18, i20, 8       
-    21 : mov          i19, i18          
+    20 : mov          i18, i20          
+    21 : add          i19, i18, 8       
     22 : label 3:                       
     23 : unspill      i20, 52           
     24 : cmp          i19, i20          
     25 : jmp_ge 5                       
     26 : load.fp64    i3, i0, i19       
     27 : load.fp64    i2, i0, i18       
-    28 : mov          i1, 20352         
+    28 : mov          i1, 30828         
     29 : arm_movk     i1, 10, 16        
     30 : arm_movk     i1, 1, 32         
     31 : arm_stp      i31, 0, i0, i1    

@@ -18,14 +18,14 @@ sort_double(i0, i1)
     16 : cmp  x20, x21              ; 9f 02 15 eb  
     17 : b.ge [80]                  ; ea 07 00 54  
     18 : ldr  x20, [sp], #0x32      ; f4 cb 40 f9  
-    19 : add  x18, x20, #0x08       ; 92 22 00 91  
-    20 : mov  x19, x18              ; f3 03 12 aa  
+    19 : mov  x18, x20              ; f2 03 14 aa  
+    20 : add  x19, x18, #0x08       ; 53 22 00 91  
     21 : ldr  x20, [sp], #0x34      ; f4 d3 40 f9  
     22 : cmp  x19, x20              ; 7f 02 14 eb  
     23 : b.ge [67]                  ; 8a 05 00 54  
     24 : ldr  x3, [x0], x19         ; 03 68 73 f8  
     25 : ldr  x2, [x0], x18         ; 02 68 72 f8  
-    26 : mov  x1, #0x4f80           ; 01 f0 89 d2  
+    26 : mov  x1, #0x786c           ; 81 0d 8f d2  
     27 : movk x1, #0x0a, #0x01      ; 41 01 a0 f2  
     28 : movk x1, #0x01, #0x02      ; 21 00 c0 f2  
     29 : stp  x0, x1, sp, #0        ; e0 07 00 a9  
