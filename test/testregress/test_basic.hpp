@@ -13,6 +13,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 #include <math.h>
 #include <stdexcept>
+#include <algorithm>
 #include "src/common.hpp"
 #include "src/func_impl.hpp"
 #include "src/reg_allocator.hpp"

@@ -1468,7 +1468,7 @@ namespace loops
     void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
     {
     #if __LOOPS_OS == __LOOPS_WINDOWS
-        size_t sp2parShift = 5;; //+5 is because of return address kept in stack + 32 bytes of shadow space
+        size_t sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
         size_t sp2parShift = 1; //+1 is because of return address kept in stack 
     #else
@@ -1953,7 +1953,13 @@ namespace loops
                     a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm(addrkeeper_spilled)}));
                 }
                 //3.) Call function
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                a_dest.program.push_back(Syntop(OP_SUB, { sp, sp, argIImm(32)})); //Reserving shadow space
+#endif        
                 a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                a_dest.program.push_back(Syntop(OP_ADD, { sp, sp, argIImm(32)})); //Freeing shadow space
+#endif        
                 //4.) Move result to output register
                 if(op.opcode == OP_CALL && retidx != returnRegisters[0])
                     a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, returnRegisters[0])}));
