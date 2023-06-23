@@ -1,6 +1,6 @@
 triangle_types(i0, i1, i2)
-     0 : sub  rsp, #0x08 ; 48 83 ec 08              
-     1 : mov  [rsp], r12 ; 4c 89 64 24 00           
+     0 : sub  rsp, #0x08 ; 48 81 ec 08 00 00 00     
+     1 : mov  [rsp], r12 ; 4c 89 a4 24 00 00 00 00  
      2 : cmp  rdi, #0    ; 48 83 ff 00              
      3 : jle  [8]        ; 0f 8e 14 00 00 00        
      4 : cmp  rsi, #0    ; 48 83 fe 00              
@@ -95,5 +95,5 @@ triangle_types(i0, i1, i2)
     93 : mov  rax, #0x04 ; 48 c7 c0 04 00 00 00     
     94 : jmp  [95]       ; e9 00 00 00 00           
     95 : mov  r12, [rsp] ; 4c 8b a4 24 00 00 00 00  
-    96 : add  rsp, #0x08 ; 48 83 c4 08              
+    96 : add  rsp, #0x08 ; 48 81 c4 08 00 00 00     
     97 : ret             ; c3                       

@@ -195,7 +195,7 @@ std::unordered_map<int, Printer::ColPrinter > argoverrules = {
         if (op.size() < 2 || op.args[0].tag == Arg::VREG)
             throw std::runtime_error("Wrong CALL format");
         str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
-        for(size_t anum = 2; anum + 1 < op.size(); anum++) str<<", "<<op[anum];
+        for(size_t anum = 2; anum < op.size(); anum++) str<<", "<<op[anum];
         str << ")";
     }},
     {OP_CALL_NORET, [](::std::ostream& str, const Syntop& op, size_t, Backend*){

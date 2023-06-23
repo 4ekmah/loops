@@ -99,6 +99,55 @@ namespace loops
         spilled32.func() = _f;
         spilled0x1FFF.func() = _f;
 
+        newiopNoret(OP_MOV, { rax, immtyped<int64_t>(0x10fffffff, _f) });
+        newiopNoret(OP_MOV, { rdi, immtyped<int64_t>(0x10fffffff, _f) });
+        newiopNoret(OP_MOV, {  r8, immtyped<int64_t>(0x10fffffff, _f) });
+        newiopNoret(OP_MOV, { r15, immtyped<int64_t>(0x10fffffff, _f) });
+        newiopNoret(OP_MOV, { spilled32, rax });
+        newiopNoret(OP_MOV, { spilled32, rdi });
+        newiopNoret(OP_MOV, { spilled32,  r8 });
+        newiopNoret(OP_MOV, { spilled32, r15 });
+        newiopNoret(OP_MOV, { spilled32, immtyped<int64_t>(0x101, _f) });
+
+        newiopNoret(OP_ADD, { rax, rax, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_ADD, { rcx, rcx, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_ADD, { rdi, rdi, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_ADD, {  r8,  r8, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_ADD, { r15, r15, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_ADD, { rax, rax, spilled32 });
+        newiopNoret(OP_ADD, { rdi, rdi, spilled32 });
+        newiopNoret(OP_ADD, { r8 , r8 , spilled32 });
+        newiopNoret(OP_ADD, { r15, r15, spilled32 });
+        newiopNoret(OP_ADD, { spilled32, spilled32, rax });
+        newiopNoret(OP_ADD, { spilled32, spilled32, rdi });
+        newiopNoret(OP_ADD, { spilled32, spilled32, r8  });
+        newiopNoret(OP_ADD, { spilled32, spilled32, r15 });
+        newiopNoret(OP_ADD, { spilled32, spilled32, immtyped<int64_t>(0x101, _f) });
+
+        newiopNoret(OP_SUB, { rax, rax, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_SUB, { rcx, rcx, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_SUB, { rdi, rdi, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_SUB, {  r8,  r8, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_SUB, { r15, r15, immtyped<int64_t>(0x100, _f) });
+        newiopNoret(OP_SUB, { rax, rax, spilled32 });
+        newiopNoret(OP_SUB, { rdi, rdi, spilled32 });
+        newiopNoret(OP_SUB, {  r8,  r8, spilled32 });
+        newiopNoret(OP_SUB, { r15, r15, spilled32 });
+        newiopNoret(OP_SUB, { spilled32, spilled32, rax });
+        newiopNoret(OP_SUB, { spilled32, spilled32, rdi });
+        newiopNoret(OP_SUB, { spilled32, spilled32,  r8 });
+        newiopNoret(OP_SUB, { spilled32, spilled32, r15 });
+        newiopNoret(OP_SUB, { spilled32, spilled32, immtyped<int64_t>(0x101, _f) });
+
+        newiopNoret(OP_MUL, { rax, rax, spilled32 });
+        newiopNoret(OP_MUL, { rdi, rdi, spilled32 });
+        newiopNoret(OP_MUL, {  r8,  r8, spilled32 });
+        newiopNoret(OP_MUL, { r15, r15, spilled32 });
+
+        newiopNoret(OP_DIV, { rax, rax, spilled32 });
+
+        newiopNoret(OP_NEG, { spilled32 });
+
         newiopNoret(OP_STORE, { rax, immtyped<uint64_t>(256, _f) });
         newiopNoret(OP_STORE, { rax, immtyped<int64_t>(256, _f) });
         newiopNoret(OP_STORE, { rdi, immtyped<int64_t>(256, _f) });
@@ -126,7 +175,6 @@ namespace loops
         newiopNoret(OP_STORE, { r8, immtyped<int8_t>(255, _f) });
         newiopNoret(OP_STORE, { r12, immtyped<int8_t>(255, _f) });
         newiopNoret(OP_STORE, { r13, immtyped<int8_t>(255, _f) });
-
 
         newiopNoret(OP_STORE, { rax, iregtyped<uint64_t>(rax)});
         newiopNoret(OP_STORE, { rax, iregtyped<int64_t>(rax)});
@@ -526,46 +574,46 @@ namespace loops
         newiopNoret(OP_XCHG, { rcx,  r8 });
         newiopNoret(OP_XCHG, { r8 ,  r8 });
 
-        newiopNoret(OP_XCHG, { rcx,  argSpilled(RB_INT, 32) });
-        newiopNoret(OP_XCHG, { rdi,  argSpilled(RB_INT, 32) });
-        newiopNoret(OP_XCHG, { r8 ,  argSpilled(RB_INT, 32) });
-        newiopNoret(OP_XCHG, { r15,  argSpilled(RB_INT, 32) });
+        newiopNoret(OP_XCHG, { rcx,  spilled32 });
+        newiopNoret(OP_XCHG, { rdi,  spilled32 });
+        newiopNoret(OP_XCHG, { r8 ,  spilled32 });
+        newiopNoret(OP_XCHG, { r15,  spilled32 });
 
-        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32), rcx });
-        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32), rdi });
-        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32), r8 });
-        newiopNoret(OP_XCHG, { argSpilled(RB_INT, 32), r15 });
+        newiopNoret(OP_XCHG, { spilled32, rcx });
+        newiopNoret(OP_XCHG, { spilled32, rdi });
+        newiopNoret(OP_XCHG, { spilled32, r8 });
+        newiopNoret(OP_XCHG, { spilled32, r15 });
 
         newiopNoret(OP_SHL, { rax, rax, argIImm(15) });
         newiopNoret(OP_SHL, { rdi, rdi, argIImm(15) });
         newiopNoret(OP_SHL, { r8 , r8, argIImm(15) });
 
-        newiopNoret(OP_SHL, { spilled32, argSpilled(RB_INT, 32), argIImm(15) });
+        newiopNoret(OP_SHL, { spilled32, spilled32, argIImm(15) });
 
         newiopNoret(OP_SHL, { rax, rax, cl });
         newiopNoret(OP_SHL, { rdi, rdi, cl });
         newiopNoret(OP_SHL, { r8, r8, cl });
-        newiopNoret(OP_SHL, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), cl });
+        newiopNoret(OP_SHL, { spilled32, spilled32, cl });
 
         newiopNoret(OP_SHR, { rax,rax, argIImm(15) });
         newiopNoret(OP_SHR, { rdi,rdi, argIImm(15) });
         newiopNoret(OP_SHR, { r8 , r8, argIImm(15) });
-        newiopNoret(OP_SHR, { spilled32, argSpilled(RB_INT, 32), argIImm(15) });
+        newiopNoret(OP_SHR, { spilled32, spilled32, argIImm(15) });
 
         newiopNoret(OP_SHR, { rax, rax, cl });
         newiopNoret(OP_SHR, { rdi, rdi, cl });
         newiopNoret(OP_SHR, { r8, r8, cl });
-        newiopNoret(OP_SHR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), cl });
+        newiopNoret(OP_SHR, { spilled32, spilled32, cl });
 
         newiopNoret(OP_SAR, { rax,rax, argIImm(15) });
         newiopNoret(OP_SAR, { rdi,rdi, argIImm(15) });
         newiopNoret(OP_SAR, { r8 , r8, argIImm(15) });
-        newiopNoret(OP_SAR, { spilled32, argSpilled(RB_INT, 32), argIImm(15) });
+        newiopNoret(OP_SAR, { spilled32, spilled32, argIImm(15) });
 
         newiopNoret(OP_SAR, { rax, rax, cl });
         newiopNoret(OP_SAR, { rdi, rdi, cl });
         newiopNoret(OP_SAR, { r8, r8, cl });
-        newiopNoret(OP_SAR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), cl });
+        newiopNoret(OP_SAR, { spilled32, spilled32, cl });
 
         newiopNoret(OP_AND, { rax, rax, rax });
         newiopNoret(OP_AND, { rax, rax, rdi });
@@ -574,20 +622,20 @@ namespace loops
         newiopNoret(OP_AND, { r8 , r8 , rax });
         newiopNoret(OP_AND, { r8 , r8 , r8 });
 
-        newiopNoret(OP_AND, { rax, rax, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_AND, { rdi, rdi, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_AND, { r8 , r8 , argSpilled(RB_INT, 32) });
+        newiopNoret(OP_AND, { rax, rax, spilled32 });
+        newiopNoret(OP_AND, { rdi, rdi, spilled32 });
+        newiopNoret(OP_AND, { r8 , r8 , spilled32 });
 
         newiopNoret(OP_AND, { rax, rax, argIImm(256) });
         newiopNoret(OP_AND, { rcx, rcx, argIImm(256) });
         newiopNoret(OP_AND, { rdi, rdi, argIImm(256) });
         newiopNoret(OP_AND, { r8 , r8 , argIImm(256) });
 
-        newiopNoret(OP_AND, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rax });
-        newiopNoret(OP_AND, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rdi });
-        newiopNoret(OP_AND, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), r8 });
+        newiopNoret(OP_AND, { spilled32, spilled32, rax });
+        newiopNoret(OP_AND, { spilled32, spilled32, rdi });
+        newiopNoret(OP_AND, { spilled32, spilled32, r8 });
 
-        newiopNoret(OP_AND, { spilled32, argSpilled(RB_INT, 32), argIImm(257) });
+        newiopNoret(OP_AND, { spilled32, spilled32, argIImm(257) });
 
         newiopNoret(OP_OR, { rax, rax, rax });
         newiopNoret(OP_OR, { rax, rax, rdi });
@@ -595,15 +643,15 @@ namespace loops
         newiopNoret(OP_OR, { rax, rax, r8 });
         newiopNoret(OP_OR, { r8 , r8 , rax });
 
-        newiopNoret(OP_OR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rax });
-        newiopNoret(OP_OR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), r8 });
+        newiopNoret(OP_OR, { spilled32, spilled32, rax });
+        newiopNoret(OP_OR, { spilled32, spilled32, r8 });
 
-        newiopNoret(OP_OR, { rax, rax, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_OR, { r8, r8, argSpilled(RB_INT, 32) });
+        newiopNoret(OP_OR, { rax, rax, spilled32 });
+        newiopNoret(OP_OR, { r8, r8, spilled32 });
 
         newiopNoret(OP_OR, { rax, rax, argIImm(256) });
         newiopNoret(OP_OR, { r8, r8, argIImm(256) });
-        newiopNoret(OP_OR, { spilled32, argSpilled(RB_INT, 32), argIImm(257) });
+        newiopNoret(OP_OR, { spilled32, spilled32, argIImm(257) });
 
         newiopNoret(OP_XOR, { rax, rax, rax });
         newiopNoret(OP_XOR, { rax, rax, rdi });
@@ -612,20 +660,20 @@ namespace loops
         newiopNoret(OP_XOR, { r8 , r8 , rax });
         newiopNoret(OP_XOR, { r8 , r8 , r8 });
 
-        newiopNoret(OP_XOR, { rax, rax, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_XOR, { rdi, rdi, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_XOR, { r8 , r8 , argSpilled(RB_INT, 32) });
+        newiopNoret(OP_XOR, { rax, rax, spilled32 });
+        newiopNoret(OP_XOR, { rdi, rdi, spilled32 });
+        newiopNoret(OP_XOR, { r8 , r8 , spilled32 });
 
         newiopNoret(OP_XOR, { rax, rax, argIImm(256) });
         newiopNoret(OP_XOR, { rcx, rcx, argIImm(256) });
         newiopNoret(OP_XOR, { rdi, rdi, argIImm(256) });
         newiopNoret(OP_XOR, { r8 , r8 , argIImm(256) });
 
-        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rax });
-        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rdi });
-        newiopNoret(OP_XOR, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), r8 });
+        newiopNoret(OP_XOR, { spilled32, spilled32, rax });
+        newiopNoret(OP_XOR, { spilled32, spilled32, rdi });
+        newiopNoret(OP_XOR, { spilled32, spilled32, r8 });
 
-        newiopNoret(OP_XOR, { spilled32, argSpilled(RB_INT, 32), argIImm(257) });
+        newiopNoret(OP_XOR, { spilled32, spilled32, argIImm(257) });
 
         newiopNoret(OP_SELECT, { rax, argIImm(OP_EQ), rax, rax });
         newiopNoret(OP_SELECT, { rax, argIImm(OP_NE), rax, rax });
@@ -643,9 +691,9 @@ namespace loops
         newiopNoret(OP_SELECT, { rax, OP_EQ, r8 , rax });
         newiopNoret(OP_SELECT, { r8 , OP_EQ, r8 , r8 });
 
-        newiopNoret(OP_SELECT, { rax, OP_EQ, argSpilled(RB_INT, 32), rax });
-        newiopNoret(OP_SELECT, { rdi, OP_EQ, argSpilled(RB_INT, 32), rdi });
-        newiopNoret(OP_SELECT, { r8,  OP_EQ, argSpilled(RB_INT, 32), r8 });
+        newiopNoret(OP_SELECT, { rax, OP_EQ, spilled32, rax });
+        newiopNoret(OP_SELECT, { rdi, OP_EQ, spilled32, rdi });
+        newiopNoret(OP_SELECT, { r8,  OP_EQ, spilled32, r8 });
 
         newiopNoret(OP_IVERSON, { rax, argIImm(OP_EQ)});
         newiopNoret(OP_IVERSON, { rax, argIImm(OP_NE)});
@@ -671,14 +719,13 @@ namespace loops
         newiopNoret(OP_X86_ADC, { rcx, rcx, argIImm(256) });
         newiopNoret(OP_X86_ADC, { rdi, rdi, argIImm(256) });
         newiopNoret(OP_X86_ADC, { r8 , r8 , argIImm(256) });
-        newiopNoret(OP_X86_ADC, { rax, rax, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_X86_ADC, { rdi, rdi, argSpilled(RB_INT, 32) });
-        newiopNoret(OP_X86_ADC, { r8 , r8 , argSpilled(RB_INT, 32) });
-        //
-        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rax });
-        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), rdi });
-        newiopNoret(OP_X86_ADC, { argSpilled(RB_INT, 32), argSpilled(RB_INT, 32), r8 });
-        newiopNoret(OP_X86_ADC, { spilled32, argSpilled(RB_INT, 32), argIImm(256) });
+        newiopNoret(OP_X86_ADC, { rax, rax, spilled32 });
+        newiopNoret(OP_X86_ADC, { rdi, rdi, spilled32 });
+        newiopNoret(OP_X86_ADC, { r8 , r8 , spilled32 });
+        newiopNoret(OP_X86_ADC, { spilled32, spilled32, rax });
+        newiopNoret(OP_X86_ADC, { spilled32, spilled32, rdi });
+        newiopNoret(OP_X86_ADC, { spilled32, spilled32, r8 });
+        newiopNoret(OP_X86_ADC, { spilled32, spilled32, argIImm(256) });
 
         newiopNoret(OP_CMP, { rax, argSpilled(RB_INT, 0x1FFF) });
         newiopNoret(OP_CMP, { rdi, argSpilled(RB_INT, 0x1FFF) });
@@ -689,16 +736,6 @@ namespace loops
         newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF), r8  });
         newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF), r15 });
         newiopNoret(OP_CMP, { spilled0x1FFF, argIImm(0x8888) });
-
-        newiopNoret(OP_ADD, { rax, rax, argSpilled(RB_INT, 0x1FFF) });
-        newiopNoret(OP_ADD, { rdi, rdi, argSpilled(RB_INT, 0x1FFF) });
-        newiopNoret(OP_ADD, { r8 , r8 , argSpilled(RB_INT, 0x1FFF) });
-        newiopNoret(OP_ADD, { r15, r15, argSpilled(RB_INT, 0x1FFF) });
-        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF), argSpilled(RB_INT, 0x1FFF), rax });
-        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF), argSpilled(RB_INT, 0x1FFF), rdi });
-        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF), argSpilled(RB_INT, 0x1FFF), r8  });
-        newiopNoret(OP_ADD, { argSpilled(RB_INT, 0x1FFF), argSpilled(RB_INT, 0x1FFF), r15 });
-        newiopNoret(OP_ADD, { spilled0x1FFF, argSpilled(RB_INT, 0x1FFF), argIImm(0x8888) });
 
         newiopNoret(OP_CALL_NORET, { rax });
         newiopNoret(OP_CALL_NORET, { rdi });

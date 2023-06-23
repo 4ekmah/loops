@@ -51,9 +51,10 @@ void Bitwriter::writeToken(uint64_t a_token, size_t a_fieldwidth)
         a_token = a_token << (64 - bits2write);
         body |= a_token;
     }
-    size_t bytesfromfield = bytes2write % 8;
     uint8_t* bytearray = reinterpret_cast<uint8_t*>(&body);
-    for(int byten = 7; byten >= 8 - bytesfromfield; --byten)
+    int lowerbound = 8 - (int)bytes2write;
+    lowerbound = lowerbound < 0 ? 0 : lowerbound;
+    for(int byten = 7; byten >= lowerbound; --byten)
         buffer[m_size++] = bytearray[byten];
     if(bytes2write == 9)
         buffer[m_size++] = tail;

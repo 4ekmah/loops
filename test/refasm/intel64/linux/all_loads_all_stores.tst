@@ -1,10 +1,10 @@
 all_loads_all_stores(i0, i1, i2, i3, i4)
-     0 : sub    rsp, #0x38         ; 48 83 ec 38                          
-     1 : mov    [rsp+#0x20], r12   ; 4c 89 64 24 20                       
-     2 : mov    [rsp+#0x28], r13   ; 4c 89 6c 24 28                       
-     3 : mov    [rsp+#0x10], #0    ; 48 c7 44 24 10 00 00 00 00           
-     4 : mov    [rsp+#0x08], #0    ; 48 c7 44 24 08 00 00 00 00           
-     5 : mov    [rsp], #0          ; 48 c7 44 24 00 00 00 00 00           
+     0 : sub    rsp, #0x38         ; 48 81 ec 38 00 00 00                 
+     1 : mov    [rsp+#0x20], r12   ; 4c 89 a4 24 20 00 00 00              
+     2 : mov    [rsp+#0x28], r13   ; 4c 89 ac 24 28 00 00 00              
+     3 : mov    [rsp+#0x10], #0    ; 48 c7 84 24 10 00 00 00 00 00 00 00  
+     4 : mov    [rsp+#0x08], #0    ; 48 c7 84 24 08 00 00 00 00 00 00 00  
+     5 : mov    [rsp], #0          ; 48 c7 84 24 00 00 00 00 00 00 00 00  
      6 : mov    r12, #0x02         ; 49 c7 c4 02 00 00 00                 
      7 : mov    rax, #0x01         ; 48 c7 c0 01 00 00 00                 
      8 : cmp    rsi, #0x01         ; 48 83 fe 01                          
@@ -16,7 +16,7 @@ all_loads_all_stores(i0, i1, i2, i3, i4)
     14 : cmp    rsi, #0x05         ; 48 83 fe 05                          
     15 : mov    r13, rax           ; 49 89 c5                             
     16 : cmovg  r13, r12           ; 4d 0f 4f ec                          
-    17 : mov    [rsp+#0x18], r13   ; 4c 89 6c 24 18                       
+    17 : mov    [rsp+#0x18], r13   ; 4c 89 ac 24 18 00 00 00              
     18 : mov    r12, #0x02         ; 49 c7 c4 02 00 00 00                 
     19 : mov    rax, #0x01         ; 48 c7 c0 01 00 00 00                 
     20 : cmp    rcx, #0x01         ; 48 83 f9 01                          
@@ -111,5 +111,5 @@ all_loads_all_stores(i0, i1, i2, i3, i4)
    109 : jmp    [28]               ; e9 2e fe ff ff                       
    110 : mov    r12, [rsp+#0x20]   ; 4c 8b a4 24 20 00 00 00              
    111 : mov    r13, [rsp+#0x28]   ; 4c 8b ac 24 28 00 00 00              
-   112 : add    rsp, #0x38         ; 48 83 c4 38                          
+   112 : add    rsp, #0x38         ; 48 81 c4 38 00 00 00                 
    113 : ret                       ; c3                                   

@@ -3,67 +3,67 @@ conditionpainter(i0)
      1 : spill      5, i7        
      2 : spill      8, i12       
      3 : spill      9, i13       
-     4 : mov        s4, -5       
-     5 : label 0:                
-     6 : cmp        s4, 5        
-     7 : jmp_gt 2                
-     8 : mov        i2, -5       
+     4 : mov        i13, -5      
+     5 : spill      4, i13       
+     6 : label 0:                
+     7 : cmp        s4, 5        
+     8 : jmp_gt 2                
      9 : unspill    i13, 4       
-    10 : sub        i2, i2, i13  
-    11 : neg        i2, i2       
+    10 : mov        i2, i13      
+    11 : add        i2, i2, 5    
     12 : mul        i2, i2, 11   
     13 : mov        i13, i2      
     14 : mul        i13, i13, 8  
     15 : spill      7, i13       
-    16 : mov        s6, -5       
-    17 : label 3:                
-    18 : cmp        s6, 5        
-    19 : jmp_gt 5                
-    20 : unspill    i13, 6       
-    21 : mov        i0, i13      
-    22 : add        i0, i0, 3    
-    23 : mov        i12, 0       
-    24 : cmp        s4, i0       
-    25 : iverson_ge i12          
-    26 : mov        i0, 0        
-    27 : cmp        s4, 4        
-    28 : iverson_le i0           
-    29 : and        i12, i12, i0 
-    30 : mov        i0, -2       
-    31 : mov        i6, 0        
-    32 : cmp        s6, i0       
-    33 : iverson_ge i6           
-    34 : and        i12, i12, i6 
-    35 : mov        i6, 0        
+    16 : mov        i13, -5      
+    17 : spill      6, i13       
+    18 : label 3:                
+    19 : cmp        s6, 5        
+    20 : jmp_gt 5                
+    21 : unspill    i13, 6       
+    22 : mov        i0, i13      
+    23 : add        i0, i0, 3    
+    24 : mov        i12, 0       
+    25 : cmp        s4, i0       
+    26 : iverson_ge i12          
+    27 : mov        i0, 0        
+    28 : cmp        s4, 4        
+    29 : iverson_le i0           
+    30 : and        i12, i12, i0 
+    31 : mov        i0, 0        
+    32 : cmp        s6, -2       
+    33 : iverson_ge i0           
+    34 : and        i12, i12, i0 
+    35 : mov        i0, 0        
     36 : cmp        s6, 0        
-    37 : iverson_le i6           
-    38 : and        i12, i12, i6 
+    37 : iverson_le i0           
+    38 : and        i12, i12, i0 
     39 : unspill    i13, 6       
-    40 : mov        i6, i13      
-    41 : sub        i6, i6, 1    
-    42 : mov        i0, 0        
-    43 : cmp        s4, i6       
-    44 : iverson_le i0           
-    45 : mov        i6, 0        
+    40 : mov        i0, i13      
+    41 : sub        i0, i0, 1    
+    42 : mov        i6, 0        
+    43 : cmp        s4, i0       
+    44 : iverson_le i6           
+    45 : mov        i0, 0        
     46 : cmp        s6, 0        
-    47 : iverson_ge i6           
-    48 : and        i0, i0, i6   
-    49 : mov        i6, 0        
+    47 : iverson_ge i0           
+    48 : and        i6, i6, i0   
+    49 : mov        i0, 0        
     50 : cmp        s4, 0        
-    51 : iverson_le i6           
-    52 : and        i0, i0, i6   
+    51 : iverson_le i0           
+    52 : and        i6, i6, i0   
     53 : unspill    i13, 6       
-    54 : mov        i6, i13      
-    55 : mul        i6, i6, s6   
+    54 : mov        i0, i13      
+    55 : mul        i0, i0, s6   
     56 : unspill    i13, 4       
     57 : mov        i7, i13      
     58 : mul        i7, i7, s4   
-    59 : add        i6, i6, i7   
+    59 : add        i0, i0, i7   
     60 : mov        i7, 0        
-    61 : cmp        i6, 9        
+    61 : cmp        i0, 9        
     62 : iverson_le i7           
-    63 : and        i0, i0, i7   
-    64 : or         i12, i12, i0 
+    63 : and        i6, i6, i7   
+    64 : or         i12, i12, i6 
     65 : mov        i7, 2        
     66 : mov        i6, 0        
     67 : mov        i0, 0        
@@ -134,20 +134,19 @@ conditionpainter(i0)
    132 : unspill    i13, 5       
    133 : mov        i7, i13      
    134 : add        i7, i7, s7   
-   135 : mov        i6, -5       
-   136 : unspill    i13, 6       
-   137 : sub        i6, i6, i13  
-   138 : neg        i6, i6       
-   139 : shl        i6, i6, 3    
-   140 : add        i7, i7, i6   
-   141 : store.i64  i7, i12      
-   142 : add        s6, s6, 1    
-   143 : jmp        3            
-   144 : label 5:                
-   145 : add        s4, s4, 1    
-   146 : jmp        0            
-   147 : label 2:                
-   148 : unspill    i12, 8       
-   149 : unspill    i13, 9       
-   150 : add        i4, i4, 88   
-   151 : ret                     
+   135 : unspill    i13, 6       
+   136 : mov        i6, i13      
+   137 : add        i6, i6, 5    
+   138 : shl        i6, i6, 3    
+   139 : add        i7, i7, i6   
+   140 : store.i64  i7, i12      
+   141 : add        s6, s6, 1    
+   142 : jmp        3            
+   143 : label 5:                
+   144 : add        s4, s4, 1    
+   145 : jmp        0            
+   146 : label 2:                
+   147 : unspill    i12, 8       
+   148 : unspill    i13, 9       
+   149 : add        i4, i4, 88   
+   150 : ret                     
