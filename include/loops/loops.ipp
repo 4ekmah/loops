@@ -699,9 +699,9 @@ template<typename _Tp> VExpr<_Tp> bfunc (const VExpr<_Tp>& a, const VReg<_Tp>& b
 template<typename _Tp> VExpr<_Tp> bfunc(const VReg<_Tp>& a, int64_t suf) { return bfunc(VExpr<_Tp>(a), suf); }
 
 #define LOOPS_CONVERT_ARGS_TUNARY(ufunc) \
-template<typename _Tp> VExpr<_Tp> ufunc (const VReg<_Tp>& a) { return ufunc(VExpr<_Tp>(a)); } \
+template<typename _Tp> VExpr<_Tp> ufunc (const VReg<_Tp>& a) { return ufunc(VExpr<_Tp>(a)); }
 
-#define LOOPS_CONVERT_ARGS_TUNARY_DOUT(otype, ufunc) template<typename _Tp> VExpr<otype> ufunc (const VReg<_Tp>& a) { return ufunc(VExpr<otype>(a)); }
+#define LOOPS_CONVERT_ARGS_TUNARY_DOUT(otype, ufunc) template<typename _Tp> VExpr<otype> ufunc (const VReg<_Tp>& a) { return ufunc(VExpr<_Tp>(a)); }
 
 #define LOOPS_CONVERT_ARGS_TUNARY_DIN(itype, ufunc) \
 template<typename _Tp> VExpr<_Tp> ufunc(const VReg<itype>& a) { return ufunc(VExpr<_Tp>(a));}
@@ -813,6 +813,10 @@ template<typename _Tp> VExpr<_Tp> reduce_max(const VExpr<_Tp>& r)
 { return VExpr<_Tp>(VOP_REDUCE_MAX, { r.notype() }); }
 template<typename _Tp> VExpr<_Tp> reduce_min(const VExpr<_Tp>& r)
 { return VExpr<_Tp>(VOP_REDUCE_MIN, { r.notype() }); }
+template<typename _Tp> VExpr<_Tp> reduce_sum(const VExpr<_Tp>& r)
+{ return VExpr<_Tp>(VOP_REDUCE_SUM, { r.notype() }); }
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> reduce_wsum(const VExpr<_Tp>& r)
+{ return VExpr<typename ElemTraits<_Tp>::duplicatetype>(VOP_REDUCE_WSUM, { r.notype() }); }
 template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const VExpr<_Tp>& m, int64_t index)
 { return VExpr<_Tp>(VOP_ARM_EXT, {n.notype(), m.notype(), Expr(index)}); }
 
@@ -890,6 +894,10 @@ template<typename _Tp> VExpr<_Tp> operator ^ (const VExpr<_Tp>& a, const VExpr<_
 { return VExpr<_Tp>(VOP_XOR, {a.notype(), b.notype()}); }
 template<typename _Tp> VExpr<_Tp> operator ~ (const VExpr<_Tp>& a)
 { return VExpr<_Tp>(VOP_NOT, {a.notype()}); }
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> popcount(const VExpr<_Tp>& r)
+{ return VExpr<typename ElemTraits<_Tp>::masktype>(VOP_POPCOUNT, { r.notype() }); }
+
+LOOPS_CONVERT_ARGS_TUNARY_DOUT(typename ElemTraits<_Tp>::masktype, popcount)
 
 // Vector comparisson and masking:
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const VExpr<_Tp>& a, const VExpr<_Tp>& b)
@@ -962,6 +970,8 @@ template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, c
 template<typename _Tp> void setlane(const    VReg<_Tp>& v, int64_t lane_index, const    VReg<_Tp>& inp, int64_t ilane_index) { setlane(VExpr<_Tp>(v), lane_index, VExpr<_Tp>(inp), ilane_index); }
 LOOPS_CONVERT_ARGS_TUNARY(reduce_max)
 LOOPS_CONVERT_ARGS_TUNARY(reduce_min)
+LOOPS_CONVERT_ARGS_TUNARY(reduce_sum)
+LOOPS_CONVERT_ARGS_TUNARY_DOUT(typename ElemTraits<_Tp>::duplicatetype, reduce_wsum)
 template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const    VReg<_Tp>& m, int64_t index) { return ext(n, VExpr<_Tp>(m), index); }
 template<typename _Tp> VExpr<_Tp> ext(const    VReg<_Tp>& n, const VExpr<_Tp>& m, int64_t index) { return ext(VExpr<_Tp>(n), m, index); }
 template<typename _Tp> VExpr<_Tp> ext(const    VReg<_Tp>& n, const    VReg<_Tp>& m, int64_t index) { return ext(VExpr<_Tp>(n), VExpr<_Tp>(m), index); }

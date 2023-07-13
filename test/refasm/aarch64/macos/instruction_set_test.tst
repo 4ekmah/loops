@@ -734,212 +734,242 @@ instruction_set_test()
    732 : xtn2   v0.4s, v0.2d                     ; 00 28 a1 4e  
    733 : xtn2   v31.4s, v0.2d                    ; 1f 28 a1 4e  
    734 : xtn2   v0.4s, v31.2d                    ; e0 2b a1 4e  
-   735 : smaxv  v0.16b, v0.16b                   ; 00 a8 30 4e  
-   736 : smaxv  v31.16b, v0.16b                  ; 1f a8 30 4e  
-   737 : smaxv  v0.16b, v31.16b                  ; e0 ab 30 4e  
-   738 : smaxv  v0.8h, v0.8h                     ; 00 a8 70 4e  
-   739 : smaxv  v31.8h, v0.8h                    ; 1f a8 70 4e  
-   740 : smaxv  v0.8h, v31.8h                    ; e0 ab 70 4e  
-   741 : smaxv  v0.4s, v0.4s                     ; 00 a8 b0 4e  
-   742 : smaxv  v31.4s, v0.4s                    ; 1f a8 b0 4e  
-   743 : smaxv  v0.4s, v31.4s                    ; e0 ab b0 4e  
-   744 : umaxv  v0.16b, v0.16b                   ; 00 a8 30 6e  
-   745 : umaxv  v31.16b, v0.16b                  ; 1f a8 30 6e  
-   746 : umaxv  v0.16b, v31.16b                  ; e0 ab 30 6e  
-   747 : umaxv  v0.8h, v0.8h                     ; 00 a8 70 6e  
-   748 : umaxv  v31.8h, v0.8h                    ; 1f a8 70 6e  
-   749 : umaxv  v0.8h, v31.8h                    ; e0 ab 70 6e  
-   750 : umaxv  v0.4s, v0.4s                     ; 00 a8 b0 6e  
-   751 : umaxv  v31.4s, v0.4s                    ; 1f a8 b0 6e  
-   752 : umaxv  v0.4s, v31.4s                    ; e0 ab b0 6e  
-   753 : fmaxv  v0.8h, v0.8h                     ; 00 f8 30 4e  
-   754 : fmaxv  v31.8h, v0.8h                    ; 1f f8 30 4e  
-   755 : fmaxv  v0.8h, v31.8h                    ; e0 fb 30 4e  
-   756 : fmaxv  v0.4s, v0.4s                     ; 00 f8 30 6e  
-   757 : fmaxv  v31.4s, v0.4s                    ; 1f f8 30 6e  
-   758 : fmaxv  v0.4s, v31.4s                    ; e0 fb 30 6e  
-   759 : sminv  v0.16b, v0.16b                   ; 00 a8 31 4e  
-   760 : sminv  v31.16b, v0.16b                  ; 1f a8 31 4e  
-   761 : sminv  v0.16b, v31.16b                  ; e0 ab 31 4e  
-   762 : sminv  v0.8h, v0.8h                     ; 00 a8 71 4e  
-   763 : sminv  v31.8h, v0.8h                    ; 1f a8 71 4e  
-   764 : sminv  v0.8h, v31.8h                    ; e0 ab 71 4e  
-   765 : sminv  v0.4s, v0.4s                     ; 00 a8 b1 4e  
-   766 : sminv  v31.4s, v0.4s                    ; 1f a8 b1 4e  
-   767 : sminv  v0.4s, v31.4s                    ; e0 ab b1 4e  
-   768 : uminv  v0.16b, v0.16b                   ; 00 a8 31 6e  
-   769 : uminv  v31.16b, v0.16b                  ; 1f a8 31 6e  
-   770 : uminv  v0.16b, v31.16b                  ; e0 ab 31 6e  
-   771 : uminv  v0.8h, v0.8h                     ; 00 a8 71 6e  
-   772 : uminv  v31.8h, v0.8h                    ; 1f a8 71 6e  
-   773 : uminv  v0.8h, v31.8h                    ; e0 ab 71 6e  
-   774 : uminv  v0.4s, v0.4s                     ; 00 a8 b1 6e  
-   775 : uminv  v31.4s, v0.4s                    ; 1f a8 b1 6e  
-   776 : uminv  v0.4s, v31.4s                    ; e0 ab b1 6e  
-   777 : fminv  v0.8h, v0.8h                     ; 00 f8 b0 4e  
-   778 : fminv  v31.8h, v0.8h                    ; 1f f8 b0 4e  
-   779 : fminv  v0.8h, v31.8h                    ; e0 fb b0 4e  
-   780 : fminv  v0.4s, v0.4s                     ; 00 f8 b0 6e  
-   781 : fminv  v31.4s, v0.4s                    ; 1f f8 b0 6e  
-   782 : fminv  v0.4s, v31.4s                    ; e0 fb b0 6e  
-   783 : ld1    v0.16b, x0, #0                   ; 00 00 40 0d  
-   784 : ld1    v31.16b, x0, #0                  ; 1f 00 40 0d  
-   785 : ld1    v0.16b, x0, #0x0f                ; 00 1c 40 4d  
-   786 : ld1    v0.16b, x15, #0                  ; e0 01 40 0d  
-   787 : ld1    v0.8h, x0, #0                    ; 00 40 40 0d  
-   788 : ld1    v31.8h, x0, #0                   ; 1f 40 40 0d  
-   789 : ld1    v0.8h, x0, #0x07                 ; 00 58 40 4d  
-   790 : ld1    v0.8h, x15, #0                   ; e0 41 40 0d  
-   791 : ld1    v0.4s, x0, #0                    ; 00 80 40 0d  
-   792 : ld1    v31.4s, x0, #0                   ; 1f 80 40 0d  
-   793 : ld1    v0.4s, x0, #0x03                 ; 00 90 40 4d  
-   794 : ld1    v0.4s, x15, #0                   ; e0 81 40 0d  
-   795 : ld1    v0.2d, x0, #0                    ; 00 84 40 0d  
-   796 : ld1    v31.2d, x0, #0                   ; 1f 84 40 0d  
-   797 : ld1    v0.2d, x0, #0x01                 ; 00 84 40 4d  
-   798 : ld1    v0.2d, x15, #0                   ; e0 85 40 0d  
-   799 : ld2    v0.16b, v1.16b, x0               ; 00 80 40 4c  
-   800 : ld2    v31.16b, v0.16b, x0              ; 1f 80 40 4c  
-   801 : ld2    v0.16b, v1.16b, x15              ; e0 81 40 4c  
-   802 : ld2    v0.8h, v1.8h, x0                 ; 00 84 40 4c  
-   803 : ld2    v31.8h, v0.8h, x0                ; 1f 84 40 4c  
-   804 : ld2    v0.8h, v1.8h, x15                ; e0 85 40 4c  
-   805 : ld2    v0.4s, v1.4s, x0                 ; 00 88 40 4c  
-   806 : ld2    v31.4s, v0.4s, x0                ; 1f 88 40 4c  
-   807 : ld2    v0.4s, v1.4s, x15                ; e0 89 40 4c  
-   808 : ld2    v0.2d, v1.2d, x0                 ; 00 8c 40 4c  
-   809 : ld2    v31.2d, v0.2d, x0                ; 1f 8c 40 4c  
-   810 : ld2    v0.2d, v1.2d, x15                ; e0 8d 40 4c  
-   811 : ld1    v0.16b, x0                       ; 00 20 df 4c  
-   812 : ld1    v31.16b, x0                      ; 1f 20 df 4c  
-   813 : ld1    v0.16b, x15                      ; e0 21 df 4c  
-   814 : ld1    v0.8h, x0                        ; 00 24 df 4c  
-   815 : ld1    v31.8h, x0                       ; 1f 24 df 4c  
-   816 : ld1    v0.8h, x15                       ; e0 25 df 4c  
-   817 : ld1    v0.4s, x0                        ; 00 28 df 4c  
-   818 : ld1    v31.4s, x0                       ; 1f 28 df 4c  
-   819 : ld1    v0.4s, x15                       ; e0 29 df 4c  
-   820 : ld1    v0.2d, x0                        ; 00 2c df 4c  
-   821 : ld1    v31.2d, x0                       ; 1f 2c df 4c  
-   822 : ld1    v0.2d, x15                       ; e0 2d df 4c  
-   823 : st1    v0.16b, #0, x0                   ; 00 00 00 0d  
-   824 : st1    v31.16b, #0, x0                  ; 1f 00 00 0d  
-   825 : st1    v0.16b, #0x0f, x0                ; 00 1c 00 4d  
-   826 : st1    v0.16b, #0, x15                  ; e0 01 00 0d  
-   827 : st1    v0.8h, #0, x0                    ; 00 40 00 0d  
-   828 : st1    v31.8h, #0, x0                   ; 1f 40 00 0d  
-   829 : st1    v0.8h, #0x07, x0                 ; 00 58 00 4d  
-   830 : st1    v0.8h, #0, x15                   ; e0 41 00 0d  
-   831 : st1    v0.4s, #0, x0                    ; 00 80 00 0d  
-   832 : st1    v31.4s, #0, x0                   ; 1f 80 00 0d  
-   833 : st1    v0.4s, #0x03, x0                 ; 00 90 00 4d  
-   834 : st1    v0.4s, #0, x15                   ; e0 81 00 0d  
-   835 : st1    v0.2d, #0, x0                    ; 00 84 00 0d  
-   836 : st1    v31.2d, #0, x0                   ; 1f 84 00 0d  
-   837 : st1    v0.2d, #0x01, x0                 ; 00 84 00 4d  
-   838 : st1    v0.2d, #0, x15                   ; e0 85 00 0d  
-   839 : st1    v0.16b, x0                       ; 00 20 9f 4c  
-   840 : st1    v0.16b, x15                      ; e0 21 9f 4c  
-   841 : st1    v31.16b, x0                      ; 1f 20 9f 4c  
-   842 : st1    v0.8h, x0                        ; 00 24 9f 4c  
-   843 : st1    v0.8h, x15                       ; e0 25 9f 4c  
-   844 : st1    v31.8h, x0                       ; 1f 24 9f 4c  
-   845 : st1    v0.4s, x0                        ; 00 28 9f 4c  
-   846 : st1    v0.4s, x15                       ; e0 29 9f 4c  
-   847 : st1    v31.4s, x0                       ; 1f 28 9f 4c  
-   848 : st1    v0.2d, x0                        ; 00 2c 9f 4c  
-   849 : st1    v0.2d, x15                       ; e0 2d 9f 4c  
-   850 : st1    v31.2d, x0                       ; 1f 2c 9f 4c  
-   851 : ext    v0.16b, v0.16b, v0.16b, #0       ; 00 00 00 6e  
-   852 : ext    v31.16b, v0.16b, v0.16b, #0      ; 1f 00 00 6e  
-   853 : ext    v0.16b, v31.16b, v0.16b, #0      ; e0 03 00 6e  
-   854 : ext    v0.16b, v0.16b, v31.16b, #0      ; 00 00 1f 6e  
-   855 : ext    v0.16b, v0.16b, v0.16b, #0x0f    ; 00 78 00 6e  
-   856 : ext    v0.8h, v0.8h, v0.8h, #0          ; 00 00 00 6e  
-   857 : ext    v31.8h, v0.8h, v0.8h, #0         ; 1f 00 00 6e  
-   858 : ext    v0.8h, v31.8h, v0.8h, #0         ; e0 03 00 6e  
-   859 : ext    v0.8h, v0.8h, v31.8h, #0         ; 00 00 1f 6e  
-   860 : ext    v0.8h, v0.8h, v0.8h, #0x0e       ; 00 70 00 6e  
-   861 : ext    v0.4s, v0.4s, v0.4s, #0          ; 00 00 00 6e  
-   862 : ext    v31.4s, v0.4s, v0.4s, #0         ; 1f 00 00 6e  
-   863 : ext    v0.4s, v31.4s, v0.4s, #0         ; e0 03 00 6e  
-   864 : ext    v0.4s, v0.4s, v31.4s, #0         ; 00 00 1f 6e  
-   865 : ext    v0.4s, v0.4s, v0.4s, #0x0c       ; 00 60 00 6e  
-   866 : ext    v0.2d, v0.2d, v0.2d, #0          ; 00 00 00 6e  
-   867 : ext    v31.2d, v0.2d, v0.2d, #0         ; 1f 00 00 6e  
-   868 : ext    v0.2d, v31.2d, v0.2d, #0         ; e0 03 00 6e  
-   869 : ext    v0.2d, v0.2d, v31.2d, #0         ; 00 00 1f 6e  
-   870 : ext    v0.2d, v0.2d, v0.2d, #0x10       ; 00 00 00 6e  
-   871 : fmla   v0.8h, v0.8h, v0.8h, #0          ; 00 10 00 4f  
-   872 : fmla   v31.8h, v0.8h, v0.8h, #0         ; 1f 10 00 4f  
-   873 : fmla   v0.8h, v31.8h, v0.8h, #0         ; e0 13 00 4f  
-   874 : fmla   v0.8h, v0.8h, v15.8h, #0         ; 00 10 0f 4f  
-   875 : fmla   v0.8h, v0.8h, v0.8h, #0x07       ; 00 18 30 4f  
-   876 : fmla   v0.4s, v0.4s, v0.4s, #0          ; 00 10 80 4f  
-   877 : fmla   v31.4s, v0.4s, v0.4s, #0         ; 1f 10 80 4f  
-   878 : fmla   v0.4s, v31.4s, v0.4s, #0         ; e0 13 80 4f  
-   879 : fmla   v0.4s, v0.4s, v31.4s, #0         ; 00 10 9f 4f  
-   880 : fmla   v0.4s, v0.4s, v0.4s, #0x03       ; 00 18 a0 4f  
-   881 : fmla   v0.2d, v0.2d, v0.2d, #0          ; 00 10 c0 4f  
-   882 : fmla   v31.2d, v0.2d, v0.2d, #0         ; 1f 10 c0 4f  
-   883 : fmla   v0.2d, v31.2d, v0.2d, #0         ; e0 13 c0 4f  
-   884 : fmla   v0.2d, v0.2d, v31.2d, #0         ; 00 10 df 4f  
-   885 : fmla   v0.2d, v0.2d, v0.2d, #0x01       ; 00 18 c0 4f  
-   886 : umov   x0, v0.16b, #0                   ; 00 3c 01 0e  
-   887 : umov   x15, v0.16b, #0                  ; 0f 3c 01 0e  
-   888 : umov   x0, v31.16b, #0                  ; e0 3f 01 0e  
-   889 : umov   x0, v0.16b, #0x0f                ; 00 3c 1f 0e  
-   890 : umov   x0, v0.8h, #0                    ; 00 3c 02 0e  
-   891 : umov   x15, v0.8h, #0                   ; 0f 3c 02 0e  
-   892 : umov   x0, v31.8h, #0                   ; e0 3f 02 0e  
-   893 : umov   x0, v0.8h, #0x07                 ; 00 3c 1e 0e  
-   894 : umov   x0, v0.4s, #0                    ; 00 3c 04 0e  
-   895 : umov   x15, v0.4s, #0                   ; 0f 3c 04 0e  
-   896 : umov   x0, v31.4s, #0                   ; e0 3f 04 0e  
-   897 : umov   x0, v0.4s, #0x03                 ; 00 3c 1c 0e  
-   898 : umov   x0, v0.2d, #0                    ; 00 3c 08 4e  
-   899 : umov   x15, v0.2d, #0                   ; 0f 3c 08 4e  
-   900 : umov   x0, v31.2d, #0                   ; e0 3f 08 4e  
-   901 : umov   x0, v0.2d, #0x01                 ; 00 3c 18 4e  
-   902 : ins    v0.16b, #0, x0                   ; 00 1c 01 4e  
-   903 : ins    v31.16b, #0, x0                  ; 1f 1c 01 4e  
-   904 : ins    v0.16b, #0x0f, x0                ; 00 1c 1f 4e  
-   905 : ins    v0.16b, #0, x15                  ; e0 1d 01 4e  
-   906 : ins    v0.8h, #0, x0                    ; 00 1c 02 4e  
-   907 : ins    v31.8h, #0, x0                   ; 1f 1c 02 4e  
-   908 : ins    v0.8h, #0x07, x0                 ; 00 1c 1e 4e  
-   909 : ins    v0.8h, #0, x15                   ; e0 1d 02 4e  
-   910 : ins    v0.4s, #0, x0                    ; 00 1c 04 4e  
-   911 : ins    v31.4s, #0, x0                   ; 1f 1c 04 4e  
-   912 : ins    v0.4s, #0x03, x0                 ; 00 1c 1c 4e  
-   913 : ins    v0.4s, #0, x15                   ; e0 1d 04 4e  
-   914 : ins    v0.2d, #0, x0                    ; 00 1c 08 4e  
-   915 : ins    v31.2d, #0, x0                   ; 1f 1c 08 4e  
-   916 : ins    v0.2d, #0x01, x0                 ; 00 1c 18 4e  
-   917 : ins    v0.2d, #0, x15                   ; e0 1d 08 4e  
-   918 : ins    v0.16b, #0, v0.16b, #0           ; 00 04 01 6e  
-   919 : ins    v31.16b, #0, v0.16b, #0          ; 1f 04 01 6e  
-   920 : ins    v0.16b, #0x0f, v0.16b, #0        ; 00 04 1f 6e  
-   921 : ins    v0.16b, #0, v31.16b, #0          ; e0 07 01 6e  
-   922 : ins    v0.16b, #0, v0.16b, #0x0f        ; 00 7c 01 6e  
-   923 : ins    v0.8h, #0, v0.8h, #0             ; 00 04 02 6e  
-   924 : ins    v31.8h, #0, v0.8h, #0            ; 1f 04 02 6e  
-   925 : ins    v0.8h, #0x07, v0.8h, #0          ; 00 04 1e 6e  
-   926 : ins    v0.8h, #0, v31.8h, #0            ; e0 07 02 6e  
-   927 : ins    v0.8h, #0, v0.8h, #0x07          ; 00 74 02 6e  
-   928 : ins    v0.4s, #0, v0.4s, #0             ; 00 04 04 6e  
-   929 : ins    v31.4s, #0, v0.4s, #0            ; 1f 04 04 6e  
-   930 : ins    v0.4s, #0x03, v0.4s, #0          ; 00 04 1c 6e  
-   931 : ins    v0.4s, #0, v31.4s, #0            ; e0 07 04 6e  
-   932 : ins    v0.4s, #0, v0.4s, #0x03          ; 00 64 04 6e  
-   933 : ins    v0.2d, #0, v0.2d, #0             ; 00 04 08 6e  
-   934 : ins    v31.2d, #0, v0.2d, #0            ; 1f 04 08 6e  
-   935 : ins    v0.2d, #0x01, v0.2d, #0          ; 00 04 18 6e  
-   936 : ins    v0.2d, #0, v31.2d, #0            ; e0 07 08 6e  
-   937 : ins    v0.2d, #0, v0.2d, #0x01          ; 00 44 08 6e  
-   938 : bsl    v0.16b, v0.16b, v0.16b           ; 00 1c 60 6e  
-   939 : bsl    v31.16b, v0.16b, v0.16b          ; 1f 1c 60 6e  
-   940 : bsl    v0.16b, v31.16b, v0.16b          ; e0 1f 60 6e  
-   941 : bsl    v0.16b, v0.16b, v31.16b          ; 00 1c 7f 6e  
-   942 : blr    [x0]                             ; 00 00 3f d6  
-   943 : blr    [x15]                            ; e0 01 3f d6  
+   735 : cnt    v0.16b, v0.16b                   ; 00 58 20 4e  
+   736 : cnt    v31.16b, v0.16b                  ; 1f 58 20 4e  
+   737 : cnt    v0.16b, v31.16b                  ; e0 5b 20 4e  
+   738 : smaxv  v0.16b, v0.16b                   ; 00 a8 30 4e  
+   739 : smaxv  v31.16b, v0.16b                  ; 1f a8 30 4e  
+   740 : smaxv  v0.16b, v31.16b                  ; e0 ab 30 4e  
+   741 : smaxv  v0.8h, v0.8h                     ; 00 a8 70 4e  
+   742 : smaxv  v31.8h, v0.8h                    ; 1f a8 70 4e  
+   743 : smaxv  v0.8h, v31.8h                    ; e0 ab 70 4e  
+   744 : smaxv  v0.4s, v0.4s                     ; 00 a8 b0 4e  
+   745 : smaxv  v31.4s, v0.4s                    ; 1f a8 b0 4e  
+   746 : smaxv  v0.4s, v31.4s                    ; e0 ab b0 4e  
+   747 : umaxv  v0.16b, v0.16b                   ; 00 a8 30 6e  
+   748 : umaxv  v31.16b, v0.16b                  ; 1f a8 30 6e  
+   749 : umaxv  v0.16b, v31.16b                  ; e0 ab 30 6e  
+   750 : umaxv  v0.8h, v0.8h                     ; 00 a8 70 6e  
+   751 : umaxv  v31.8h, v0.8h                    ; 1f a8 70 6e  
+   752 : umaxv  v0.8h, v31.8h                    ; e0 ab 70 6e  
+   753 : umaxv  v0.4s, v0.4s                     ; 00 a8 b0 6e  
+   754 : umaxv  v31.4s, v0.4s                    ; 1f a8 b0 6e  
+   755 : umaxv  v0.4s, v31.4s                    ; e0 ab b0 6e  
+   756 : fmaxv  v0.8h, v0.8h                     ; 00 f8 30 4e  
+   757 : fmaxv  v31.8h, v0.8h                    ; 1f f8 30 4e  
+   758 : fmaxv  v0.8h, v31.8h                    ; e0 fb 30 4e  
+   759 : fmaxv  v0.4s, v0.4s                     ; 00 f8 30 6e  
+   760 : fmaxv  v31.4s, v0.4s                    ; 1f f8 30 6e  
+   761 : fmaxv  v0.4s, v31.4s                    ; e0 fb 30 6e  
+   762 : sminv  v0.16b, v0.16b                   ; 00 a8 31 4e  
+   763 : sminv  v31.16b, v0.16b                  ; 1f a8 31 4e  
+   764 : sminv  v0.16b, v31.16b                  ; e0 ab 31 4e  
+   765 : sminv  v0.8h, v0.8h                     ; 00 a8 71 4e  
+   766 : sminv  v31.8h, v0.8h                    ; 1f a8 71 4e  
+   767 : sminv  v0.8h, v31.8h                    ; e0 ab 71 4e  
+   768 : sminv  v0.4s, v0.4s                     ; 00 a8 b1 4e  
+   769 : sminv  v31.4s, v0.4s                    ; 1f a8 b1 4e  
+   770 : sminv  v0.4s, v31.4s                    ; e0 ab b1 4e  
+   771 : uminv  v0.16b, v0.16b                   ; 00 a8 31 6e  
+   772 : uminv  v31.16b, v0.16b                  ; 1f a8 31 6e  
+   773 : uminv  v0.16b, v31.16b                  ; e0 ab 31 6e  
+   774 : uminv  v0.8h, v0.8h                     ; 00 a8 71 6e  
+   775 : uminv  v31.8h, v0.8h                    ; 1f a8 71 6e  
+   776 : uminv  v0.8h, v31.8h                    ; e0 ab 71 6e  
+   777 : uminv  v0.4s, v0.4s                     ; 00 a8 b1 6e  
+   778 : uminv  v31.4s, v0.4s                    ; 1f a8 b1 6e  
+   779 : uminv  v0.4s, v31.4s                    ; e0 ab b1 6e  
+   780 : fminv  v0.8h, v0.8h                     ; 00 f8 b0 4e  
+   781 : fminv  v31.8h, v0.8h                    ; 1f f8 b0 4e  
+   782 : fminv  v0.8h, v31.8h                    ; e0 fb b0 4e  
+   783 : fminv  v0.4s, v0.4s                     ; 00 f8 b0 6e  
+   784 : fminv  v31.4s, v0.4s                    ; 1f f8 b0 6e  
+   785 : fminv  v0.4s, v31.4s                    ; e0 fb b0 6e  
+   786 : addv   v0.16b, v0.16b                   ; 00 b8 31 4e  
+   787 : addv   v31.16b, v0.16b                  ; 1f b8 31 4e  
+   788 : addv   v0.16b, v31.16b                  ; e0 bb 31 4e  
+   789 : addv   v0.8h, v0.8h                     ; 00 b8 71 4e  
+   790 : addv   v31.8h, v0.8h                    ; 1f b8 71 4e  
+   791 : addv   v0.8h, v31.8h                    ; e0 bb 71 4e  
+   792 : addv   v0.4s, v0.4s                     ; 00 b8 b1 4e  
+   793 : addv   v31.4s, v0.4s                    ; 1f b8 b1 4e  
+   794 : addv   v0.4s, v31.4s                    ; e0 bb b1 4e  
+   795 : uaddlv v0.8h, v0.16b                    ; 00 38 30 6e  
+   796 : uaddlv v31.8h, v0.16b                   ; 1f 38 30 6e  
+   797 : uaddlv v0.8h, v31.16b                   ; e0 3b 30 6e  
+   798 : uaddlv v0.4s, v0.8h                     ; 00 38 70 6e  
+   799 : uaddlv v31.4s, v0.8h                    ; 1f 38 70 6e  
+   800 : uaddlv v0.4s, v31.8h                    ; e0 3b 70 6e  
+   801 : uaddlv v0.2d, v0.4s                     ; 00 38 b0 6e  
+   802 : uaddlv v31.2d, v0.4s                    ; 1f 38 b0 6e  
+   803 : uaddlv v0.2d, v31.4s                    ; e0 3b b0 6e  
+   804 : saddlv v0.8h, v0.16b                    ; 00 38 30 4e  
+   805 : saddlv v31.8h, v0.16b                   ; 1f 38 30 4e  
+   806 : saddlv v0.8h, v31.16b                   ; e0 3b 30 4e  
+   807 : saddlv v0.4s, v0.8h                     ; 00 38 70 4e  
+   808 : saddlv v31.4s, v0.8h                    ; 1f 38 70 4e  
+   809 : saddlv v0.4s, v31.8h                    ; e0 3b 70 4e  
+   810 : saddlv v0.2d, v0.4s                     ; 00 38 b0 4e  
+   811 : saddlv v31.2d, v0.4s                    ; 1f 38 b0 4e  
+   812 : saddlv v0.2d, v31.4s                    ; e0 3b b0 4e  
+   813 : ld1    v0.16b, x0, #0                   ; 00 00 40 0d  
+   814 : ld1    v31.16b, x0, #0                  ; 1f 00 40 0d  
+   815 : ld1    v0.16b, x0, #0x0f                ; 00 1c 40 4d  
+   816 : ld1    v0.16b, x15, #0                  ; e0 01 40 0d  
+   817 : ld1    v0.8h, x0, #0                    ; 00 40 40 0d  
+   818 : ld1    v31.8h, x0, #0                   ; 1f 40 40 0d  
+   819 : ld1    v0.8h, x0, #0x07                 ; 00 58 40 4d  
+   820 : ld1    v0.8h, x15, #0                   ; e0 41 40 0d  
+   821 : ld1    v0.4s, x0, #0                    ; 00 80 40 0d  
+   822 : ld1    v31.4s, x0, #0                   ; 1f 80 40 0d  
+   823 : ld1    v0.4s, x0, #0x03                 ; 00 90 40 4d  
+   824 : ld1    v0.4s, x15, #0                   ; e0 81 40 0d  
+   825 : ld1    v0.2d, x0, #0                    ; 00 84 40 0d  
+   826 : ld1    v31.2d, x0, #0                   ; 1f 84 40 0d  
+   827 : ld1    v0.2d, x0, #0x01                 ; 00 84 40 4d  
+   828 : ld1    v0.2d, x15, #0                   ; e0 85 40 0d  
+   829 : ld2    v0.16b, v1.16b, x0               ; 00 80 40 4c  
+   830 : ld2    v31.16b, v0.16b, x0              ; 1f 80 40 4c  
+   831 : ld2    v0.16b, v1.16b, x15              ; e0 81 40 4c  
+   832 : ld2    v0.8h, v1.8h, x0                 ; 00 84 40 4c  
+   833 : ld2    v31.8h, v0.8h, x0                ; 1f 84 40 4c  
+   834 : ld2    v0.8h, v1.8h, x15                ; e0 85 40 4c  
+   835 : ld2    v0.4s, v1.4s, x0                 ; 00 88 40 4c  
+   836 : ld2    v31.4s, v0.4s, x0                ; 1f 88 40 4c  
+   837 : ld2    v0.4s, v1.4s, x15                ; e0 89 40 4c  
+   838 : ld2    v0.2d, v1.2d, x0                 ; 00 8c 40 4c  
+   839 : ld2    v31.2d, v0.2d, x0                ; 1f 8c 40 4c  
+   840 : ld2    v0.2d, v1.2d, x15                ; e0 8d 40 4c  
+   841 : ld1    v0.16b, x0                       ; 00 20 df 4c  
+   842 : ld1    v31.16b, x0                      ; 1f 20 df 4c  
+   843 : ld1    v0.16b, x15                      ; e0 21 df 4c  
+   844 : ld1    v0.8h, x0                        ; 00 24 df 4c  
+   845 : ld1    v31.8h, x0                       ; 1f 24 df 4c  
+   846 : ld1    v0.8h, x15                       ; e0 25 df 4c  
+   847 : ld1    v0.4s, x0                        ; 00 28 df 4c  
+   848 : ld1    v31.4s, x0                       ; 1f 28 df 4c  
+   849 : ld1    v0.4s, x15                       ; e0 29 df 4c  
+   850 : ld1    v0.2d, x0                        ; 00 2c df 4c  
+   851 : ld1    v31.2d, x0                       ; 1f 2c df 4c  
+   852 : ld1    v0.2d, x15                       ; e0 2d df 4c  
+   853 : st1    v0.16b, #0, x0                   ; 00 00 00 0d  
+   854 : st1    v31.16b, #0, x0                  ; 1f 00 00 0d  
+   855 : st1    v0.16b, #0x0f, x0                ; 00 1c 00 4d  
+   856 : st1    v0.16b, #0, x15                  ; e0 01 00 0d  
+   857 : st1    v0.8h, #0, x0                    ; 00 40 00 0d  
+   858 : st1    v31.8h, #0, x0                   ; 1f 40 00 0d  
+   859 : st1    v0.8h, #0x07, x0                 ; 00 58 00 4d  
+   860 : st1    v0.8h, #0, x15                   ; e0 41 00 0d  
+   861 : st1    v0.4s, #0, x0                    ; 00 80 00 0d  
+   862 : st1    v31.4s, #0, x0                   ; 1f 80 00 0d  
+   863 : st1    v0.4s, #0x03, x0                 ; 00 90 00 4d  
+   864 : st1    v0.4s, #0, x15                   ; e0 81 00 0d  
+   865 : st1    v0.2d, #0, x0                    ; 00 84 00 0d  
+   866 : st1    v31.2d, #0, x0                   ; 1f 84 00 0d  
+   867 : st1    v0.2d, #0x01, x0                 ; 00 84 00 4d  
+   868 : st1    v0.2d, #0, x15                   ; e0 85 00 0d  
+   869 : st1    v0.16b, x0                       ; 00 20 9f 4c  
+   870 : st1    v0.16b, x15                      ; e0 21 9f 4c  
+   871 : st1    v31.16b, x0                      ; 1f 20 9f 4c  
+   872 : st1    v0.8h, x0                        ; 00 24 9f 4c  
+   873 : st1    v0.8h, x15                       ; e0 25 9f 4c  
+   874 : st1    v31.8h, x0                       ; 1f 24 9f 4c  
+   875 : st1    v0.4s, x0                        ; 00 28 9f 4c  
+   876 : st1    v0.4s, x15                       ; e0 29 9f 4c  
+   877 : st1    v31.4s, x0                       ; 1f 28 9f 4c  
+   878 : st1    v0.2d, x0                        ; 00 2c 9f 4c  
+   879 : st1    v0.2d, x15                       ; e0 2d 9f 4c  
+   880 : st1    v31.2d, x0                       ; 1f 2c 9f 4c  
+   881 : ext    v0.16b, v0.16b, v0.16b, #0       ; 00 00 00 6e  
+   882 : ext    v31.16b, v0.16b, v0.16b, #0      ; 1f 00 00 6e  
+   883 : ext    v0.16b, v31.16b, v0.16b, #0      ; e0 03 00 6e  
+   884 : ext    v0.16b, v0.16b, v31.16b, #0      ; 00 00 1f 6e  
+   885 : ext    v0.16b, v0.16b, v0.16b, #0x0f    ; 00 78 00 6e  
+   886 : ext    v0.8h, v0.8h, v0.8h, #0          ; 00 00 00 6e  
+   887 : ext    v31.8h, v0.8h, v0.8h, #0         ; 1f 00 00 6e  
+   888 : ext    v0.8h, v31.8h, v0.8h, #0         ; e0 03 00 6e  
+   889 : ext    v0.8h, v0.8h, v31.8h, #0         ; 00 00 1f 6e  
+   890 : ext    v0.8h, v0.8h, v0.8h, #0x0e       ; 00 70 00 6e  
+   891 : ext    v0.4s, v0.4s, v0.4s, #0          ; 00 00 00 6e  
+   892 : ext    v31.4s, v0.4s, v0.4s, #0         ; 1f 00 00 6e  
+   893 : ext    v0.4s, v31.4s, v0.4s, #0         ; e0 03 00 6e  
+   894 : ext    v0.4s, v0.4s, v31.4s, #0         ; 00 00 1f 6e  
+   895 : ext    v0.4s, v0.4s, v0.4s, #0x0c       ; 00 60 00 6e  
+   896 : ext    v0.2d, v0.2d, v0.2d, #0          ; 00 00 00 6e  
+   897 : ext    v31.2d, v0.2d, v0.2d, #0         ; 1f 00 00 6e  
+   898 : ext    v0.2d, v31.2d, v0.2d, #0         ; e0 03 00 6e  
+   899 : ext    v0.2d, v0.2d, v31.2d, #0         ; 00 00 1f 6e  
+   900 : ext    v0.2d, v0.2d, v0.2d, #0x10       ; 00 00 00 6e  
+   901 : fmla   v0.8h, v0.8h, v0.8h, #0          ; 00 10 00 4f  
+   902 : fmla   v31.8h, v0.8h, v0.8h, #0         ; 1f 10 00 4f  
+   903 : fmla   v0.8h, v31.8h, v0.8h, #0         ; e0 13 00 4f  
+   904 : fmla   v0.8h, v0.8h, v15.8h, #0         ; 00 10 0f 4f  
+   905 : fmla   v0.8h, v0.8h, v0.8h, #0x07       ; 00 18 30 4f  
+   906 : fmla   v0.4s, v0.4s, v0.4s, #0          ; 00 10 80 4f  
+   907 : fmla   v31.4s, v0.4s, v0.4s, #0         ; 1f 10 80 4f  
+   908 : fmla   v0.4s, v31.4s, v0.4s, #0         ; e0 13 80 4f  
+   909 : fmla   v0.4s, v0.4s, v31.4s, #0         ; 00 10 9f 4f  
+   910 : fmla   v0.4s, v0.4s, v0.4s, #0x03       ; 00 18 a0 4f  
+   911 : fmla   v0.2d, v0.2d, v0.2d, #0          ; 00 10 c0 4f  
+   912 : fmla   v31.2d, v0.2d, v0.2d, #0         ; 1f 10 c0 4f  
+   913 : fmla   v0.2d, v31.2d, v0.2d, #0         ; e0 13 c0 4f  
+   914 : fmla   v0.2d, v0.2d, v31.2d, #0         ; 00 10 df 4f  
+   915 : fmla   v0.2d, v0.2d, v0.2d, #0x01       ; 00 18 c0 4f  
+   916 : umov   x0, v0.16b, #0                   ; 00 3c 01 0e  
+   917 : umov   x15, v0.16b, #0                  ; 0f 3c 01 0e  
+   918 : umov   x0, v31.16b, #0                  ; e0 3f 01 0e  
+   919 : umov   x0, v0.16b, #0x0f                ; 00 3c 1f 0e  
+   920 : umov   x0, v0.8h, #0                    ; 00 3c 02 0e  
+   921 : umov   x15, v0.8h, #0                   ; 0f 3c 02 0e  
+   922 : umov   x0, v31.8h, #0                   ; e0 3f 02 0e  
+   923 : umov   x0, v0.8h, #0x07                 ; 00 3c 1e 0e  
+   924 : umov   x0, v0.4s, #0                    ; 00 3c 04 0e  
+   925 : umov   x15, v0.4s, #0                   ; 0f 3c 04 0e  
+   926 : umov   x0, v31.4s, #0                   ; e0 3f 04 0e  
+   927 : umov   x0, v0.4s, #0x03                 ; 00 3c 1c 0e  
+   928 : umov   x0, v0.2d, #0                    ; 00 3c 08 4e  
+   929 : umov   x15, v0.2d, #0                   ; 0f 3c 08 4e  
+   930 : umov   x0, v31.2d, #0                   ; e0 3f 08 4e  
+   931 : umov   x0, v0.2d, #0x01                 ; 00 3c 18 4e  
+   932 : ins    v0.16b, #0, x0                   ; 00 1c 01 4e  
+   933 : ins    v31.16b, #0, x0                  ; 1f 1c 01 4e  
+   934 : ins    v0.16b, #0x0f, x0                ; 00 1c 1f 4e  
+   935 : ins    v0.16b, #0, x15                  ; e0 1d 01 4e  
+   936 : ins    v0.8h, #0, x0                    ; 00 1c 02 4e  
+   937 : ins    v31.8h, #0, x0                   ; 1f 1c 02 4e  
+   938 : ins    v0.8h, #0x07, x0                 ; 00 1c 1e 4e  
+   939 : ins    v0.8h, #0, x15                   ; e0 1d 02 4e  
+   940 : ins    v0.4s, #0, x0                    ; 00 1c 04 4e  
+   941 : ins    v31.4s, #0, x0                   ; 1f 1c 04 4e  
+   942 : ins    v0.4s, #0x03, x0                 ; 00 1c 1c 4e  
+   943 : ins    v0.4s, #0, x15                   ; e0 1d 04 4e  
+   944 : ins    v0.2d, #0, x0                    ; 00 1c 08 4e  
+   945 : ins    v31.2d, #0, x0                   ; 1f 1c 08 4e  
+   946 : ins    v0.2d, #0x01, x0                 ; 00 1c 18 4e  
+   947 : ins    v0.2d, #0, x15                   ; e0 1d 08 4e  
+   948 : ins    v0.16b, #0, v0.16b, #0           ; 00 04 01 6e  
+   949 : ins    v31.16b, #0, v0.16b, #0          ; 1f 04 01 6e  
+   950 : ins    v0.16b, #0x0f, v0.16b, #0        ; 00 04 1f 6e  
+   951 : ins    v0.16b, #0, v31.16b, #0          ; e0 07 01 6e  
+   952 : ins    v0.16b, #0, v0.16b, #0x0f        ; 00 7c 01 6e  
+   953 : ins    v0.8h, #0, v0.8h, #0             ; 00 04 02 6e  
+   954 : ins    v31.8h, #0, v0.8h, #0            ; 1f 04 02 6e  
+   955 : ins    v0.8h, #0x07, v0.8h, #0          ; 00 04 1e 6e  
+   956 : ins    v0.8h, #0, v31.8h, #0            ; e0 07 02 6e  
+   957 : ins    v0.8h, #0, v0.8h, #0x07          ; 00 74 02 6e  
+   958 : ins    v0.4s, #0, v0.4s, #0             ; 00 04 04 6e  
+   959 : ins    v31.4s, #0, v0.4s, #0            ; 1f 04 04 6e  
+   960 : ins    v0.4s, #0x03, v0.4s, #0          ; 00 04 1c 6e  
+   961 : ins    v0.4s, #0, v31.4s, #0            ; e0 07 04 6e  
+   962 : ins    v0.4s, #0, v0.4s, #0x03          ; 00 64 04 6e  
+   963 : ins    v0.2d, #0, v0.2d, #0             ; 00 04 08 6e  
+   964 : ins    v31.2d, #0, v0.2d, #0            ; 1f 04 08 6e  
+   965 : ins    v0.2d, #0x01, v0.2d, #0          ; 00 04 18 6e  
+   966 : ins    v0.2d, #0, v31.2d, #0            ; e0 07 08 6e  
+   967 : ins    v0.2d, #0, v0.2d, #0x01          ; 00 44 08 6e  
+   968 : bsl    v0.16b, v0.16b, v0.16b           ; 00 1c 60 6e  
+   969 : bsl    v31.16b, v0.16b, v0.16b          ; 1f 1c 60 6e  
+   970 : bsl    v0.16b, v31.16b, v0.16b          ; e0 1f 60 6e  
+   971 : bsl    v0.16b, v0.16b, v31.16b          ; 00 1c 7f 6e  
+   972 : blr    [x0]                             ; 00 00 3f d6  
+   973 : blr    [x15]                            ; e0 01 3f d6  
