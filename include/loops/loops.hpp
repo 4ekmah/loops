@@ -141,31 +141,34 @@ enum {
     VOP_CAST_LOW        =  91,
     VOP_CAST_HIGH       =  92,
     VOP_SHRINK          =  93, // VOP_SHRINK <target_with_halfsize_elements>, <source_packed_low_half>, <source_packed_high_half>
-    VOP_REDUCE_MAX      =  94,
-    VOP_REDUCE_MIN      =  95,
+    VOP_POPCOUNT        =  94,
+    VOP_REDUCE_MAX      =  95,
+    VOP_REDUCE_MIN      =  96,
+    VOP_REDUCE_SUM      =  97,
+    VOP_REDUCE_WSUM     =  98,
 
 //Intel-only operations:
-    OP_X86_ADC          =  96, //Add with carry flag.
-    OP_X86_CQO          =  97,
+    OP_X86_ADC          =  99, //Add with carry flag.
+    OP_X86_CQO          = 100,
 //Aarch64-only operations:
-    OP_ARM_CINC         =  98, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG         =  99,
-    OP_ARM_MOVK         = 100, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP          = 101,
-    OP_ARM_STP          = 102,
-    VOP_ARM_LD1         = 103,
-    VOP_ARM_ST1         = 104,
-    VOP_ARM_LD2         = 105,
-    VOP_ARM_EXT         = 106,
-    VOP_ARM_SHRINK_LOW  = 107, //Note: don't these two directly, use VOP_SHRINK instead.
-    VOP_ARM_SHRINK_HIGH = 108,
-    VOP_GETLANE         = 109,
-    VOP_SETLANE         = 110,
+    OP_ARM_CINC         = 101, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG         = 102,
+    OP_ARM_MOVK         = 103, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP          = 104,
+    OP_ARM_STP          = 105,
+    VOP_ARM_LD1         = 106,
+    VOP_ARM_ST1         = 107,
+    VOP_ARM_LD2         = 108,
+    VOP_ARM_EXT         = 109,
+    VOP_ARM_SHRINK_LOW  = 110, //Note: don't use these two directly, use VOP_SHRINK instead.
+    VOP_ARM_SHRINK_HIGH = 111,
+    VOP_GETLANE         = 112,
+    VOP_SETLANE         = 113,
 
-    OP_DEF              = 111,
-    VOP_DEF             = 112,
+    OP_DEF              = 114,
+    VOP_DEF             = 115,
 
-    OP_NOINIT           = 113,
+    OP_NOINIT           = 116,
 };
 
 enum
@@ -656,6 +659,10 @@ template<typename _Tp> VExpr<_Tp> reduce_max(const VExpr<_Tp>& r);
 template<typename _Tp> VExpr<_Tp> reduce_max(const    VReg<_Tp>& r);
 template<typename _Tp> VExpr<_Tp> reduce_min(const VExpr<_Tp>& r);
 template<typename _Tp> VExpr<_Tp> reduce_min(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> reduce_sum(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<_Tp> reduce_sum(const    VReg<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> reduce_wsum(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> reduce_wsum(const    VReg<_Tp>& r);
 template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const VExpr<_Tp>& m, int64_t index);
 template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const    VReg<_Tp>& m, int64_t index);
 template<typename _Tp> VExpr<_Tp> ext(const    VReg<_Tp>& n, const VExpr<_Tp>& m, int64_t index);
@@ -736,6 +743,8 @@ template<typename _Tp> VExpr<_Tp> operator ^ (const    VReg<_Tp>& a, const VExpr
 template<typename _Tp> VExpr<_Tp> operator ^ (const VExpr<_Tp>& a, const    VReg<_Tp>& b);
 template<typename _Tp> VExpr<_Tp> operator ~ (const VExpr<_Tp>& a);
 template<typename _Tp> VExpr<_Tp> operator ~ (const    VReg<_Tp>& a);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> popcount(const VExpr<_Tp>& r);
+template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> popcount(const VReg<_Tp>&  r);
 
 // Vector comparisson and masking:
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::masktype> operator == (const VExpr<_Tp>& a, const VExpr<_Tp>& b);

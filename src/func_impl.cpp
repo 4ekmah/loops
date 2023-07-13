@@ -170,6 +170,9 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     {VOP_SHRINK, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
     }},
+    {VOP_POPCOUNT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "popcount." << type_suffixes[op.args[0].elemtype];
+    }},
     {VOP_ARM_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "arm_shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
     }},
@@ -181,6 +184,12 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
     }},
     {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_REDUCE_SUM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "reduce.sum." << type_suffixes[op.args[0].elemtype];
+    }},
+    {VOP_REDUCE_WSUM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+        str << "reduce.wmax" << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
     }},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vdef." << type_suffixes[op.args[0].elemtype];

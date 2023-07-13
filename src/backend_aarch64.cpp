@@ -706,6 +706,33 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP16)
             return BiT({ BTsta(0b0100111010110000111110,22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
+    case (AARCH64_ADDV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == index[1].elemtype && elem_size(index[0].elemtype) <= 4 && isInteger(index[0].elemtype))
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
+            int size_imm = size_imms[elem_size(index[0].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001110, 8), BTsta(size_imm, 2), BTsta(0b110001101110, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_UADDLV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype) && elem_size(index[0].elemtype) >= 2 && isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
+            int size_imm = size_imms[elem_size(index[1].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01101110, 8), BTsta(size_imm, 2), BTsta(0b110000001110, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
+    case (AARCH64_SADDLV):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype) && elem_size(index[0].elemtype) >= 2 && isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype))
+        {
+            static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
+            int size_imm = size_imms[elem_size(index[1].elemtype)];
+            Assert(size_imm != -1);
+            return BiT({ BTsta(0b01001110, 8), BTsta(size_imm, 2), BTsta(0b110000001110, 12), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        }
+        break;
     case (AARCH64_FMAXV):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && index[0].elemtype == TYPE_FP32)
             return BiT({ BTsta(0b0110111000110000111110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1024,6 +1051,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(opprefix, 8), BTsta(esizStat, 2), BTsta(0b100001001010, 12), BTreg(1, 5, In), BTreg(0, 5, high ? IO : Out) });
         }
         break;
+    case (AARCH64_CNT):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
+        return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
@@ -1662,6 +1692,10 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && 2 * elem_size(index[0].elemtype) == elem_size(index[1].elemtype) && isInteger(index[0].elemtype))
             return SyT(AARCH64_XTN2, { SAcop(0), SAcop(1) });
         break;
+    case (VOP_POPCOUNT):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
+            return SyT(AARCH64_CNT, { SAcop(0), SAcop(1) });
+        break;
     case (VOP_REDUCE_MAX):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && elem_size(index[0].elemtype) <= 4)
         {
@@ -1682,6 +1716,19 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 return SyT(AARCH64_UMINV, { SAcop(0), SAcop(1) });
             else if(index[0].elemtype == TYPE_FP16 || index[0].elemtype == TYPE_FP32 )
                 return SyT(AARCH64_FMINV, { SAcop(0), SAcop(1) });
+        }
+        break;
+    case (VOP_REDUCE_SUM):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == index[1].elemtype  && elem_size(index[0].elemtype) <= 4 && isInteger(index[0].elemtype))
+            return SyT(AARCH64_ADDV, { SAcop(0), SAcop(1) });
+        break;
+    case (VOP_REDUCE_WSUM):
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype) && elem_size(index[0].elemtype) >= 2)
+        {
+            if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))
+                return SyT(AARCH64_UADDLV, { SAcop(0), SAcop(1) });
+            else if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype))
+                return SyT(AARCH64_SADDLV, { SAcop(0), SAcop(1) });
         }
         break;
     case (VOP_GETLANE):
@@ -2121,6 +2168,9 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_UMAXV, "umaxv" },
         {AARCH64_FMINV, "fminv" },
         {AARCH64_FMAXV, "fmaxv" },
+        {AARCH64_ADDV,  "addv" },
+        {AARCH64_SADDLV,"saddlv" },
+        {AARCH64_UADDLV,"uaddlv" },
         {AARCH64_FCVTZS,"fcvtzs"},
         {AARCH64_FCVTZU,"fcvtzu"},
         {AARCH64_FCVTMS,"fcvtms"},
@@ -2140,8 +2190,9 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
         {AARCH64_SSHLL2,"sshll2"},
         {AARCH64_USHLL, "ushll" },
         {AARCH64_USHLL2,"ushll2"},
-        {AARCH64_XTN,   "xtn"   },
-        {AARCH64_XTN2,  "xtn2"  },
+        {AARCH64_XTN,   "xtn"  },
+        {AARCH64_XTN2,  "xtn2" },
+        {AARCH64_CNT,   "cnt"  },
         {AARCH64_B,     "b"    },
         {AARCH64_B_NE,  "b.ne" },
         {AARCH64_B_EQ,  "b.eq" },

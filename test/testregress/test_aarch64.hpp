@@ -161,7 +161,7 @@ LTESTexe(big_immediates, {
     std::vector<int64_t> scalars(scalars_ref.size(), 0);
     tested((void*)&(scalars[0]), TBI_SCALARS);
     for(int i = 0; i < scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
-    
+
     const std::vector<uint8_t> i8_0_ref = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                                            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
     std::vector<uint8_t> i8_0(i8_0_ref.size(), 0);
@@ -181,14 +181,14 @@ LTESTexe(big_immediates, {
     tested((void*)&(i16_0[0]), TBI_I16_0);
     for(int i = 0; i < i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
 
-    
+
     const std::vector<int16_t> i16_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,
                                             -129,-129,-129,-129,-129,-129,-129,-129};
     std::vector<int16_t> i16_1(i16_1_ref.size(), 0);
     tested((void*)&(i16_1[0]), TBI_I16_1);
     for(int i = 0; i < i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
 
-    
+
     const std::vector<uint32_t> i32_0_ref = {0,0,0,0,
                                              255,255,255,255,
                                              256,256,256,256};
@@ -261,7 +261,7 @@ LTESTcomposer(instruction_set_test, {
     Expr v31_2f = VExpr<double>(vregHid<double>(31,_f)).notype();
     Expr q0 = VExpr<uint64_t>(vregHid<uint64_t>(0,_f)).notype();
     Expr q31 = VExpr<uint64_t>(vregHid<uint64_t>(31,_f)).notype();
-    
+
     newiopNoret(OP_MOV, {  x0, argIImm(         -1) });
     newiopNoret(OP_MOV, { x15, argIImm(         -1) });
     newiopNoret(OP_MOV, {  x0, argIImm(-(0xFFFF+1)) });
@@ -392,9 +392,9 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_IVERSON, { x0, OP_GE });
     newiopNoret(OP_IVERSON, { x0, OP_S  });
     newiopNoret(OP_IVERSON, { x0, OP_NS });
-    
+
     newiopNoret(OP_IVERSON, { x15, OP_EQ });
-    
+
     newiopNoret(OP_ARM_CINC, { x0 ,  x0, OP_EQ });
     newiopNoret(OP_ARM_CINC, { x0 ,  x0, OP_NE });
     newiopNoret(OP_ARM_CINC, { x0 ,  x0, OP_LT });
@@ -836,7 +836,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GT, { v31_2u, v0_2f , v0_2f });
     newiopNoret(VOP_GT, { v0_2u , v31_2f, v0_2f });
     newiopNoret(VOP_GT, { v0_2u , v0_2f , v31_2f});
-    
+
     newiopNoret(VOP_GT, { v0_16u, v0_16u, v0_16u});
     newiopNoret(VOP_GT, { v31_16u, v0_16u, v0_16u});
     newiopNoret(VOP_GT, { v0_16u, v31_16u, v0_16u});
@@ -883,7 +883,7 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_GE, { v31_2u, v0_2f , v0_2f });
     newiopNoret(VOP_GE, { v0_2u , v31_2f, v0_2f });
     newiopNoret(VOP_GE, { v0_2u , v0_2f , v31_2f});
-    
+
     newiopNoret(VOP_GE, { v0_16u, v0_16u, v0_16u});
     newiopNoret(VOP_GE, { v31_16u, v0_16u, v0_16u});
     newiopNoret(VOP_GE, { v0_16u, v31_16u, v0_16u});
@@ -1068,6 +1068,10 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_ARM_SHRINK_HIGH, { v31_4s, v0_2s });
     newiopNoret(VOP_ARM_SHRINK_HIGH, { v0_4s, v31_2s });
 
+    newiopNoret(VOP_POPCOUNT, { v0_16u, v0_16u});
+    newiopNoret(VOP_POPCOUNT, { v31_16u, v0_16u});
+    newiopNoret(VOP_POPCOUNT, { v0_16u, v31_16u});
+
     newiopNoret(VOP_REDUCE_MAX, { v0_16s, v0_16s });
     newiopNoret(VOP_REDUCE_MAX, { v31_16s, v0_16s });
     newiopNoret(VOP_REDUCE_MAX, { v0_16s, v31_16s });
@@ -1117,6 +1121,36 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(VOP_REDUCE_MIN, { v0_4f, v0_4f });
     newiopNoret(VOP_REDUCE_MIN, { v31_4f, v0_4f });
     newiopNoret(VOP_REDUCE_MIN, { v0_4f, v31_4f });
+    
+    newiopNoret(VOP_REDUCE_SUM, { v0_16u, v0_16u});
+    newiopNoret(VOP_REDUCE_SUM, { v31_16u, v0_16u});
+    newiopNoret(VOP_REDUCE_SUM, { v0_16u, v31_16u});
+    newiopNoret(VOP_REDUCE_SUM, { v0_8u, v0_8u});
+    newiopNoret(VOP_REDUCE_SUM, { v31_8u, v0_8u});
+    newiopNoret(VOP_REDUCE_SUM, { v0_8u, v31_8u});
+    newiopNoret(VOP_REDUCE_SUM, { v0_4u, v0_4u});
+    newiopNoret(VOP_REDUCE_SUM, { v31_4u, v0_4u});
+    newiopNoret(VOP_REDUCE_SUM, { v0_4u, v31_4u});
+
+    newiopNoret(VOP_REDUCE_WSUM, { v0_8u, v0_16u});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_8u, v0_16u});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_8u, v31_16u});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_4u, v0_8u});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_4u, v0_8u});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_4u, v31_8u});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_2u, v0_4u});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_2u, v0_4u});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_2u, v31_4u});
+
+    newiopNoret(VOP_REDUCE_WSUM, { v0_8s, v0_16s});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_8s, v0_16s});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_8s, v31_16s});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_4s, v0_8s});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_4s, v0_8s});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_4s, v31_8s});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_2s, v0_4s});
+    newiopNoret(VOP_REDUCE_WSUM, { v31_2s, v0_4s});
+    newiopNoret(VOP_REDUCE_WSUM, { v0_2s, v31_4s});
 
     newiopNoret(VOP_ARM_LD1, { v0_16s, argIImm(0), x0});
     newiopNoret(VOP_ARM_LD1, { v31_16s, argIImm(0), x0});
