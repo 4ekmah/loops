@@ -2502,15 +2502,16 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { addrkeeper, argIImm((op.opcode == OP_CALL ? op[1]: op[0]).idx)}));
             }
             //3.) Save vector registers
-            a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            Arg vcaller_ptr = argReg(RB_INT, addrkeeper.idx == R10 ? R11 : R10);//addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
+            a_dest.program.push_back(Syntop(OP_ADD, { vcaller_ptr, argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
             for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
-                a_dest.program.push_back(Syntop(VOP_ARM_ST1, { argReg(RB_INT, R10), vregHid<uint64_t>(_0idx, 0)}));
+                a_dest.program.push_back(Syntop(VOP_ARM_ST1, { vcaller_ptr, vregHid<uint64_t>(_0idx, 0)}));
             //4.) Call function
             a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
             //5.) Restore vector registers
-            a_dest.program.push_back(Syntop(OP_ADD, { argReg(RB_INT, R10), argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
+            a_dest.program.push_back(Syntop(OP_ADD, { vcaller_ptr, argReg(RB_INT, SP), argIImm((spillLayout.back().first + 2) * 8)}));
             for(int _0idx = 0; _0idx < LOOPS_VCALLER_SAVED_AMOUNT; _0idx+=4 )
-                a_dest.program.push_back(Syntop(VOP_ARM_LD1, { vregHid<uint64_t>(_0idx, 0), argReg(RB_INT, R10)}));
+                a_dest.program.push_back(Syntop(VOP_ARM_LD1, { vregHid<uint64_t>(_0idx, 0), vcaller_ptr}));
             //6.) Move result to output register
             if(op.opcode == OP_CALL && retidx != 0)
                 a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, R0)}));
