@@ -1890,7 +1890,7 @@ size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<siz
 #error Unsupported OS
 #endif
 
-size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     if(basketNum == RB_INT)
         switch (a_op.opcode)
@@ -2041,7 +2041,7 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
     return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
 }
 
-void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
 {
     size_t regPassed[RB_AMOUNT];
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -2065,7 +2065,7 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
     }
 }
 
-size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
+int Aarch64Backend::stackGrowthAlignment(int stackGrowth) const
 {
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
 }

@@ -251,7 +251,7 @@ struct Arg
     size_t tag;
     int64_t value;
     uint64_t flags;
-    size_t elemtype;
+    int elemtype;
 };
 
 struct __loops_ExprStr_;
@@ -429,9 +429,7 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 #define WHILE_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::WHILE, (expr)}) ; else
 #define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
 #define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
-#define RETURN_(x) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(x)
-
-//TODO(ch):[IMPORTNANT] - unfortunately, now CALL_ works only on Aarch64. Add intel support and move call tests from test_aarch64.hpp to test_basic.hpp section.
+#define RETURN_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(__VA_ARGS__)
 
 //Call signature:
 //

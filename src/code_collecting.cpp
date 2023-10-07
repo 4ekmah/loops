@@ -84,7 +84,7 @@ namespace loops
         int continuelabel = m_data.provideLabel();
         int bodylabel = m_data.provideLabel();
         int breaklabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -135,7 +135,7 @@ namespace loops
     {
         int thenlabel = m_data.provideLabel();
         int endlabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -154,7 +154,7 @@ namespace loops
         if (bracket.tag != ControlFlowBracket::IF)
             throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
         int outlabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -403,7 +403,7 @@ namespace loops
         {
             if (opnum > 0 && condition_buffer.program[opnum].opcode == OP_LABEL && condition_buffer.program[opnum - 1].opcode == OP_LABEL)
             {
-                labelRenaming[condition_buffer.program[opnum][0].value] = condition_buffer.program[opnum - 1][0].value;
+                labelRenaming[(int)condition_buffer.program[opnum][0].value] = (int)(condition_buffer.program[opnum - 1][0].value);
                 continue;
             }
             condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
@@ -416,7 +416,7 @@ namespace loops
             if (opcode == OP_JCC || opcode == OP_JMP)
             {
                 int labelkeeper = (opcode == OP_JCC ? 1 : 0);
-                int labeldest = condition_buffer.program[opnum][labelkeeper].value;
+                int labeldest = (int)condition_buffer.program[opnum][labelkeeper].value;
                 if (labelRenaming.find(labeldest) != labelRenaming.end())
                     condition_buffer.program[opnum][labelkeeper].value = labelRenaming[labeldest];
             }
@@ -433,12 +433,12 @@ namespace loops
             {
                 int opcode = condition_buffer.program[opnum].opcode;
                 if (opcode == OP_JCC || opcode == OP_JMP)
-                    used_labels.insert(condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value);
+                    used_labels.insert((int)condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value);
             }
             targetOpnum = 0;
             for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
             {
-                if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find(condition_buffer.program[opnum][0].value) == used_labels.end())
+                if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find((int)condition_buffer.program[opnum][0].value) == used_labels.end())
                     continue;
                 condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
                 targetOpnum++;
@@ -459,9 +459,9 @@ namespace loops
                     condition_buffer.program[opnum + 2].opcode == OP_LABEL &&
                     condition_buffer.program[opnum][1].value == condition_buffer.program[opnum + 2][0].value)
                 {
-                    int cond = condition_buffer.program[opnum][0].value;
-                    int label0 = condition_buffer.program[opnum][1].value;
-                    int label1 = condition_buffer.program[opnum + 1][0].value;
+                    int cond = (int)condition_buffer.program[opnum][0].value;
+                    int label0 = (int)condition_buffer.program[opnum][1].value;
+                    int label1 = (int)condition_buffer.program[opnum + 1][0].value;
                     condition_buffer.program[targetOpnum++] = Syntop(OP_JCC, {Arg(invertCondition(cond)), Arg(label1)});
                     condition_buffer.program[targetOpnum++] = condition_buffer.program[opnum + 2];
                     opnum += 3;
@@ -483,7 +483,7 @@ namespace loops
             if (op.opcode == OP_LABEL || op.opcode == OP_JCC || op.opcode == OP_JMP)
             {
                 int labelkeeper = (op.opcode == OP_JCC ? 1 : 0);
-                int labelsrc = condition_buffer.program[opnum][labelkeeper].value;
+                int labelsrc = (int)condition_buffer.program[opnum][labelkeeper].value;
                 if (used_labels.find(labelsrc) == used_labels.end())
                     used_labels.insert(std::pair<int, int>(labelsrc, m_data.provideLabel()));
                 int labeldest = used_labels.at(labelsrc);
@@ -560,13 +560,13 @@ namespace loops
         int endif_to_reopen;
         if (cond_prefix_allowed)
         {
-            int stem_cstart_pos = m_data.program.size() - 1;
+            int stem_cstart_pos = (int)m_data.program.size() - 1;
             while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
                 stem_cstart_pos--;
             Assert(stem_cstart_pos >= 0);
             if (stem_cstart_pos == 0 || m_data.program[stem_cstart_pos - 1].opcode != OP_ENDIF)
                 throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
-            endif_to_reopen = m_data.program[stem_cstart_pos - 1][0].value;
+            endif_to_reopen = (int)m_data.program[stem_cstart_pos - 1][0].value;
             m_data.program.erase(m_data.program.begin() + stem_cstart_pos - 1);
         }
         else
@@ -574,7 +574,7 @@ namespace loops
             if (m_data.program.back().opcode != OP_ENDIF)
                 throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
             Assert(m_data.program.back().size() == 1);
-            endif_to_reopen = m_data.program.back()[0].value;
+            endif_to_reopen = (int)m_data.program.back()[0].value;
             m_data.program.pop_back();
         }
         m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, endif_to_reopen));

@@ -110,10 +110,10 @@ public:
     inline const Syntfunc& get_data() const { return m_data; }
     const FuncBodyBuf result_buffer() const { return m_buffer; }
     CodeCollecting* get_code_collecting();
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                            const std::vector<size_t>&  a_returnRegisters,
-                                            const std::vector<size_t>&  a_callerSavedRegisters,
-                                            const std::vector<size_t>&  a_calleeSavedRegisters);
+    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                            const std::vector<int>&  a_returnRegisters,
+                                            const std::vector<int>&  a_callerSavedRegisters,
+                                            const std::vector<int>&  a_calleeSavedRegisters);
 private:
     void run();
     void run_pass(CompilerPass* a_pass);
@@ -127,10 +127,10 @@ private:
     int m_mode;
     std::unordered_map<int, int> m_pass_ordering; //TODO(ch): make it static?
     enum {PM_FINDORDER, PM_REGULAR};
-    std::vector<size_t> m_parameterRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_returnRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_callerSavedRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_calleeSavedRegistersO[RB_AMOUNT];
+    std::vector<int> m_parameterRegistersO[RB_AMOUNT];
+    std::vector<int> m_returnRegistersO[RB_AMOUNT];
+    std::vector<int> m_callerSavedRegistersO[RB_AMOUNT];
+    std::vector<int> m_calleeSavedRegistersO[RB_AMOUNT];
 };
 };
 #endif // __LOOPS_PIPELINE_HPP__

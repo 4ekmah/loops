@@ -228,7 +228,7 @@ namespace loops
         memset(&(m_reorderArch2Inner[0][0][0]), REG_UNDEF, sizeof(m_reorderArch2Inner));
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
-            std::vector<size_t> origRegistersV[VESS_AMOUNT];
+            std::vector<int> origRegistersV[VESS_AMOUNT];
 
             origRegistersV[PARAMS_VESS] = m_backend->parameterRegisters(basketNum),
             origRegistersV[RETURN_VESS] = m_backend->returnRegisters(basketNum),
@@ -364,7 +364,7 @@ namespace loops
     {
         if (m_spillPlaceholders[basketNum] == 0)
             return IReg::NOIDX;
-        size_t res = lsb64(m_spillPlaceholders[basketNum]);
+        int res = lsb64(m_spillPlaceholders[basketNum]);
         uint64_t pos = 1;
         pos <<= res;
         m_spillPlaceholders[basketNum] = (m_spillPlaceholders[basketNum] | pos) ^ (pos);
@@ -378,10 +378,10 @@ namespace loops
         m_spillPlaceholders[basketNum] = m_spillPlaceholdersAvailable[basketNum];
     }
 
-    void RegisterPool::overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                                          const std::vector<size_t>&  a_returnRegisters,
-                                                          const std::vector<size_t>&  a_callerSavedRegisters,
-                                                          const std::vector<size_t>&  a_calleeSavedRegisters)
+    void RegisterPool::overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                                          const std::vector<int>&  a_returnRegisters,
+                                                          const std::vector<int>&  a_callerSavedRegisters,
+                                                          const std::vector<int>&  a_calleeSavedRegisters)
     {
         m_registersO[basketNum][PARAMS_VESS] = a_parameterRegisters;
         m_registersO[basketNum][RETURN_VESS] = a_returnRegisters;
@@ -389,7 +389,7 @@ namespace loops
         m_registersO[basketNum][CALLEE_VESS] = a_calleeSavedRegisters;
     }
 
-    void RegisterPool::getOverridenParams(std::vector<size_t> (&regParsOverride)[RB_AMOUNT]) const
+    void RegisterPool::getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             regParsOverride[basketNum] = m_registersO[basketNum][PARAMS_VESS]; 
@@ -467,9 +467,9 @@ namespace loops
         //so spilled variables will be located higher.
         int64_t spoffset[RB_AMOUNT] = {0, 0};
 
-        std::map<RegIdx, size_t> stackParamLayout[RB_AMOUNT];
+        std::map<RegIdx, int> stackParamLayout[RB_AMOUNT];
         {
-            std::vector<size_t> regParsOverride[RB_AMOUNT];
+            std::vector<int> regParsOverride[RB_AMOUNT];
             m_pool.getOverridenParams(regParsOverride);
             m_backend->getStackParameterLayout(a_source, regParsOverride, stackParamLayout);
         }
@@ -627,14 +627,14 @@ namespace loops
         // 3.) By the way, when we are using only least spill placeholder, instead of using as much of them, as possible - it's bad practice. 
         // minimizing prologue/epilogue overhead isn't so important.
 
-        size_t basketElemX[RB_AMOUNT] = {1,1};
+        int basketElemX[RB_AMOUNT] = {1,1};
         basketElemX[RB_VEC] = m_backend->getVectorRegisterBits() / 64;
         
         std::vector<std::map<RegIdx, Arg> > unspilledRenaming[RB_AMOUNT];
         std::vector<std::map<RegIdx, Arg> > spilledRenaming[RB_AMOUNT];
         std::vector<std::set<size_t> > stackPlaceable[RB_AMOUNT];
-        size_t nettoSpills[RB_AMOUNT];
-        size_t spAddAligned = m_snippet_caused_spills;
+        int nettoSpills[RB_AMOUNT];
+        int spAddAligned = m_snippet_caused_spills;
         //Collecting instructionwise spills properties
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
@@ -719,12 +719,12 @@ namespace loops
                 }
             }
             const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
-            size_t parametersStoodSpilled = 0; 
+            int parametersStoodSpilled = 0; 
             for(auto p : stackParamLayout[basketNum]) 
                 if (regReassignment[basketNum][p.first].tag == SPLtag)
                     parametersStoodSpilled++;
-            nettoSpills[basketNum] = std::count_if(regReassignment[basketNum].begin(), regReassignment[basketNum].end(), [SPLtag](const Arg& arg) {return arg.tag == SPLtag; }) - parametersStoodSpilled;
-            nettoSpills[basketNum] += m_pool.usedCallee(basketNum).size();
+            nettoSpills[basketNum] = (int)std::count_if(regReassignment[basketNum].begin(), regReassignment[basketNum].end(), [SPLtag](const Arg& arg) {return arg.tag == SPLtag; }) - parametersStoodSpilled;
+            nettoSpills[basketNum] += (int)m_pool.usedCallee(basketNum).size();
             spAddAligned += nettoSpills[basketNum] * basketElemX[basketNum];
         }
         if(m_have_function_calls)
@@ -828,7 +828,7 @@ namespace loops
                 m_backend->writeCallerPrologue(a_dest, spAddAligned);
         }
         a_dest.program.insert(a_dest.program.end(), newProgUnbracketed.begin(), newProgUnbracketed.end());
-        m_epilogueSize = a_dest.program.size();
+        m_epilogueSize = (int)a_dest.program.size();
         { //Write epilogue
             if(m_have_function_calls)
                 m_backend->writeCallerEpilogue(a_dest, spAddAligned);
@@ -849,7 +849,7 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_ADD, { m_backend->getSParg(), m_backend->getSParg(), argIImm(spAddAligned * 8) }));
             }
         }
-        m_epilogueSize = a_dest.program.size() - m_epilogueSize;
+        m_epilogueSize = (int)a_dest.program.size() - m_epilogueSize;
     }
 
     void LivenessAnalysisAlgo::process(Syntfunc& a_dest, const Syntfunc& a_source)
@@ -877,12 +877,12 @@ namespace loops
                 def(basketNum, par.idx, 0);
                 paramsAmount[basketNum]++;
             }
-            size_t basketElemX[RB_AMOUNT] = {1,1};
+            int basketElemX[RB_AMOUNT] = {1,1};
             basketElemX[RB_VEC] = m_backend->getVectorRegisterBits() / 64;
-            for (size_t opnum = 0; opnum < a_source.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
             {
                 const Syntop& op = a_source.program[opnum];
-                size_t opSnippetSpills = 0;
+                int opSnippetSpills = 0;
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     opSnippetSpills += m_backend->spillSpaceNeeded(op, basketNum) * basketElemX[basketNum];
                 m_snippetCausedSpills = std::max(m_snippetCausedSpills, opSnippetSpills);
@@ -1231,7 +1231,7 @@ namespace loops
             for (auto res : m_subintervals[basketNum])
                 for (auto pseud : res)
                     m_liveintervals[basketNum][pseud.idx] = pseud;
-            a_dest.regAmount[basketNum] = m_liveintervals[basketNum].size();
+            a_dest.regAmount[basketNum] = (int)m_liveintervals[basketNum].size();
         }
     }
 

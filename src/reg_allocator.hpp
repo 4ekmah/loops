@@ -47,7 +47,7 @@ public:
     virtual bool is_inplace() const override final { return true; }
     virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
 
-    inline size_t getSnippetCausedSpills() const { return m_snippetCausedSpills; }
+    inline int getSnippetCausedSpills() const { return m_snippetCausedSpills; }
     inline bool haveFunctionCalls() const { return m_haveFunctionCalls; }
 private:
     struct LAEvent //Liveness Analysis Event
@@ -73,7 +73,7 @@ private:
     std::map<RegIdx, size_t>::const_iterator acs_begin(int basketNum) const;
     std::map<RegIdx, size_t>::const_iterator acs_end(int basketNum) const;
     std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
-    size_t m_snippetCausedSpills;
+    int m_snippetCausedSpills;
     bool m_haveFunctionCalls;
     inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
     inline size_t siAmount(int basketNum, RegIdx regNum) const;
@@ -120,12 +120,12 @@ public:
     void clearSpillPlaceholders(int basketNum);
 
     inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                            const std::vector<size_t>&  a_returnRegisters,
-                                            const std::vector<size_t>&  a_callerSavedRegisters,
-                                            const std::vector<size_t>&  a_calleeSavedRegisters);
+    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                            const std::vector<int>&  a_returnRegisters,
+                                            const std::vector<int>&  a_callerSavedRegisters,
+                                            const std::vector<int>&  a_calleeSavedRegisters);
         
-    void getOverridenParams(std::vector<size_t> (&regParsOverride)[RB_AMOUNT]) const;
+    void getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const;
 private:
     Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
@@ -142,7 +142,7 @@ private:
     uint64_t m_spillPlaceholders[RB_AMOUNT]; //There used outer register ordering
     uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
     std::set<RegIdx> m_usedCallee[RB_AMOUNT];
-    std::vector<size_t> m_registersO[RB_AMOUNT][VESS_AMOUNT];
+    std::vector<int> m_registersO[RB_AMOUNT][VESS_AMOUNT];
 };
 
 /*
@@ -168,14 +168,14 @@ public:
     virtual bool is_inplace() const override final { return false; } 
     virtual PassID pass_id() const override final { return CP_REGISTER_ALLOCATION; }
 
-    inline size_t epilogueSize() const { return m_epilogueSize; }
+    inline int epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
     RegisterPool m_pool;
     const std::vector<LiveInterval>* m_live_intervals;
     int m_snippet_caused_spills;
     bool m_have_function_calls;
-    size_t m_epilogueSize;
+    int m_epilogueSize;
 };
 };
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

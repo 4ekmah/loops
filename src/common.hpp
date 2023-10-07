@@ -73,7 +73,7 @@ namespace loops
         return res;
     }
 
-    static inline size_t elem_size(int typ)
+    static inline int elem_size(int typ)
     {
         switch (typ) {
             case TYPE_I8:
@@ -160,7 +160,7 @@ namespace loops
         return res;
     }
 
-    inline RegIdx onlyBitPos64(uint64_t bigNum)
+    inline int onlyBitPos64(uint64_t bigNum)
     {
         static const uint8_t bnBase[8] = {0, 8, 16, 24, 32, 40, 48, 56};
         static const uint8_t bnAdd[129] = {0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -186,13 +186,13 @@ namespace loops
         return static_cast<RegIdx>(bnBase[bytenum]) + static_cast<RegIdx>(bnAdd[bytecontent]) - 1;
     }
 
-    inline RegIdx lsb64(uint64_t bigNum)
+    inline int lsb64(uint64_t bigNum)
     {
         uint64_t firstReg = (bigNum & ~(bigNum - 1));
         return onlyBitPos64(firstReg);
     }
 
-    inline RegIdx msb64(uint64_t bigNum)
+    inline int msb64(uint64_t bigNum)
     {
         if (bigNum == 0)
             return 0;
@@ -208,9 +208,9 @@ namespace loops
         return onlyBitPos64(bigNum) - 1;
     }
 
-    inline size_t amountOfBits64(uint64_t bigNum)
+    inline int amountOfBits64(uint64_t bigNum)
     {
-        size_t res = 0;
+        int res = 0;
         static const uint8_t amountInByte[256] =
             {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
              1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,

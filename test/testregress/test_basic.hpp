@@ -77,7 +77,7 @@ LTESTexe(min_max_scalar, {
     minmaxscalar_f tested = reinterpret_cast<minmaxscalar_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
-    for(size_t num = 0; num < v.size(); num++)
+    for(int num = 0; num < (int)v.size(); num++)
     {
         if(v[rminpos] > v[num])
             rminpos = num;
@@ -128,7 +128,7 @@ LTESTexe(min_max_select, {
     minmaxselect_f tested = reinterpret_cast<minmaxselect_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
-    for (size_t num = 0; num < v.size(); num++)
+    for (int num = 0; num < (int)v.size(); num++)
     {
         if (v[rminpos] > v[num])
             rminpos = num;

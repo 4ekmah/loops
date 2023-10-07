@@ -11,6 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <list>
 #include <iostream>
+#include <sstream>
 #include <ostream>
 #include <iomanip>
 #include <math.h>
@@ -119,10 +120,11 @@ struct Timer
         return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
     #endif
     }
-    char* str()
+    std::string str()
     {
-        sprintf(buf, "min=%.3gms, gmean=%.3gms", min_ms(), gmean_ms());
-        return buf;
+        std::stringstream outstr;
+        outstr << "min=" << std::setprecision(3) << min_ms() << " ms, gmean=" << std::setprecision(3) << gmean_ms() << " ms" << std::endl;
+        return outstr.str();
     }
 };
 

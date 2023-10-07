@@ -1294,7 +1294,7 @@ namespace loops
         return Backend::reusingPreferences(a_op, undefinedArgNums);
     }
 
-    size_t Intel64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+    int Intel64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     {
         if(basketNum == RB_INT)
             switch (a_op.opcode)
@@ -1432,8 +1432,8 @@ namespace loops
                     inRegs = makeBitmask64({});
                     for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
                     {
-                        inRegs |= (1 << arnum);
-                        actualRegs |= (1 << arnum);
+                        inRegs |= ((uint64_t)(1) << arnum);
+                        actualRegs |= ((uint64_t)(1) << arnum);
                     }
                     bypass = false;
                 }
@@ -1465,21 +1465,21 @@ namespace loops
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
-    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
     {
     #if __LOOPS_OS == __LOOPS_WINDOWS
-        size_t sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
+        int sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
         size_t sp2parShift = 1; //+1 is because of return address kept in stack 
     #else
         #error Unknown OS.
     #endif        
 
-        size_t regPassed[RB_AMOUNT];
+        int regPassed[RB_AMOUNT];
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
-        size_t currOffset = 0;
-        size_t xBasket[RB_AMOUNT] = {1,1};
+            regPassed[basketNum] = (int)(regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size());
+        int currOffset = 0;
+        int xBasket[RB_AMOUNT] = {1,1};
         xBasket[RB_VEC] = getVectorRegisterBits() / 64;
         for(const Arg& arg : a_func.params)
         {
@@ -1497,7 +1497,7 @@ namespace loops
         }
     }
 
-    size_t Intel64Backend::stackGrowthAlignment(size_t stackGrowth) const
+    int Intel64Backend::stackGrowthAlignment(int stackGrowth) const
     {
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
@@ -1900,17 +1900,17 @@ namespace loops
             {
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
-                std::vector<size_t> parameterRegisters = { RCX, RDX, R8, R9 };
-                std::vector<size_t> returnRegisters = { RAX };
-                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+                std::vector<int> parameterRegisters = { RCX, RDX, R8, R9 };
+                std::vector<int> returnRegisters = { RAX };
+                std::vector<int> callerSavedRegisters = { R10, R11 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-                std::vector<size_t> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
-                std::vector<size_t> returnRegisters = { RAX, RDX };
-                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+                std::vector<int> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
+                std::vector<int> returnRegisters = { RAX, RDX };
+                std::vector<int> callerSavedRegisters = { R10, R11 };
 #else
 #error Unknown OS
 #endif
-                std::set<size_t> allSaved;
+                std::set<int> allSaved;
                 allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
                 allSaved.insert(returnRegisters.begin(), returnRegisters.end());
                 allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());

@@ -87,7 +87,7 @@ public:
     bool isImmediateFit(const Syntop& a_op, size_t argnum) const;
     virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
     virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
-    virtual size_t spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
+    virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
@@ -108,8 +108,8 @@ public:
     It's assumed offset from SP just after function call(without prologue).
     Offset measured not in bytes, each unit = 8 bytes. 
     */
-    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
-    virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
+    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const = 0;
+    virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
 //    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, FP) }));
@@ -130,20 +130,20 @@ public:
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
     inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
     template<typename _Tp> inline int vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
-    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elem_size(elemtype); }
+    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3) / elem_size(elemtype); }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
     inline size_t instructionWidth() const { return m_instructionWidth; }
     inline size_t offsetShift() const { return m_offsetShift; }
-    inline size_t callerStackIncrement() const { return m_callerStackIncrement; }
+    inline int callerStackIncrement() const { return m_callerStackIncrement; }
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
     //from first byte after end of instruction.
     inline bool postInstructionOffset() const { return m_postInstructionOffset; }
-    virtual std::vector<size_t> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
-    virtual std::vector<size_t> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
-    virtual std::vector<size_t> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
-    virtual std::vector<size_t> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
+    virtual std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
+    virtual std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
+    virtual std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
+    virtual std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
     virtual void switchOnSpillStressMode() = 0;
 
@@ -166,12 +166,12 @@ protected:
     bool m_postInstructionOffset;
     size_t m_instructionWidth;
     size_t m_offsetShift;
-    size_t m_callerStackIncrement;
+    int m_callerStackIncrement;
     size_t m_registersAmount;
-    std::vector<size_t> m_parameterRegisters[RB_AMOUNT];
-    std::vector<size_t> m_returnRegisters[RB_AMOUNT];
-    std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
-    std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
+    std::vector<int> m_parameterRegisters[RB_AMOUNT];
+    std::vector<int> m_returnRegisters[RB_AMOUNT];
+    std::vector<int> m_callerSavedRegisters[RB_AMOUNT];
+    std::vector<int> m_calleeSavedRegisters[RB_AMOUNT];
     std::vector<CompilerPassPtr> m_afterRegAllocPasses;
     std::vector<CompilerPassPtr> m_beforeRegAllocPasses;
     std::string m_name;

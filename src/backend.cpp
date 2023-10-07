@@ -114,7 +114,7 @@ size_t Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& u
     return -1;
 }
 
-size_t Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+int Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     return 0;
 }

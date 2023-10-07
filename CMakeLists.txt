@@ -64,11 +64,15 @@ foreach(example_fn ${examples})
 	set_target_properties(${example_target} PROPERTIES FOLDER Examples)
 endforeach()
 
-#TODO(ch): configure warning policies 
+#TODO(ch): configure warning policies. Separate these policies and store it in a corresponding articles. 
 if (MSVC)
     target_compile_options(loops PRIVATE /W3 /WX)
+    target_compile_options(testregress PRIVATE /W3 /WX)
+	foreach(example_fn ${examples})
+		get_filename_component(example_target ${example_fn} NAME_WLE)
+		target_compile_options(${example_target} PRIVATE /W3 /WX)
+	endforeach()
 #    target_compile_options(loopslayers PRIVATE /W4 /WX)
-#    target_compile_options(testregress PRIVATE /W4 /WX)
 #    target_compile_options(testperf PRIVATE /W4 /WX)
 else()
     target_compile_options(loops PRIVATE -Wall -Wextra -Wpedantic -Werror)

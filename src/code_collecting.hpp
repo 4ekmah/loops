@@ -19,9 +19,9 @@ struct ControlFlowBracket
 {
     enum { WHILE, IF, ELSE };
     size_t tag;
-    size_t label_or_pos; //Used as operation num in regeister allocator, as label id otherwise.
-    size_t auxfield; //Used as additional label id or as elif counter.
-    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
+    int label_or_pos; //Used as operation num in register allocator, as label id otherwise.
+    int auxfield;     //Used as additional label id or as elif counter.
+    ControlFlowBracket(size_t a_tag, int a_labelOrPos, int auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
 };
 
 class CodeCollecting : public CompilerPass

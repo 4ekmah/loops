@@ -54,8 +54,8 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         str << "store." << type_suffixes[_Tp];
     }},
     {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[0].value) != cond_suffixes.end());
-        str << "jmp_" << cond_suffixes[op[0].value] << " "<< op[1].value;
+        Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)(op[0].value)) != cond_suffixes.end());
+        str << "jmp_" << cond_suffixes[(int)op[0].value] << " "<< op[1].value;
     }},
     {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
@@ -63,12 +63,12 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         str << "label " << op.args[0] << ":";
     }},
     {OP_SELECT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        Assert(op.size() == 4 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[1].value) != cond_suffixes.end());
-        str << "select_" << cond_suffixes[op[1].value];
+        Assert(op.size() == 4 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
+        str << "select_" << cond_suffixes[(int)op[1].value];
     }},
     {OP_IVERSON, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
-        Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find(op[1].value) != cond_suffixes.end());
-        str << "iverson_" << cond_suffixes[op[1].value];
+        Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
+        str << "iverson_" << cond_suffixes[(int)op[1].value];
     }},
     {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
@@ -313,10 +313,10 @@ void* FuncImpl::ptr()
     return m_compiled;
 }
 
-void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<size_t>& a_parameterRegisters,
-    const std::vector<size_t>& a_returnRegisters,
-    const std::vector<size_t>& a_callerSavedRegisters,
-    const std::vector<size_t>& a_calleeSavedRegisters)
+void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<int>& a_parameterRegisters,
+    const std::vector<int>& a_returnRegisters,
+    const std::vector<int>& a_callerSavedRegisters,
+    const std::vector<int>& a_calleeSavedRegisters)
 {
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }

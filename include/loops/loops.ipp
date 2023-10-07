@@ -161,7 +161,7 @@ void VReg<_Tp>::copyidx(const VExpr<_Tp>& from)
 
 Arg::Arg() : idx(IReg::NOIDX), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
 
-Arg::Arg(const IReg& r) : idx(r.idx), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
+Arg::Arg(const IReg& r) : idx(r.idx), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0), elemtype(TYPE_I64) {}
 
 template<typename _Tp>
 Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)

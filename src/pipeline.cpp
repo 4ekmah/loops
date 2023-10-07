@@ -129,8 +129,8 @@ namespace loops
                     throw std::runtime_error("Control flow bracket error: \"else\" before \"endif\".");
                 Assert(m_cflowStack.back().tag == ControlFlowBracket::IF);
                 Assert(op.size() == 2);
-                int64_t elselabel = op[0].value;
-                int64_t outlabel = op[1].value;
+                int elselabel = (int)op[0].value;
+                int outlabel = (int)op[1].value;
                 ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel, m_cflowStack.back().auxfield + 1);
                 a_dest.program.push_back(Syntop(OP_ELSE, {Arg(elselabel), Arg(outlabel)}));
                 m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
@@ -404,7 +404,7 @@ namespace loops
         return &m_codecol;
     }
 
-    void Pipeline::overrideRegisterSet(int basketNum, const std::vector<size_t> &a_parameterRegisters, const std::vector<size_t> &a_returnRegisters, const std::vector<size_t> &a_callerSavedRegisters, const std::vector<size_t> &a_calleeSavedRegisters)
+    void Pipeline::overrideRegisterSet(int basketNum, const std::vector<int> &a_parameterRegisters, const std::vector<int> &a_returnRegisters, const std::vector<int> &a_callerSavedRegisters, const std::vector<int> &a_calleeSavedRegisters)
     {
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
