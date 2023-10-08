@@ -61,7 +61,7 @@ namespace loops
             size_t width; //in bits //TODO(ch): unsigned char?
             uint64_t fieldOflags;
             inline uint64_t flags() { return fieldOflags;}
-            size_t arVecNum;
+            int srcArgnum;
         };
         std::vector<Token> m_compound;
         size_t m_bytewidth;
@@ -80,40 +80,40 @@ namespace loops
 
         inline BinTranslation::Token BTsta(uint64_t field, size_t width) {return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, width); }
 
-        inline BinTranslation::Token BTomm(uint64_t arVecNum)
+        inline BinTranslation::Token BTomm(int srcArgnum)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OMIT, 0);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res; 
         }
 
-        inline BinTranslation::Token BTreg(size_t arVecNum, size_t width, uint64_t regflag = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT)
+        inline BinTranslation::Token BTreg(int srcArgnum, size_t width, uint64_t regflag = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT)
         {
             BinTranslation::Token res(BinTranslation::Token::T_REG, width);
             res.fieldOflags = regflag;
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 
-        inline BinTranslation::Token BTspl(size_t arVecNum, size_t width)
+        inline BinTranslation::Token BTspl(int srcArgnum, size_t width)
         {
             BinTranslation::Token res(BinTranslation::Token::T_SPILLED, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 
-        inline BinTranslation::Token BTimm(size_t arVecNum, size_t width, uint64_t flags = 0)
+        inline BinTranslation::Token BTimm(int srcArgnum, size_t width, uint64_t flags = 0)
         {
             BinTranslation::Token res(BinTranslation::Token::T_IMMEDIATE, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             res.fieldOflags = flags;
             return res;
         }
 
-        inline BinTranslation::Token BToff(size_t arVecNum, size_t width)
+        inline BinTranslation::Token BToff(int srcArgnum, size_t width)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OFFSET, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 

@@ -59,9 +59,9 @@ namespace loops
             default:
             {
                 Syntop op_probe = op;
-                std::vector<size_t> arnums;
+                std::vector<int> arnums;
                 arnums.reserve(op_probe.size());
-                for (size_t arnum = 0; arnum < op_probe.size(); arnum++)
+                for (int arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
                 if (op.opcode == OP_SELECT) //TODO(ch): create universal mechanism(probably based on encoding attempt?)
@@ -84,9 +84,9 @@ namespace loops
                         placeholderTop++;
                     op_probe[arNum] = argReg(RB_INT, placeholderTop++);
                 }
-                for (size_t attemptN = 0; attemptN < arnums.size(); attemptN++)
+                for (int attemptN = 0; attemptN < (int)arnums.size(); attemptN++)
                 {
-                    size_t arNum = arnums[attemptN];
+                    int arNum = arnums[attemptN];
                     op_probe[arNum] = attempts[attemptN];
                     if (!m_backend->isImmediateFit(op_probe, arNum))
                     {
@@ -349,7 +349,7 @@ namespace loops
         }
     }
 
-    void Assembly2Hex::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void Assembly2Hex::process(Syntfunc& /*a_dest*/, const Syntfunc &a_source)
     {
         for (const Syntop &op : a_source.program)
             m_backend->lookS2b(op).applyNAppend(op, &m_bitstream);

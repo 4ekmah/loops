@@ -24,10 +24,10 @@ struct SyntopTranslation
     {
         enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_ERROROFUSAGE};
         ArgTranslation(const Arg& a_fixed);
-        ArgTranslation(size_t a_src_arnum, uint64_t flags = 0);
+        ArgTranslation(int a_srcArgnum, uint64_t flags = 0);
         int tag;
         Arg fixed;
-        size_t srcArgnum;
+        int srcArgnum;
         uint64_t transitFlags;
     };
     int m_tarop;
@@ -35,8 +35,8 @@ struct SyntopTranslation
     SyntopTranslation(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
     SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args);
     Syntop apply(const Syntop& a_source, const Backend* a_backend = nullptr) const;
-    size_t targetArgNum(size_t a_srcnum) const;
-    enum {ARG_NOT_USED = -1}; //TODO(ch) : Probably, it's better to replace it with NOIDX?
+    int targetArgNum(int a_srcnum) const;
+    enum { ARG_NOT_USED = UNDEFINED_ARGUMENT_NUMBER };
 };
 
 namespace SyntopTranslationConstruction
@@ -61,9 +61,9 @@ namespace SyntopTranslationConstruction
         return SyntopTranslation::ArgTranslation(resArg);
     }
     //SAcop is for SyntopTranslation::ArgTranslation to be copied from source
-    inline SyntopTranslation::ArgTranslation SAcop(size_t argnum, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, flags); }
+    inline SyntopTranslation::ArgTranslation SAcop(int argnum, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, flags); }
     //SAcopspl is for SyntopTranslation::ArgTranslation to be copied and transformed to spill.
-    inline SyntopTranslation::ArgTranslation SAcopspl(size_t argnum)
+    inline SyntopTranslation::ArgTranslation SAcopspl(int argnum)
     {
         SyntopTranslation::ArgTranslation res(argnum);
         res.tag = SyntopTranslation::ArgTranslation::T_TRANSFORMTOSPILL;
@@ -71,7 +71,7 @@ namespace SyntopTranslationConstruction
     }
     //SAcopshr is for copy original immediate argument and divide it by 2 <shft> times.
     //Used for immediate offsets values on Arm.
-    inline SyntopTranslation::ArgTranslation SAcopsar(size_t argnum, int64_t shft, uint64_t flags = 0)
+    inline SyntopTranslation::ArgTranslation SAcopsar(int argnum, int64_t shft, uint64_t flags = 0)
     {
         SyntopTranslation::ArgTranslation res(argnum);
         res.fixed.value = shft;
@@ -84,17 +84,17 @@ namespace SyntopTranslationConstruction
 class Backend
 {
 public:
-    bool isImmediateFit(const Syntop& a_op, size_t argnum) const;
-    virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
-    virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
+    bool isImmediateFit(const Syntop& a_op, int argnum) const;
+    virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const;
+    virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
-    std::set<size_t> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
-    std::set<size_t> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<int> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    std::set<int> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
     std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;

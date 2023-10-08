@@ -10,11 +10,11 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 namespace loops
 {
-SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(-1), transitFlags(0) {}
-SyntopTranslation::ArgTranslation::ArgTranslation(size_t a_src_arnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_src_arnum), transitFlags(flags) {}
+SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(UNDEFINED_ARGUMENT_NUMBER), transitFlags(0) {}
+SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_srcArgnum), transitFlags(flags) {}
 SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
-Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend) const
+Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
 {
     std::vector<Arg> resargs;
     resargs.reserve(m_argsList.size());
@@ -25,7 +25,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
                 break;
             case ArgTranslation::T_FROMSOURCE:
             {
-                if(argt.srcArgnum >= a_source.size())
+                if(argt.srcArgnum == UNDEFINED_ARGUMENT_NUMBER || argt.srcArgnum >= (int)a_source.size())
                     throw std::runtime_error("Syntop translator: non-existent argument is requested.");
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
@@ -34,7 +34,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
             }
             case ArgTranslation::T_TRANSFORMTOSPILL:
             {
-                Assert(argt.srcArgnum < a_source.size());
+                Assert(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
                 Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = argSpilled(RB_INT, a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
@@ -43,7 +43,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
             }
             case ArgTranslation::T_COPYSHIFTRIGHT:
             {
-                Assert(argt.srcArgnum < a_source.size());
+                Assert(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
                 Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 if (argt.fixed.value >= 0){
@@ -66,10 +66,10 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend
     return Syntop(m_tarop, resargs);
 }
 
-size_t SyntopTranslation::targetArgNum(size_t a_srcnum) const
+int SyntopTranslation::targetArgNum(int a_srcnum) const
 {
-    size_t res = 0;
-    for(;res< m_argsList.size(); ++res)
+    int res = 0;
+    for(;res< (int)m_argsList.size(); ++res)
         if(m_argsList[res].tag == ArgTranslation::T_FROMSOURCE && m_argsList[res].srcArgnum == a_srcnum)
             break;
     if (res == m_argsList.size())
@@ -77,7 +77,7 @@ size_t SyntopTranslation::targetArgNum(size_t a_srcnum) const
     return res;
 }
 
-bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
+bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
 {
     bool found;
     SyntopTranslation s2s = m_s2slookup(this, a_op, found);
@@ -90,11 +90,11 @@ bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
     BinTranslation instemp = m_s2blookup(tar_op, found);
     if (!found)
         return false;
-    Assert(argnum < tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
+    Assert(argnum < (int)tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
     bool neg = tar_op.args[argnum].value < 0;
     uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
     for(const BinTranslation::Token& det : instemp.m_compound)
-        if (det.tag != BinTranslation::Token::T_STATIC && det.arVecNum == argnum)
+        if (det.tag != BinTranslation::Token::T_STATIC && det.srcArgnum == argnum)
         {
             Assert(det.tag != BinTranslation::Token::T_REG);
             size_t bitwneeded = msb64(val2BeFit);
@@ -104,30 +104,30 @@ bool Backend::isImmediateFit(const Syntop& a_op, size_t argnum) const
     throw std::runtime_error("Binary translator: non-existent argument is requested.");
 }
 
-std::set<size_t> Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
+std::set<int> Backend::filterStackPlaceable(const Syntop& /*a_op*/, const std::set<int>& /*toFilter*/) const
 {
-    return std::set<size_t>();
+    return std::set<int>();
 }
 
-size_t Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+int Backend::reusingPreferences(const Syntop& /*a_op*/, const std::set<int>& /*undefinedArgNums*/) const
 {
-    return -1;
+    return UNDEFINED_ARGUMENT_NUMBER;
 }
 
-int Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+int Backend::spillSpaceNeeded(const Syntop& /*a_op*/, int /*basketNum*/) const
 {
     return 0;
 }
 
-std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
+std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
 {
-    std::set<size_t> result;
+    std::set<int> result;
     if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
     {
         int ioflags = flagmask&(BinTranslation::Token::T_OUTPUT | BinTranslation::Token::T_INPUT);
         if (ioflags == BinTranslation::Token::T_OUTPUT && 
             ((a_op.opcode == OP_DEF && basketNum == RB_INT) || (a_op.opcode == VOP_DEF && basketNum == RB_VEC)))
-                result = std::set<size_t>({0});
+                result = std::set<int>({0});
         return result;
     }
     bool foundSynTr;
@@ -141,10 +141,10 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int ba
     {
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
             continue;   //Drop all statics
-        const SyntopTranslation::ArgTranslation& ar = s2s.m_argsList[s2b.m_compound[bpiecenum].arVecNum];
+        const SyntopTranslation::ArgTranslation& ar = s2s.m_argsList[s2b.m_compound[bpiecenum].srcArgnum];
         if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE)
         {
-            if (ar.srcArgnum >= a_op.size())
+            if (ar.srcArgnum == SyntopTranslation::ARG_NOT_USED || ar.srcArgnum >= a_op.size())
                 throw std::runtime_error("Binary translator: non-existent argument is requested.");
             if (a_op[ar.srcArgnum].tag == desiredRegType && ((s2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
@@ -153,27 +153,27 @@ std::set<size_t> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int ba
     return result;
 }
 
-std::set<size_t> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
+std::set<int> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
 }
 
-std::set<size_t> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
+std::set<int> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_INPUT);
 }
 
 std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
-    std::set<size_t> preres = getUsedRegistersIdxs(a_op, basketNum, flagmask);
+    std::set<int> preres = getUsedRegistersIdxs(a_op, basketNum, flagmask);
     std::set<RegIdx> result;
-    for(size_t arnum: preres)
+    for(int argNum: preres)
     {
-        if(arnum >= a_op.size())
+        if(argNum >= a_op.size())
             throw std::runtime_error("Compile error: non-existent argument is requested.");
-        if(a_op[arnum].tag != Arg::IREG && a_op[arnum].tag != Arg::VREG)
+        if(a_op[argNum].tag != Arg::IREG && a_op[argNum].tag != Arg::VREG)
             throw std::runtime_error("Compile error: constant is requested instead of register.");
-        result.insert(a_op[arnum].idx);
+        result.insert(a_op[argNum].idx);
     }
     return result;
 }

@@ -602,21 +602,21 @@ namespace loops
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size((int)a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size((int)a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size((int)(a_args.size() + a_prefix.size()))
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");

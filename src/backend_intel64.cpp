@@ -903,8 +903,8 @@ namespace loops
                 break;
             const bool rax0 = (index[0].tag == Arg::IREG && index[0].idx == RAX);
             const bool rax1 = (index[0].tag == Arg::IREG && index[0].idx == RAX);
-            const size_t rrd0 = rax0 ? 0 : 1;
-            const size_t rrd1 = rax0 ? 1 : 0;
+            int rrd0 = rax0 ? 0 : 1;
+            int rrd1 = rax0 ? 1 : 0;
             if (index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
                 if (!rax0 && !rax1)
@@ -918,8 +918,8 @@ namespace loops
             }
             else if ((index[0].tag == Arg::ISPILLED && index[1].tag == Arg::IREG) || (index[1].tag == Arg::ISPILLED && index[0].tag == Arg::IREG))
             {
-                const size_t rrd0 = index[0].tag == Arg::ISPILLED ? 1 : 0;
-                const size_t rrd1 = index[0].tag == Arg::ISPILLED ? 0 : 1;
+                rrd0 = index[0].tag == Arg::ISPILLED ? 1 : 0;
+                rrd1 = index[0].tag == Arg::ISPILLED ? 0 : 1;
                 return BiT({ nBkb(2, index[rrd0].idx < 8 ? 0x4887 : 0x4c87, 2, 0b10), BTreg(rrd0, 3, IO), BTsta(0x424,11), BTspl(rrd1, 32) });
             }
             break;
@@ -952,7 +952,7 @@ namespace loops
         return BinTranslation();
     }
 
-    SyntopTranslation i64STLookup(const Backend* backend, const Syntop& index, bool& scs)
+    SyntopTranslation i64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
     {
         using namespace SyntopTranslationConstruction;
         scs = true;
@@ -1182,16 +1182,16 @@ namespace loops
 #endif
     }
 
-    std::set<size_t> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
+    std::set<int> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
     {
         switch (a_op.opcode)
         {
         case(OP_MOV):
             if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
                 && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
-                return std::set<size_t>({});
+                return std::set<int>({});
             else 
-                return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 1 });
+                return (toFilter.size() < 2) ? toFilter : std::set<int>({ 1 });
         case(OP_AND):
         case(OP_OR):
         case(OP_XOR):
@@ -1203,9 +1203,9 @@ namespace loops
         case(OP_SAR):
         {
             Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
-            std::set<size_t> res = toFilter;
+            std::set<int> res = toFilter;
             res.erase(1);
-            res = (res.size() < 2) ? res : std::set<size_t>({ 0 });
+            res = (res.size() < 2) ? res : std::set<int>({ 0 });
             if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && res.count(0) || res.count(1))
             {
                 res.insert(0);
@@ -1216,42 +1216,42 @@ namespace loops
         case(OP_DIV):
         case(OP_MOD):
         case(OP_MUL):
-            return (toFilter.count(2)) ? std::set<size_t>({ 2 }) : std::set<size_t>({ });
+            return (toFilter.count(2)) ? std::set<int>({ 2 }) : std::set<int>({ });
         case(OP_NEG):
         case(OP_NOT):
         {
             Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
             if (toFilter.size() == 2 && a_op[0].idx != a_op[1].idx) //{0,1}
-                return std::set<size_t>({ 1 });
+                return std::set<int>({ 1 });
             else 
                 return toFilter;
         }
-        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 0 });
+        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<int>({ 0 });
         case(OP_LOAD):
-        case(OP_STORE): return std::set<size_t>();
+        case(OP_STORE): return std::set<int>();
             break;
         case(OP_SELECT):
             Assert(a_op.size() == 4);
-            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<size_t>({2}) : std::set<size_t>({});
+            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<int>({2}) : std::set<int>({});
             break;
         case(OP_IVERSON):
             Assert(a_op.size() == 2);
-            return (toFilter.count(0) ? std::set<size_t>({0}) : std::set<size_t>({}));
+            return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
             break;
         case(OP_ABS):
             Assert(a_op.size() == 2);
-            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<size_t>({ 1 }) : std::set<size_t>({});
+            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<int>({ 1 }) : std::set<int>({});
             break;
         case(OP_CALL):
         case(OP_CALL_NORET):
-            return std::set<size_t>({});
+            return std::set<int>({});
         default:
             break;
         }
         return Backend::filterStackPlaceable(a_op, toFilter);
     }
 
-    size_t Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+    int Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
     {
         switch (a_op.opcode)
         {
@@ -1264,7 +1264,7 @@ namespace loops
         case OP_MIN:
         case OP_MAX:
         {
-            if (undefinedArgNums.count(1)) //TODO(ch): Hmmm... looks like there binary mask will there works better.
+            if (undefinedArgNums.count(1)) //TODO(ch): Hmmm... looks like there binary mask will there works faster.
                 return 1;
             if (undefinedArgNums.count(2))
                 return 2;
@@ -1328,16 +1328,16 @@ namespace loops
         return Backend::spillSpaceNeeded(a_op, basketNum);
     }
 
-    std::set<size_t> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+    std::set<int> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
         //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
 
         bool bypass = true;
-        uint64_t actualRegs;
-        uint64_t inRegs;
-        uint64_t outRegs;
+        uint64_t actualRegs = 0;
+        uint64_t inRegs  = 0;
+        uint64_t outRegs = 0;
         switch (a_op.opcode)
         {
             case (OP_X86_ADC):
@@ -1444,8 +1444,8 @@ namespace loops
         };
         if (!bypass)
         {
-            std::set<size_t> res;
-            auto checkAndAdd = [&res](uint64_t mask, size_t posnum)
+            std::set<int> res;
+            auto checkAndAdd = [&res](uint64_t mask, int posnum)
             {
                 if (mask & (uint64_t(1) << posnum))
                     res.insert(posnum);
@@ -1585,7 +1585,7 @@ namespace loops
         a2hPass.process(*((Syntfunc*)(nullptr)), toP);
         const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-        return [buffer, posNsizes](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
+        return [buffer, posNsizes](::std::ostream& out, const Syntop& /*toPrint*/, size_t rowNum, Backend*)
         {
             uint8_t* hexfield = &((*buffer)[0]) + posNsizes[rowNum].first;
             for (size_t pos = 0; pos < posNsizes[rowNum].second; pos++)

@@ -130,9 +130,9 @@ class Aarch64Backend : public Backend
 {
 public:
     Aarch64Backend();
-    virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const override final;
+    virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
-    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
     virtual int stackGrowthAlignment(int stackGrowth) const override final;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;

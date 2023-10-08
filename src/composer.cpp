@@ -11,7 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >(MINIMAL_BUFFER_SIZE, 0))
+Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, 0))
     , m_size(0)
     , m_bitpos(0)
     , m_startsize(NOTRANSACTION)
@@ -100,7 +100,7 @@ uint64_t Bitwriter::revertToken(uint64_t a_tok, size_t dwidth)
     return a_tok;
 }
 
-BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
+BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
@@ -111,9 +111,9 @@ BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
 }
 
 BinTranslation::Token::Token(int tag, uint64_t val, size_t fieldsize):tag(tag)
-   ,width(fieldsize)
-   ,fieldOflags(val)
-   ,arVecNum(-1)
+   , width(fieldsize)
+   , fieldOflags(val)
+   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_STATIC)
         throw std::runtime_error("Binary translator: wrong token constructor.");
@@ -134,17 +134,17 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Token& det : m_compound)
     {
-        uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
+        uint64_t pos = (det.srcArgnum != UNDEFINED_ARGUMENT_NUMBER) ? uint64_t(1) << det.srcArgnum : 0;
 
         switch (det.tag)
         {
         case (Token::T_REG):
-            if (op.args[det.arVecNum].tag != Arg::IREG && op.args[det.arVecNum].tag != Arg::VREG)
+            if (op.args[det.srcArgnum].tag != Arg::IREG && op.args[det.srcArgnum].tag != Arg::VREG)
                 throw std::runtime_error("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_SPILLED):
-            if (op.args[det.arVecNum].tag != Arg::ISPILLED)
+            if (op.args[det.srcArgnum].tag != Arg::ISPILLED)
                 throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
@@ -152,7 +152,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_ADDRESS):
         case (Token::T_OFFSET):
         case (Token::T_STACKOFFSET):
-            if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
+            if (op.args[det.srcArgnum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
@@ -176,7 +176,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             piece = det.fieldOflags;
             break;
         case (Token::T_REG):
-            piece = op.args[det.arVecNum].idx;
+            piece = op.args[det.srcArgnum].idx;
             break;
         case (Token::T_ADDRESS):
         {
@@ -186,7 +186,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_OFFSET):
         case (Token::T_STACKOFFSET):
         case (Token::T_SPILLED):
-            piece = static_cast<uint64_t>(op.args[det.arVecNum].value);
+            piece = static_cast<uint64_t>(op.args[det.srcArgnum].value);
             if(det.fieldOflags & Token::T_INVERT_IMM)
                 piece = ~piece;
             if (det.tag == Token::T_SPILLED)

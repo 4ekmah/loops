@@ -592,18 +592,18 @@ namespace loops
                         if (opUndefs.size())
                         {
                             std::unordered_map<size_t, RegIdx> opUndefsIdxMap;
-                            std::set<size_t> opUndefsIdx;
+                            std::set<int> opUndefsIdx;
                             const Syntop& op = a_source.program[interval->start];
-                            std::set<size_t> iNs = m_backend->getInRegistersIdxs(op, basketNum);
-                            for (size_t in : iNs)
+                            std::set<int> iNs = m_backend->getInRegistersIdxs(op, basketNum);
+                            for (int in : iNs)
                                 if (opUndefs.count(op[in].idx))
                                 {
                                     opUndefsIdxMap[in] = opUndefs.at(op[in].idx);
                                     opUndefsIdx.insert(in);
                                 }
-                            size_t idxHint = m_backend->reusingPreferences(op, opUndefsIdx);
-                            if (idxHint != IReg::NOIDX)
-                                poolHint = opUndefsIdxMap.at(idxHint);
+                            int argnumHint = m_backend->reusingPreferences(op, opUndefsIdx);
+                            if (argnumHint != UNDEFINED_ARGUMENT_NUMBER)
+                                poolHint = opUndefsIdxMap.at(argnumHint);
                         }
                         hwReg = m_pool.provideRegFromPool(basketNum, poolHint);
                     }
@@ -632,7 +632,7 @@ namespace loops
         
         std::vector<std::map<RegIdx, Arg> > unspilledRenaming[RB_AMOUNT];
         std::vector<std::map<RegIdx, Arg> > spilledRenaming[RB_AMOUNT];
-        std::vector<std::set<size_t> > stackPlaceable[RB_AMOUNT];
+        std::vector<std::set<int> > stackPlaceable[RB_AMOUNT];
         int nettoSpills[RB_AMOUNT];
         int spAddAligned = m_snippet_caused_spills;
         //Collecting instructionwise spills properties
@@ -644,24 +644,24 @@ namespace loops
             for (size_t opnum = 0; opnum < a_source.program.size(); ++opnum)
             {
                 const Syntop& op = a_source.program[opnum];
-                std::set<size_t> unspilledIdxs;
-                std::set<size_t> spilledIdxs;
+                std::set<int> unspilledIdxs;
+                std::set<int> spilledIdxs;
                 const int REGtag = ((basketNum == RB_INT) ? Arg::IREG : Arg::VREG);
                 const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
                 unspilledIdxs = m_backend->getInRegistersIdxs(op, basketNum);
                 spilledIdxs = m_backend->getOutRegistersIdxs(op, basketNum);
-                for (std::set<size_t>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
+                for (std::set<int>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
                 {
-                    size_t argNum = (*removerator);
+                    int argNum = (*removerator);
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
                     else
                         removerator = unspilledIdxs.erase(removerator);
                 }
-                for (std::set<size_t>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
+                for (std::set<int>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
                 {
-                    size_t argNum = (*removerator);
+                    int argNum = (*removerator);
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
@@ -671,12 +671,12 @@ namespace loops
                 stackPlaceable[basketNum][opnum] = spilledIdxs;
                 stackPlaceable[basketNum][opnum].insert(unspilledIdxs.begin(), unspilledIdxs.end());
                 stackPlaceable[basketNum][opnum] = m_backend->filterStackPlaceable(op, stackPlaceable[basketNum][opnum]);
-                for (std::set<size_t>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
+                for (std::set<int>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
                     if (stackPlaceable[basketNum][opnum].count(*removerator) != 0)
                         removerator = unspilledIdxs.erase(removerator);
                     else
                         removerator++;
-                for (std::set<size_t>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
+                for (std::set<int>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
                     if (stackPlaceable[basketNum][opnum].count(*removerator) != 0)
                         removerator = spilledIdxs.erase(removerator);
                     else
@@ -763,7 +763,7 @@ namespace loops
             for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 for (auto ar : unspilledRenaming[basketNum][opnum])
                     newProgUnbracketed.push_back(Syntop(OP_UNSPILL, { ar.second, argIImm(getSpillOffset(basketNum, ar.first)) }));
-            for (size_t arnum = 0; arnum < op.size(); arnum++)
+            for (int arnum = 0; arnum < op.size(); arnum++)
             {
                 Arg& ar = op[arnum];
                 if (ar.tag == Arg::IREG || ar.tag == Arg::VREG)
@@ -1155,7 +1155,7 @@ namespace loops
                             const size_t switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
                             if(m_subintervals[basketNum][idx][si_start].end < endwhilePos)
                             {
-                                size_t newEnd = expandUntilOpnum(basketNum, idx, endwhilePos, si_start);
+                                expandUntilOpnum(basketNum, idx, endwhilePos, si_start);
                                 auto removerator = lastActive[basketNum].find(LiveInterval(idx, switchIpos));
                                 while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
                                 if(removerator != lastActive[basketNum].end())
@@ -1197,10 +1197,10 @@ namespace loops
             for (size_t opnum = 0; opnum < a_dest.program.size(); opnum++)
             {
                 Syntop& op = a_dest.program[opnum];
-                std::set<size_t> outRegArnums[RB_AMOUNT];
+                std::set<int> outRegArnums[RB_AMOUNT];
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++ )
                     outRegArnums[basketNum] = m_backend->getOutRegistersIdxs(op, basketNum);
-                for (size_t arnum = 0; arnum < op.size(); arnum++)
+                for (int arnum = 0; arnum < (int)op.size(); arnum++)
                 {
                     Arg& arg = op.args[arnum];
                     int basketNum = (arg.tag == Arg::IREG ? RB_INT: (arg.tag == Arg::VREG ? RB_VEC : RB_AMOUNT));

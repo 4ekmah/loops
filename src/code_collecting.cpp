@@ -32,7 +32,7 @@ namespace loops
         m_data.program.emplace_back(Syntop(VOP_ARM_LD2, {res1, res2, base_}));
     }
 
-    void CodeCollecting::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void CodeCollecting::process(Syntfunc& /*a_dest*/, const Syntfunc& /*a_source*/)
     {
         if (m_cflowStack.size())
             throw std::runtime_error("Unclosed control flow bracket."); // TODO(ch): Look at stack for providing more detailed information.

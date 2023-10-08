@@ -39,6 +39,11 @@ namespace loops
         RB_VEC = 1,
         RB_AMOUNT
     };
+    
+    //Used in situation of processing arguments of operation, when for argument is not part of operation,
+    //e.g. if argument with given properties cannot be found, or in translation, when some argument in new
+    //operation wasn't taken from source operation.
+    enum {UNDEFINED_ARGUMENT_NUMBER = -1};
 
     template <typename _Tp>
     inline VReg<_Tp> vregHid(RegIdx a_idx, Func *a_func)
@@ -245,7 +250,7 @@ namespace loops
     public:
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
-        size_t args_size;
+        int args_size;
         Syntop();
         Syntop(const Syntop &fwho);
         Syntop(int a_opcode, const std::vector<Arg> &a_args);
@@ -266,7 +271,7 @@ namespace loops
             return args + args_size;
         }
 
-        inline size_t size() const { return args_size; }
+        inline int size() const { return args_size; }
 
         inline Arg &operator[](size_t anum)
         {

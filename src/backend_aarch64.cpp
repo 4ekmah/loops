@@ -1864,7 +1864,7 @@ Aarch64Backend::Aarch64Backend()
 #endif
 }
 
-size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+int Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
 {
     switch (a_op.opcode)
     {
@@ -1923,7 +1923,7 @@ int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     return Backend::spillSpaceNeeded(a_op, basketNum);
 }
 
-std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
     //TODO(ch): This specialized version of function must disappear after introducing snippets.
     //They will give info about used registers, like now instructions answers.

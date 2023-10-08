@@ -53,9 +53,9 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
     }
 }
 
-Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
+Printer::ColPrinter Printer::colNumPrinter(size_t /*firstRow*/)
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
+    return [](::std::ostream& out, const Syntop& /*toPrint*/, size_t rowNum, Backend*)
     {
         out << std::setw(6) << rowNum << " :";
     };
@@ -63,7 +63,7 @@ Printer::ColPrinter Printer::colNumPrinter(size_t firstRow)
 
 Printer::ColPrinter Printer::colDelimeterPrinter()
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
+    return [](::std::ostream& out, const Syntop& /*toPrint*/, size_t /*rowNum*/, Backend* /*backend*/)
     {
         out << ";";
     };
@@ -90,14 +90,13 @@ Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const s
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
-            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
+            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, size_t /*rowNum*/, size_t argNum)
                 {
                     out<<toPrint[argNum];
                 };
             if(backend)
                 argprinter = backend->argPrinter(suppfunc); //TODO(ch): We shouldn't request printer at any row. It must be called once in start.
             size_t aamount = toPrint.size();
-            size_t anum = 0;
             for(size_t anum = 0; anum + 1 < aamount ; anum++)
             {
                 if(toPrint[anum].flags & AF_NOPRINT)
