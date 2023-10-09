@@ -111,7 +111,6 @@ namespace loops
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
                 break;
-        size_t nextPos = m_data.program.size();
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"break\".");
         int breaklabel = rator->auxfield;
@@ -124,7 +123,6 @@ namespace loops
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
                 break;
-        size_t nextPos = m_data.program.size();
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"continue\".");
         int continuelabel = rator->label_or_pos;
@@ -463,7 +461,7 @@ namespace loops
                     int label0 = (int)condition_buffer.program[opnum][1].value;
                     int label1 = (int)condition_buffer.program[opnum + 1][0].value;
                     condition_buffer.program[targetOpnum++] = Syntop(OP_JCC, {Arg(invertCondition(cond)), Arg(label1)});
-                    condition_buffer.program[targetOpnum++] = condition_buffer.program[opnum + 2];
+                    condition_buffer.program[targetOpnum++] = Syntop(OP_LABEL, {Arg(label0)});
                     opnum += 3;
                     continue;
                 }

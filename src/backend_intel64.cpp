@@ -30,7 +30,7 @@ namespace loops
         R15 = 15
     }; 
 
-    static inline BinTranslation::Token nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
+    static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits)
     {
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
@@ -213,7 +213,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
-                                    static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                                    static int statBn[4] = { 1, 2, 2, 2 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
                                 }
                             case (AF_LOWER16):
@@ -225,7 +225,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
-                                    static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                                    static int statBn[4] = { 2, 3, 3, 3 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
                                 }
                             case (AF_LOWER32):
@@ -240,7 +240,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
-                                    static uint64_t statw[4] = { 10, 18, 18, 18 };
+                                    static int statw[4] = { 10, 18, 18, 18 };
                                     return BiT({ BTsta(stats[statn], statw[statn]), BTreg(1, 3, In), BTreg(0, 3, In) });
                                 }
                             }
@@ -262,7 +262,7 @@ namespace loops
                                 case (AF_LOWER32):
                                 {
                                     static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
-                                    static size_t statBn[4] = { 1, 2, 2, 2 };
+                                    static int statBn[4] = { 1, 2, 2, 2 };
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov eax, [rbx]
                                 }
@@ -341,7 +341,7 @@ namespace loops
                         {
                         case (AF_LOWER32):
                         {
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             static uint64_t statB[8] = { 0x8b, 0x448b, 0x418b, 0x458b, 0x428b, 0x468b, 0x438b, 0x478b };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In)});  //mov eax, [rcx + rdx]
@@ -361,7 +361,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32)});  //mov eax, [rcx + <offset>]
                         }
@@ -384,7 +384,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x88, 0x4188, 0x4288, 0x4388, 0x4488, 0x4588, 0x4688, 0x4788 };
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(2, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], cl
                             else if (index[0].idx < 8 && index[2].idx >= 4 && index[2].idx < 8)
@@ -399,7 +399,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x6689, 0x664189, 0x664289, 0x664389, 0x664489, 0x664589, 0x664689, 0x664789 };
-                            static uint64_t statBn[8] = { 2, 3, 3, 3, 3, 3, 3, 3 };
+                            static int statBn[8] = { 2, 3, 3, 3, 3, 3, 3, 3 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], cx
                             else
@@ -409,7 +409,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x89, 0x4189, 0x4289, 0x4389, 0x4489, 0x4589, 0x4689, 0x4789 };
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(2, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], ecx
                             else
@@ -430,7 +430,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             static uint64_t statB[4] = { 0xc604, 0x41c604, 0x42c604, 0x43c604 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, (index[1].idx < 8) ? 0x41c644 : 0x43c644, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 8) }); //mov byte ptr [r13 + rcx], <imm>
@@ -440,7 +440,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             static uint64_t statB[4] = { 0x66c704, 0x6641c704, 0x6642c704, 0x6643c704 };
-                            static uint64_t statBn[4] = { 3, 4, 4, 4 };
+                            static int statBn[4] = { 3, 4, 4, 4 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(4, (index[1].idx < 8) ? 0x6641c744 : 0x6643c744, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 16) }); //mov word ptr [r13 + rcx], <imm>
@@ -450,7 +450,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0xC704, 0x41C704, 0x42C704, 0x43C704 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, (index[1].idx < 8) ? 0x41c744 : 0x43c744, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 32) }); //mov dword ptr [r13 + rcx], <imm>
@@ -478,7 +478,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], cl
@@ -490,7 +490,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], cx
@@ -500,7 +500,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0x89, 0x4189, 0x4489, 0x4589 };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], ecx
@@ -525,7 +525,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc6 : 0x41c6);
-                            uint64_t statw = ((index[0].idx < 8) ? 1 : 2);
+                            int statw = ((index[0].idx < 8) ? 1 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 8) });//mov word ptr [r12 + <offset>], <imm>    
                             else
@@ -534,7 +534,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0x66c7 : 0x6641c7);
-                            uint64_t statw = ((index[0].idx < 8) ? 2 : 3);
+                            int statw = ((index[0].idx < 8) ? 2 : 3);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(3, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 16) });//mov word ptr [r12 + <offset>], <imm>    
                             else
@@ -543,7 +543,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc7 : 0x41c7);
-                            uint64_t statw = ((index[0].idx < 8) ? 1 : 2);
+                            int statw = ((index[0].idx < 8) ? 1 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 32) });//mov dword ptr [r12 + <offset>], <imm>    
                             else
@@ -889,7 +889,7 @@ namespace loops
                 {
                     size_t statn = index[0].idx < 4 ? 0 : (index[0].idx < 8 ? 1 : 2);
                     stat |= regbytes[statn];
-                    size_t n = index[0].idx < 4 ? 2 : 3;
+                    int n = index[0].idx < 4 ? 2 : 3;
                     return BiT({ nBkb(n, stat, 5, 0b11000), BTreg(0, 3, Out) });
                 }
                 else if (index[0].tag == Arg::ISPILLED)
@@ -936,7 +936,7 @@ namespace loops
             {
                 if (index[0].tag == Arg::IREG)
                 {
-                    size_t n = index[0].idx < 8 ? 1 : 2;
+                    int n = index[0].idx < 8 ? 1 : 2;
                     size_t stat = index[0].idx < 8 ? 0xff : 0x41ff;
                     return BiT({ nBkb(n, stat, 5, 0b11010), BTreg(0, 3, In) });
                 }

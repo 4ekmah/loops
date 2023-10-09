@@ -78,7 +78,7 @@ namespace loops
         const uint32_t exp_bits = (bits >> 13) & UINT32_C(0x00007C00);
         const uint32_t mantissa_bits = bits & UINT32_C(0x00000FFF);
         const uint32_t nonsign = exp_bits + mantissa_bits;
-        return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
+        return (uint16_t)((sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign));
     }
 
     static inline float fp16_ieee_to_fp32_value(uint16_t h) 
@@ -280,7 +280,7 @@ namespace loops
     Context ExtractContext(const Expr& arg)
     {
         Expr arg_(arg);
-        return verify_owner({arg_})->getContext()->getOwner();
+        return verify_owner({arg_})->getContext()->getPublicInterface();
     }
 
     void newiopNoret(int opcode, ::std::initializer_list<Expr> args)
@@ -317,7 +317,7 @@ namespace loops
 
     Context::Context() : impl(nullptr)
     {
-        ContextImpl* _impl = new ContextImpl(this);
+        ContextImpl* _impl = new ContextImpl();
         _impl->m_refcount = 1;
         impl = _impl;
     }
@@ -624,7 +624,7 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0), m_debug_mode(false) {
+    ContextImpl::ContextImpl() : Context(nullptr), m_refcount(0), m_debug_mode(false) {
 #if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
@@ -700,7 +700,7 @@ namespace loops
         }
         alloc->protect2Execution(exebuf);
     }
-    Context ContextImpl::getOwner()
+    Context ContextImpl::getPublicInterface()
     {
         Assert(m_refcount>0);
         //Trick to workaround abscence of makeWrapper function of Context as smartpointer.

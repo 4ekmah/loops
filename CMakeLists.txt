@@ -66,7 +66,7 @@ endforeach()
 
 #TODO(ch): configure warning policies. Separate these policies and store it in a corresponding articles. 
 if (MSVC)
-    target_compile_options(loops PRIVATE /W3 /WX)
+    target_compile_options(loops PRIVATE /W4 /WX)
     target_compile_options(testregress PRIVATE /W3 /WX)
 	foreach(example_fn ${examples})
 		get_filename_component(example_target ${example_fn} NAME_WLE)

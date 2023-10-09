@@ -22,9 +22,9 @@ but only if this nested register will be used after this redefinition.
 */
 struct LiveInterval
 {
-    size_t start, end;
+    int start, end;
     RegIdx idx;
-    LiveInterval(RegIdx a_idx, size_t a_start) : start(a_start), end(a_start), idx(a_idx) {}
+    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx) {}
 };
 
 struct startordering
@@ -55,41 +55,41 @@ private:
         enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
         int eventType;
         RegIdx idx;
-        size_t elsePos;
-        size_t oppositeNestingSide;
+        int elsePos;
+        int oppositeNestingSide;
         int basketNum;
-        LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(NONDEF), oppositeNestingSide(NONDEF) {}
-        LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(NONDEF), oppositeNestingSide(NONDEF), basketNum(RB_AMOUNT) {}
-        LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(NONDEF), oppositeNestingSide(NONDEF), basketNum(basketNum_) {}
+        LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER) {}
+        LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(RB_AMOUNT) {}
+        LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(basketNum_) {}
     };
     std::vector<std::vector<LiveInterval> > m_subintervals[RB_AMOUNT]; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
                                                                         //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
                                                                         //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
-    std::vector<size_t> m_subintervalHeaders[RB_AMOUNT];
-    std::deque<std::map<RegIdx, size_t> > m_active_headers_stack[RB_AMOUNT];
+    std::vector<int> m_subintervalHeaders[RB_AMOUNT];
+    std::deque<std::map<RegIdx, int> > m_active_headers_stack[RB_AMOUNT];
     void push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
-        , size_t a_endif);
+        , int a_endif);
     void pop_active_state();
-    std::map<RegIdx, size_t>::const_iterator acs_begin(int basketNum) const;
-    std::map<RegIdx, size_t>::const_iterator acs_end(int basketNum) const;
+    std::map<RegIdx, int>::const_iterator acs_begin(int basketNum) const;
+    std::map<RegIdx, int>::const_iterator acs_end(int basketNum) const;
     std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
     int m_snippetCausedSpills;
     bool m_haveFunctionCalls;
-    inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
-    inline size_t siAmount(int basketNum, RegIdx regNum) const;
+    inline int regAmount(int basketNum) const { return (int)m_subintervals[basketNum].size(); }
+    inline int siAmount(int basketNum, RegIdx regNum) const;
     inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
-    inline void def(int basketNum, RegIdx regNum, size_t opnum);
-    inline void use(int basketNum, RegIdx regNum, size_t opnum);
-    inline void spliceUntilSinum(int basketNum, RegIdx regNum, size_t siEnd, size_t siStart = -1);
-    inline size_t expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum, size_t siStart);
-    inline size_t deactivationOpnum(int basketNum, RegIdx regNum);
-    inline void initSubintervalHeaders(size_t initval = 0);
-    inline size_t getCurrentSinum(int basketNum, RegIdx regNum);
+    inline void def(int basketNum, RegIdx regNum, int opnum);
+    inline void use(int basketNum, RegIdx regNum, int opnum);
+    inline void spliceUntilSinum(int basketNum, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
+    inline int expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int siStart);
+    inline int deactivationOpnum(int basketNum, RegIdx regNum);
+    inline void initSubintervalHeaders(int initval = 0);
+    inline int getCurrentSinum(int basketNum, RegIdx regNum);
     inline LiveInterval& getCurrentSubinterval(int basketNum, RegIdx regNum);
     inline LiveInterval& getNextSubinterval(int basketNum, RegIdx regNum);
     inline bool isIterateable(int basketNum, RegIdx regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state.
     inline void iterateSubinterval(int basketNum, RegIdx regNum);
-    inline void moveEventLater(std::multimap<size_t, LAEvent>& queue, RegIdx regNum, int eventType, size_t oldOpnum, size_t newOpnum);
+    inline void moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum);
 };
 /*
 TODO(ch): Implement with RISC-V RVV

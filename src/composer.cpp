@@ -11,7 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, 0))
+Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, (uint8_t)0))
     , m_size(0)
     , m_bitpos(0)
     , m_startsize(NOTRANSACTION)
@@ -25,13 +25,13 @@ void Bitwriter::startInstruction()
     m_startsize = m_size;
 }
 
-void Bitwriter::writeToken(uint64_t a_token, size_t a_fieldwidth)
+void Bitwriter::writeToken(uint64_t a_token, int a_fieldwidth)
 {
     if (a_fieldwidth > 64)
         throw std::runtime_error("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
         throw std::runtime_error("Bitwriter: writing token out of instruction");
-    if(m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
+    if((int)m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
     uint8_t* buffer = &m_buffer->operator[](0);
     uint64_t body = m_bitpos ? ((uint64_t)(*(buffer + m_size))) << 56 : 0;
@@ -89,7 +89,7 @@ void Bitwriter::endInstruction()
     m_startsize = NOTRANSACTION;
 }
 
-uint64_t Bitwriter::revertToken(uint64_t a_tok, size_t dwidth)
+uint64_t Bitwriter::revertToken(uint64_t a_tok, int dwidth)
 {
     dwidth = (dwidth + 7) >> 3;
     size_t endpos = dwidth - 1;
@@ -100,7 +100,7 @@ uint64_t Bitwriter::revertToken(uint64_t a_tok, size_t dwidth)
     return a_tok;
 }
 
-BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
+BinTranslation::Token::Token(int tag, int fieldsize): tag(tag), srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
    ,width(fieldsize)
    ,fieldOflags(0)
 {
@@ -110,7 +110,7 @@ BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), srcArgnum(UND
         throw std::runtime_error("Binary translator: omit immediate must not have field width.");
 }
 
-BinTranslation::Token::Token(int tag, uint64_t val, size_t fieldsize):tag(tag)
+BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize):tag(tag)
    , width(fieldsize)
    , fieldOflags(val)
    , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)

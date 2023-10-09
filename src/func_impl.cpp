@@ -197,8 +197,8 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
 };
 
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
-    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
-    {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){}},
+    {OP_LABEL, [](::std::ostream& /*str*/, const Syntop& /*op*/, size_t, Backend*){}},
+    {OP_JCC, [](::std::ostream& /*str*/, const Syntop& /*op*/, size_t, Backend*){}},
     {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0]; }}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
     {OP_CALL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
         if (op.size() < 2 || op.args[0].tag == Arg::VREG)

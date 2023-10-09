@@ -45,6 +45,9 @@ namespace loops
     //operation wasn't taken from source operation.
     enum {UNDEFINED_ARGUMENT_NUMBER = -1};
 
+    //Number of operation in program.
+    enum {UNDEFINED_OPERATION_NUMBER = -1};
+
     template <typename _Tp>
     inline VReg<_Tp> vregHid(RegIdx a_idx, Func *a_func)
     {
@@ -336,7 +339,7 @@ namespace loops
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context *owner);
+        ContextImpl();
         void startFunc(const std::string &name, std::initializer_list<IReg *> params);
         void endFunc();
         Func getFunc(const std::string &name);
@@ -350,7 +353,7 @@ namespace loops
         int m_refcount;
         inline Func *getCurrentFunc() { return &m_currentFunc; }
         inline Backend *getBackend() { return m_backend.get(); }
-        Context getOwner();
+        Context getPublicInterface();
 
     private:
         bool m_debug_mode;
