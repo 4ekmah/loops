@@ -387,7 +387,7 @@ public:                                                                         
             getImpl(&func)->directTranslationOn();                              \
         }                                                                       \
     }                                                                           \
-    virtual bool testExecution(const std::string& fixName)                      \
+    virtual bool testExecution(const std::string& /*fixName*/)                  \
                                                      override                   \
     { return true; }                                                            \
     virtual std::vector<std::string> fixturesNames() const                      \

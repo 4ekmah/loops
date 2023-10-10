@@ -11,7 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "testregress/test_aarch64.hpp"
 #include "testregress/test_intel64.hpp"
 
-int main(int argc, char** argv)
+int main(int /*argc*/, char** /*argv*/)
 {
     loops::TestSuite* suite = loops::TestSuite::getInstance();
     suite->run(false);

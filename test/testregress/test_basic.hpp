@@ -626,7 +626,7 @@ LTESTexe(snake, {
     std::string dprint = get_test_ostream_result();
     reset_test_ostream();
     int diagamount = (h + w - 1);
-    int curvalue = 0;
+    uint8_t curvalue = 0;
     int curdx = 1;
     int curdy = -1;
     for(int dn = 0; dn < diagamount; dn++)

@@ -25,11 +25,53 @@ void free_context(loops_context ctx)
     delete ((loops::Context*)(ctx));
 }
 
+#if __LOOPS_ARCH != __LOOPS_AARCH64
+dwconv_f32_t generate_dwc_f32(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/, int /*activation_type*/, float /*alpha*/)
+{
+    return 0;
+}
+
+void calc_dwc_algs_limits_f32(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+{
+    *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    return;
+}
+
+dwconv_f16_t generate_dwc_f16(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/, int /*activation_type*/, float /*alpha*/)
+{
+    return 0;
+}
+
+void calc_dwc_algs_limits_f16(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+{
+    *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    return;
+}
+
+maxpool_f32_t generate_maxpool_f32(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/, int /*activation_type*/, float /*alpha*/)
+{
+    return 0;
+}
+
+void calc_maxpool_algs_limits_f32(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+{
+    *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    return;
+}
+
+maxpool_f16_t generate_maxpool_f16(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/, int /*activation_type*/, float /*alpha*/)
+{
+    return 0;
+}
+
+void calc_maxpool_algs_limits_f16(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+{
+    *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    return;
+}
+#else
 dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        return 0;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
@@ -43,15 +85,10 @@ dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top
     {
         return 0; 
     };
-#endif 
 }
 
 void calc_dwc_algs_limits_f32(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
-        return;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
        H <= 0 ||
@@ -77,14 +114,10 @@ void calc_dwc_algs_limits_f32(loops_context ctx, dwc_algs_limits* out, int NC, i
     }
     *out = loops::DepthwiseconvGenerator<float>(CTX).calc_dwc_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     return;
-#endif
 }
 
 dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        return 0;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
@@ -98,15 +131,10 @@ dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top
     {
         return 0;
     };
-#endif 
 }
 
 void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
-        return;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
        H <= 0 ||
@@ -132,14 +160,10 @@ void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, i
     }
     *out = loops::DepthwiseconvGenerator<loops::f16_t>(CTX).calc_dwc_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     return;
-#endif
 }
 
 maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        return 0;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
@@ -153,15 +177,10 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
     {
         return 0;
     };
-#endif 
 }
 
 void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
-        return;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
        H <= 0 ||
@@ -187,14 +206,10 @@ void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out
     }
     *out = loops::MaxpoolGenerator<float>(CTX).calc_maxpool_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     return;
-#endif
 }
 
 maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x, int activation_type, float alpha)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        return 0;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(kh <= 0 || kw <= 0 || padding_top < 0 || padding_left < 0 || padding_bottom < 0 || padding_right < 0 ||
        kh * kw > 39*39 || stride_x < 1 || stride_y < 1 || dilation_x != 1 || dilation_y != 1 ||
@@ -208,15 +223,10 @@ maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int paddin
     {
         return 0;
     };
-#endif 
 }
 
 void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
-        *out = dwc_algs_limits(0,0,0,0,0,0,0,0,0,0);
-        return;
-#else
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
        H <= 0 ||
@@ -242,8 +252,8 @@ void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out
     }
     *out = loops::MaxpoolGenerator<loops::f16_t>(CTX).calc_maxpool_algs_limits(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     return;
-#endif
 }
+#endif
 
 bool good_alg_limits(struct dwc_algs_limits* out)
 {

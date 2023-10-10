@@ -47,7 +47,7 @@ loops::Func genminmaxloc(loops::Context& CTX)
     return CTX.getFunc("minmaxloc");
 }
 
-int main(int argc, char** argv)
+int main(int /*argc*/, char** /*argv*/)
 {
     loops::Context CTX;
     loops::Func mmlfunc = genminmaxloc(CTX);
@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
     mmlfunc.printBytecode(std::cout);
     std::string platform = CTX.getPlatformName();
-    std::transform(platform.begin(), platform.end(), platform.begin(), ::toupper);
+    std::transform(platform.begin(), platform.end(), platform.begin(), [](char t) {return (char)::toupper(t); });
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;
     mmlfunc.printAssembly(std::cout);
     std::cout << "======--FUNCTION-OUTPUT---=======" << std::endl;
