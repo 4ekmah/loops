@@ -56,9 +56,9 @@ add_executable(testperf ${testperf_hdrs} ${testperf_srcs} ${loopslayers_hdrs}
               "${CMAKE_CURRENT_SOURCE_DIR}/test/testperf.cpp")
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/include")
 include_directories(testperf "${CMAKE_CURRENT_SOURCE_DIR}/test")
-target_link_libraries(testperf loops loopslayers "-lpthread")
+target_link_libraries(testperf loops loopslayers)
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    target_compile_options(testperf PRIVATE "-march=armv8.2-a+fp16+dotprod")
+    target_compile_options(testperf PRIVATE "-lpthread -march=armv8.2-a+fp16+dotprod")
 endif()
 
 if (MSVC)

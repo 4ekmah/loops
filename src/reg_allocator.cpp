@@ -1142,7 +1142,6 @@ namespace loops
                 }
                 case (LAEvent::LAE_ENDLOOP):
                 {
-                    const int whilePos = event.oppositeNestingSide;
                     const int endwhilePos = opnum;
                     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     {

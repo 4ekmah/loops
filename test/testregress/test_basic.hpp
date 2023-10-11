@@ -487,7 +487,8 @@ LTESTexe(bresenham, {
 
 LTEST(conditionpainter, {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1, w = xmax - xmin + 1;
+    // const int h = ymax - ymin + 1;
+    const int w = xmax - xmin + 1;
     IReg ptr;
     USE_CONTEXT_(CTX);
     STARTFUNC_(TESTNAME, &ptr)
@@ -515,7 +516,8 @@ LTEST(conditionpainter, {
 void conditionpainter_ref(int64_t* ptr)
 {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1, w = xmax - xmin + 1;
+    // const int h = ymax - ymin + 1
+    const int w = xmax - xmin + 1;
     for(int y = ymin; y <= ymax; y++)
         for(int x = xmin; x <= xmax; x++)
         {
