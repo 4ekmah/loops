@@ -20,7 +20,10 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-    CodeCollecting::CodeCollecting(Syntfunc &a_data, Func *a_func) : CompilerPass(((FuncImpl *)a_func)->getContext()->getBackend()), m_data(a_data), m_func(a_func), m_returnType(RT_NOTDEFINED)
+    CodeCollecting::CodeCollecting(Syntfunc &a_data, Func *a_func) : CompilerPass(((FuncImpl *)a_func)->getContext()->getBackend())
+        , m_func(a_func)
+        , m_data(a_data)
+        , m_returnType(RT_NOTDEFINED)
     {
     }
     void CodeCollecting::loadvec_deinterleave2_(Arg &res1, Arg &res2, const Expr &base)
@@ -305,7 +308,7 @@ namespace loops
             res.tag = expr.is_vector() ? Arg::VREG : Arg::IREG;
             res.elemtype = expr.type();
             args.push_back(res);
-            for (int child_num = 0; child_num < expr.children().size(); child_num++)
+            for (int child_num = 0; child_num < (int)expr.children().size(); child_num++)
                 args.push_back(unpack_expr(expr.children()[child_num], 0, &outbuf));
             Syntop toAdd(expr.opcode(), args);
             outbuf.program.emplace_back(toAdd);
@@ -372,20 +375,20 @@ namespace loops
 
         // 1.) Delete chains "JMP x , JMP y"
         int targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size();)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
         {
             int opcode = condition_buffer.program[opnum].opcode;
             condition_buffer.program[targetOpnum++] = condition_buffer.program[opnum++];
             if (opcode == OP_JMP)
-                while (opnum < condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP)
+                while (opnum < (int)condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP)
                     opnum++;
         }
         condition_buffer.program.resize(targetOpnum);
         // 2.) Delete chains "JMP x, LABEL x"
         targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size();)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
         {
-            if (opnum + 1 < condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP &&
+            if (opnum + 1 < (int)condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP &&
                 condition_buffer.program[opnum + 1].opcode == OP_LABEL && condition_buffer.program[opnum][0].value == condition_buffer.program[opnum + 1][0].value)
             {
                 opnum++;
@@ -397,7 +400,7 @@ namespace loops
         // 3.) Delete consecutive labels
         std::unordered_map<int, int> labelRenaming;
         targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             if (opnum > 0 && condition_buffer.program[opnum].opcode == OP_LABEL && condition_buffer.program[opnum - 1].opcode == OP_LABEL)
             {
@@ -408,7 +411,7 @@ namespace loops
             targetOpnum++;
         }
         condition_buffer.program.resize(targetOpnum);
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             int opcode = condition_buffer.program[opnum].opcode;
             if (opcode == OP_JCC || opcode == OP_JMP)
@@ -427,21 +430,21 @@ namespace loops
             std::unordered_set<int> used_labels;
             used_labels.insert(1);
             // 4.) Delete non-used labels.
-            for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
             {
                 int opcode = condition_buffer.program[opnum].opcode;
                 if (opcode == OP_JCC || opcode == OP_JMP)
                     used_labels.insert((int)condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value);
             }
             targetOpnum = 0;
-            for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
             {
                 if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find((int)condition_buffer.program[opnum][0].value) == used_labels.end())
                     continue;
                 condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
                 targetOpnum++;
             }
-            if (targetOpnum != condition_buffer.program.size())
+            if (targetOpnum != (int)condition_buffer.program.size())
             {
                 condition_buffer.program.resize(targetOpnum);
                 changed = true;
@@ -449,9 +452,9 @@ namespace loops
             // 5.) Transform sequences J(Cond, label0);  J(label1) ; label0: -> J(!Cond, label1); label0:
             targetOpnum = 0;
 
-            for (int opnum = 0; opnum < condition_buffer.program.size();)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
             {
-                if (opnum + 2 < condition_buffer.program.size() &&
+                if (opnum + 2 < (int)condition_buffer.program.size() &&
                     condition_buffer.program[opnum].opcode == OP_JCC &&
                     condition_buffer.program[opnum + 1].opcode == OP_JMP &&
                     condition_buffer.program[opnum + 2].opcode == OP_LABEL &&
@@ -475,7 +478,7 @@ namespace loops
         std::unordered_map<int, int> used_labels;
         used_labels.insert(std::pair<int, int>(0, true_jmp));
         used_labels.insert(std::pair<int, int>(1, false_jmp));
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             Syntop &op = condition_buffer.program[opnum];
             if (op.opcode == OP_LABEL || op.opcode == OP_JCC || op.opcode == OP_JMP)

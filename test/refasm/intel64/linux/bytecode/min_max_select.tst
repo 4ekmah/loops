@@ -29,19 +29,18 @@ min_max_select(i0, i1, i2, i3)
     27 : add       i0, i0, 4    
     28 : jmp       0            
     29 : label 2:               
-    30 : mov       i7, 4        
-    31 : unspill   i13, 7       
-    32 : mov       i7, i13      
-    33 : sar       i7, i7, 2    
-    34 : unspill   i13, 6       
-    35 : mov       i6, i13      
-    36 : sar       i6, i6, 2    
-    37 : unspill   i13, 5       
-    38 : store.i32 i13, i7      
-    39 : unspill   i13, 4       
-    40 : store.i32 i13, i6      
-    41 : mov       i0, 0        
-    42 : unspill   i12, 8       
-    43 : unspill   i13, 9       
-    44 : add       i4, i4, 88   
-    45 : ret                    
+    30 : unspill   i13, 7       
+    31 : mov       i7, i13      
+    32 : sar       i7, i7, 2    
+    33 : unspill   i13, 6       
+    34 : mov       i6, i13      
+    35 : sar       i6, i6, 2    
+    36 : unspill   i13, 5       
+    37 : store.i32 i13, i7      
+    38 : unspill   i13, 4       
+    39 : store.i32 i13, i6      
+    40 : mov       i0, 0        
+    41 : unspill   i12, 8       
+    42 : unspill   i13, 9       
+    43 : add       i4, i4, 88   
+    44 : ret                    

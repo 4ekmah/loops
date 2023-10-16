@@ -2213,7 +2213,7 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
     a2hPass.process(*((Syntfunc*)(nullptr)), toP);
     const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* )
+    return [buffer](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
@@ -2223,7 +2223,7 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 
 Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
+    return [](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
     {
         Arg arg = toPrint[argNum];
         if (arg.flags & AF_PRINTOFFSET)

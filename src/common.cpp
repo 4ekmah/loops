@@ -221,15 +221,17 @@ namespace loops
         Func* inferedfunc = preinfered ? preinfered : func();
         if(!is_leaf())
         {
-            for(int i = 0; i < children().size() && inferedfunc == nullptr; i++) 
+            for(int i = 0; i < (int)children().size() && inferedfunc == nullptr; i++) 
                 if(children()[i].func() != nullptr)
                     inferedfunc = children()[i].func();
             if(inferedfunc)
+            {
                 for(Expr& child : children())
                     if(child.func() == nullptr)
                         child.infer_owner(inferedfunc);
                     else if(child.func() != inferedfunc)
                         throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }
         }
         if(inferedfunc)
             func() = inferedfunc;

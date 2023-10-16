@@ -337,7 +337,7 @@ namespace loops
             const int64_t loff = static_cast<int64_t>(label_map[label.first]);
             for (label_ref_info &lref : label.second)
             {
-                if (lref.opnum >= a_dest.program.size())
+                if (lref.opnum >= (int)a_dest.program.size())
                     throw std::runtime_error("Internal error: operation number is too big");
                 if (lref.argnum >= a_dest.program[lref.opnum].size())
                     throw std::runtime_error("Internal error: operation don't have so much arguments");
@@ -360,7 +360,11 @@ namespace loops
         return m_bitstream.buffer();
     }
 
-    Pipeline::Pipeline(Backend *a_backend, Func *a_func, const std::string &name, std::initializer_list<IReg *> params) : m_backend(a_backend), m_codecol(m_data, a_func), m_func(a_func), m_mode(PM_REGULAR), m_current_pass(0)
+    Pipeline::Pipeline(Backend *a_backend, Func *a_func, const std::string &name, std::initializer_list<IReg *> params) : m_codecol(m_data, a_func)
+        , m_backend(a_backend)
+        , m_func(a_func)
+        , m_current_pass(0)
+        , m_mode(PM_REGULAR)
     {
         m_data.name = name;
         m_data.params.reserve(params.size());

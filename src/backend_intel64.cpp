@@ -1206,7 +1206,7 @@ namespace loops
             std::set<int> res = toFilter;
             res.erase(1);
             res = (res.size() < 2) ? res : std::set<int>({ 0 });
-            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && res.count(0) || res.count(1))
+            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && (res.count(0) || res.count(1)))
             {
                 res.insert(0);
                 res.insert(1);
@@ -1430,7 +1430,7 @@ namespace loops
                 {
                     outRegs = actualRegs = makeBitmask64({ 0 });
                     inRegs = makeBitmask64({});
-                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
+                    for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
                     {
                         inRegs |= ((uint64_t)(1) << arnum);
                         actualRegs |= ((uint64_t)(1) << arnum);
@@ -1585,7 +1585,7 @@ namespace loops
         a2hPass.process(*((Syntfunc*)(nullptr)), toP);
         const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-        return [buffer, posNsizes](::std::ostream& out, const Syntop& /*toPrint*/, size_t rowNum, Backend*)
+        return [buffer, posNsizes](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend*)
         {
             uint8_t* hexfield = &((*buffer)[0]) + posNsizes[rowNum].first;
             for (size_t pos = 0; pos < posNsizes[rowNum].second; pos++)
@@ -1606,7 +1606,7 @@ namespace loops
             numbersAtPositions[oppos] = opnum;
             oppos += opsize;
         }
-        return [numbersAtPositions, positions](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
+        return [numbersAtPositions, positions](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
         {
             Arg arg = toPrint[argNum];
             if (arg.flags & AF_PRINTOFFSET)
@@ -1634,14 +1634,20 @@ namespace loops
             }
             case Arg::IIMMEDIATE:
                 if (arg.value == 0)
+                {
                     out << "#0";
+                }
                 else
-                    out << "#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value; break;
+                    out << "#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value;
+                break;
             case Arg::ISPILLED:
                 if (arg.value == 0)
+                {
                     out << "[rsp]";
+                }
                 else
-                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]"; break;
+                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]";
+                break;
             default:
                 throw std::runtime_error("Undefined argument type.");
             };
@@ -1914,9 +1920,11 @@ namespace loops
                 allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
                 allSaved.insert(returnRegisters.begin(), returnRegisters.end());
                 allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
-                Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= (parameterRegisters.size() + 2) ||
-                    op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= (parameterRegisters.size() + 1));
+                Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
+                       (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
+#if __LOOPS_OS == __LOOPS_WINDOWS
                 Arg sp = argReg(RB_INT, RSP);
+#endif        
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
@@ -1924,7 +1932,7 @@ namespace loops
                 //1.) Save scalar registers
                 {
                     auto iter = allSaved.begin();
-                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                    for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                     {
                         a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(i), argReg(RB_INT,  *iter)}));
                         if(*iter == addrkeeper.idx)
@@ -1966,7 +1974,7 @@ namespace loops
                 //5.) Restore scalar registers
                 {
                     auto iter = allSaved.begin();
-                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                    for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                         if(op.opcode == OP_CALL_NORET || *iter != retidx)
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
 

@@ -41,55 +41,18 @@ class LivenessAnalysisAlgo : public CompilerPass
 {
 public:
     LivenessAnalysisAlgo(const Backend* a_owner);
-    std::vector<LiveInterval>* live_intervals() { return m_liveintervals; }
-    virtual ~LivenessAnalysisAlgo() override {}
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
-    virtual bool is_inplace() const override final { return true; }
-    virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
+    virtual ~LivenessAnalysisAlgo();
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
+        virtual bool is_inplace() const override final { return true; }
+        virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
 
-    inline int getSnippetCausedSpills() const { return m_snippetCausedSpills; }
-    inline bool haveFunctionCalls() const { return m_haveFunctionCalls; }
+    virtual std::vector<LiveInterval>* live_intervals();
+    virtual int getSnippetCausedSpills() const;
+    virtual bool haveFunctionCalls() const;
+protected:
+    LivenessAnalysisAlgo(const Backend* a_owner, int);
 private:
-    struct LAEvent //Liveness Analysis Event
-    {
-        enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
-        int eventType;
-        RegIdx idx;
-        int elsePos;
-        int oppositeNestingSide;
-        int basketNum;
-        LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER) {}
-        LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(RB_AMOUNT) {}
-        LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(basketNum_) {}
-    };
-    std::vector<std::vector<LiveInterval> > m_subintervals[RB_AMOUNT]; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
-                                                                        //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
-                                                                        //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
-    std::vector<int> m_subintervalHeaders[RB_AMOUNT];
-    std::deque<std::map<RegIdx, int> > m_active_headers_stack[RB_AMOUNT];
-    void push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
-        , int a_endif);
-    void pop_active_state();
-    std::map<RegIdx, int>::const_iterator acs_begin(int basketNum) const;
-    std::map<RegIdx, int>::const_iterator acs_end(int basketNum) const;
-    std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
-    int m_snippetCausedSpills;
-    bool m_haveFunctionCalls;
-    inline int regAmount(int basketNum) const { return (int)m_subintervals[basketNum].size(); }
-    inline int siAmount(int basketNum, RegIdx regNum) const;
-    inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
-    inline void def(int basketNum, RegIdx regNum, int opnum);
-    inline void use(int basketNum, RegIdx regNum, int opnum);
-    inline void spliceUntilSinum(int basketNum, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
-    inline int expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int siStart);
-    inline int deactivationOpnum(int basketNum, RegIdx regNum);
-    inline void initSubintervalHeaders(int initval = 0);
-    inline int getCurrentSinum(int basketNum, RegIdx regNum);
-    inline LiveInterval& getCurrentSubinterval(int basketNum, RegIdx regNum);
-    inline LiveInterval& getNextSubinterval(int basketNum, RegIdx regNum);
-    inline bool isIterateable(int basketNum, RegIdx regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state.
-    inline void iterateSubinterval(int basketNum, RegIdx regNum);
-    inline void moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum);
+    LivenessAnalysisAlgo* impl;
 };
 /*
 TODO(ch): Implement with RISC-V RVV
@@ -130,7 +93,7 @@ private:
     Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
     // register to be erased from all of them.
-    void removeFromAllVessels(int basketNum, size_t reg);
+    void removeFromAllVessels(int basketNum, int reg);
 
     enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
     enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.

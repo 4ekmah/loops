@@ -242,7 +242,7 @@ void TestSuite::run(bool rewriteListings)
     }
 }
 
-TestSuite::TestSuite(std::ostream& a_out) : m_out(&a_out), CTX()
+TestSuite::TestSuite(std::ostream& a_out) : CTX(), m_out(&a_out)
 {
     CTX.debugModeOn();
     getImpl(&CTX)->getBackend()->switchOnSpillStressMode();

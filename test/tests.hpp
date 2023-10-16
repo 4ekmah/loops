@@ -29,7 +29,7 @@ namespace loops
 class Test
 {
 public:
-    Test(std::ostream& out, Context& ctx): m_out(&out), CTX(ctx) {}
+    Test(std::ostream& out, Context& ctx): CTX(ctx), m_out(&out) {}
     virtual void generateCode() = 0;
     virtual bool testExecution(const std::string& fixName) = 0;
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);

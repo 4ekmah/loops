@@ -78,11 +78,11 @@ public:
 protected:
     struct label_ref_info
     {
-        size_t opnum;
-        size_t argnum;
-        size_t opoffset;
+        int opnum;
+        int argnum;
+        int opoffset;
         label_ref_info() : opnum(0), argnum(0), opoffset(0) {}
-        label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset) : opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
+        label_ref_info(int a_opnum, int a_argnum, int a_opoffset) : opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
     };
 };
 

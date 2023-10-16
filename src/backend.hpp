@@ -134,7 +134,7 @@ public:
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
-    inline size_t instructionWidth() const { return m_instructionWidth; }
+    inline int instructionWidth() const { return m_instructionWidth; }
     inline size_t offsetShift() const { return m_offsetShift; }
     inline int callerStackIncrement() const { return m_callerStackIncrement; }
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
@@ -164,7 +164,7 @@ protected:
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;
     bool m_postInstructionOffset;
-    size_t m_instructionWidth;
+    int m_instructionWidth;
     size_t m_offsetShift;
     int m_callerStackIncrement;
     size_t m_registersAmount;

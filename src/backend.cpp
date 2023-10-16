@@ -72,7 +72,7 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
     for(;res< (int)m_argsList.size(); ++res)
         if(m_argsList[res].tag == ArgTranslation::T_FROMSOURCE && m_argsList[res].srcArgnum == a_srcnum)
             break;
-    if (res == m_argsList.size())
+    if (res == (int)m_argsList.size())
         res = ARG_NOT_USED;
     return res;
 }
@@ -97,7 +97,7 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
         if (det.tag != BinTranslation::Token::T_STATIC && det.srcArgnum == argnum)
         {
             Assert(det.tag != BinTranslation::Token::T_REG);
-            size_t bitwneeded = msb64(val2BeFit);
+            int bitwneeded = msb64(val2BeFit);
             bitwneeded += neg ? 1 : 0;
             return (bitwneeded < det.width);
         }
@@ -198,12 +198,12 @@ SyntopTranslation STLookup(const Backend*, const Syntop&, bool&)
     throw std::runtime_error("Syntop translation table is not implemented.");
 }
 
-Backend::Backend() : m_isLittleEndianInstructions(true)
+Backend::Backend() : m_s2blookup(BTLookup)
+, m_s2slookup(STLookup)
+, m_isLittleEndianInstructions(true)
 , m_isLittleEndianOperands(false)
 , m_isMonowidthInstruction(false)
 , m_instructionWidth(0)
 , m_registersAmount(8)
-, m_s2blookup(BTLookup)
-, m_s2slookup(STLookup)
     {}
 };

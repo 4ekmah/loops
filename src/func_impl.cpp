@@ -46,177 +46,177 @@ static std::unordered_map<int, std::string> cond_suffixes = {
 };
 
 std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
-    {OP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_LOAD, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "load." << type_suffixes[op.args[0].elemtype];
     }},
-    {OP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_STORE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
         str << "store." << type_suffixes[_Tp];
     }},
-    {OP_JCC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_JCC, [](::std::ostream& str, const Syntop& op, int, Backend*){
         Assert(op.size() == 2 && op[0].tag == Arg::IIMMEDIATE && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)(op[0].value)) != cond_suffixes.end());
         str << "jmp_" << cond_suffixes[(int)op[0].value] << " "<< op[1].value;
     }},
-    {OP_LABEL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_LABEL, [](::std::ostream& str, const Syntop& op, int, Backend*){
         if (op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE)
             throw std::runtime_error("Wrong LABEL format");
         str << "label " << op.args[0] << ":";
     }},
-    {OP_SELECT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_SELECT, [](::std::ostream& str, const Syntop& op, int, Backend*){
         Assert(op.size() == 4 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
         str << "select_" << cond_suffixes[(int)op[1].value];
     }},
-    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, int, Backend*){
         Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
         str << "iverson_" << cond_suffixes[(int)op[1].value];
     }},
-    {VOP_LOAD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_LOAD, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "vld." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ARM_LD1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_LD1, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "vld_lane." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ARM_LD2, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_LD2, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "vld_deinterleave2." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_STORE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_STORE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         int _Tp = op.size() == 3 ? op[2].elemtype : op[1].elemtype;
         str << "vst." << type_suffixes[_Tp];
     }},
-    {VOP_ARM_ST1, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_ST1, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "vst_lane." << type_suffixes[op.args[1].elemtype];
     }},
-    {VOP_GETLANE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_GETLANE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "getlane." << type_suffixes[op.args[1].elemtype];
     }},
-    {VOP_SETLANE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SETLANE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "setlane." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ADD, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ADD, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "add." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_SUB, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SUB, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "sub." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_MUL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_MUL, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "mul." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_DIV, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_DIV, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "mul." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_FMA, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_FMA, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "fma." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ARM_EXT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_EXT, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "ext." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_SAL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SAL, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "sal." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_SHL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SHL, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "shl." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_SAR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SAR, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "sar." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_SHR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SHR, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "shr." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_NEG, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_NEG, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "neg." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_MIN, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "min." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_MAX, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_MAX, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "max." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_GT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_GT, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "gt." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_GE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_GE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "ge." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_LT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_LT, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "lt." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_LE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_LE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "le." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_NE, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_NE, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "ne." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_EQ, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_EQ, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "eq." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_TRUNC, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_TRUNC, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "trunc." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_FLOOR, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_FLOOR, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "floor." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_CAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_CAST, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "cast." << type_suffixes[op.args[1].elemtype] << "_" << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_BROADCAST, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "broadcast." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_CAST_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_CAST_LOW, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
     }},
-    {VOP_CAST_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_CAST_HIGH, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "cast." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
     }},
-    {VOP_SHRINK, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_SHRINK, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
     }},
-    {VOP_POPCOUNT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_POPCOUNT, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "popcount." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_ARM_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_SHRINK_LOW, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "arm_shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".low";
     }},
-    {VOP_ARM_SHRINK_HIGH, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_ARM_SHRINK_HIGH, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "arm_shrink." << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype]<<".high";
     }},
-    {VOP_REDUCE_MAX, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_REDUCE_MAX, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_REDUCE_MIN, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "reduce.max." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_REDUCE_SUM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_REDUCE_SUM, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "reduce.sum." << type_suffixes[op.args[0].elemtype];
     }},
-    {VOP_REDUCE_WSUM, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_REDUCE_WSUM, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "reduce.wmax" << type_suffixes[op.args[0].elemtype]<<".from."<<type_suffixes[op.args[1].elemtype];
     }},
-    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {VOP_DEF, [](::std::ostream& str, const Syntop& op, int, Backend*){
         str << "vdef." << type_suffixes[op.args[0].elemtype];
     }},
 };
 
 std::unordered_map<int, Printer::ColPrinter > argoverrules = {
-    {OP_LABEL, [](::std::ostream& /*str*/, const Syntop& /*op*/, size_t, Backend*){}},
-    {OP_JCC, [](::std::ostream& /*str*/, const Syntop& /*op*/, size_t, Backend*){}},
-    {VOP_DEF, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0]; }}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
-    {OP_CALL, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_LABEL, [](::std::ostream& /*str*/, const Syntop& /*op*/, int, Backend*){}},
+    {OP_JCC, [](::std::ostream& /*str*/, const Syntop& /*op*/, int, Backend*){}},
+    {VOP_DEF, [](::std::ostream& str, const Syntop& op, int, Backend*){ str<<op[0]; }}, //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
+    {OP_CALL, [](::std::ostream& str, const Syntop& op, int, Backend*){
         if (op.size() < 2 || op.args[0].tag == Arg::VREG)
             throw std::runtime_error("Wrong CALL format");
         str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
-        for(size_t anum = 2; anum < op.size(); anum++) str<<", "<<op[anum];
+        for(int anum = 2; anum < op.size(); anum++) str<<", "<<op[anum];
         str << ")";
     }},
-    {OP_CALL_NORET, [](::std::ostream& str, const Syntop& op, size_t, Backend*){
+    {OP_CALL_NORET, [](::std::ostream& str, const Syntop& op, int, Backend*){
         if (op.size() < 1 || op.args[0].tag == Arg::VREG)
             throw std::runtime_error("Wrong CALL_NORET format");
         str << "["; if(op.args[0].tag == Arg::IIMMEDIATE) print_address(str, op.args[0].value); else str << op.args[0]; str << "](";
-        for(size_t anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
+        for(int anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
         if(op.size() > 1) str<<op[op.size() - 1];
         str << ")";
     }},
-    {OP_SELECT, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0]<<", "<< op[2]<<", "<<op[3];}},
-    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, size_t, Backend*){ str<<op[0];}},
+    {OP_SELECT, [](::std::ostream& str, const Syntop& op, int, Backend*){ str<<op[0]<<", "<< op[2]<<", "<<op[3];}},
+    {OP_IVERSON, [](::std::ostream& str, const Syntop& op, int, Backend*){ str<<op[0];}},
 };
 
 std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create at every print?
@@ -286,9 +286,10 @@ std::unordered_map<int, std::string> opstrings = { //TODO(ch): will you create a
 };
 
 FuncImpl::FuncImpl(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params) : m_refcount(0) //TODO(ch): support vector parameters
+    , m_context(ctx) 
     , m_pipeline(std::make_shared<Pipeline>(ctx->getBackend(), this, name, params))
-    , m_context(ctx)
     , m_compiled(nullptr)
+    
     , m_directTranslation(false)
 {
 }

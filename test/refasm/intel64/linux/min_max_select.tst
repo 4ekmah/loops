@@ -27,19 +27,18 @@ min_max_select(i0, i1, i2, i3)
     25 : cmovl  rcx, r12         ; 49 0f 4c cc                          
     26 : add    rax, #0x04       ; 48 05 04 00 00 00                    
     27 : jmp    [11]             ; e9 ac ff ff ff                       
-    28 : mov    rdi, #0x04       ; 48 c7 c7 04 00 00 00                 
-    29 : mov    r13, [rsp+#0x38] ; 4c 8b ac 24 38 00 00 00              
-    30 : mov    rdi, r13         ; 4c 89 ef                             
-    31 : sar    rdi, #0x02       ; 48 c1 ff 02                          
-    32 : mov    r13, [rsp+#0x30] ; 4c 8b ac 24 30 00 00 00              
-    33 : mov    rsi, r13         ; 4c 89 ee                             
-    34 : sar    rsi, #0x02       ; 48 c1 fe 02                          
-    35 : mov    r13, [rsp+#0x28] ; 4c 8b ac 24 28 00 00 00              
-    36 : mov    [r13], edi       ; 41 89 7d 00                          
-    37 : mov    r13, [rsp+#0x20] ; 4c 8b ac 24 20 00 00 00              
-    38 : mov    [r13], esi       ; 41 89 75 00                          
-    39 : xor    rax, rax         ; 48 31 c0                             
-    40 : mov    r12, [rsp+#0x40] ; 4c 8b a4 24 40 00 00 00              
-    41 : mov    r13, [rsp+#0x48] ; 4c 8b ac 24 48 00 00 00              
-    42 : add    rsp, #0x58       ; 48 81 c4 58 00 00 00                 
-    43 : ret                     ; c3                                   
+    28 : mov    r13, [rsp+#0x38] ; 4c 8b ac 24 38 00 00 00              
+    29 : mov    rdi, r13         ; 4c 89 ef                             
+    30 : sar    rdi, #0x02       ; 48 c1 ff 02                          
+    31 : mov    r13, [rsp+#0x30] ; 4c 8b ac 24 30 00 00 00              
+    32 : mov    rsi, r13         ; 4c 89 ee                             
+    33 : sar    rsi, #0x02       ; 48 c1 fe 02                          
+    34 : mov    r13, [rsp+#0x28] ; 4c 8b ac 24 28 00 00 00              
+    35 : mov    [r13], edi       ; 41 89 7d 00                          
+    36 : mov    r13, [rsp+#0x20] ; 4c 8b ac 24 20 00 00 00              
+    37 : mov    [r13], esi       ; 41 89 75 00                          
+    38 : xor    rax, rax         ; 48 31 c0                             
+    39 : mov    r12, [rsp+#0x40] ; 4c 8b a4 24 40 00 00 00              
+    40 : mov    r13, [rsp+#0x48] ; 4c 8b ac 24 48 00 00 00              
+    41 : add    rsp, #0x58       ; 48 81 c4 58 00 00 00                 
+    42 : ret                     ; c3                                   

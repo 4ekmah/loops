@@ -20,7 +20,6 @@ PTEST_1(exponentiation_by_squaring, int64_t, _p, {
     IReg ptrA, n, ptrPow;
     STARTFUNC_(TESTNAME, &ptrA, &n, &ptrPow)
     {
-        IReg res = CONST_(1);
         IReg offset = CONST_(0);
         IReg i = CONST_(0);
         WHILE_(i < n)

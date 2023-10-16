@@ -11,11 +11,11 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, (uint8_t)0))
+Bitwriter::Bitwriter(const Backend* a_backend) : m_backend(a_backend)
+    , m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, (uint8_t)0))
     , m_size(0)
     , m_bitpos(0)
     , m_startsize(NOTRANSACTION)
-    , m_backend(a_backend)
 {}
 
 void Bitwriter::startInstruction()
@@ -72,7 +72,7 @@ void Bitwriter::endInstruction()
 
     if(m_backend->isMonowidthInstruction())
     {
-        const size_t instrsize = m_backend->instructionWidth();
+        const int instrsize = m_backend->instructionWidth();
         if (m_size - m_startsize != instrsize)
             throw std::runtime_error("Bitwriter: non-standard instruction width.");
     }
@@ -80,8 +80,8 @@ void Bitwriter::endInstruction()
     {
         if(m_size > m_startsize + 1)
         {
-            size_t lesser = m_startsize;
-            size_t bigger = m_size - 1;
+            int lesser = m_startsize;
+            int bigger = m_size - 1;
             for(;lesser<bigger;++lesser,--bigger)
                 std::swap(m_buffer->operator[](lesser), m_buffer->operator[](bigger));
         }
@@ -92,17 +92,18 @@ void Bitwriter::endInstruction()
 uint64_t Bitwriter::revertToken(uint64_t a_tok, int dwidth)
 {
     dwidth = (dwidth + 7) >> 3;
-    size_t endpos = dwidth - 1;
+    int endpos = dwidth - 1;
     dwidth = dwidth >> 1;
     uint8_t* bytearr = reinterpret_cast<uint8_t*>(&a_tok);
-    for (size_t p1 = 0; p1 < dwidth; p1++)
+    for (int p1 = 0; p1 < dwidth; p1++)
         std::swap(bytearr[p1], bytearr[endpos - p1]);
     return a_tok;
 }
 
-BinTranslation::Token::Token(int tag, int fieldsize): tag(tag), srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
-   ,width(fieldsize)
-   ,fieldOflags(0)
+BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
+   , width(fieldsize)
+   , fieldOflags(0)
+   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMIT)
         throw std::runtime_error("Binary translator: wrong token constructor.");

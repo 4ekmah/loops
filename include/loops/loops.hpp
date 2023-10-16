@@ -248,7 +248,7 @@ struct Arg
     template<typename _Tp>
     Arg(const VReg<_Tp>& vr);
     int idx;
-    size_t tag;
+    int tag;
     int64_t value;
     uint64_t flags;
     int elemtype;

@@ -113,9 +113,8 @@ LTEST(min_max_select, {
             maxval = max(x, maxval);
             i += sizeof(int);
         }
-        IReg elemsize = CONST_(sizeof(int));
-        minpos >>= 2;// sizeof(int);
-        maxpos >>= 2;// sizeof(int);
+        minpos >>= 2;// * sizeof(int);
+        maxpos >>= 2;// * sizeof(int);
         store_<int>(minpos_addr, minpos);
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
@@ -720,7 +719,7 @@ LTESTexe(sort_double, {
     std::vector<double> arr_ref = arr;
     tested(&(arr[0]), arr.size());
     std::sort(arr_ref.begin(), arr_ref.end());
-    for(int pos = 0; pos < arr_ref.size(); pos++)
+    for(int pos = 0; pos < (int)arr_ref.size(); pos++)
         EXPECT_EQ(arr[pos], arr_ref[pos]);
     });
 };

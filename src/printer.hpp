@@ -37,13 +37,13 @@ class Backend;
 class Printer
 {
     public:
-        typedef std::function<void(::std::ostream&, const Syntop&, size_t, Backend* )> ColPrinter;
-        typedef std::function<void(::std::ostream&, const Syntop&, size_t, size_t)> ArgPrinter;
+        typedef std::function<void(::std::ostream&, const Syntop&, int, Backend* )> ColPrinter;
+        typedef std::function<void(::std::ostream&, const Syntop&, int, int)> ArgPrinter;
         Printer(const std::vector<ColPrinter>& columns);
         void setBackend(Backend* a_backend) { m_backend = a_backend; }
-        void print(std::ostream& out, const Syntfunc& toPrint, bool printheader = true, size_t firstop = 0, size_t lastop = -1) const;
+        void print(std::ostream& out, const Syntfunc& toPrint, bool printheader = true, int firstop = 0, int lastop = -1) const;
         static ColPrinter colDelimeterPrinter();
-        static ColPrinter colNumPrinter(size_t firstRow = 0);
+        static ColPrinter colNumPrinter(int firstRow = 0);
         static ColPrinter colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules = std::unordered_map<int, Printer::ColPrinter >());
         static ColPrinter colArgListPrinter(const Syntfunc& suppfunc, const std::unordered_map<int, Printer::ColPrinter >& p_overrules = std::unordered_map<int, Printer::ColPrinter >());
     private:

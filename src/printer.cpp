@@ -23,18 +23,18 @@ void print_address(::std::ostream& str, int64_t addr)
 
 Printer::Printer(const std::vector<ColPrinter>& columns) : m_columns(columns), m_backend(nullptr) {}
 
-void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader, size_t firstop, size_t lastop) const
+void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader, int firstop, int lastop) const
 {
-    lastop = (lastop == -1) ? toPrint.program.size() : lastop;
-    if(lastop > toPrint.program.size())
+    lastop = (lastop == -1) ? (int)toPrint.program.size() : lastop;
+    if(lastop > (int)toPrint.program.size())
         throw std::runtime_error("Printer error: too far last operation.");
     if (printheader)
         printHeader(out, toPrint);
     std::vector<std::string> pdetails;
     std::vector<size_t> max_widthes(m_columns.size(), 0);
     pdetails.reserve(m_columns.size() * (lastop-firstop));
-    for(size_t rownum = firstop; rownum < lastop; rownum++)
-        for (size_t colnum = 0; colnum < m_columns.size(); colnum++)
+    for(int rownum = firstop; rownum < lastop; rownum++)
+        for (int colnum = 0; colnum < (int)m_columns.size(); colnum++)
         {
             ColPrinter& colprinter = const_cast<ColPrinter&>(m_columns[colnum]);
             std::string col;
@@ -45,17 +45,17 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
             max_widthes[colnum] = std::max(max_widthes[colnum], col.size());
             pdetails.push_back(col);
         }
-    for(size_t rownum = firstop; rownum < lastop; rownum++)
+    for(int rownum = firstop; rownum < lastop; rownum++)
     {
-        for (size_t colnum = 0; colnum < m_columns.size(); colnum++)
+        for (int colnum = 0; colnum < (int)m_columns.size(); colnum++)
             out << std::setw(max_widthes[colnum] + 1)<< std::left << pdetails[m_columns.size()*rownum + colnum];
         out << std::endl;
     }
 }
 
-Printer::ColPrinter Printer::colNumPrinter(size_t /*firstRow*/)
+Printer::ColPrinter Printer::colNumPrinter(int /*firstRow*/)
 {
-    return [](::std::ostream& out, const Syntop& /*toPrint*/, size_t rowNum, Backend*)
+    return [](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend*)
     {
         out << std::setw(6) << rowNum << " :";
     };
@@ -63,7 +63,7 @@ Printer::ColPrinter Printer::colNumPrinter(size_t /*firstRow*/)
 
 Printer::ColPrinter Printer::colDelimeterPrinter()
 {
-    return [](::std::ostream& out, const Syntop& /*toPrint*/, size_t /*rowNum*/, Backend* /*backend*/)
+    return [](::std::ostream& out, const Syntop& /*toPrint*/, int /*rowNum*/, Backend* /*backend*/)
     {
         out << ";";
     };
@@ -71,7 +71,7 @@ Printer::ColPrinter Printer::colDelimeterPrinter()
 
 Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
 {
-    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
+    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
@@ -86,18 +86,18 @@ Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std:
 
 Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const std::unordered_map<int, Printer::ColPrinter>& p_overrules)
 {
-    return [suppfunc, p_overrules](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* backend)
+    return [suppfunc, p_overrules](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
-            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, size_t /*rowNum*/, size_t argNum)
+            Printer::ArgPrinter argprinter = [](::std::ostream& out, const Syntop& toPrint, int /*rowNum*/, int argNum)
                 {
                     out<<toPrint[argNum];
                 };
             if(backend)
                 argprinter = backend->argPrinter(suppfunc); //TODO(ch): We shouldn't request printer at any row. It must be called once in start.
-            size_t aamount = toPrint.size();
-            for(size_t anum = 0; anum + 1 < aamount ; anum++)
+            int aamount = toPrint.size();
+            for(int anum = 0; anum + 1 < aamount ; anum++)
             {
                 if(toPrint[anum].flags & AF_NOPRINT)
                     continue;
@@ -115,7 +115,7 @@ Printer::ColPrinter Printer::colArgListPrinter(const Syntfunc& suppfunc, const s
 void Printer::printHeader(std::ostream& out, const Syntfunc& toPrint) const
 {
     out << toPrint.name << "(";
-    for (size_t argnum = 0; argnum + 1 < toPrint.params.size(); argnum++)
+    for (int argnum = 0; argnum + 1 < (int)toPrint.params.size(); argnum++)
         out << toPrint.params[argnum]  << ", ";
     if (toPrint.params.size())
         out<< toPrint.params.back();

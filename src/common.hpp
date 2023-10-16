@@ -276,13 +276,13 @@ namespace loops
 
         inline int size() const { return args_size; }
 
-        inline Arg &operator[](size_t anum)
+        inline Arg &operator[](int anum)
         {
             if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
-        inline const Arg &operator[](size_t anum) const
+        inline const Arg &operator[](int anum) const
         {
             if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
