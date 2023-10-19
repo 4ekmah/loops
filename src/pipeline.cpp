@@ -76,7 +76,7 @@ namespace loops
                 std::vector<Arg> attempts;
                 attempts.reserve(arnums.size());
                 RegIdx placeholderTop = 0;
-                for (size_t arNum : arnums)
+                for (int arNum : arnums)
                 {
                     Assert(op_probe[arNum].tag == Arg::IIMMEDIATE);
                     attempts.push_back(op_probe[arNum]);
@@ -277,7 +277,7 @@ namespace loops
     {
         std::unordered_map<size_t, size_t> label_map;
         std::unordered_map<size_t, std::vector<label_ref_info>> label_ref_map;
-        size_t current_offset = 0;
+        int current_offset = 0;
         a_dest.name = a_source.name;
         a_dest.params = a_source.params;
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -294,11 +294,11 @@ namespace loops
                 // TODO(ch): We need for this purposes something like label/offset manager with transparent logic.
                 // AArch64 supports only multiply-4 offsets,
                 // so, for compactification, they are divided by 4.
-                size_t current_offset_ = current_offset >> m_backend->offsetShift();
+                int current_offset_ = current_offset >> m_backend->offsetShift();
                 Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE) ||
                        (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
                 int64_t target_label = op[op.opcode == OP_JCC ? 1 : 0].value;
-                label_ref_map[target_label].emplace_back(a_dest.program.size(), 0, current_offset_);
+                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), 0, current_offset_);
                 Syntop toTransform(op);
                 toTransform[op.opcode == OP_JCC ? 1 : 0].value = current_offset_;
                 Syntop tarop = m_backend->lookS2s(toTransform).apply(toTransform, m_backend);
