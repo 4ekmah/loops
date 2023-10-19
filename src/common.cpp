@@ -604,6 +604,16 @@ namespace loops
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
+    Syntop& Syntop::operator=(const Syntop &fwho)
+    {
+        opcode = fwho.opcode;
+        args_size = fwho.args_size;
+        if(args_size > SYNTOP_ARGS_MAX)
+            throw std::runtime_error("Syntaxic operation: too much args!");
+        std::copy(fwho.begin(), fwho.end(), args);
+        return *this;
+    }
+
     Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size((int)a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)

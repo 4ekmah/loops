@@ -144,6 +144,6 @@ public:
     virtual void switchOnSpillStressMode() override final;
 };
 
-};
+}
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 #endif //__LOOPS_BACKEND_AARCH64_HPP__

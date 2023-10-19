@@ -85,7 +85,7 @@ namespace loops
         virtual void switchOnSpillStressMode() override final;
     };
 
-};
+}
 
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64
 #endif //__LOOPS_BACKEND_INTEL64_HPP__

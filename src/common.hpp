@@ -256,6 +256,7 @@ namespace loops
         int args_size;
         Syntop();
         Syntop(const Syntop &fwho);
+        Syntop& operator=(const Syntop &fwho);
         Syntop(int a_opcode, const std::vector<Arg> &a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args);
@@ -362,13 +363,13 @@ namespace loops
         std::shared_ptr<Backend> m_backend;
     };
 
-    inline Func *_getImpl(Func *wrapper) { return wrapper->impl; };
-    inline Context *_getImpl(Context *wrapper) { return wrapper->impl; };
+    inline Func *_getImpl(Func *wrapper) { return wrapper->impl; }
+    inline Context *_getImpl(Context *wrapper) { return wrapper->impl; }
     inline ContextImpl *getImpl(Context *wrapper)
     {
         Assert(wrapper);
         return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
-};
+}
 
 #endif //__LOOPS_COMMON_HPP__

@@ -1307,8 +1307,7 @@ namespace loops
             case (OP_SHR):
             case (OP_SAR):
                 Assert(a_op.size() == 3);
-                if (a_op[2].tag == Arg::IREG)
-                    return 1;
+                return a_op[2].tag == Arg::IREG ? 1 : 0;
             case (OP_ABS):
             case (OP_SIGN):
                 return 1;
@@ -2003,5 +2002,5 @@ namespace loops
 #error Unknown OS
 #endif
     }
-};
+}
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64

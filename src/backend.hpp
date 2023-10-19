@@ -79,7 +79,7 @@ namespace SyntopTranslationConstruction
         res.transitFlags = flags;
         return res;
     }
-};
+}
 
 class Backend
 {
@@ -192,5 +192,5 @@ SyntopTranslation Backend::lookS2s(const Syntop& index) const
     return ret;
 }
 
-};
+}
 #endif // __LOOPS_BACKEND_HPP__

@@ -247,7 +247,7 @@ TestSuite::TestSuite(std::ostream& a_out) : CTX(), m_out(&a_out)
     CTX.debugModeOn();
     getImpl(&CTX)->getBackend()->switchOnSpillStressMode();
 }
-};
+}
 
 bool memok(uint8_t* canvas, int64_t w, int64_t h)
 {

@@ -122,4 +122,4 @@ void Printer::printHeader(std::ostream& out, const Syntfunc& toPrint) const
     out << ")" << std::endl;
 }
 
-};
+}

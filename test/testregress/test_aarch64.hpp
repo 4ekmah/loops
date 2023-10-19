@@ -37,7 +37,7 @@ LTESTexe(ten_args_to_sum, {
     ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
     std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
     EXPECT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-    });
+    })
 
 LTEST(nullify_msb_lsb_v, {
     IReg iptr, omptr, olptr, n;
@@ -87,7 +87,7 @@ LTESTexe(nullify_msb_lsb_v, {
         EXPECT_EQ(msb[vnum], remsb);
         EXPECT_EQ(lsb[vnum], relsb);
     }
-    });
+    })
 
 enum {TBI_SCALARS, TBI_I8_0, TBI_I8_1, TBI_I16_0, TBI_I16_1, TBI_I32_0, TBI_I32_1, TBI_I64_0, TBI_I64_1, TBI_I64_2};
 LTEST(big_immediates, {
@@ -220,7 +220,7 @@ LTESTexe(big_immediates, {
     std::vector<uint64_t> i64_2(i64_2_ref.size(), 0);
     tested((void*)&(i64_2[0]), TBI_I64_2);
     for(int i = 0; i < i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
-});
+})
 
 //TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.
 
@@ -1378,6 +1378,6 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_CALL_NORET, { x15 });
 });
 #undef DEFINE_CERTAIN_REG
-};
+}
 #endif
 #endif// __LOOPS_ARCH == __LOOPS_AARCH64

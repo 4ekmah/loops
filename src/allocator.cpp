@@ -162,4 +162,4 @@ Allocator::~Allocator()
     while(m_table.begin() != m_table.end())
         free(m_table.begin()->first);
 }
-};
+}

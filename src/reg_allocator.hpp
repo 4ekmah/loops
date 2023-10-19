@@ -140,5 +140,5 @@ private:
     bool m_have_function_calls;
     int m_epilogueSize;
 };
-};
+}
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

@@ -380,4 +380,4 @@ void FuncImpl::endFunc()
     if (m_context->debug_mode())
         m_debug_pipeline = std::make_shared<Pipeline>(*(m_pipeline.get()));
 }
-};
+}

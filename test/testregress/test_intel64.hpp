@@ -61,7 +61,7 @@ namespace loops
             EXPECT_EQ(A[n] * B[n], mulArr[n]);
             EXPECT_EQ(A[n] / B[n], divArr[n]);
         }
-        });
+        })
 
 #define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
     LTESTcomposer(instruction_set_test, {
@@ -744,6 +744,6 @@ namespace loops
         newiopNoret(OP_CALL_NORET, { spilled32 });
         });
 #undef DEFINE_CERTAIN_REG
-};
+}
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__

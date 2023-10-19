@@ -206,4 +206,4 @@ Backend::Backend() : m_s2blookup(BTLookup)
 , m_instructionWidth(0)
 , m_registersAmount(8)
     {}
-};
+}

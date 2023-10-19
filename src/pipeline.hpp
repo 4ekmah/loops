@@ -132,5 +132,5 @@ private:
     std::vector<int> m_callerSavedRegistersO[RB_AMOUNT];
     std::vector<int> m_calleeSavedRegistersO[RB_AMOUNT];
 };
-};
+}
 #endif // __LOOPS_PIPELINE_HPP__

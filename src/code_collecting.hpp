@@ -89,5 +89,5 @@ inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Expr
     Syntop toAdd(opcode, args);
     m_data.program.push_back(toAdd);
 }
-};
+}
 #endif // __LOOPS_CODE_COLLECTING_HPP__

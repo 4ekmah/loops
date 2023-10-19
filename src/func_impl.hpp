@@ -66,5 +66,5 @@ inline FuncImpl* getImpl(Func* wrapper)
         throw std::runtime_error("Null context pointer.");
     return static_cast<FuncImpl*>(_getImpl(wrapper));
 }
-};
+}
 #endif // __LOOPS_FUNC_IMPL_HPP__

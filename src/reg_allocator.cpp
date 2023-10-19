@@ -1467,4 +1467,4 @@ namespace loops
     }
 
     LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner, int): CompilerPass(a_owner), impl(nullptr) {}
-};
+}

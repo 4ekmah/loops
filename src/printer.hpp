@@ -52,5 +52,5 @@ class Printer
         Backend* m_backend;
 };
 
-};
+}
 #endif//__LOOPS_PRINTER_HPP__

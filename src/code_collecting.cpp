@@ -580,4 +580,4 @@ namespace loops
         }
         m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, endif_to_reopen));
     }
-};
+}

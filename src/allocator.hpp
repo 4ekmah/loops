@@ -24,6 +24,6 @@ namespace loops
     private:
         std::unordered_map<uint8_t*, size_t> m_table; //[ptr] = size
     };
-};
+}
 
 #endif // __LOOPS_ALLOCATOR_HPP__

@@ -72,14 +72,14 @@ public:
     {
         std::shared_ptr<T> toAdd = std::make_shared<T>(*m_out, CTX);
         m_testList.push_back(std::static_pointer_cast<Test>(toAdd));
-    };
+    }
 private:
     std::list<std::shared_ptr<Test> > m_testList;
     Context CTX;
     std::ostream* m_out;
     TestSuite(std::ostream& a_out = std::cout);
 };
-};
+}
 
 struct Timer
 {

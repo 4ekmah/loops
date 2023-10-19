@@ -203,4 +203,4 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     bits->endInstruction();
     return;
 }
-};
+}

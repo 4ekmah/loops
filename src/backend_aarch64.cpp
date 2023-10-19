@@ -2534,5 +2534,5 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             break;
         }
 }
-};
+}
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64

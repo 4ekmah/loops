@@ -44,7 +44,7 @@ PTESTexe_1(exponentiation_by_squaring, int64_t, _p, {
         int tmp = static_cast<int>(::pow(X[n], _p));
         EXPECT_EQ(resArr[n], tmp);
     }
-});
+})
 
 PTESTfix_1(exponentiation_by_squaring, 0);
 PTESTfix_1(exponentiation_by_squaring, 1);
@@ -127,5 +127,5 @@ LTESTexe(exp_f32, {
     });
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 
-};
+}
 #endif//__LOOPS_TEST_MATH_HPP__
