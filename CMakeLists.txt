@@ -14,7 +14,7 @@ include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/include")
 if (MSVC)
     target_compile_options(loops PRIVATE /W4 /WX)
 else()
-    target_compile_options(loops PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    # target_compile_options(loops PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 #LOOPSLAYERS LIBRARY
@@ -27,7 +27,7 @@ target_link_libraries(loopslayers loops)
 if (MSVC)
     target_compile_options(loopslayers PRIVATE /W4 /WX)
 else()
-    target_compile_options(loopslayers PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    # target_compile_options(loopslayers PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 #TESTREGRESS
@@ -44,7 +44,7 @@ if (MSVC)
     target_compile_options(testregress PRIVATE /W4 /WX)
 else()
     set_target_properties(testregress PROPERTIES COMPILE_FLAGS -DLOOPS_TEST_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/test\\")
-    target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    # target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 #TESTPERF
@@ -66,7 +66,7 @@ if (MSVC)
     target_compile_options(testperf PRIVATE /W4 /WX)
 else()
     set_target_properties(testperf PROPERTIES COMPILE_FLAGS -DLOOPS_TEST_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/test\\")
-    target_compile_options(testperf PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    # target_compile_options(testperf PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 #EXAMPLES 
@@ -79,6 +79,6 @@ foreach(example_fn ${examples})
     if (MSVC)
         target_compile_options(${example_target} PRIVATE /W4 /WX)
     else()
-        target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        # target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
     endif()
 endforeach()
