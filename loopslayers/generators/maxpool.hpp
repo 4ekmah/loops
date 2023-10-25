@@ -915,6 +915,6 @@ IExpr MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
     else
         return m1*m2;
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 #endif //__LOOPS_MAXPOOL_HPP__

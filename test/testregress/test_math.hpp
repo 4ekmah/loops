@@ -81,7 +81,7 @@ PTESTexe_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
         _Tp tmp = static_cast<int>(::pow(v[vnum], _p));
         EXPECT_EQ(res_pow[vnum], tmp);
     }
-});
+})
 
 PTESTfix_2(exponentiation_by_squaring_v, uint32_t, 0);
 PTESTfix_2(exponentiation_by_squaring_v, uint32_t, 4);
@@ -124,7 +124,7 @@ LTESTexe(exp_f32, {
     tested(&dest[0], &src[0], src.size());
     for (size_t i = 0; i < src.size(); i++ )
         EXPECT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
-    });
+    })
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 
 }

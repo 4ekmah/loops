@@ -394,11 +394,10 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     if(perf)
     {
         Timer t;
-        int ret;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
             t.start();
-            ret = func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
+            func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
             t.stop();
         }
         if(compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
@@ -411,8 +410,7 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     }
     else
     {
-        int ret;
-        ret = func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
+        func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
         if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
         {
             (*out)<<"    FAILED!"<<std::endl;
@@ -521,8 +519,7 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
         std::vector<_Tp> outdata(H0*W0*NCtask * 3, empty_value);
         _Tp* optr = &(outdata[0]) + H0*W0*NCtask;
 
-        int ret;
-        ret = func(inptr + NC0 * H * W, H, W, NCtask, optr, H0, W0, algs_limits);
+        func(inptr + NC0 * H * W, H, W, NCtask, optr, H0, W0, algs_limits);
         if(!compare(&(outdata[0]), optrref + NC0 * H0 * W0, NCtask, H0, W0, empty_value))
         {
             (*out)<<"    FAILED! Portion " << ntask <<std::endl;
@@ -793,5 +790,5 @@ void MaxpoolTestImpl::run()
         }
     };
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

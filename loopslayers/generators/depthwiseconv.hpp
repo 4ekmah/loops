@@ -837,6 +837,6 @@ dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H,
     }
     return dwc_algs_limits(Cms, Cme, Cis, Cie, Yms, Yme, Yis, Yie, Xis, Xie);
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 #endif //__LOOPS_DEPTHWISECONV_HPP__

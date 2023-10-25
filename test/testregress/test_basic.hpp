@@ -681,7 +681,15 @@ LTESTexe(snake, {
 
 static int64_t lesser_dbl(int64_t a, int64_t b)
 {
-    return (*(double*)(&a)) < (*(double*)(&b));
+    union uconv_ //TODO: create general template for conversion. 
+    {
+        int64_t val64;
+        double val;
+        uconv_() : val64(0) {} 
+    } conv0, conv1;
+    conv0.val64 = a;
+    conv1.val64 = b;
+    return conv0.val < conv1.val;
 }
 LTEST(sort_double, {
     IReg ptr, n;

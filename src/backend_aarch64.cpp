@@ -1052,8 +1052,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_CNT):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
-        return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
+            return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        break;
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
@@ -1067,6 +1068,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_BLR):
         if(index.size() == 1 && index[0].tag == Arg::IREG)
             return BiT({ BTsta(0b1101011000111111000000, 22), BTreg(0, 5, In), BTsta(0b00000, 5) });
+        break;
     case (AARCH64_RET): return BiT({ BTsta(0x3597C0, 22), BTreg(0, 5, In), BTsta(0x0,5) });
     default:
         break;
@@ -2262,7 +2264,8 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& /*toP*/) const
                 if(arg.value == 0)
                     out << "#0";
                 else
-                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value; break;
+                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value;
+                break;
             default:
                 throw std::runtime_error("Undefined argument type.");
         };
@@ -2474,8 +2477,8 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case OP_CALL:
         case OP_CALL_NORET:
         {
-            Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10||
-                   op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10);
+            Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10) ||
+                   (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10) );
             Arg sp = argReg(RB_INT, SP);
             int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
             std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {

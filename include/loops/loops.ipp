@@ -397,9 +397,14 @@ IExpr __loops_def_(Context* CTX);
 template<typename _Tp>
 VExpr<_Tp> __loops_vconst_(Context* CTX, _Tp _val)
 {
-    int64_t val64 = 0;
-    *(reinterpret_cast<_Tp*>(&val64)) = _val;
-    Expr val(val64);
+    union uconv_
+    {
+        int64_t val64;
+        _Tp val;
+        uconv_() : val64(0) {} 
+    } conv;
+    conv.val = _val;
+    Expr val(conv.val64);
     __setfunc_by_context_(CTX, val);
     return VExpr<_Tp>(OP_MOV, {val});
 }

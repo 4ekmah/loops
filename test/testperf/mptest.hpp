@@ -21,7 +21,7 @@ protected:
     MaxpoolTest* impl;
     MaxpoolTest(): impl(nullptr) {}
 };
-};
+}
 
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 #endif //__LOOPS_MPTEST_HPP__

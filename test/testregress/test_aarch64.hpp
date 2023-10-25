@@ -102,7 +102,14 @@ LTEST(big_immediates, {
             store_<int64_t>(targetptr, CONST_(-32768)); targetptr += sizeof(uint64_t);
             store_<int64_t>(targetptr, CONST_(-32769)); targetptr += sizeof(uint64_t);
             store_<uint64_t>(targetptr, CONST_(0x5F3759DF)); targetptr += sizeof(uint64_t);
-            store_<uint64_t>(targetptr, CONST_(*((int64_t*)&e))); targetptr += sizeof(uint64_t);
+            union uconv_
+            {
+                uint64_t val64;
+                double val;
+                uconv_() : val64(0) {} 
+            } conv;
+            conv.val = e;
+            store_<uint64_t>(targetptr, CONST_(conv.val64)); targetptr += sizeof(uint64_t);
         }
         ELIF_(tasknum == TBI_I8_0)
         {
@@ -157,7 +164,14 @@ LTESTexe(big_immediates, {
     typedef void(*big_immediates_f)(void*, int64_t);
     big_immediates_f tested = reinterpret_cast<big_immediates_f>(EXEPTR);
     double e = 2.718281828459045235360287471352;
-    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, *((int64_t*)&e)};
+    union uconv_
+    {
+        int64_t val64;
+        double val;
+        uconv_() : val64(0) {} 
+    } conv;
+    conv.val = e;
+    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, conv.val64};
     std::vector<int64_t> scalars(scalars_ref.size(), 0);
     tested((void*)&(scalars[0]), TBI_SCALARS);
     for(int i = 0; i < (int)scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);

@@ -77,7 +77,14 @@ template<> struct DWCTestTraits<float> {
 
 inline __fp16 f16_t2armf16(f16_t tc)
 {
-    return *(reinterpret_cast<__fp16*>(&(tc.bits)));
+    union uconv_
+    {
+        uint16_t bits;
+        __fp16 val;
+        uconv_() : bits(0) {} 
+    } conv;
+    conv.bits = tc.bits;
+    return conv.val;
 }
 
 template<> struct DWCTestTraits<f16_t> {
@@ -466,11 +473,10 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     if(perf)
     {
         Timer t;
-        int ret;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
             t.start();
-            ret = func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
+            func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
             t.stop();
         }
         if(compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
@@ -483,8 +489,7 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     }
     else
     {
-        int ret;
-        ret = func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
+        func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
         if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
         {
             (*out)<<"    FAILED!"<<std::endl;
@@ -598,8 +603,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
         std::vector<_Tp> outdata(H0*W0*NCtask * 3, empty_value);
         _Tp* optr = &(outdata[0]) + H0*W0*NCtask;
 
-        int ret;
-        ret = func(inptr + NC0 * H * W, kptr, bptr, H, W, C, NCtask, kCS, optr, H0, W0, algs_limits);
+        func(inptr + NC0 * H * W, kptr, bptr, H, W, C, NCtask, kCS, optr, H0, W0, algs_limits);
         if(!compare(&(outdata[0]), optrref + NC0 * H0 * W0, NCtask, H0, W0, empty_value))
         {
             (*out)<<"    FAILED! Portion " << ntask <<std::endl;
@@ -959,5 +963,5 @@ void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
     (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
     (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
