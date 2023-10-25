@@ -18,7 +18,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-
+#if !(__LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC)
     /*
     Next four functions are taken from FP16 library.
     Link: https://github.com/Maratyszcza/FP16
@@ -78,7 +78,7 @@ namespace loops
         const uint32_t exp_bits = (bits >> 13) & UINT32_C(0x00007C00);
         const uint32_t mantissa_bits = bits & UINT32_C(0x00000FFF);
         const uint32_t nonsign = exp_bits + mantissa_bits;
-        return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
+        return (uint16_t)((sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign));
     }
 
     static inline float fp16_ieee_to_fp32_value(uint16_t h) 
@@ -104,6 +104,8 @@ namespace loops
             (two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
         return fp32_from_bits(result);
     }
+#endif
+
     f16_t::f16_t() : bits(0){}
 
     f16_t::f16_t(float x)
@@ -221,15 +223,17 @@ namespace loops
         Func* inferedfunc = preinfered ? preinfered : func();
         if(!is_leaf())
         {
-            for(int i = 0; i < children().size() && inferedfunc == nullptr; i++) 
+            for(int i = 0; i < (int)children().size() && inferedfunc == nullptr; i++) 
                 if(children()[i].func() != nullptr)
                     inferedfunc = children()[i].func();
             if(inferedfunc)
+            {
                 for(Expr& child : children())
                     if(child.func() == nullptr)
                         child.infer_owner(inferedfunc);
                     else if(child.func() != inferedfunc)
                         throw std::runtime_error("Registers of different functions as arguments of one expression.");
+            }
         }
         if(inferedfunc)
             func() = inferedfunc;
@@ -280,7 +284,7 @@ namespace loops
     Context ExtractContext(const Expr& arg)
     {
         Expr arg_(arg);
-        return verify_owner({arg_})->getContext()->getOwner();
+        return verify_owner({arg_})->getContext()->getPublicInterface();
     }
 
     void newiopNoret(int opcode, ::std::initializer_list<Expr> args)
@@ -317,7 +321,7 @@ namespace loops
 
     Context::Context() : impl(nullptr)
     {
-        ContextImpl* _impl = new ContextImpl(this);
+        ContextImpl* _impl = new ContextImpl();
         _impl->m_refcount = 1;
         impl = _impl;
     }
@@ -346,7 +350,7 @@ namespace loops
     bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
-    size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
+    int Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
     void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
@@ -602,21 +606,31 @@ namespace loops
         std::copy(fwho.begin(), fwho.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size(a_args.size())
+    Syntop& Syntop::operator=(const Syntop &fwho)
+    {
+        opcode = fwho.opcode;
+        args_size = fwho.args_size;
+        if(args_size > SYNTOP_ARGS_MAX)
+            throw std::runtime_error("Syntaxic operation: too much args!");
+        std::copy(fwho.begin(), fwho.end(), args);
+        return *this;
+    }
+
+    Syntop::Syntop(int a_opcode, const std::vector<Arg>& a_args) : opcode(a_opcode), args_size((int)a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size((int)a_args.size())
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
         std::copy(a_args.begin(), a_args.end(), args);
     }
 
-    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size(a_args.size() + a_prefix.size())
+    Syntop::Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args): opcode(a_opcode), args_size((int)(a_args.size() + a_prefix.size()))
     {
         if(args_size > SYNTOP_ARGS_MAX)
             throw std::runtime_error("Syntaxic operation: too much args!");
@@ -624,7 +638,7 @@ namespace loops
         std::copy(a_args.begin(), a_args.end(), args + a_prefix.size());
     }
 
-    ContextImpl::ContextImpl(Context* owner) : Context(nullptr), m_refcount(0), m_debug_mode(false) {
+    ContextImpl::ContextImpl() : Context(nullptr), m_refcount(0), m_debug_mode(false) {
 #if __LOOPS_ARCH == __LOOPS_AARCH64
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
@@ -664,7 +678,7 @@ namespace loops
     std::string ContextImpl::getPlatformName() const
     { return m_backend->name(); }
 
-    size_t ContextImpl::vbytes() const
+    int ContextImpl::vbytes() const
     { return m_backend->getVectorRegisterBits() >> 3; }
 
     void ContextImpl::compileAll()
@@ -700,7 +714,7 @@ namespace loops
         }
         alloc->protect2Execution(exebuf);
     }
-    Context ContextImpl::getOwner()
+    Context ContextImpl::getPublicInterface()
     {
         Assert(m_refcount>0);
         //Trick to workaround abscence of makeWrapper function of Context as smartpointer.

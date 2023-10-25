@@ -24,10 +24,10 @@ struct SyntopTranslation
     {
         enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_ERROROFUSAGE};
         ArgTranslation(const Arg& a_fixed);
-        ArgTranslation(size_t a_src_arnum, uint64_t flags = 0);
+        ArgTranslation(int a_srcArgnum, uint64_t flags = 0);
         int tag;
         Arg fixed;
-        size_t srcArgnum;
+        int srcArgnum;
         uint64_t transitFlags;
     };
     int m_tarop;
@@ -35,8 +35,8 @@ struct SyntopTranslation
     SyntopTranslation(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
     SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args);
     Syntop apply(const Syntop& a_source, const Backend* a_backend = nullptr) const;
-    size_t targetArgNum(size_t a_srcnum) const;
-    enum {ARG_NOT_USED = -1}; //TODO(ch) : Probably, it's better to replace it with NOIDX?
+    int targetArgNum(int a_srcnum) const;
+    enum { ARG_NOT_USED = UNDEFINED_ARGUMENT_NUMBER };
 };
 
 namespace SyntopTranslationConstruction
@@ -61,9 +61,9 @@ namespace SyntopTranslationConstruction
         return SyntopTranslation::ArgTranslation(resArg);
     }
     //SAcop is for SyntopTranslation::ArgTranslation to be copied from source
-    inline SyntopTranslation::ArgTranslation SAcop(size_t argnum, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, flags); }
+    inline SyntopTranslation::ArgTranslation SAcop(int argnum, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, flags); }
     //SAcopspl is for SyntopTranslation::ArgTranslation to be copied and transformed to spill.
-    inline SyntopTranslation::ArgTranslation SAcopspl(size_t argnum)
+    inline SyntopTranslation::ArgTranslation SAcopspl(int argnum)
     {
         SyntopTranslation::ArgTranslation res(argnum);
         res.tag = SyntopTranslation::ArgTranslation::T_TRANSFORMTOSPILL;
@@ -71,7 +71,7 @@ namespace SyntopTranslationConstruction
     }
     //SAcopshr is for copy original immediate argument and divide it by 2 <shft> times.
     //Used for immediate offsets values on Arm.
-    inline SyntopTranslation::ArgTranslation SAcopsar(size_t argnum, int64_t shft, uint64_t flags = 0)
+    inline SyntopTranslation::ArgTranslation SAcopsar(int argnum, int64_t shft, uint64_t flags = 0)
     {
         SyntopTranslation::ArgTranslation res(argnum);
         res.fixed.value = shft;
@@ -79,22 +79,23 @@ namespace SyntopTranslationConstruction
         res.transitFlags = flags;
         return res;
     }
-};
+}
 
 class Backend
 {
 public:
-    bool isImmediateFit(const Syntop& a_op, size_t argnum) const;
-    virtual std::set<size_t> filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const;
-    virtual size_t reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const;
-    virtual size_t spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
+    virtual ~Backend();
+    bool isImmediateFit(const Syntop& a_op, int argnum) const;
+    virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const;
+    virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const;
+    virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<size_t> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
-    std::set<size_t> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
-    std::set<size_t> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<int> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    std::set<int> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
     std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
@@ -108,8 +109,8 @@ public:
     It's assumed offset from SP just after function call(without prologue).
     Offset measured not in bytes, each unit = 8 bytes. 
     */
-    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const = 0;
-    virtual size_t stackGrowthAlignment(size_t stackGrowth) const = 0;
+    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const = 0;
+    virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
 //    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, FP) }));
@@ -130,20 +131,20 @@ public:
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}
     inline int getVectorRegisterBits() const { return m_vectorRegisterBits; }
     template<typename _Tp> inline int vlanes() const { return (m_vectorRegisterBits >> 3)  / sizeof(_Tp); }
-    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3)  / elem_size(elemtype); }
+    inline int vlanes(int elemtype) const { return (m_vectorRegisterBits >> 3) / elem_size(elemtype); }
     inline bool isLittleEndianInstructions() const { return m_isLittleEndianInstructions; }
     inline bool isLittleEndianOperands() const { return m_isLittleEndianOperands; }
     inline bool isMonowidthInstruction() const { return m_isMonowidthInstruction; }
-    inline size_t instructionWidth() const { return m_instructionWidth; }
+    inline int instructionWidth() const { return m_instructionWidth; }
     inline size_t offsetShift() const { return m_offsetShift; }
-    inline size_t callerStackIncrement() const { return m_callerStackIncrement; }
+    inline int callerStackIncrement() const { return m_callerStackIncrement; }
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
     //from first byte after end of instruction.
     inline bool postInstructionOffset() const { return m_postInstructionOffset; }
-    virtual std::vector<size_t> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
-    virtual std::vector<size_t> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
-    virtual std::vector<size_t> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
-    virtual std::vector<size_t> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
+    virtual std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
+    virtual std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
+    virtual std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
+    virtual std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
     virtual void switchOnSpillStressMode() = 0;
 
@@ -164,14 +165,14 @@ protected:
     bool m_isLittleEndianOperands;
     bool m_isMonowidthInstruction;
     bool m_postInstructionOffset;
-    size_t m_instructionWidth;
+    int m_instructionWidth;
     size_t m_offsetShift;
-    size_t m_callerStackIncrement;
+    int m_callerStackIncrement;
     size_t m_registersAmount;
-    std::vector<size_t> m_parameterRegisters[RB_AMOUNT];
-    std::vector<size_t> m_returnRegisters[RB_AMOUNT];
-    std::vector<size_t> m_callerSavedRegisters[RB_AMOUNT];
-    std::vector<size_t> m_calleeSavedRegisters[RB_AMOUNT];
+    std::vector<int> m_parameterRegisters[RB_AMOUNT];
+    std::vector<int> m_returnRegisters[RB_AMOUNT];
+    std::vector<int> m_callerSavedRegisters[RB_AMOUNT];
+    std::vector<int> m_calleeSavedRegisters[RB_AMOUNT];
     std::vector<CompilerPassPtr> m_afterRegAllocPasses;
     std::vector<CompilerPassPtr> m_beforeRegAllocPasses;
     std::string m_name;
@@ -192,5 +193,5 @@ SyntopTranslation Backend::lookS2s(const Syntop& index) const
     return ret;
 }
 
-};
+}
 #endif // __LOOPS_BACKEND_HPP__

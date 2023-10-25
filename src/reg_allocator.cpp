@@ -228,7 +228,7 @@ namespace loops
         memset(&(m_reorderArch2Inner[0][0][0]), REG_UNDEF, sizeof(m_reorderArch2Inner));
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
-            std::vector<size_t> origRegistersV[VESS_AMOUNT];
+            std::vector<int> origRegistersV[VESS_AMOUNT];
 
             origRegistersV[PARAMS_VESS] = m_backend->parameterRegisters(basketNum),
             origRegistersV[RETURN_VESS] = m_backend->returnRegisters(basketNum),
@@ -247,10 +247,10 @@ namespace loops
                 m_vessel[basketNum][vessNum] = (((uint64_t)(1)) << regAmount) - 1;
                 for(uint8_t inRegNum = 0; inRegNum < regAmount; inRegNum++)
                 {
-                    const uint8_t arRegNum = origRegistersV[vessNum][inRegNum];
-                    m_reorderInner2Arch[basketNum][vessNum][inRegNum] = arRegNum;
-                    m_reorderArch2Inner[basketNum][vessNum][arRegNum] = inRegNum;
-                    m_pool[basketNum] |= (((uint64_t)(1)) << arRegNum);
+                    const uint8_t argregNum = (uint8_t)origRegistersV[vessNum][inRegNum];
+                    m_reorderInner2Arch[basketNum][vessNum][inRegNum] = argregNum;
+                    m_reorderArch2Inner[basketNum][vessNum][argregNum] = inRegNum;
+                    m_pool[basketNum] |= (((uint64_t)(1)) << argregNum);
                 }
             }
             m_spillPlaceholdersAvailable[basketNum] = m_pool[basketNum];
@@ -275,7 +275,6 @@ namespace loops
 
     RegIdx RegisterPool::provideRegFromPool(int basketNum, RegIdx a_hint)
     {
-        static const size_t maximumSpills = 3;
         RegIdx res = NOREGISTER;
         if (a_hint != IReg::NOIDX)
         {
@@ -364,7 +363,7 @@ namespace loops
     {
         if (m_spillPlaceholders[basketNum] == 0)
             return IReg::NOIDX;
-        size_t res = lsb64(m_spillPlaceholders[basketNum]);
+        int res = lsb64(m_spillPlaceholders[basketNum]);
         uint64_t pos = 1;
         pos <<= res;
         m_spillPlaceholders[basketNum] = (m_spillPlaceholders[basketNum] | pos) ^ (pos);
@@ -378,10 +377,10 @@ namespace loops
         m_spillPlaceholders[basketNum] = m_spillPlaceholdersAvailable[basketNum];
     }
 
-    void RegisterPool::overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                                          const std::vector<size_t>&  a_returnRegisters,
-                                                          const std::vector<size_t>&  a_callerSavedRegisters,
-                                                          const std::vector<size_t>&  a_calleeSavedRegisters)
+    void RegisterPool::overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                                          const std::vector<int>&  a_returnRegisters,
+                                                          const std::vector<int>&  a_callerSavedRegisters,
+                                                          const std::vector<int>&  a_calleeSavedRegisters)
     {
         m_registersO[basketNum][PARAMS_VESS] = a_parameterRegisters;
         m_registersO[basketNum][RETURN_VESS] = a_returnRegisters;
@@ -389,13 +388,13 @@ namespace loops
         m_registersO[basketNum][CALLEE_VESS] = a_calleeSavedRegisters;
     }
 
-    void RegisterPool::getOverridenParams(std::vector<size_t> (&regParsOverride)[RB_AMOUNT]) const
+    void RegisterPool::getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             regParsOverride[basketNum] = m_registersO[basketNum][PARAMS_VESS]; 
     }
 
-    void RegisterPool::removeFromAllVessels(int basketNum, size_t reg)
+    void RegisterPool::removeFromAllVessels(int basketNum, int reg)
     {
         if (reg == NOREGISTER)
             return;
@@ -412,10 +411,10 @@ namespace loops
     }
 
     RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
+        , m_pool(a_backend)
         , m_live_intervals(a_live_intervals)
         , m_snippet_caused_spills(a_snippet_caused_spills)
         , m_have_function_calls(a_have_function_calls)
-        , m_pool(a_backend)
         , m_epilogueSize(0)
     {}
 
@@ -453,23 +452,21 @@ namespace loops
         //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
         std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> > unspillableLd2[RB_AMOUNT];
         std::unordered_map<RegIdx, RegIdx> already_allocatedLd2[RB_AMOUNT];
-        bool ld2workaround_needed = false;
         for(const Syntop& op: a_source.program)
             if(op.opcode == VOP_ARM_LD2)
             {
                 std::pair<RegIdx, RegIdx> order = std::make_pair(op[0].idx, op[1].idx); 
                 unspillableLd2[RB_VEC].insert(std::make_pair(op[0].idx, order));
                 unspillableLd2[RB_VEC].insert(std::make_pair(op[1].idx, order));
-                ld2workaround_needed = true;
             }
 
         //Space in stack used by snippets will be located in the bottom,
         //so spilled variables will be located higher.
         int64_t spoffset[RB_AMOUNT] = {0, 0};
 
-        std::map<RegIdx, size_t> stackParamLayout[RB_AMOUNT];
+        std::map<RegIdx, int> stackParamLayout[RB_AMOUNT];
         {
-            std::vector<size_t> regParsOverride[RB_AMOUNT];
+            std::vector<int> regParsOverride[RB_AMOUNT];
             m_pool.getOverridenParams(regParsOverride);
             m_backend->getStackParameterLayout(a_source, regParsOverride, stackParamLayout);
         }
@@ -483,7 +480,7 @@ namespace loops
             regReassignment[basketNum].resize(a_source.regAmount[basketNum], Arg());
             {//Get pseudonames for parameters.
                 RegIdx parreg = 0;
-                for (; parreg < parintervals[basketNum].size(); parreg++)
+                for (; parreg < (int)parintervals[basketNum].size(); parreg++)
                 {
                     RegIdx idx = parintervals[basketNum][parreg].idx;
                     RegIdx attempt = m_pool.provideParamFromPool(basketNum);
@@ -492,7 +489,7 @@ namespace loops
                     regReassignment[basketNum][idx] = argReg(basketNum, attempt);
                     active.insert(parintervals[basketNum][parreg]);
                 }
-                for (; parreg < parintervals[basketNum].size(); parreg++)
+                for (; parreg < (int)parintervals[basketNum].size(); parreg++)
                 {
                     RegIdx idx = parintervals[basketNum][parreg].idx;
                     RegIdx attempt = m_pool.provideRegFromPool(basketNum);
@@ -501,7 +498,7 @@ namespace loops
                     regReassignment[basketNum][idx] = argReg(basketNum, attempt);
                     active.insert(parintervals[basketNum][parreg]);
                 }
-                for (; parreg < parintervals[basketNum].size(); parreg++)
+                for (; parreg < (int)parintervals[basketNum].size(); parreg++)
                 {
                     RegIdx idx = parintervals[basketNum][parreg].idx;
                     regReassignment[basketNum][idx] = argSpilled(basketNum, 0);
@@ -568,13 +565,11 @@ namespace loops
                         else
                         {
                             std::vector<RegIdx> consecutive_regs = m_pool.provideConsecutiveRegs(RB_VEC, 2);
-                            int numberOfOpposite = 1;
                             RegIdx oppositeSrc = unsprator->second.second;
                             RegIdx oppositeDst = consecutive_regs[1];
                             RegIdx dst = consecutive_regs[0];
                             if (oppositeSrc == interval->idx)
                             {
-                                numberOfOpposite = 0;
                                 oppositeSrc = unsprator->second.first;
                                 oppositeDst = consecutive_regs[0];
                                 dst = consecutive_regs[1];
@@ -592,18 +587,18 @@ namespace loops
                         if (opUndefs.size())
                         {
                             std::unordered_map<size_t, RegIdx> opUndefsIdxMap;
-                            std::set<size_t> opUndefsIdx;
+                            std::set<int> opUndefsIdx;
                             const Syntop& op = a_source.program[interval->start];
-                            std::set<size_t> iNs = m_backend->getInRegistersIdxs(op, basketNum);
-                            for (size_t in : iNs)
+                            std::set<int> iNs = m_backend->getInRegistersIdxs(op, basketNum);
+                            for (int in : iNs)
                                 if (opUndefs.count(op[in].idx))
                                 {
                                     opUndefsIdxMap[in] = opUndefs.at(op[in].idx);
                                     opUndefsIdx.insert(in);
                                 }
-                            size_t idxHint = m_backend->reusingPreferences(op, opUndefsIdx);
-                            if (idxHint != IReg::NOIDX)
-                                poolHint = opUndefsIdxMap.at(idxHint);
+                            int argnumHint = m_backend->reusingPreferences(op, opUndefsIdx);
+                            if (argnumHint != UNDEFINED_ARGUMENT_NUMBER)
+                                poolHint = opUndefsIdxMap.at(argnumHint);
                         }
                         hwReg = m_pool.provideRegFromPool(basketNum, poolHint);
                     }
@@ -613,7 +608,7 @@ namespace loops
         }
 
         const Arg retreg = argReg(RB_INT, m_pool.provideReturnFromPool(RB_INT));
-        auto getReassigned = [retreg, &regReassignment](int basketNum, size_t old)
+        auto getReassigned = [retreg, &regReassignment](int basketNum, int old)
         {
             return (old == Syntfunc::RETREG && basketNum == RB_INT ? retreg : regReassignment[basketNum][old]);
         };
@@ -627,14 +622,14 @@ namespace loops
         // 3.) By the way, when we are using only least spill placeholder, instead of using as much of them, as possible - it's bad practice. 
         // minimizing prologue/epilogue overhead isn't so important.
 
-        size_t basketElemX[RB_AMOUNT] = {1,1};
+        int basketElemX[RB_AMOUNT] = {1,1};
         basketElemX[RB_VEC] = m_backend->getVectorRegisterBits() / 64;
         
         std::vector<std::map<RegIdx, Arg> > unspilledRenaming[RB_AMOUNT];
         std::vector<std::map<RegIdx, Arg> > spilledRenaming[RB_AMOUNT];
-        std::vector<std::set<size_t> > stackPlaceable[RB_AMOUNT];
-        size_t nettoSpills[RB_AMOUNT];
-        size_t spAddAligned = m_snippet_caused_spills;
+        std::vector<std::set<int> > stackPlaceable[RB_AMOUNT];
+        int nettoSpills[RB_AMOUNT];
+        int spAddAligned = m_snippet_caused_spills;
         //Collecting instructionwise spills properties
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
@@ -644,24 +639,24 @@ namespace loops
             for (size_t opnum = 0; opnum < a_source.program.size(); ++opnum)
             {
                 const Syntop& op = a_source.program[opnum];
-                std::set<size_t> unspilledIdxs;
-                std::set<size_t> spilledIdxs;
+                std::set<int> unspilledIdxs;
+                std::set<int> spilledIdxs;
                 const int REGtag = ((basketNum == RB_INT) ? Arg::IREG : Arg::VREG);
                 const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
                 unspilledIdxs = m_backend->getInRegistersIdxs(op, basketNum);
                 spilledIdxs = m_backend->getOutRegistersIdxs(op, basketNum);
-                for (std::set<size_t>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
+                for (std::set<int>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
                 {
-                    size_t argNum = (*removerator);
+                    int argNum = (*removerator);
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
                     else
                         removerator = unspilledIdxs.erase(removerator);
                 }
-                for (std::set<size_t>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
+                for (std::set<int>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
                 {
-                    size_t argNum = (*removerator);
+                    int argNum = (*removerator);
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
@@ -671,19 +666,19 @@ namespace loops
                 stackPlaceable[basketNum][opnum] = spilledIdxs;
                 stackPlaceable[basketNum][opnum].insert(unspilledIdxs.begin(), unspilledIdxs.end());
                 stackPlaceable[basketNum][opnum] = m_backend->filterStackPlaceable(op, stackPlaceable[basketNum][opnum]);
-                for (std::set<size_t>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
+                for (std::set<int>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
                     if (stackPlaceable[basketNum][opnum].count(*removerator) != 0)
                         removerator = unspilledIdxs.erase(removerator);
                     else
                         removerator++;
-                for (std::set<size_t>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
+                for (std::set<int>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
                     if (stackPlaceable[basketNum][opnum].count(*removerator) != 0)
                         removerator = spilledIdxs.erase(removerator);
                     else
                         removerator++;
 
                 m_pool.clearSpillPlaceholders(basketNum);
-                for (size_t argNum : unspilledIdxs)
+                for (int argNum : unspilledIdxs)
                 {
                     RegIdx idx = op.args[argNum].idx;
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
@@ -698,7 +693,7 @@ namespace loops
                     }
                 }
 
-                for (size_t argNum : spilledIdxs)
+                for (int argNum : spilledIdxs)
                 {
                     RegIdx idx = op.args[argNum].idx;
                     Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
@@ -719,12 +714,12 @@ namespace loops
                 }
             }
             const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
-            size_t parametersStoodSpilled = 0; 
+            int parametersStoodSpilled = 0; 
             for(auto p : stackParamLayout[basketNum]) 
                 if (regReassignment[basketNum][p.first].tag == SPLtag)
                     parametersStoodSpilled++;
-            nettoSpills[basketNum] = std::count_if(regReassignment[basketNum].begin(), regReassignment[basketNum].end(), [SPLtag](const Arg& arg) {return arg.tag == SPLtag; }) - parametersStoodSpilled;
-            nettoSpills[basketNum] += m_pool.usedCallee(basketNum).size();
+            nettoSpills[basketNum] = (int)std::count_if(regReassignment[basketNum].begin(), regReassignment[basketNum].end(), [SPLtag](const Arg& arg) {return arg.tag == SPLtag; }) - parametersStoodSpilled;
+            nettoSpills[basketNum] += (int)m_pool.usedCallee(basketNum).size();
             spAddAligned += nettoSpills[basketNum] * basketElemX[basketNum];
         }
         if(m_have_function_calls)
@@ -735,7 +730,7 @@ namespace loops
         {
             std::vector<int> stackBasketOrder = m_backend->getStackBasketOrder();
             basketOffset[stackBasketOrder[0]] = m_snippet_caused_spills;
-            for(int stackBasketNum = 1; stackBasketNum < stackBasketOrder.size(); stackBasketNum++)
+            for(int stackBasketNum = 1; stackBasketNum < (int)stackBasketOrder.size(); stackBasketNum++)
             {
                 const int currBN = stackBasketOrder[stackBasketNum];
                 const int prevBN = stackBasketOrder[stackBasketNum - 1];
@@ -763,7 +758,7 @@ namespace loops
             for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 for (auto ar : unspilledRenaming[basketNum][opnum])
                     newProgUnbracketed.push_back(Syntop(OP_UNSPILL, { ar.second, argIImm(getSpillOffset(basketNum, ar.first)) }));
-            for (size_t arnum = 0; arnum < op.size(); arnum++)
+            for (int arnum = 0; arnum < op.size(); arnum++)
             {
                 Arg& ar = op[arnum];
                 if (ar.tag == Arg::IREG || ar.tag == Arg::VREG)
@@ -828,7 +823,7 @@ namespace loops
                 m_backend->writeCallerPrologue(a_dest, spAddAligned);
         }
         a_dest.program.insert(a_dest.program.end(), newProgUnbracketed.begin(), newProgUnbracketed.end());
-        m_epilogueSize = a_dest.program.size();
+        m_epilogueSize = (int)a_dest.program.size();
         { //Write epilogue
             if(m_have_function_calls)
                 m_backend->writeCallerEpilogue(a_dest, spAddAligned);
@@ -849,10 +844,64 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_ADD, { m_backend->getSParg(), m_backend->getSParg(), argIImm(spAddAligned * 8) }));
             }
         }
-        m_epilogueSize = a_dest.program.size() - m_epilogueSize;
+        m_epilogueSize = (int)a_dest.program.size() - m_epilogueSize;
     }
 
-    void LivenessAnalysisAlgo::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    class LivenessAnalysisAlgoImpl;
+    class LivenessAnalysisAlgoImpl : public LivenessAnalysisAlgo
+    {
+    public:
+        LivenessAnalysisAlgoImpl(const Backend* a_owner);
+        virtual ~LivenessAnalysisAlgoImpl() override {}
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+
+        virtual std::vector<LiveInterval>* live_intervals() override final { return m_liveintervals; }
+        virtual int getSnippetCausedSpills() const override final { return m_snippetCausedSpills; }
+        virtual bool haveFunctionCalls() const override final { return m_haveFunctionCalls; }
+    private:
+        struct LAEvent //Liveness Analysis Event
+        {
+            enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
+            int eventType;
+            RegIdx idx;
+            int elsePos;
+            int oppositeNestingSide;
+            int basketNum;
+            LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER) {}
+            LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(RB_AMOUNT) {}
+            LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(basketNum_) {}
+        };
+        std::vector<std::vector<LiveInterval> > m_subintervals[RB_AMOUNT]; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
+                                                                            //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
+                                                                            //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
+        std::vector<int> m_subintervalHeaders[RB_AMOUNT];
+        std::deque<std::map<RegIdx, int> > m_active_headers_stack[RB_AMOUNT];
+        void push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
+            , int a_endif);
+        void pop_active_state();
+        std::map<RegIdx, int>::const_iterator acs_begin(int basketNum) const;
+        std::map<RegIdx, int>::const_iterator acs_end(int basketNum) const;
+        std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
+        int m_snippetCausedSpills;
+        bool m_haveFunctionCalls;
+        inline int regAmount(int basketNum) const { return (int)m_subintervals[basketNum].size(); }
+        inline int siAmount(int basketNum, RegIdx regNum) const;
+        inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
+        inline void def(int basketNum, RegIdx regNum, int opnum);
+        inline void use(int basketNum, RegIdx regNum, int opnum);
+        inline void spliceUntilSinum(int basketNum, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
+        inline int expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int siStart);
+        inline int deactivationOpnum(int basketNum, RegIdx regNum);
+        inline void initSubintervalHeaders(int initval = 0);
+        inline int getCurrentSinum(int basketNum, RegIdx regNum);
+        inline LiveInterval& getCurrentSubinterval(int basketNum, RegIdx regNum);
+        inline LiveInterval& getNextSubinterval(int basketNum, RegIdx regNum);
+        inline bool isIterateable(int basketNum, RegIdx regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state.
+        inline void iterateSubinterval(int basketNum, RegIdx regNum);
+        inline void moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum);
+    };
+
+    void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         //TODO(ch): Introduce inplace passes. 
         Assert(&a_dest == &a_source); 
@@ -866,7 +915,7 @@ namespace loops
         //4.) Also, find the biggest number of spilled variables needed for deployment of some instructions into snippets(e.g., DIV on intel).
         
         //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
-        std::multimap<size_t, LAEvent> CFqueue;
+        std::multimap<int, LAEvent> CFqueue;
         RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
         { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
             std::deque<ControlFlowBracket> flowstack;
@@ -877,12 +926,12 @@ namespace loops
                 def(basketNum, par.idx, 0);
                 paramsAmount[basketNum]++;
             }
-            size_t basketElemX[RB_AMOUNT] = {1,1};
+            int basketElemX[RB_AMOUNT] = {1,1};
             basketElemX[RB_VEC] = m_backend->getVectorRegisterBits() / 64;
-            for (size_t opnum = 0; opnum < a_source.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
             {
                 const Syntop& op = a_source.program[opnum];
-                size_t opSnippetSpills = 0;
+                int opSnippetSpills = 0;
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     opSnippetSpills += m_backend->spillSpaceNeeded(op, basketNum) * basketElemX[basketNum];
                 m_snippetCausedSpills = std::max(m_snippetCausedSpills, opSnippetSpills);
@@ -909,7 +958,7 @@ namespace loops
                     Assert(flowstack.size());
                     ControlFlowBracket bracket = flowstack.back();
                     flowstack.pop_back();
-                    size_t elsePos = LAEvent::NONDEF;
+                    int elsePos = LAEvent::NONDEF;
                     if (bracket.tag == ControlFlowBracket::ELSE)
                     {
                         elsePos = bracket.label_or_pos;
@@ -920,7 +969,7 @@ namespace loops
                     Assert(bracket.tag == ControlFlowBracket::IF);
                     auto rator = CFqueue.find(bracket.label_or_pos);
                     Assert(rator != CFqueue.end());
-                    size_t ifStart = rator->first;
+                    int ifStart = rator->first;
                     rator->second.oppositeNestingSide = opnum;
                     rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDBRANCH)));
                     rator->second.elsePos = elsePos;
@@ -942,7 +991,7 @@ namespace loops
                     flowstack.pop_back();
                     auto rator = CFqueue.find(bracket.label_or_pos);
                     Assert(rator != CFqueue.end());
-                    size_t whilePos = rator->first;
+                    int whilePos = rator->first;
                     rator->second.oppositeNestingSide = opnum;
                     rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
                     rator->second.oppositeNestingSide = whilePos;
@@ -982,8 +1031,8 @@ namespace loops
                 {
                     if (siAmount(basketNum, idx) == 0)
                         continue;
-                    const size_t sintStart = m_subintervals[basketNum][idx][0].start;
-                    size_t eventPos;
+                    const int sintStart = m_subintervals[basketNum][idx][0].start;
+                    int eventPos;
                     if (sintStart == 0)
                     {
                         iterateSubinterval(basketNum, idx);
@@ -1001,7 +1050,7 @@ namespace loops
 
             while (!CFqueue.empty())
             {
-                size_t opnum = CFqueue.begin()->first;
+                int opnum = CFqueue.begin()->first;
                 LAEvent event = CFqueue.begin()->second;
                 CFqueue.erase(CFqueue.begin());
                 switch (event.eventType)
@@ -1021,7 +1070,7 @@ namespace loops
                     {
                         LAEvent toAdd = event;
                         iterateSubinterval(event.basketNum, event.idx);
-                        size_t eventPos = deactivationOpnum(event.basketNum, event.idx);
+                        int eventPos = deactivationOpnum(event.basketNum, event.idx);
                         LiveInterval toActive = getCurrentSubinterval(event.basketNum, event.idx);
                         toActive.end = eventPos;
                         b_lastActive.insert(toActive);
@@ -1039,29 +1088,28 @@ namespace loops
                 {
                     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     {
-                        const size_t ifPos = event.oppositeNestingSide;
-                        const size_t endifPos = opnum;
-                        const bool haveElse = (event.elsePos != LAEvent::NONDEF);
-                        const size_t elsePos = haveElse ? event.elsePos : endifPos;
+                        const int ifPos = event.oppositeNestingSide;
+                        const int endifPos = opnum;
+                        const bool haveElse = (event.elsePos != UNDEFINED_OPERATION_NUMBER);
+                        const int elsePos = haveElse ? event.elsePos : endifPos;
                         std::multiset<LiveInterval, endordering> lastActiveChanged;
                         for(auto ifidrator = acs_begin(basketNum); ifidrator != acs_end(basketNum); ifidrator++)
                         {
-                            static const size_t NOTFOUND = -1;
-                            size_t firstUseMain = NOTFOUND, firstDefMain = NOTFOUND;
-                            size_t firstUseElse = NOTFOUND, firstDefElse = NOTFOUND;
+                            int firstUseMain = UNDEFINED_OPERATION_NUMBER, firstDefMain = UNDEFINED_OPERATION_NUMBER;
+                            int firstUseElse = UNDEFINED_OPERATION_NUMBER, firstDefElse = UNDEFINED_OPERATION_NUMBER;
                             const RegIdx idx = ifidrator->first;
                             bool afterlife = m_subintervals[basketNum][idx].back().end > endifPos;
                             if (!haveElse && !afterlife)
                                 continue;
-                            const size_t initSinum = ifidrator->second;
+                            const int initSinum = ifidrator->second;
                             // In next loop we are finding first redefinition of register and
                             // first usage in each branch (firstUseMain, firstDefMain, firstUseElse, firstDefElse)
                             // Also sinum will be number of last subinterval intersected with embranchment.
-                            size_t sinum = initSinum;
+                            int sinum = initSinum;
                             for (; sinum < siAmount(basketNum, idx); ++sinum)
                             {
-                                const size_t sistart = m_subintervals[basketNum][idx][sinum].start;
-                                const size_t siend = m_subintervals[basketNum][idx][sinum].end;
+                                const int sistart = m_subintervals[basketNum][idx][sinum].start;
+                                const int siend = m_subintervals[basketNum][idx][sinum].end;
                                 if (sistart > endifPos)
                                 {
                                     Assert(sinum > 0);
@@ -1070,18 +1118,18 @@ namespace loops
                                 }
                                 if (sistart > ifPos)
                                 {
-                                    if (haveElse && sistart > elsePos && firstDefElse == NOTFOUND)
+                                    if (haveElse && sistart > elsePos && firstDefElse == UNDEFINED_OPERATION_NUMBER)
                                         firstDefElse = sinum;
-                                    else if (firstDefMain == NOTFOUND)
+                                    else if (firstDefMain == UNDEFINED_OPERATION_NUMBER)
                                         firstDefMain = sinum;
                                 }
                                 if (siend > endifPos)
                                     break;
                                 if (siend > ifPos)
                                 {
-                                    if (haveElse && siend > elsePos && firstUseElse == NOTFOUND)
+                                    if (haveElse && siend > elsePos && firstUseElse == UNDEFINED_OPERATION_NUMBER)
                                         firstUseElse = sinum;
-                                    else if (firstUseMain == NOTFOUND)
+                                    else if (firstUseMain == UNDEFINED_OPERATION_NUMBER)
                                         firstUseMain = sinum;
                                 }
                             }
@@ -1089,31 +1137,31 @@ namespace loops
                                 sinum = siAmount(basketNum, idx) - 1;
 
                             //Usages after redefinition can be ommited, they are not connected to pre-embranchment register value.
-                            if (firstUseMain != NOTFOUND && firstUseMain >= firstDefMain)
-                                firstUseMain = NOTFOUND;
-                            if (firstUseElse != NOTFOUND && firstUseElse >= firstDefElse)
-                                firstUseElse = NOTFOUND;
+                            if (firstUseMain != UNDEFINED_OPERATION_NUMBER && firstUseMain >= firstDefMain)
+                                firstUseMain = UNDEFINED_OPERATION_NUMBER;
+                            if (firstUseElse != UNDEFINED_OPERATION_NUMBER && firstUseElse >= firstDefElse)
+                                firstUseElse = UNDEFINED_OPERATION_NUMBER;
                             bool splice = false;
 
-                            if(afterlife && (firstUseMain != NOTFOUND || firstDefMain != NOTFOUND || firstUseElse != NOTFOUND || firstDefElse != NOTFOUND))
+                            if(afterlife && (firstUseMain != UNDEFINED_OPERATION_NUMBER || firstDefMain != UNDEFINED_OPERATION_NUMBER || firstUseElse != UNDEFINED_OPERATION_NUMBER || firstDefElse != UNDEFINED_OPERATION_NUMBER))
                             {
                                 splice = true;
                             }
-                            else if (firstDefMain != NOTFOUND && firstUseElse != NOTFOUND) // Abscence of linear separability.
+                            else if (firstDefMain != UNDEFINED_OPERATION_NUMBER && firstUseElse != UNDEFINED_OPERATION_NUMBER) // Abscence of linear separability.
                             {
-                                if (!afterlife && firstDefElse != NOTFOUND)//Tail from firstDefElse can be separated
+                                if (!afterlife && firstDefElse != UNDEFINED_OPERATION_NUMBER)//Tail from firstDefElse can be separated
                                     sinum = firstUseElse;
                                 splice = true;
                             }
-                            else if (firstDefElse == NOTFOUND && firstUseElse == NOTFOUND)
+                            else if (firstDefElse == UNDEFINED_OPERATION_NUMBER && firstUseElse == UNDEFINED_OPERATION_NUMBER)
                             {
-                                if (firstDefMain == NOTFOUND)
+                                if (firstDefMain == UNDEFINED_OPERATION_NUMBER)
                                     splice = false;
                                 else
                                     splice = true;
                             }
-                            else if ((firstDefMain == NOTFOUND && firstDefElse != NOTFOUND) || //One-of-branch redefinition with
-                                (firstDefMain != NOTFOUND && firstDefElse == NOTFOUND))        //afterusage means splicing.
+                            else if ((firstDefMain == UNDEFINED_OPERATION_NUMBER && firstDefElse != UNDEFINED_OPERATION_NUMBER) || //One-of-branch redefinition with
+                                (firstDefMain != UNDEFINED_OPERATION_NUMBER && firstDefElse == UNDEFINED_OPERATION_NUMBER))        //afterusage means splicing.
                             {
                                 splice = true;
                             }
@@ -1121,7 +1169,7 @@ namespace loops
                                 splice = false;
                             if (splice)
                             {
-                                const size_t switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
+                                const int switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
                                 spliceUntilSinum(basketNum, idx, sinum, initSinum);
                                 if(switchIpos > opnum)
                                 {
@@ -1143,19 +1191,18 @@ namespace loops
                 }
                 case (LAEvent::LAE_ENDLOOP):
                 {
-                    const size_t whilePos = event.oppositeNestingSide;
-                    const size_t endwhilePos = opnum;
+                    const int endwhilePos = opnum;
                     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     {
                         std::multiset<LiveInterval, endordering> lastActiveChanged;
                         for(auto ifidrator = acs_begin(basketNum); ifidrator != acs_end(basketNum); ifidrator++)
                         {
                             const RegIdx idx = ifidrator->first;
-                            const size_t si_start = ifidrator->second;
-                            const size_t switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
+                            const int si_start = ifidrator->second;
+                            const int switchIpos = isIterateable(basketNum, idx) ? getNextSubinterval(basketNum, idx).start : getCurrentSubinterval(basketNum, idx).end;
                             if(m_subintervals[basketNum][idx][si_start].end < endwhilePos)
                             {
-                                size_t newEnd = expandUntilOpnum(basketNum, idx, endwhilePos, si_start);
+                                expandUntilOpnum(basketNum, idx, endwhilePos, si_start);
                                 auto removerator = lastActive[basketNum].find(LiveInterval(idx, switchIpos));
                                 while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
                                 if(removerator != lastActive[basketNum].end())
@@ -1186,7 +1233,7 @@ namespace loops
             {
                 RegIdx pseudIdx = paramsAmount[basketNum];
                 for (RegIdx idx = 0; idx < paramsAmount[basketNum]; idx++)
-                    for (size_t si = 1; si < siAmount(basketNum, idx); si++)
+                    for (int si = 1; si < (int)siAmount(basketNum, idx); si++)
                         m_subintervals[basketNum][idx][si].idx = pseudIdx++;
                 for (RegIdx idx = paramsAmount[basketNum]; idx < regAmount(basketNum); idx++)
                     for (LiveInterval& li : m_subintervals[basketNum][idx])
@@ -1194,13 +1241,13 @@ namespace loops
                 resSize[basketNum] = pseudIdx;
             }
 
-            for (size_t opnum = 0; opnum < a_dest.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)a_dest.program.size(); opnum++)
             {
                 Syntop& op = a_dest.program[opnum];
-                std::set<size_t> outRegArnums[RB_AMOUNT];
+                std::set<int> outRegArnums[RB_AMOUNT];
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++ )
                     outRegArnums[basketNum] = m_backend->getOutRegistersIdxs(op, basketNum);
-                for (size_t arnum = 0; arnum < op.size(); arnum++)
+                for (int arnum = 0; arnum < (int)op.size(); arnum++)
                 {
                     Arg& arg = op.args[arnum];
                     int basketNum = (arg.tag == Arg::IREG ? RB_INT: (arg.tag == Arg::VREG ? RB_VEC : RB_AMOUNT));
@@ -1231,33 +1278,33 @@ namespace loops
             for (auto res : m_subintervals[basketNum])
                 for (auto pseud : res)
                     m_liveintervals[basketNum][pseud.idx] = pseud;
-            a_dest.regAmount[basketNum] = m_liveintervals[basketNum].size();
+            a_dest.regAmount[basketNum] = (int)m_liveintervals[basketNum].size();
         }
     }
 
-    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerPass(a_owner)
+    LivenessAnalysisAlgoImpl::LivenessAnalysisAlgoImpl(const Backend* a_owner) : LivenessAnalysisAlgo(a_owner, 0)
         , m_snippetCausedSpills(0)
         , m_haveFunctionCalls(false)
     {}
 
-    void LivenessAnalysisAlgo::push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
-                    , size_t a_endif)
+    void LivenessAnalysisAlgoImpl::push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
+                    , int a_endif)
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
-            m_active_headers_stack[basketNum].push_back(std::map<RegIdx, size_t>());
+            m_active_headers_stack[basketNum].push_back(std::map<RegIdx, int>());
             auto filled = m_active_headers_stack[basketNum].rbegin();
             for(auto lastactive: a_lastActive[basketNum])
             {
                 if(lastactive.end > a_endif) //Will not consider subintervals contains whole embranchement.
                     break;
                 RegIdx idx = lastactive.idx;
-                filled->insert(std::pair<RegIdx, size_t>(idx, m_subintervalHeaders[basketNum][idx]));
+                filled->insert(std::pair<RegIdx, int>(idx, m_subintervalHeaders[basketNum][idx]));
             }
         }
     }
 
-    void LivenessAnalysisAlgo::pop_active_state()
+    void LivenessAnalysisAlgoImpl::pop_active_state()
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
@@ -1266,60 +1313,60 @@ namespace loops
         }
     }
 
-    std::map<RegIdx, size_t>::const_iterator LivenessAnalysisAlgo::acs_begin(int basketNum) const
+    std::map<RegIdx, int>::const_iterator LivenessAnalysisAlgoImpl::acs_begin(int basketNum) const
     {
-        const std::deque<std::map<RegIdx, size_t> >& b_states = m_active_headers_stack[basketNum];
+        const std::deque<std::map<RegIdx, int> >& b_states = m_active_headers_stack[basketNum];
         Assert(!b_states.empty());
         return b_states.back().cbegin();
     }
 
-    std::map<RegIdx, size_t>::const_iterator LivenessAnalysisAlgo::acs_end(int basketNum) const
+    std::map<RegIdx, int>::const_iterator LivenessAnalysisAlgoImpl::acs_end(int basketNum) const
     {
-        const std::deque<std::map<RegIdx, size_t> >& b_states = m_active_headers_stack[basketNum];
+        const std::deque<std::map<RegIdx, int> >& b_states = m_active_headers_stack[basketNum];
         Assert(!b_states.empty());
         return b_states.back().cend();
     }
 
-    size_t LivenessAnalysisAlgo::siAmount(int basketNum, RegIdx regNum) const
+    int LivenessAnalysisAlgoImpl::siAmount(int basketNum, RegIdx regNum) const
     {
-        Assert(regNum < regAmount(basketNum));
-        return m_subintervals[basketNum][regNum].size();
+        Assert(regNum!= IReg::NOIDX && regNum < regAmount(basketNum));
+        return (int)m_subintervals[basketNum][regNum].size();
     }
 
-    void LivenessAnalysisAlgo::def(int basketNum, RegIdx regNum, size_t opnum)
+    void LivenessAnalysisAlgoImpl::def(int basketNum, RegIdx regNum, int opnum)
     {
         if (regNum != Syntfunc::RETREG)
         {
-            Assert(regNum < regAmount(basketNum));
+            Assert(regNum != IReg::NOIDX && regNum < regAmount(basketNum));
             m_subintervals[basketNum][regNum].push_back(LiveInterval(regNum, opnum));
         }
     }
 
-    void LivenessAnalysisAlgo::use(int basketNum, RegIdx regNum, size_t opnum)
+    void LivenessAnalysisAlgoImpl::use(int basketNum, RegIdx regNum, int opnum)
     {
         if (regNum != Syntfunc::RETREG)
         {
-            if (!defined(basketNum, regNum))
+            if (regNum != IReg::NOIDX && !defined(basketNum, regNum))
                 throw std::runtime_error("Compile error: using uninitialized register");
             m_subintervals[basketNum][regNum].back().end = opnum;
         }
     }
 
-    void LivenessAnalysisAlgo::spliceUntilSinum(int basketNum, RegIdx regNum, size_t siEnd, size_t a_siStart)
+    void LivenessAnalysisAlgoImpl::spliceUntilSinum(int basketNum, RegIdx regNum, int siEnd, int a_siStart)
     {
-        m_subintervalHeaders[basketNum][regNum] = a_siStart == -1 ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
-        size_t siStart = m_subintervalHeaders[basketNum][regNum];
+        m_subintervalHeaders[basketNum][regNum] = a_siStart == UNDEFINED_OPERATION_NUMBER ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
+        int siStart = m_subintervalHeaders[basketNum][regNum];
         Assert(siStart <= siEnd);
-        Assert(siEnd < siAmount(basketNum, regNum));
+        Assert(siEnd != UNDEFINED_OPERATION_NUMBER && siEnd < siAmount(basketNum, regNum));
         m_subintervals[basketNum][regNum][siStart].end = m_subintervals[basketNum][regNum][siEnd].end;
         m_subintervals[basketNum][regNum].erase(m_subintervals[basketNum][regNum].begin() + siStart + 1, m_subintervals[basketNum][regNum].begin() + siEnd + 1);
     }
 
-    size_t LivenessAnalysisAlgo::expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum, size_t a_siStart)
+    int LivenessAnalysisAlgoImpl::expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int a_siStart)
     {
-        m_subintervalHeaders[basketNum][regNum] = a_siStart == -1 ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
-        size_t si_start = m_subintervalHeaders[basketNum][regNum];
-        size_t subinterval2erase = si_start + 1;
+        m_subintervalHeaders[basketNum][regNum] = a_siStart == UNDEFINED_OPERATION_NUMBER ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
+        int si_start = m_subintervalHeaders[basketNum][regNum];
+        int subinterval2erase = si_start + 1;
         for (; subinterval2erase < siAmount(basketNum, regNum); subinterval2erase++)
             if (m_subintervals[basketNum][regNum][subinterval2erase].start >= opnum)
             {
@@ -1334,13 +1381,13 @@ namespace loops
         return opnum;
     }
 
-    size_t LivenessAnalysisAlgo::deactivationOpnum(int basketNum, RegIdx regNum)
+    int LivenessAnalysisAlgoImpl::deactivationOpnum(int basketNum, RegIdx regNum)
     {
-        size_t sinum = m_subintervalHeaders[basketNum][regNum];
+        int sinum = m_subintervalHeaders[basketNum][regNum];
         return (sinum + 1 < siAmount(basketNum, regNum)) ? m_subintervals[basketNum][regNum][sinum + 1].start : m_subintervals[basketNum][regNum][sinum].end;
     }
 
-    void LivenessAnalysisAlgo::initSubintervalHeaders(size_t initval)
+    void LivenessAnalysisAlgoImpl::initSubintervalHeaders(int initval)
     {
         for(size_t sibNum = 0; sibNum < RB_AMOUNT; sibNum++)
         {
@@ -1349,35 +1396,35 @@ namespace loops
         }
     }
 
-    size_t LivenessAnalysisAlgo::getCurrentSinum(int basketNum, RegIdx regNum)
+    int LivenessAnalysisAlgoImpl::getCurrentSinum(int basketNum, RegIdx regNum) //return -> int
     {
         return m_subintervalHeaders[basketNum][regNum];
     }
 
-    LiveInterval& LivenessAnalysisAlgo::getCurrentSubinterval(int basketNum, RegIdx regNum)
+    LiveInterval& LivenessAnalysisAlgoImpl::getCurrentSubinterval(int basketNum, RegIdx regNum)
     {
-        Assert(m_subintervalHeaders[basketNum][regNum] < siAmount(basketNum, regNum));
+        Assert(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] < siAmount(basketNum, regNum));
         return m_subintervals[basketNum][regNum][m_subintervalHeaders[basketNum][regNum]];
     }
 
-    LiveInterval& LivenessAnalysisAlgo::getNextSubinterval(int basketNum, RegIdx regNum)
+    LiveInterval& LivenessAnalysisAlgoImpl::getNextSubinterval(int basketNum, RegIdx regNum)
     {
-        Assert(m_subintervalHeaders[basketNum][regNum] + 1 < siAmount(basketNum, regNum));
+        Assert(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] + 1 < siAmount(basketNum, regNum));
         return m_subintervals[basketNum][regNum][m_subintervalHeaders[basketNum][regNum] + 1];
     }
 
-    bool LivenessAnalysisAlgo::isIterateable(int basketNum, RegIdx regNum) const
+    bool LivenessAnalysisAlgoImpl::isIterateable(int basketNum, RegIdx regNum) const
     {
         return (m_subintervalHeaders[basketNum][regNum] + 1) < siAmount(basketNum, regNum);
     }
 
-    void LivenessAnalysisAlgo::iterateSubinterval(int basketNum, RegIdx regNum)
+    void LivenessAnalysisAlgoImpl::iterateSubinterval(int basketNum, RegIdx regNum)
     {
         if (isIterateable(basketNum, regNum))
             m_subintervalHeaders[basketNum][regNum]++;
     }
 
-    void LivenessAnalysisAlgo::moveEventLater(std::multimap<size_t, LAEvent>& queue, RegIdx regNum, int eventType, size_t oldOpnum, size_t newOpnum)
+    void LivenessAnalysisAlgoImpl::moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum)
     {
         auto qremrator = queue.find(oldOpnum);
         while (qremrator != queue.end() && qremrator->first == oldOpnum)
@@ -1390,4 +1437,34 @@ namespace loops
         queue.erase(qremrator);
         queue.insert(std::make_pair(newOpnum, toRead));
     }
-};
+
+    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner) : CompilerPass(a_owner), impl(new LivenessAnalysisAlgoImpl(a_owner))
+    {}
+
+    LivenessAnalysisAlgo::~LivenessAnalysisAlgo()
+    {
+        delete impl;
+    }
+
+    void LivenessAnalysisAlgo::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    {
+        impl->process(a_dest, a_source);
+    }
+
+    std::vector<LiveInterval>* LivenessAnalysisAlgo::live_intervals()
+    {
+        return impl->live_intervals();
+    }
+
+    int LivenessAnalysisAlgo::getSnippetCausedSpills() const
+    {
+        return impl->getSnippetCausedSpills();
+    }
+
+    bool LivenessAnalysisAlgo::haveFunctionCalls() const
+    {
+        return impl->haveFunctionCalls();
+    }
+
+    LivenessAnalysisAlgo::LivenessAnalysisAlgo(const Backend* a_owner, int): CompilerPass(a_owner), impl(nullptr) {}
+}

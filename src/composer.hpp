@@ -23,21 +23,21 @@ namespace loops
     public:
         Bitwriter(const Backend* a_backend);
         void startInstruction();
-        void writeToken(uint64_t a_token, size_t a_fieldwidth);
+        void writeToken(uint64_t a_token, int a_fieldwidth);
         void endInstruction();
         const FuncBodyBuf buffer() const
         {
             return std::make_shared<std::vector<uint8_t> >(m_buffer->data(), m_buffer->data() + m_size); //TODO(ch): eliminate unneccessary copy.
         }
-        inline size_t bitAddress() { return (m_size << 3) + m_bitpos; }
+        inline int bitAddress() { return (m_size << 3) + m_bitpos; }
         const Backend* getBackend() const { return m_backend; }
-        static uint64_t revertToken(uint64_t a_tok, size_t dwidth);
+        static uint64_t revertToken(uint64_t a_tok, int dwidth);
     private:
         const Backend* m_backend;
         FuncBodyBuf m_buffer;
-        size_t m_size;
-        size_t m_bitpos;
-        size_t m_startsize;
+        int m_size;
+        int m_bitpos;
+        int m_startsize;
         enum {NOTRANSACTION = -1, MINIMAL_BUFFER_SIZE = 512};
     };
     
@@ -55,19 +55,19 @@ namespace loops
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {T_STATIC, T_REG, T_IMMEDIATE, T_ADDRESS, T_OFFSET, T_STACKOFFSET, T_SPILLED, T_OMIT};
             enum {T_INPUT = 1, T_OUTPUT = 2, T_INVERT_IMM = 4};
-            Token(int tag, size_t fieldsize);
-            Token(int tag, uint64_t val, size_t fieldsize);
+            Token(int tag, int fieldsize);
+            Token(int tag, uint64_t val, int fieldsize);
             int tag;
-            size_t width; //in bits //TODO(ch): unsigned char?
+            int width; //in bits //TODO(ch): unsigned char?
             uint64_t fieldOflags;
             inline uint64_t flags() { return fieldOflags;}
-            size_t arVecNum;
+            int srcArgnum;
         };
         std::vector<Token> m_compound;
-        size_t m_bytewidth;
+        int m_bytewidth;
         BinTranslation(): m_bytewidth(0) {}
         BinTranslation(std::initializer_list<Token> lst);
-        size_t size() const { return m_bytewidth; }
+        int size() const { return m_bytewidth; }
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
     };
 
@@ -78,47 +78,47 @@ namespace loops
             return BinTranslation(tokens);
         }
 
-        inline BinTranslation::Token BTsta(uint64_t field, size_t width) {return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, width); }
+        inline BinTranslation::Token BTsta(uint64_t field, int width) {return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, width); }
 
-        inline BinTranslation::Token BTomm(uint64_t arVecNum)
+        inline BinTranslation::Token BTomm(int srcArgnum)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OMIT, 0);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res; 
         }
 
-        inline BinTranslation::Token BTreg(size_t arVecNum, size_t width, uint64_t regflag = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT)
+        inline BinTranslation::Token BTreg(int srcArgnum, int width, uint64_t regflag = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT)
         {
             BinTranslation::Token res(BinTranslation::Token::T_REG, width);
             res.fieldOflags = regflag;
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 
-        inline BinTranslation::Token BTspl(size_t arVecNum, size_t width)
+        inline BinTranslation::Token BTspl(int srcArgnum, int width)
         {
             BinTranslation::Token res(BinTranslation::Token::T_SPILLED, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 
-        inline BinTranslation::Token BTimm(size_t arVecNum, size_t width, uint64_t flags = 0)
+        inline BinTranslation::Token BTimm(int srcArgnum, int width, uint64_t flags = 0)
         {
             BinTranslation::Token res(BinTranslation::Token::T_IMMEDIATE, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             res.fieldOflags = flags;
             return res;
         }
 
-        inline BinTranslation::Token BToff(size_t arVecNum, size_t width)
+        inline BinTranslation::Token BToff(int srcArgnum, int width)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OFFSET, width);
-            res.arVecNum = arVecNum;
+            res.srcArgnum = srcArgnum;
             return res;
         }
 
         enum {In = BinTranslation::Token::T_INPUT, Out = BinTranslation::Token::T_OUTPUT, IO = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT, InvIm = BinTranslation::Token::T_INVERT_IMM}; //TODO(ch): Use IO in table construction.
-    };
-};
+    }
+}
 
 #endif //__LOOPS_COMPOSER_HPP__

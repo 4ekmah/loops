@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include "src/common.hpp"
 #include "src/reg_allocator.hpp"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <locale>
@@ -23,10 +24,8 @@ inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttribute
 
 inline std::string toLower(const std::string& tL)
 {
-    std::string res;
-    res.reserve(tL.size() + 1);
-    for(char tl: tL)
-        res += std::tolower(tl);
+    std::string res = tL;
+    std::transform(res.begin(), res.end(), res.begin(), [](char t) {return (char)::tolower(t); });
     return res;
 }
 
@@ -243,12 +242,12 @@ void TestSuite::run(bool rewriteListings)
     }
 }
 
-TestSuite::TestSuite(std::ostream& a_out) : m_out(&a_out), CTX()
+TestSuite::TestSuite(std::ostream& a_out) : CTX(), m_out(&a_out)
 {
     CTX.debugModeOn();
     getImpl(&CTX)->getBackend()->switchOnSpillStressMode();
 }
-};
+}
 
 bool memok(uint8_t* canvas, int64_t w, int64_t h)
 {

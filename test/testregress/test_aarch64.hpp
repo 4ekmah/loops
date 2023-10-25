@@ -37,7 +37,7 @@ LTESTexe(ten_args_to_sum, {
     ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
     std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
     EXPECT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-    });
+    })
 
 LTEST(nullify_msb_lsb_v, {
     IReg iptr, omptr, olptr, n;
@@ -87,7 +87,7 @@ LTESTexe(nullify_msb_lsb_v, {
         EXPECT_EQ(msb[vnum], remsb);
         EXPECT_EQ(lsb[vnum], relsb);
     }
-    });
+    })
 
 enum {TBI_SCALARS, TBI_I8_0, TBI_I8_1, TBI_I16_0, TBI_I16_1, TBI_I32_0, TBI_I32_1, TBI_I64_0, TBI_I64_1, TBI_I64_2};
 LTEST(big_immediates, {
@@ -102,7 +102,14 @@ LTEST(big_immediates, {
             store_<int64_t>(targetptr, CONST_(-32768)); targetptr += sizeof(uint64_t);
             store_<int64_t>(targetptr, CONST_(-32769)); targetptr += sizeof(uint64_t);
             store_<uint64_t>(targetptr, CONST_(0x5F3759DF)); targetptr += sizeof(uint64_t);
-            store_<uint64_t>(targetptr, CONST_(*((int64_t*)&e))); targetptr += sizeof(uint64_t);
+            union uconv_
+            {
+                uint64_t val64;
+                double val;
+                uconv_() : val64(0) {} 
+            } conv;
+            conv.val = e;
+            store_<uint64_t>(targetptr, CONST_(conv.val64)); targetptr += sizeof(uint64_t);
         }
         ELIF_(tasknum == TBI_I8_0)
         {
@@ -157,21 +164,28 @@ LTESTexe(big_immediates, {
     typedef void(*big_immediates_f)(void*, int64_t);
     big_immediates_f tested = reinterpret_cast<big_immediates_f>(EXEPTR);
     double e = 2.718281828459045235360287471352;
-    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, *((int64_t*)&e)};
+    union uconv_
+    {
+        int64_t val64;
+        double val;
+        uconv_() : val64(0) {} 
+    } conv;
+    conv.val = e;
+    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, conv.val64};
     std::vector<int64_t> scalars(scalars_ref.size(), 0);
     tested((void*)&(scalars[0]), TBI_SCALARS);
-    for(int i = 0; i < scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
+    for(int i = 0; i < (int)scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
 
     const std::vector<uint8_t> i8_0_ref = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                                            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
     std::vector<uint8_t> i8_0(i8_0_ref.size(), 0);
     tested((void*)&(i8_0[0]), TBI_I8_0);
-    for(int i = 0; i < i8_0.size(); i++) EXPECT_EQ(i8_0[i], i8_0_ref[i]);
+    for(int i = 0; i < (int)i8_0.size(); i++) EXPECT_EQ(i8_0[i], i8_0_ref[i]);
 
     const std::vector<int8_t> i8_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128};
     std::vector<int8_t> i8_1(i8_1_ref.size(), 0);
     tested((void*)&(i8_1[0]), TBI_I8_1);
-    for(int i = 0; i < i8_1.size(); i++) EXPECT_EQ(i8_1[i], i8_1_ref[i]);
+    for(int i = 0; i < (int)i8_1.size(); i++) EXPECT_EQ(i8_1[i], i8_1_ref[i]);
 
 
     const std::vector<uint16_t> i16_0_ref = {0,0,0,0,0,0,0,0,
@@ -179,14 +193,14 @@ LTESTexe(big_immediates, {
                                              256,256,256,256,256,256,256,256};
     std::vector<uint16_t> i16_0(i16_0_ref.size(), 0);
     tested((void*)&(i16_0[0]), TBI_I16_0);
-    for(int i = 0; i < i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
+    for(int i = 0; i < (int)i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
 
 
     const std::vector<int16_t> i16_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,
                                             -129,-129,-129,-129,-129,-129,-129,-129};
     std::vector<int16_t> i16_1(i16_1_ref.size(), 0);
     tested((void*)&(i16_1[0]), TBI_I16_1);
-    for(int i = 0; i < i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
+    for(int i = 0; i < (int)i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
 
 
     const std::vector<uint32_t> i32_0_ref = {0,0,0,0,
@@ -194,13 +208,13 @@ LTESTexe(big_immediates, {
                                              256,256,256,256};
     std::vector<uint32_t> i32_0(i32_0_ref.size(), 0);
     tested((void*)&(i32_0[0]), TBI_I32_0);
-    for(int i = 0; i < i32_0.size(); i++) EXPECT_EQ(i32_0[i], i32_0_ref[i]);
+    for(int i = 0; i < (int)i32_0.size(); i++) EXPECT_EQ(i32_0[i], i32_0_ref[i]);
 
     const std::vector<int32_t> i32_1_ref = {-128,-128,-128,-128,
                                             -129,-129,-129,-129};
     std::vector<int32_t> i32_1(i32_1_ref.size(), 0);
     tested((void*)&(i32_1[0]), TBI_I32_1);
-    for(int i = 0; i < i32_1.size(); i++) EXPECT_EQ(i32_1[i], i32_1_ref[i]);
+    for(int i = 0; i < (int)i32_1.size(); i++) EXPECT_EQ(i32_1[i], i32_1_ref[i]);
 
 
     const std::vector<uint64_t> i64_0_ref= {0,0,
@@ -208,19 +222,19 @@ LTESTexe(big_immediates, {
                                             0xff00,0xff00};
     std::vector<uint64_t> i64_0(i64_0_ref.size(), 0);
     tested((void*)&(i64_0[0]), TBI_I64_0);
-    for(int i = 0; i < i64_0.size(); i++) EXPECT_EQ(i64_0[i], i64_0_ref[i]);
+    for(int i = 0; i < (int)i64_0.size(); i++) EXPECT_EQ(i64_0[i], i64_0_ref[i]);
 
     const std::vector<int64_t> i64_1_ref = {-256,-256};
     std::vector<int64_t> i64_1(i64_1_ref.size(), 0);
     tested((void*)&(i64_1[0]), TBI_I64_1);
-    for(int i = 0; i < i64_1.size(); i++) EXPECT_EQ(i64_1[i], i64_1_ref[i]);
+    for(int i = 0; i < (int)i64_1.size(); i++) EXPECT_EQ(i64_1[i], i64_1_ref[i]);
 
     const std::vector<uint64_t> i64_2_ref = {256,256,
                                              254,254};
     std::vector<uint64_t> i64_2(i64_2_ref.size(), 0);
     tested((void*)&(i64_2[0]), TBI_I64_2);
-    for(int i = 0; i < i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
-});
+    for(int i = 0; i < (int)i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
+})
 
 //TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.
 
@@ -1378,6 +1392,6 @@ LTESTcomposer(instruction_set_test, {
     newiopNoret(OP_CALL_NORET, { x15 });
 });
 #undef DEFINE_CERTAIN_REG
-};
+}
 #endif
 #endif// __LOOPS_ARCH == __LOOPS_AARCH64

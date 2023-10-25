@@ -59,9 +59,9 @@ namespace loops
             default:
             {
                 Syntop op_probe = op;
-                std::vector<size_t> arnums;
+                std::vector<int> arnums;
                 arnums.reserve(op_probe.size());
-                for (size_t arnum = 0; arnum < op_probe.size(); arnum++)
+                for (int arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
                 if (op.opcode == OP_SELECT) //TODO(ch): create universal mechanism(probably based on encoding attempt?)
@@ -76,7 +76,7 @@ namespace loops
                 std::vector<Arg> attempts;
                 attempts.reserve(arnums.size());
                 RegIdx placeholderTop = 0;
-                for (size_t arNum : arnums)
+                for (int arNum : arnums)
                 {
                     Assert(op_probe[arNum].tag == Arg::IIMMEDIATE);
                     attempts.push_back(op_probe[arNum]);
@@ -84,9 +84,9 @@ namespace loops
                         placeholderTop++;
                     op_probe[arNum] = argReg(RB_INT, placeholderTop++);
                 }
-                for (size_t attemptN = 0; attemptN < arnums.size(); attemptN++)
+                for (int attemptN = 0; attemptN < (int)arnums.size(); attemptN++)
                 {
-                    size_t arNum = arnums[attemptN];
+                    int arNum = arnums[attemptN];
                     op_probe[arNum] = attempts[attemptN];
                     if (!m_backend->isImmediateFit(op_probe, arNum))
                     {
@@ -129,8 +129,8 @@ namespace loops
                     throw std::runtime_error("Control flow bracket error: \"else\" before \"endif\".");
                 Assert(m_cflowStack.back().tag == ControlFlowBracket::IF);
                 Assert(op.size() == 2);
-                int64_t elselabel = op[0].value;
-                int64_t outlabel = op[1].value;
+                int elselabel = (int)op[0].value;
+                int outlabel = (int)op[1].value;
                 ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel, m_cflowStack.back().auxfield + 1);
                 a_dest.program.push_back(Syntop(OP_ELSE, {Arg(elselabel), Arg(outlabel)}));
                 m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
@@ -277,7 +277,7 @@ namespace loops
     {
         std::unordered_map<size_t, size_t> label_map;
         std::unordered_map<size_t, std::vector<label_ref_info>> label_ref_map;
-        size_t current_offset = 0;
+        int current_offset = 0;
         a_dest.name = a_source.name;
         a_dest.params = a_source.params;
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -294,11 +294,11 @@ namespace loops
                 // TODO(ch): We need for this purposes something like label/offset manager with transparent logic.
                 // AArch64 supports only multiply-4 offsets,
                 // so, for compactification, they are divided by 4.
-                size_t current_offset_ = current_offset >> m_backend->offsetShift();
+                int current_offset_ = current_offset >> m_backend->offsetShift();
                 Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE) ||
                        (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
                 int64_t target_label = op[op.opcode == OP_JCC ? 1 : 0].value;
-                label_ref_map[target_label].emplace_back(a_dest.program.size(), 0, current_offset_);
+                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), 0, current_offset_);
                 Syntop toTransform(op);
                 toTransform[op.opcode == OP_JCC ? 1 : 0].value = current_offset_;
                 Syntop tarop = m_backend->lookS2s(toTransform).apply(toTransform, m_backend);
@@ -337,7 +337,7 @@ namespace loops
             const int64_t loff = static_cast<int64_t>(label_map[label.first]);
             for (label_ref_info &lref : label.second)
             {
-                if (lref.opnum >= a_dest.program.size())
+                if (lref.opnum >= (int)a_dest.program.size())
                     throw std::runtime_error("Internal error: operation number is too big");
                 if (lref.argnum >= a_dest.program[lref.opnum].size())
                     throw std::runtime_error("Internal error: operation don't have so much arguments");
@@ -349,7 +349,7 @@ namespace loops
         }
     }
 
-    void Assembly2Hex::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void Assembly2Hex::process(Syntfunc& /*a_dest*/, const Syntfunc &a_source)
     {
         for (const Syntop &op : a_source.program)
             m_backend->lookS2b(op).applyNAppend(op, &m_bitstream);
@@ -360,7 +360,10 @@ namespace loops
         return m_bitstream.buffer();
     }
 
-    Pipeline::Pipeline(Backend *a_backend, Func *a_func, const std::string &name, std::initializer_list<IReg *> params) : m_backend(a_backend), m_codecol(m_data, a_func), m_func(a_func), m_mode(PM_REGULAR), m_current_pass(0)
+    Pipeline::Pipeline(Backend *a_backend, Func *a_func, const std::string &name, std::initializer_list<IReg *> params) : m_codecol(m_data, a_func)
+        , m_backend(a_backend)
+        , m_current_pass(0)
+        , m_mode(PM_REGULAR)
     {
         m_data.name = name;
         m_data.params.reserve(params.size());
@@ -404,7 +407,7 @@ namespace loops
         return &m_codecol;
     }
 
-    void Pipeline::overrideRegisterSet(int basketNum, const std::vector<size_t> &a_parameterRegisters, const std::vector<size_t> &a_returnRegisters, const std::vector<size_t> &a_callerSavedRegisters, const std::vector<size_t> &a_calleeSavedRegisters)
+    void Pipeline::overrideRegisterSet(int basketNum, const std::vector<int> &a_parameterRegisters, const std::vector<int> &a_returnRegisters, const std::vector<int> &a_callerSavedRegisters, const std::vector<int> &a_calleeSavedRegisters)
     {
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
@@ -465,4 +468,4 @@ namespace loops
             }
         }
     }
-};
+}

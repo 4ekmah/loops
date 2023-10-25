@@ -161,13 +161,13 @@ void VReg<_Tp>::copyidx(const VExpr<_Tp>& from)
 
 Arg::Arg() : idx(IReg::NOIDX), tag(EMPTY), value(0), flags(0), elemtype(-1) {}
 
-Arg::Arg(const IReg& r) : idx(r.idx), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0) {}
+Arg::Arg(const IReg& r) : idx(r.idx), tag(r.func ? Arg::IREG : Arg::EMPTY), value(0), flags(0), elemtype(TYPE_I64) {}
 
 template<typename _Tp>
 Arg::Arg(const VReg<_Tp>& vr): idx(vr.idx)
     , tag(VREG)
-    , elemtype(ElemTraits<_Tp>::depth)
-    , flags(0){}
+    , flags(0)
+    , elemtype(ElemTraits<_Tp>::depth) {}
 
 struct __loops_ExprStr_
 {
@@ -397,9 +397,14 @@ IExpr __loops_def_(Context* CTX);
 template<typename _Tp>
 VExpr<_Tp> __loops_vconst_(Context* CTX, _Tp _val)
 {
-    int64_t val64 = 0;
-    *(reinterpret_cast<_Tp*>(&val64)) = _val;
-    Expr val(val64);
+    union uconv_
+    {
+        int64_t val64;
+        _Tp val;
+        uconv_() : val64(0) {} 
+    } conv;
+    conv.val = _val;
+    Expr val(conv.val64);
     __setfunc_by_context_(CTX, val);
     return VExpr<_Tp>(OP_MOV, {val});
 }
@@ -761,32 +766,32 @@ template<typename _Dp, typename _Tp> VExpr<_Dp> reinterpret(const VExpr<_Tp>& a)
 { return VExpr<_Dp>(VOP_REINTERPRET, {a.notype()});}
 template<typename _Dp> VExpr<_Dp> trunc(const VExpr<f16_t>& a)  //Convert with rounding to zero
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I16 || ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I16 || (int)ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_TRUNC, {a.notype()});
 }
 template<typename _Dp> VExpr<_Dp> trunc(const VExpr<float>& a)  //Convert with rounding to zero
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I32 || ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I32 || (int)ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_TRUNC, {a.notype()});
 }
 template<typename _Dp> VExpr<_Dp> trunc(const VExpr<double>& a)  //Convert with rounding to zero
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I64 || ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I64 || (int)ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_TRUNC, {a.notype()});
 }
 template<typename _Dp> VExpr<_Dp> floor(const VExpr<f16_t>& a)  //Convert with rounding to minus infinity
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I16 || ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I16 || (int)ElemTraits<_Dp>::depth == TYPE_U16, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_FLOOR, {a.notype()});
 }
 template<typename _Dp> VExpr<_Dp> floor(const VExpr<float>& a)  //Convert with rounding to minus infinity
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I32 || ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I32 || (int)ElemTraits<_Dp>::depth == TYPE_U32, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_FLOOR, {a.notype()});
 }
 template<typename _Dp> VExpr<_Dp> floor(const VExpr<double>& a)  //Convert with rounding to minus infinity
 {
-    static_assert(ElemTraits<_Dp>::depth == TYPE_I64 || ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
+    static_assert((int)ElemTraits<_Dp>::depth == TYPE_I64 || (int)ElemTraits<_Dp>::depth == TYPE_U64, "Attempt to convert real number to integer of different size or not integer.");
     return VExpr<_Dp>(VOP_FLOOR, {a.notype()});
 }
 

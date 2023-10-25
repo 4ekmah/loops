@@ -20,7 +20,9 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-    CodeCollecting::CodeCollecting(Syntfunc &a_data, Func *a_func) : CompilerPass(((FuncImpl *)a_func)->getContext()->getBackend()), m_data(a_data), m_func(a_func), m_returnType(RT_NOTDEFINED)
+    CodeCollecting::CodeCollecting(Syntfunc &a_data, Func *a_func) : CompilerPass(((FuncImpl *)a_func)->getContext()->getBackend())
+        , m_data(a_data)
+        , m_returnType(RT_NOTDEFINED)
     {
     }
     void CodeCollecting::loadvec_deinterleave2_(Arg &res1, Arg &res2, const Expr &base)
@@ -32,7 +34,7 @@ namespace loops
         m_data.program.emplace_back(Syntop(VOP_ARM_LD2, {res1, res2, base_}));
     }
 
-    void CodeCollecting::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void CodeCollecting::process(Syntfunc& /*a_dest*/, const Syntfunc& /*a_source*/)
     {
         if (m_cflowStack.size())
             throw std::runtime_error("Unclosed control flow bracket."); // TODO(ch): Look at stack for providing more detailed information.
@@ -84,7 +86,7 @@ namespace loops
         int continuelabel = m_data.provideLabel();
         int bodylabel = m_data.provideLabel();
         int breaklabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -111,7 +113,6 @@ namespace loops
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
                 break;
-        size_t nextPos = m_data.program.size();
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"break\".");
         int breaklabel = rator->auxfield;
@@ -124,7 +125,6 @@ namespace loops
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
                 break;
-        size_t nextPos = m_data.program.size();
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"continue\".");
         int continuelabel = rator->label_or_pos;
@@ -135,7 +135,7 @@ namespace loops
     {
         int thenlabel = m_data.provideLabel();
         int endlabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -154,7 +154,7 @@ namespace loops
         if (bracket.tag != ControlFlowBracket::IF)
             throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
         int outlabel = m_data.provideLabel();
-        int stem_cstart_pos = m_data.program.size() - 1;
+        int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
         Assert(stem_cstart_pos >= 0);
@@ -307,7 +307,7 @@ namespace loops
             res.tag = expr.is_vector() ? Arg::VREG : Arg::IREG;
             res.elemtype = expr.type();
             args.push_back(res);
-            for (int child_num = 0; child_num < expr.children().size(); child_num++)
+            for (int child_num = 0; child_num < (int)expr.children().size(); child_num++)
                 args.push_back(unpack_expr(expr.children()[child_num], 0, &outbuf));
             Syntop toAdd(expr.opcode(), args);
             outbuf.program.emplace_back(toAdd);
@@ -374,20 +374,20 @@ namespace loops
 
         // 1.) Delete chains "JMP x , JMP y"
         int targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size();)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
         {
             int opcode = condition_buffer.program[opnum].opcode;
             condition_buffer.program[targetOpnum++] = condition_buffer.program[opnum++];
             if (opcode == OP_JMP)
-                while (opnum < condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP)
+                while (opnum < (int)condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP)
                     opnum++;
         }
         condition_buffer.program.resize(targetOpnum);
         // 2.) Delete chains "JMP x, LABEL x"
         targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size();)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
         {
-            if (opnum + 1 < condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP &&
+            if (opnum + 1 < (int)condition_buffer.program.size() && condition_buffer.program[opnum].opcode == OP_JMP &&
                 condition_buffer.program[opnum + 1].opcode == OP_LABEL && condition_buffer.program[opnum][0].value == condition_buffer.program[opnum + 1][0].value)
             {
                 opnum++;
@@ -399,24 +399,24 @@ namespace loops
         // 3.) Delete consecutive labels
         std::unordered_map<int, int> labelRenaming;
         targetOpnum = 0;
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             if (opnum > 0 && condition_buffer.program[opnum].opcode == OP_LABEL && condition_buffer.program[opnum - 1].opcode == OP_LABEL)
             {
-                labelRenaming[condition_buffer.program[opnum][0].value] = condition_buffer.program[opnum - 1][0].value;
+                labelRenaming[(int)condition_buffer.program[opnum][0].value] = (int)(condition_buffer.program[opnum - 1][0].value);
                 continue;
             }
             condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
             targetOpnum++;
         }
         condition_buffer.program.resize(targetOpnum);
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             int opcode = condition_buffer.program[opnum].opcode;
             if (opcode == OP_JCC || opcode == OP_JMP)
             {
                 int labelkeeper = (opcode == OP_JCC ? 1 : 0);
-                int labeldest = condition_buffer.program[opnum][labelkeeper].value;
+                int labeldest = (int)condition_buffer.program[opnum][labelkeeper].value;
                 if (labelRenaming.find(labeldest) != labelRenaming.end())
                     condition_buffer.program[opnum][labelkeeper].value = labelRenaming[labeldest];
             }
@@ -429,21 +429,21 @@ namespace loops
             std::unordered_set<int> used_labels;
             used_labels.insert(1);
             // 4.) Delete non-used labels.
-            for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
             {
                 int opcode = condition_buffer.program[opnum].opcode;
                 if (opcode == OP_JCC || opcode == OP_JMP)
-                    used_labels.insert(condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value);
+                    used_labels.insert((int)condition_buffer.program[opnum][opcode == OP_JCC ? 1 : 0].value);
             }
             targetOpnum = 0;
-            for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
             {
-                if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find(condition_buffer.program[opnum][0].value) == used_labels.end())
+                if (condition_buffer.program[opnum].opcode == OP_LABEL && used_labels.find((int)condition_buffer.program[opnum][0].value) == used_labels.end())
                     continue;
                 condition_buffer.program[targetOpnum] = condition_buffer.program[opnum];
                 targetOpnum++;
             }
-            if (targetOpnum != condition_buffer.program.size())
+            if (targetOpnum != (int)condition_buffer.program.size())
             {
                 condition_buffer.program.resize(targetOpnum);
                 changed = true;
@@ -451,19 +451,19 @@ namespace loops
             // 5.) Transform sequences J(Cond, label0);  J(label1) ; label0: -> J(!Cond, label1); label0:
             targetOpnum = 0;
 
-            for (int opnum = 0; opnum < condition_buffer.program.size();)
+            for (int opnum = 0; opnum < (int)condition_buffer.program.size();)
             {
-                if (opnum + 2 < condition_buffer.program.size() &&
+                if (opnum + 2 < (int)condition_buffer.program.size() &&
                     condition_buffer.program[opnum].opcode == OP_JCC &&
                     condition_buffer.program[opnum + 1].opcode == OP_JMP &&
                     condition_buffer.program[opnum + 2].opcode == OP_LABEL &&
                     condition_buffer.program[opnum][1].value == condition_buffer.program[opnum + 2][0].value)
                 {
-                    int cond = condition_buffer.program[opnum][0].value;
-                    int label0 = condition_buffer.program[opnum][1].value;
-                    int label1 = condition_buffer.program[opnum + 1][0].value;
+                    int cond = (int)condition_buffer.program[opnum][0].value;
+                    int label0 = (int)condition_buffer.program[opnum][1].value;
+                    int label1 = (int)condition_buffer.program[opnum + 1][0].value;
                     condition_buffer.program[targetOpnum++] = Syntop(OP_JCC, {Arg(invertCondition(cond)), Arg(label1)});
-                    condition_buffer.program[targetOpnum++] = condition_buffer.program[opnum + 2];
+                    condition_buffer.program[targetOpnum++] = Syntop(OP_LABEL, {Arg(label0)});
                     opnum += 3;
                     continue;
                 }
@@ -477,13 +477,13 @@ namespace loops
         std::unordered_map<int, int> used_labels;
         used_labels.insert(std::pair<int, int>(0, true_jmp));
         used_labels.insert(std::pair<int, int>(1, false_jmp));
-        for (int opnum = 0; opnum < condition_buffer.program.size(); opnum++)
+        for (int opnum = 0; opnum < (int)condition_buffer.program.size(); opnum++)
         {
             Syntop &op = condition_buffer.program[opnum];
             if (op.opcode == OP_LABEL || op.opcode == OP_JCC || op.opcode == OP_JMP)
             {
                 int labelkeeper = (op.opcode == OP_JCC ? 1 : 0);
-                int labelsrc = condition_buffer.program[opnum][labelkeeper].value;
+                int labelsrc = (int)condition_buffer.program[opnum][labelkeeper].value;
                 if (used_labels.find(labelsrc) == used_labels.end())
                     used_labels.insert(std::pair<int, int>(labelsrc, m_data.provideLabel()));
                 int labeldest = used_labels.at(labelsrc);
@@ -560,13 +560,13 @@ namespace loops
         int endif_to_reopen;
         if (cond_prefix_allowed)
         {
-            int stem_cstart_pos = m_data.program.size() - 1;
+            int stem_cstart_pos = (int)m_data.program.size() - 1;
             while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
                 stem_cstart_pos--;
             Assert(stem_cstart_pos >= 0);
             if (stem_cstart_pos == 0 || m_data.program[stem_cstart_pos - 1].opcode != OP_ENDIF)
                 throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
-            endif_to_reopen = m_data.program[stem_cstart_pos - 1][0].value;
+            endif_to_reopen = (int)m_data.program[stem_cstart_pos - 1][0].value;
             m_data.program.erase(m_data.program.begin() + stem_cstart_pos - 1);
         }
         else
@@ -574,9 +574,9 @@ namespace loops
             if (m_data.program.back().opcode != OP_ENDIF)
                 throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
             Assert(m_data.program.back().size() == 1);
-            endif_to_reopen = m_data.program.back()[0].value;
+            endif_to_reopen = (int)m_data.program.back()[0].value;
             m_data.program.pop_back();
         }
         m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::IF, endif_to_reopen));
     }
-};
+}

@@ -35,7 +35,7 @@ LTESTexe(a_plus_b, {
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
     for(size_t n = 0; n < A.size(); n++)
         EXPECT_EQ(tested(A[n],B[n]), A[n]+B[n]);
-});
+})
 
 LTEST(min_max_scalar, {
     IReg ptr, n, minpos_addr, maxpos_addr;
@@ -77,7 +77,7 @@ LTESTexe(min_max_scalar, {
     minmaxscalar_f tested = reinterpret_cast<minmaxscalar_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
-    for(size_t num = 0; num < v.size(); num++)
+    for(int num = 0; num < (int)v.size(); num++)
     {
         if(v[rminpos] > v[num])
             rminpos = num;
@@ -87,7 +87,7 @@ LTESTexe(min_max_scalar, {
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
     EXPECT_EQ(retval, 0);
-});
+})
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #undef min // Windows.h implements min and max as macro.
@@ -113,9 +113,8 @@ LTEST(min_max_select, {
             maxval = max(x, maxval);
             i += sizeof(int);
         }
-        IReg elemsize = CONST_(sizeof(int));
-        minpos >>= 2;// sizeof(int);
-        maxpos >>= 2;// sizeof(int);
+        minpos >>= 2;// * sizeof(int);
+        maxpos >>= 2;// * sizeof(int);
         store_<int>(minpos_addr, minpos);
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
@@ -128,7 +127,7 @@ LTESTexe(min_max_select, {
     minmaxselect_f tested = reinterpret_cast<minmaxselect_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
-    for (size_t num = 0; num < v.size(); num++)
+    for (int num = 0; num < (int)v.size(); num++)
     {
         if (v[rminpos] > v[num])
             rminpos = num;
@@ -138,7 +137,7 @@ LTESTexe(min_max_select, {
     EXPECT_EQ(rmaxpos, maxpos);
     EXPECT_EQ(rminpos, minpos);
     EXPECT_EQ(retval, 0);
-    });
+    })
 
 enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
 LTEST(triangle_types, {
@@ -182,7 +181,7 @@ LTESTexe(triangle_types, {
     EXPECT_EQ(tested(9,5,6), int(OBTUSE_TRIANGLE));
     EXPECT_EQ(tested(5,9,6), int(OBTUSE_TRIANGLE));
     EXPECT_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
-});
+})
 
 LTEST(nonnegative_odd, {
     IReg ptr, n;
@@ -217,7 +216,7 @@ LTESTexe(nonnegative_odd, {
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     EXPECT_EQ(tested(&v[0], v.size()), 3);
     EXPECT_EQ(tested(0, 0), -1);
-});
+})
 
 LTEST(all_loads_all_stores, {
     IReg iptr, ityp, optr, otyp, n;
@@ -340,7 +339,7 @@ LTESTexe(all_loads_all_stores, {
             };
             EXPECT_EQ(chck, true);
         }
-    });
+    })
 
 LTEST(nullify_msb_lsb, {
     IReg in, elsb, emsb;
@@ -384,7 +383,7 @@ LTESTexe(nullify_msb_lsb, {
         EXPECT_EQ(remsb, emsb);
         EXPECT_EQ(relsb, elsb);
     }
-    });
+    })
 
 //This implementation(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 LTEST(bresenham, {
@@ -483,11 +482,12 @@ LTESTexe(bresenham, {
     BresenhamRef(&canvasRef[0], w, 14, 1, 14, 1, '6');
     for (int symbn = 0; symbn < w * h; symbn++)
         EXPECT_EQ(optr[symbn], canvasRef[symbn]);
-    });
+    })
 
 LTEST(conditionpainter, {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1, w = xmax - xmin + 1;
+    // const int h = ymax - ymin + 1;
+    const int w = xmax - xmin + 1;
     IReg ptr;
     USE_CONTEXT_(CTX);
     STARTFUNC_(TESTNAME, &ptr)
@@ -515,7 +515,8 @@ LTEST(conditionpainter, {
 void conditionpainter_ref(int64_t* ptr)
 {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1, w = xmax - xmin + 1;
+    // const int h = ymax - ymin + 1
+    const int w = xmax - xmin + 1;
     for(int y = ymin; y <= ymax; y++)
         for(int x = xmin; x <= xmax; x++)
         {
@@ -542,7 +543,7 @@ LTESTexe(conditionpainter, {
     for(int y = 0; y < h; y++)
         for(int x = 0; x < w; x++)
             EXPECT_EQ(canvas_ref[y*w + x], canvas[y*w + x + w*h]);
-    });
+    })
 
 static void hw()
 {
@@ -566,7 +567,7 @@ LTESTexe(helloworld_call, {
     std::string refres = get_test_ostream_result();
     reset_test_ostream();
     EXPECT_EQ(res, refres);
-    });
+    })
 
 static void snake_dprint(int64_t x, int64_t y)
 {
@@ -626,7 +627,7 @@ LTESTexe(snake, {
     std::string dprint = get_test_ostream_result();
     reset_test_ostream();
     int diagamount = (h + w - 1);
-    int curvalue = 0;
+    uint8_t curvalue = 0;
     int curdx = 1;
     int curdy = -1;
     for(int dn = 0; dn < diagamount; dn++)
@@ -676,11 +677,19 @@ LTESTexe(snake, {
         for(int x = 0; x < w ; x++)
             EXPECT_EQ(canvas[y * w + x + h*w], canvas_ref[y * w + x]);
     EXPECT_EQ(dprint, dprint_ref);
-    });
+    })
 
 static int64_t lesser_dbl(int64_t a, int64_t b)
 {
-    return (*(double*)(&a)) < (*(double*)(&b));
+    union uconv_ //TODO: create general template for conversion. 
+    {
+        int64_t val64;
+        double val;
+        uconv_() : val64(0) {} 
+    } conv0, conv1;
+    conv0.val64 = a;
+    conv1.val64 = b;
+    return conv0.val < conv1.val;
 }
 LTEST(sort_double, {
     IReg ptr, n;
@@ -718,8 +727,8 @@ LTESTexe(sort_double, {
     std::vector<double> arr_ref = arr;
     tested(&(arr[0]), arr.size());
     std::sort(arr_ref.begin(), arr_ref.end());
-    for(int pos = 0; pos < arr_ref.size(); pos++)
+    for(int pos = 0; pos < (int)arr_ref.size(); pos++)
         EXPECT_EQ(arr[pos], arr_ref[pos]);
-    });
-};
+    })
+}
 #endif//__LOOPS_TEST_BASIC_HPP__

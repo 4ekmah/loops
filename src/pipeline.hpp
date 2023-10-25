@@ -39,8 +39,6 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual PassID pass_id() const override final { return CP_IMMEDIATE_IMPLANTATION; }
     virtual ~ImmediateImplantation() {}
-private:
-    int m_epilogueSize;
 };
 
 class ElifElimination: public CompilerPass
@@ -51,8 +49,6 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual PassID pass_id() const override final { return CP_ELIF_ELIMINATION; }
     virtual ~ElifElimination() {}
-private:
-    int m_epilogueSize;
 };
 
 class Cf2jumps: public CompilerPass
@@ -78,11 +74,11 @@ public:
 protected:
     struct label_ref_info
     {
-        size_t opnum;
-        size_t argnum;
-        size_t opoffset;
+        int opnum;
+        int argnum;
+        int opoffset;
         label_ref_info() : opnum(0), argnum(0), opoffset(0) {}
-        label_ref_info(size_t a_opnum, size_t a_argnum, size_t a_opoffset) : opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
+        label_ref_info(int a_opnum, int a_argnum, int a_opoffset) : opnum(a_opnum), argnum(a_argnum), opoffset(a_opoffset) {}
     };
 };
 
@@ -110,27 +106,26 @@ public:
     inline const Syntfunc& get_data() const { return m_data; }
     const FuncBodyBuf result_buffer() const { return m_buffer; }
     CodeCollecting* get_code_collecting();
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                            const std::vector<size_t>&  a_returnRegisters,
-                                            const std::vector<size_t>&  a_callerSavedRegisters,
-                                            const std::vector<size_t>&  a_calleeSavedRegisters);
+    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                            const std::vector<int>&  a_returnRegisters,
+                                            const std::vector<int>&  a_callerSavedRegisters,
+                                            const std::vector<int>&  a_calleeSavedRegisters);
 private:
     void run();
     void run_pass(CompilerPass* a_pass);
     Syntfunc m_data;
     CodeCollecting m_codecol;
     Backend* m_backend;
-    Func* m_func;
     FuncBodyBuf m_buffer;
     int m_current_pass;
     int m_target_pass;
     int m_mode;
     std::unordered_map<int, int> m_pass_ordering; //TODO(ch): make it static?
     enum {PM_FINDORDER, PM_REGULAR};
-    std::vector<size_t> m_parameterRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_returnRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_callerSavedRegistersO[RB_AMOUNT];
-    std::vector<size_t> m_calleeSavedRegistersO[RB_AMOUNT];
+    std::vector<int> m_parameterRegistersO[RB_AMOUNT];
+    std::vector<int> m_returnRegistersO[RB_AMOUNT];
+    std::vector<int> m_callerSavedRegistersO[RB_AMOUNT];
+    std::vector<int> m_calleeSavedRegistersO[RB_AMOUNT];
 };
-};
+}
 #endif // __LOOPS_PIPELINE_HPP__

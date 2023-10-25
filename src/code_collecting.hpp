@@ -19,9 +19,9 @@ struct ControlFlowBracket
 {
     enum { WHILE, IF, ELSE };
     size_t tag;
-    size_t label_or_pos; //Used as operation num in regeister allocator, as label id otherwise.
-    size_t auxfield; //Used as additional label id or as elif counter.
-    ControlFlowBracket(size_t a_tag, size_t a_labelOrPos, size_t auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
+    int label_or_pos; //Used as operation num in register allocator, as label id otherwise.
+    int auxfield;     //Used as additional label id or as elif counter.
+    ControlFlowBracket(size_t a_tag, int a_labelOrPos, int auxfield_ = 0) : tag(a_tag), label_or_pos(a_labelOrPos), auxfield(auxfield_) {}
 };
 
 class CodeCollecting : public CompilerPass
@@ -70,7 +70,6 @@ private:
     enum {UC_CORRECT_PREFFERED = 1};
     void unpack_condition_(Syntfunc& condition_buffer, Expr& expr, int labeltrue, int labelfalse, int flags = 0);
     void reopen_endif(bool cond_prefix_allowed = false);
-    Func* m_func;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc& m_data;
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};
@@ -89,5 +88,5 @@ inline void CodeCollecting::newiopNoret(int opcode, ::std::initializer_list<Expr
     Syntop toAdd(opcode, args);
     m_data.program.push_back(toAdd);
 }
-};
+}
 #endif // __LOOPS_CODE_COLLECTING_HPP__

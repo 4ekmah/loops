@@ -1010,7 +1010,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(esizIdx != WrongStat);
             static const uint64_t esizeStatSizes[] = {4, 3, 2};
             uint64_t esizSSiz = esizeStatSizes[esizIdx];
-            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
             return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1030,7 +1030,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(esizIdx != WrongStat);
             static const uint64_t esizeStatSizes[] = {4, 3, 2};
             uint64_t esizSSiz = esizeStatSizes[esizIdx];
-            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
             return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1052,8 +1052,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_CNT):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
-        return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
+            return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        break;
     case (AARCH64_B): return BiT({ BTsta(0x5, 6), BToff(0, 26) });
         //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BToff(0, 19), BTsta(AARCH64_IC_NE, 5) });
@@ -1067,6 +1068,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_BLR):
         if(index.size() == 1 && index[0].tag == Arg::IREG)
             return BiT({ BTsta(0b1101011000111111000000, 22), BTreg(0, 5, In), BTsta(0b00000, 5) });
+        break;
     case (AARCH64_RET): return BiT({ BTsta(0x3597C0, 22), BTreg(0, 5, In), BTsta(0x0,5) });
     default:
         break;
@@ -1864,7 +1866,10 @@ Aarch64Backend::Aarch64Backend()
 #endif
 }
 
-size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+Aarch64Backend::~Aarch64Backend()
+{}
+
+int Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
 {
     switch (a_op.opcode)
     {
@@ -1890,7 +1895,7 @@ size_t Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<siz
 #error Unsupported OS
 #endif
 
-size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
     if(basketNum == RB_INT)
         switch (a_op.opcode)
@@ -1923,7 +1928,7 @@ size_t Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     return Backend::spillSpaceNeeded(a_op, basketNum);
 }
 
-std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
     //TODO(ch): This specialized version of function must disappear after introducing snippets.
     //They will give info about used registers, like now instructions answers.
@@ -1937,9 +1942,9 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({1,2});
+                    return std::set<int>({1,2});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({0});
+                    return std::set<int>({0});
             }
             break;
         }
@@ -1950,9 +1955,9 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({1});
+                    return std::set<int>({1});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({0});
+                    return std::set<int>({0});
             }
             break;
         }
@@ -1968,21 +1973,21 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
                 }
             Assert(allRegs);
             if(basketNum == RB_VEC)
-                return std::set<size_t>({});
+                return std::set<int>({});
             if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
                 {
-                    std::set<size_t> res;
-                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
+                    std::set<int> res;
+                    for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
                     return res;
                 }
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
                 {
                     if(a_op.opcode == OP_CALL)
-                        return std::set<size_t>({0});
+                        return std::set<int>({0});
                     else
-                        return std::set<size_t>({});
+                        return std::set<int>({});
                 }
             }
             break;
@@ -1993,13 +1998,13 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             Assert((a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG) ||
                    (a_op.size() == 5 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG && a_op[4].tag == Arg::IIMMEDIATE));
             if(basketNum == RB_INT)
-                return std::set<size_t>({});
+                return std::set<int>({});
             else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({1, 2, 3});
+                    return std::set<int>({1, 2, 3});
                 else if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({0});
+                    return std::set<int>({0});
             }
             break;
         }
@@ -2009,16 +2014,16 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
             if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({2});
+                    return std::set<int>({2});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({});
+                    return std::set<int>({});
             }
             else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
             {
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({});
+                    return std::set<int>({});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({0,1});
+                    return std::set<int>({0,1});
             }
             break;
         }
@@ -2028,11 +2033,11 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
                  ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0) )
             {
                 if(basketNum == RB_VEC)
-                    return std::set<size_t>({});
+                    return std::set<int>({});
                 if (BinTranslation::Token::T_INPUT & flagmask)
-                    return std::set<size_t>({});
+                    return std::set<int>({});
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
-                    return std::set<size_t>({0});
+                    return std::set<int>({0});
             }
             break;
         default:
@@ -2041,7 +2046,7 @@ std::set<size_t> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int ba
     return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
 }
 
-void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
 {
     size_t regPassed[RB_AMOUNT];
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -2065,7 +2070,7 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
     }
 }
 
-size_t Aarch64Backend::stackGrowthAlignment(size_t stackGrowth) const
+int Aarch64Backend::stackGrowthAlignment(int stackGrowth) const
 {
     return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
 }
@@ -2210,10 +2215,11 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
     Assembly2Hex a2hPass(this);
-    a2hPass.process(*((Syntfunc*)(nullptr)), toP);
+    Syntfunc dummyFunc;
+    a2hPass.process(dummyFunc, toP);
     const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-    return [buffer](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend* )
+    return [buffer](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
@@ -2221,9 +2227,9 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
     };
 }
 
-Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
+Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& /*toP*/) const
 {
-    return [](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
+    return [](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
     {
         Arg arg = toPrint[argNum];
         if (arg.flags & AF_PRINTOFFSET)
@@ -2258,7 +2264,8 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
                 if(arg.value == 0)
                     out << "#0";
                 else
-                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value; break;
+                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value;
+                break;
             default:
                 throw std::runtime_error("Undefined argument type.");
         };
@@ -2470,8 +2477,8 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case OP_CALL:
         case OP_CALL_NORET:
         {
-            Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10||
-                   op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10);
+            Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10) ||
+                   (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10) );
             Arg sp = argReg(RB_INT, SP);
             int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
             std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {
@@ -2534,5 +2541,5 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             break;
         }
 }
-};
+}
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64

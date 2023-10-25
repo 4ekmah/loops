@@ -39,6 +39,14 @@ namespace loops
         RB_VEC = 1,
         RB_AMOUNT
     };
+    
+    //Used in situation of processing arguments of operation, when for argument is not part of operation,
+    //e.g. if argument with given properties cannot be found, or in translation, when some argument in new
+    //operation wasn't taken from source operation.
+    enum {UNDEFINED_ARGUMENT_NUMBER = -1};
+
+    //Number of operation in program.
+    enum {UNDEFINED_OPERATION_NUMBER = -1};
 
     template <typename _Tp>
     inline VReg<_Tp> vregHid(RegIdx a_idx, Func *a_func)
@@ -73,7 +81,7 @@ namespace loops
         return res;
     }
 
-    static inline size_t elem_size(int typ)
+    static inline int elem_size(int typ)
     {
         switch (typ) {
             case TYPE_I8:
@@ -160,7 +168,7 @@ namespace loops
         return res;
     }
 
-    inline RegIdx onlyBitPos64(uint64_t bigNum)
+    inline int onlyBitPos64(uint64_t bigNum)
     {
         static const uint8_t bnBase[8] = {0, 8, 16, 24, 32, 40, 48, 56};
         static const uint8_t bnAdd[129] = {0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -186,13 +194,13 @@ namespace loops
         return static_cast<RegIdx>(bnBase[bytenum]) + static_cast<RegIdx>(bnAdd[bytecontent]) - 1;
     }
 
-    inline RegIdx lsb64(uint64_t bigNum)
+    inline int lsb64(uint64_t bigNum)
     {
         uint64_t firstReg = (bigNum & ~(bigNum - 1));
         return onlyBitPos64(firstReg);
     }
 
-    inline RegIdx msb64(uint64_t bigNum)
+    inline int msb64(uint64_t bigNum)
     {
         if (bigNum == 0)
             return 0;
@@ -208,9 +216,9 @@ namespace loops
         return onlyBitPos64(bigNum) - 1;
     }
 
-    inline size_t amountOfBits64(uint64_t bigNum)
+    inline int amountOfBits64(uint64_t bigNum)
     {
-        size_t res = 0;
+        int res = 0;
         static const uint8_t amountInByte[256] =
             {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
              1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
@@ -245,9 +253,10 @@ namespace loops
     public:
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
-        size_t args_size;
+        int args_size;
         Syntop();
         Syntop(const Syntop &fwho);
+        Syntop& operator=(const Syntop &fwho);
         Syntop(int a_opcode, const std::vector<Arg> &a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_args);
         Syntop(int a_opcode, std::initializer_list<Arg> a_prefix, std::initializer_list<Arg> a_args);
@@ -266,15 +275,15 @@ namespace loops
             return args + args_size;
         }
 
-        inline size_t size() const { return args_size; }
+        inline int size() const { return args_size; }
 
-        inline Arg &operator[](size_t anum)
+        inline Arg &operator[](int anum)
         {
             if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
             return args[anum];
         }
-        inline const Arg &operator[](size_t anum) const
+        inline const Arg &operator[](int anum) const
         {
             if (anum >= args_size)
                 throw std::runtime_error("Syntaxic operation: too big argument index!");
@@ -331,13 +340,13 @@ namespace loops
     class ContextImpl : public Context
     {
     public:
-        ContextImpl(Context *owner);
+        ContextImpl();
         void startFunc(const std::string &name, std::initializer_list<IReg *> params);
         void endFunc();
         Func getFunc(const std::string &name);
         bool hasFunc(const std::string &name);
         std::string getPlatformName() const;
-        size_t vbytes() const;
+        int vbytes() const;
         void compileAll();
         inline void debugModeOn() { m_debug_mode = true; }
         inline bool debug_mode() const { return m_debug_mode; }
@@ -345,7 +354,7 @@ namespace loops
         int m_refcount;
         inline Func *getCurrentFunc() { return &m_currentFunc; }
         inline Backend *getBackend() { return m_backend.get(); }
-        Context getOwner();
+        Context getPublicInterface();
 
     private:
         bool m_debug_mode;
@@ -354,13 +363,13 @@ namespace loops
         std::shared_ptr<Backend> m_backend;
     };
 
-    inline Func *_getImpl(Func *wrapper) { return wrapper->impl; };
-    inline Context *_getImpl(Context *wrapper) { return wrapper->impl; };
+    inline Func *_getImpl(Func *wrapper) { return wrapper->impl; }
+    inline Context *_getImpl(Context *wrapper) { return wrapper->impl; }
     inline ContextImpl *getImpl(Context *wrapper)
     {
         Assert(wrapper);
         return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
-};
+}
 
 #endif //__LOOPS_COMMON_HPP__

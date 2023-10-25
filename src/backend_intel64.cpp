@@ -30,7 +30,7 @@ namespace loops
         R15 = 15
     }; 
 
-    static inline BinTranslation::Token nBkb(size_t n, uint64_t bytes, size_t k, uint64_t bits)
+    static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits)
     {
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
@@ -213,7 +213,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
-                                    static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                                    static int statBn[4] = { 1, 2, 2, 2 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
                                 }
                             case (AF_LOWER16):
@@ -225,7 +225,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
-                                    static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                                    static int statBn[4] = { 2, 3, 3, 3 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
                                 }
                             case (AF_LOWER32):
@@ -240,7 +240,7 @@ namespace loops
                                 {
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     static uint64_t stats[4] = { 0x224, 0x10624, 0x11224, 0x11624 };
-                                    static uint64_t statw[4] = { 10, 18, 18, 18 };
+                                    static int statw[4] = { 10, 18, 18, 18 };
                                     return BiT({ BTsta(stats[statn], statw[statn]), BTreg(1, 3, In), BTreg(0, 3, In) });
                                 }
                             }
@@ -262,7 +262,7 @@ namespace loops
                                 case (AF_LOWER32):
                                 {
                                     static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
-                                    static size_t statBn[4] = { 1, 2, 2, 2 };
+                                    static int statBn[4] = { 1, 2, 2, 2 };
                                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov eax, [rbx]
                                 }
@@ -341,7 +341,7 @@ namespace loops
                         {
                         case (AF_LOWER32):
                         {
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             static uint64_t statB[8] = { 0x8b, 0x448b, 0x418b, 0x458b, 0x428b, 0x468b, 0x438b, 0x478b };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In)});  //mov eax, [rcx + rdx]
@@ -361,7 +361,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32)});  //mov eax, [rcx + <offset>]
                         }
@@ -384,7 +384,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x88, 0x4188, 0x4288, 0x4388, 0x4488, 0x4588, 0x4688, 0x4788 };
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(2, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], cl
                             else if (index[0].idx < 8 && index[2].idx >= 4 && index[2].idx < 8)
@@ -399,7 +399,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x6689, 0x664189, 0x664289, 0x664389, 0x664489, 0x664589, 0x664689, 0x664789 };
-                            static uint64_t statBn[8] = { 2, 3, 3, 3, 3, 3, 3, 3 };
+                            static int statBn[8] = { 2, 3, 3, 3, 3, 3, 3, 3 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], cx
                             else
@@ -409,7 +409,7 @@ namespace loops
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x89, 0x4189, 0x4289, 0x4389, 0x4489, 0x4589, 0x4689, 0x4789 };
-                            static uint64_t statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
+                            static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(2, statB[statn], 2, 1), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8) }); //mov [r13 + rbx], ecx
                             else
@@ -430,7 +430,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             static uint64_t statB[4] = { 0xc604, 0x41c604, 0x42c604, 0x43c604 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, (index[1].idx < 8) ? 0x41c644 : 0x43c644, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 8) }); //mov byte ptr [r13 + rcx], <imm>
@@ -440,7 +440,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             static uint64_t statB[4] = { 0x66c704, 0x6641c704, 0x6642c704, 0x6643c704 };
-                            static uint64_t statBn[4] = { 3, 4, 4, 4 };
+                            static int statBn[4] = { 3, 4, 4, 4 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(4, (index[1].idx < 8) ? 0x6641c744 : 0x6643c744, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 16) }); //mov word ptr [r13 + rcx], <imm>
@@ -450,7 +450,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0xC704, 0x41C704, 0x42C704, 0x43C704 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             if (index[0].idx == R13)
                                 return BiT({ nBkb(3, (index[1].idx < 8) ? 0x41c744 : 0x43c744, 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTsta(0, 8), BTimm(2, 32) }); //mov dword ptr [r13 + rcx], <imm>
@@ -478,7 +478,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], cl
@@ -490,7 +490,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
-                            static uint64_t statBn[4] = { 2, 3, 3, 3 };
+                            static int statBn[4] = { 2, 3, 3, 3 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], cx
@@ -500,7 +500,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             static uint64_t statB[4] = { 0x89, 0x4189, 0x4489, 0x4589 };
-                            static uint64_t statBn[4] = { 1, 2, 2, 2 };
+                            static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTsta(0x24, 8), BTimm(1, 32) });//mov [r12 + <offset>], ecx
@@ -525,7 +525,7 @@ namespace loops
                         case (AF_LOWER8):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc6 : 0x41c6);
-                            uint64_t statw = ((index[0].idx < 8) ? 1 : 2);
+                            int statw = ((index[0].idx < 8) ? 1 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 8) });//mov word ptr [r12 + <offset>], <imm>    
                             else
@@ -534,7 +534,7 @@ namespace loops
                         case (AF_LOWER16):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0x66c7 : 0x6641c7);
-                            uint64_t statw = ((index[0].idx < 8) ? 2 : 3);
+                            int statw = ((index[0].idx < 8) ? 2 : 3);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(3, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 16) });//mov word ptr [r12 + <offset>], <imm>    
                             else
@@ -543,7 +543,7 @@ namespace loops
                         case (AF_LOWER32):
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc7 : 0x41c7);
-                            uint64_t statw = ((index[0].idx < 8) ? 1 : 2);
+                            int statw = ((index[0].idx < 8) ? 1 : 2);
                             if (index[0].idx == R12)
                                 return BiT({ nBkb(2, stat, 5, 0b10000), BTreg(0, 3, In), BTsta(0x24, 8),BTimm(1, 32), BTimm(2, 32) });//mov dword ptr [r12 + <offset>], <imm>    
                             else
@@ -889,7 +889,7 @@ namespace loops
                 {
                     size_t statn = index[0].idx < 4 ? 0 : (index[0].idx < 8 ? 1 : 2);
                     stat |= regbytes[statn];
-                    size_t n = index[0].idx < 4 ? 2 : 3;
+                    int n = index[0].idx < 4 ? 2 : 3;
                     return BiT({ nBkb(n, stat, 5, 0b11000), BTreg(0, 3, Out) });
                 }
                 else if (index[0].tag == Arg::ISPILLED)
@@ -903,8 +903,8 @@ namespace loops
                 break;
             const bool rax0 = (index[0].tag == Arg::IREG && index[0].idx == RAX);
             const bool rax1 = (index[0].tag == Arg::IREG && index[0].idx == RAX);
-            const size_t rrd0 = rax0 ? 0 : 1;
-            const size_t rrd1 = rax0 ? 1 : 0;
+            int rrd0 = rax0 ? 0 : 1;
+            int rrd1 = rax0 ? 1 : 0;
             if (index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
                 if (!rax0 && !rax1)
@@ -918,8 +918,8 @@ namespace loops
             }
             else if ((index[0].tag == Arg::ISPILLED && index[1].tag == Arg::IREG) || (index[1].tag == Arg::ISPILLED && index[0].tag == Arg::IREG))
             {
-                const size_t rrd0 = index[0].tag == Arg::ISPILLED ? 1 : 0;
-                const size_t rrd1 = index[0].tag == Arg::ISPILLED ? 0 : 1;
+                rrd0 = index[0].tag == Arg::ISPILLED ? 1 : 0;
+                rrd1 = index[0].tag == Arg::ISPILLED ? 0 : 1;
                 return BiT({ nBkb(2, index[rrd0].idx < 8 ? 0x4887 : 0x4c87, 2, 0b10), BTreg(rrd0, 3, IO), BTsta(0x424,11), BTspl(rrd1, 32) });
             }
             break;
@@ -936,7 +936,7 @@ namespace loops
             {
                 if (index[0].tag == Arg::IREG)
                 {
-                    size_t n = index[0].idx < 8 ? 1 : 2;
+                    int n = index[0].idx < 8 ? 1 : 2;
                     size_t stat = index[0].idx < 8 ? 0xff : 0x41ff;
                     return BiT({ nBkb(n, stat, 5, 0b11010), BTreg(0, 3, In) });
                 }
@@ -952,7 +952,7 @@ namespace loops
         return BinTranslation();
     }
 
-    SyntopTranslation i64STLookup(const Backend* backend, const Syntop& index, bool& scs)
+    SyntopTranslation i64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
     {
         using namespace SyntopTranslationConstruction;
         scs = true;
@@ -1182,16 +1182,19 @@ namespace loops
 #endif
     }
 
-    std::set<size_t> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<size_t>& toFilter) const
+    Intel64Backend::~Intel64Backend()
+    {}
+
+    std::set<int> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
     {
         switch (a_op.opcode)
         {
         case(OP_MOV):
             if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
                 && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
-                return std::set<size_t>({});
+                return std::set<int>({});
             else 
-                return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 1 });
+                return (toFilter.size() < 2) ? toFilter : std::set<int>({ 1 });
         case(OP_AND):
         case(OP_OR):
         case(OP_XOR):
@@ -1203,10 +1206,10 @@ namespace loops
         case(OP_SAR):
         {
             Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
-            std::set<size_t> res = toFilter;
+            std::set<int> res = toFilter;
             res.erase(1);
-            res = (res.size() < 2) ? res : std::set<size_t>({ 0 });
-            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && res.count(0) || res.count(1))
+            res = (res.size() < 2) ? res : std::set<int>({ 0 });
+            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && (res.count(0) || res.count(1)))
             {
                 res.insert(0);
                 res.insert(1);
@@ -1216,42 +1219,42 @@ namespace loops
         case(OP_DIV):
         case(OP_MOD):
         case(OP_MUL):
-            return (toFilter.count(2)) ? std::set<size_t>({ 2 }) : std::set<size_t>({ });
+            return (toFilter.count(2)) ? std::set<int>({ 2 }) : std::set<int>({ });
         case(OP_NEG):
         case(OP_NOT):
         {
             Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
             if (toFilter.size() == 2 && a_op[0].idx != a_op[1].idx) //{0,1}
-                return std::set<size_t>({ 1 });
+                return std::set<int>({ 1 });
             else 
                 return toFilter;
         }
-        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<size_t>({ 0 });
+        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<int>({ 0 });
         case(OP_LOAD):
-        case(OP_STORE): return std::set<size_t>();
+        case(OP_STORE): return std::set<int>();
             break;
         case(OP_SELECT):
             Assert(a_op.size() == 4);
-            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<size_t>({2}) : std::set<size_t>({});
+            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<int>({2}) : std::set<int>({});
             break;
         case(OP_IVERSON):
             Assert(a_op.size() == 2);
-            return (toFilter.count(0) ? std::set<size_t>({0}) : std::set<size_t>({}));
+            return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
             break;
         case(OP_ABS):
             Assert(a_op.size() == 2);
-            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<size_t>({ 1 }) : std::set<size_t>({});
+            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<int>({ 1 }) : std::set<int>({});
             break;
         case(OP_CALL):
         case(OP_CALL_NORET):
-            return std::set<size_t>({});
+            return std::set<int>({});
         default:
             break;
         }
         return Backend::filterStackPlaceable(a_op, toFilter);
     }
 
-    size_t Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<size_t>& undefinedArgNums) const
+    int Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
     {
         switch (a_op.opcode)
         {
@@ -1264,7 +1267,7 @@ namespace loops
         case OP_MIN:
         case OP_MAX:
         {
-            if (undefinedArgNums.count(1)) //TODO(ch): Hmmm... looks like there binary mask will there works better.
+            if (undefinedArgNums.count(1)) //TODO(ch): Hmmm... looks like there binary mask will there works faster.
                 return 1;
             if (undefinedArgNums.count(2))
                 return 2;
@@ -1294,7 +1297,7 @@ namespace loops
         return Backend::reusingPreferences(a_op, undefinedArgNums);
     }
 
-    size_t Intel64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
+    int Intel64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     {
         if(basketNum == RB_INT)
             switch (a_op.opcode)
@@ -1307,8 +1310,7 @@ namespace loops
             case (OP_SHR):
             case (OP_SAR):
                 Assert(a_op.size() == 3);
-                if (a_op[2].tag == Arg::IREG)
-                    return 1;
+                return a_op[2].tag == Arg::IREG ? 1 : 0;
             case (OP_ABS):
             case (OP_SIGN):
                 return 1;
@@ -1328,16 +1330,16 @@ namespace loops
         return Backend::spillSpaceNeeded(a_op, basketNum);
     }
 
-    std::set<size_t> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+    std::set<int> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
         //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
 
         bool bypass = true;
-        uint64_t actualRegs;
-        uint64_t inRegs;
-        uint64_t outRegs;
+        uint64_t actualRegs = 0;
+        uint64_t inRegs  = 0;
+        uint64_t outRegs = 0;
         switch (a_op.opcode)
         {
             case (OP_X86_ADC):
@@ -1430,10 +1432,10 @@ namespace loops
                 {
                     outRegs = actualRegs = makeBitmask64({ 0 });
                     inRegs = makeBitmask64({});
-                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
+                    for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
                     {
-                        inRegs |= (1 << arnum);
-                        actualRegs |= (1 << arnum);
+                        inRegs |= ((uint64_t)(1) << arnum);
+                        actualRegs |= ((uint64_t)(1) << arnum);
                     }
                     bypass = false;
                 }
@@ -1444,8 +1446,8 @@ namespace loops
         };
         if (!bypass)
         {
-            std::set<size_t> res;
-            auto checkAndAdd = [&res](uint64_t mask, size_t posnum)
+            std::set<int> res;
+            auto checkAndAdd = [&res](uint64_t mask, int posnum)
             {
                 if (mask & (uint64_t(1) << posnum))
                     res.insert(posnum);
@@ -1465,21 +1467,21 @@ namespace loops
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
-    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<size_t> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, size_t> (&parLayout)[RB_AMOUNT]) const
+    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
     {
     #if __LOOPS_OS == __LOOPS_WINDOWS
-        size_t sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
+        int sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
         size_t sp2parShift = 1; //+1 is because of return address kept in stack 
     #else
         #error Unknown OS.
     #endif        
 
-        size_t regPassed[RB_AMOUNT];
+        int regPassed[RB_AMOUNT];
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
-        size_t currOffset = 0;
-        size_t xBasket[RB_AMOUNT] = {1,1};
+            regPassed[basketNum] = (int)(regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size());
+        int currOffset = 0;
+        int xBasket[RB_AMOUNT] = {1,1};
         xBasket[RB_VEC] = getVectorRegisterBits() / 64;
         for(const Arg& arg : a_func.params)
         {
@@ -1497,7 +1499,7 @@ namespace loops
         }
     }
 
-    size_t Intel64Backend::stackGrowthAlignment(size_t stackGrowth) const
+    int Intel64Backend::stackGrowthAlignment(int stackGrowth) const
     {
         return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
     }
@@ -1585,7 +1587,7 @@ namespace loops
         a2hPass.process(*((Syntfunc*)(nullptr)), toP);
         const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-        return [buffer, posNsizes](::std::ostream& out, const Syntop& toPrint, size_t rowNum, Backend*)
+        return [buffer, posNsizes](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend*)
         {
             uint8_t* hexfield = &((*buffer)[0]) + posNsizes[rowNum].first;
             for (size_t pos = 0; pos < posNsizes[rowNum].second; pos++)
@@ -1606,7 +1608,7 @@ namespace loops
             numbersAtPositions[oppos] = opnum;
             oppos += opsize;
         }
-        return [numbersAtPositions, positions](::std::ostream& out, const Syntop& toPrint, size_t rowNum, size_t argNum)
+        return [numbersAtPositions, positions](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
         {
             Arg arg = toPrint[argNum];
             if (arg.flags & AF_PRINTOFFSET)
@@ -1634,14 +1636,20 @@ namespace loops
             }
             case Arg::IIMMEDIATE:
                 if (arg.value == 0)
+                {
                     out << "#0";
+                }
                 else
-                    out << "#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value; break;
+                    out << "#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value;
+                break;
             case Arg::ISPILLED:
                 if (arg.value == 0)
+                {
                     out << "[rsp]";
+                }
                 else
-                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]"; break;
+                    out << "[rsp+#0x" << std::right << std::hex << std::setfill('0') << std::setw(2) << arg.value * 8 << "]";
+                break;
             default:
                 throw std::runtime_error("Undefined argument type.");
             };
@@ -1900,23 +1908,25 @@ namespace loops
             {
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
-                std::vector<size_t> parameterRegisters = { RCX, RDX, R8, R9 };
-                std::vector<size_t> returnRegisters = { RAX };
-                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+                std::vector<int> parameterRegisters = { RCX, RDX, R8, R9 };
+                std::vector<int> returnRegisters = { RAX };
+                std::vector<int> callerSavedRegisters = { R10, R11 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-                std::vector<size_t> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
-                std::vector<size_t> returnRegisters = { RAX, RDX };
-                std::vector<size_t> callerSavedRegisters = { R10, R11 };
+                std::vector<int> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
+                std::vector<int> returnRegisters = { RAX, RDX };
+                std::vector<int> callerSavedRegisters = { R10, R11 };
 #else
 #error Unknown OS
 #endif
-                std::set<size_t> allSaved;
+                std::set<int> allSaved;
                 allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
                 allSaved.insert(returnRegisters.begin(), returnRegisters.end());
                 allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
-                Assert(op.opcode == OP_CALL && op.size() >= 2 && op.size() <= (parameterRegisters.size() + 2) ||
-                    op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= (parameterRegisters.size() + 1));
+                Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
+                       (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
+#if __LOOPS_OS == __LOOPS_WINDOWS
                 Arg sp = argReg(RB_INT, RSP);
+#endif        
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
@@ -1924,7 +1934,7 @@ namespace loops
                 //1.) Save scalar registers
                 {
                     auto iter = allSaved.begin();
-                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                    for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                     {
                         a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(i), argReg(RB_INT,  *iter)}));
                         if(*iter == addrkeeper.idx)
@@ -1966,7 +1976,7 @@ namespace loops
                 //5.) Restore scalar registers
                 {
                     auto iter = allSaved.begin();
-                    for(int i = 0; i < allSaved.size(); i++, iter++)
+                    for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                         if(op.opcode == OP_CALL_NORET || *iter != retidx)
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
 
@@ -1995,5 +2005,5 @@ namespace loops
 #error Unknown OS
 #endif
     }
-};
+}
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64

@@ -99,7 +99,7 @@ void printCanvas(uint8_t* canvas, int64_t w, int64_t h)
     std::cout << "+" << std::endl;
 }
 
-int main(int argc, char** argv)
+int main(int /*argc*/, char** /*argv*/)
 {
     loops::Context CTX;
     loops::Func brsfunc = genbresenham(CTX);
@@ -108,7 +108,7 @@ int main(int argc, char** argv)
     std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
     brsfunc.printBytecode(std::cout);
     std::string platform = CTX.getPlatformName();
-    std::transform(platform.begin(), platform.end(), platform.begin(), ::toupper);
+    std::transform(platform.begin(), platform.end(), platform.begin(), [](char t) {return (char)::toupper(t); });
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;
     brsfunc.printAssembly(std::cout);
     std::cout << "======--FUNCTION-OUTPUT---=======" << std::endl;

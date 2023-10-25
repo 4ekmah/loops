@@ -22,9 +22,9 @@ but only if this nested register will be used after this redefinition.
 */
 struct LiveInterval
 {
-    size_t start, end;
+    int start, end;
     RegIdx idx;
-    LiveInterval(RegIdx a_idx, size_t a_start) : start(a_start), end(a_start), idx(a_idx) {}
+    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx) {}
 };
 
 struct startordering
@@ -41,55 +41,18 @@ class LivenessAnalysisAlgo : public CompilerPass
 {
 public:
     LivenessAnalysisAlgo(const Backend* a_owner);
-    std::vector<LiveInterval>* live_intervals() { return m_liveintervals; }
-    virtual ~LivenessAnalysisAlgo() override {}
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
-    virtual bool is_inplace() const override final { return true; }
-    virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
+    virtual ~LivenessAnalysisAlgo();
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
+        virtual bool is_inplace() const override final { return true; }
+        virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
 
-    inline size_t getSnippetCausedSpills() const { return m_snippetCausedSpills; }
-    inline bool haveFunctionCalls() const { return m_haveFunctionCalls; }
+    virtual std::vector<LiveInterval>* live_intervals();
+    virtual int getSnippetCausedSpills() const;
+    virtual bool haveFunctionCalls() const;
+protected:
+    LivenessAnalysisAlgo(const Backend* a_owner, int);
 private:
-    struct LAEvent //Liveness Analysis Event
-    {
-        enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
-        int eventType;
-        RegIdx idx;
-        size_t elsePos;
-        size_t oppositeNestingSide;
-        int basketNum;
-        LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(NONDEF), oppositeNestingSide(NONDEF) {}
-        LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(NONDEF), oppositeNestingSide(NONDEF), basketNum(RB_AMOUNT) {}
-        LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(NONDEF), oppositeNestingSide(NONDEF), basketNum(basketNum_) {}
-    };
-    std::vector<std::vector<LiveInterval> > m_subintervals[RB_AMOUNT]; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
-                                                                        //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
-                                                                        //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
-    std::vector<size_t> m_subintervalHeaders[RB_AMOUNT];
-    std::deque<std::map<RegIdx, size_t> > m_active_headers_stack[RB_AMOUNT];
-    void push_active_state(const std::multiset<LiveInterval, endordering> (&a_lastActive) [RB_AMOUNT]
-        , size_t a_endif);
-    void pop_active_state();
-    std::map<RegIdx, size_t>::const_iterator acs_begin(int basketNum) const;
-    std::map<RegIdx, size_t>::const_iterator acs_end(int basketNum) const;
-    std::vector<LiveInterval> m_liveintervals[RB_AMOUNT];
-    size_t m_snippetCausedSpills;
-    bool m_haveFunctionCalls;
-    inline size_t regAmount(int basketNum) const { return m_subintervals[basketNum].size(); }
-    inline size_t siAmount(int basketNum, RegIdx regNum) const;
-    inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
-    inline void def(int basketNum, RegIdx regNum, size_t opnum);
-    inline void use(int basketNum, RegIdx regNum, size_t opnum);
-    inline void spliceUntilSinum(int basketNum, RegIdx regNum, size_t siEnd, size_t siStart = -1);
-    inline size_t expandUntilOpnum(int basketNum, RegIdx regNum, size_t opnum, size_t siStart);
-    inline size_t deactivationOpnum(int basketNum, RegIdx regNum);
-    inline void initSubintervalHeaders(size_t initval = 0);
-    inline size_t getCurrentSinum(int basketNum, RegIdx regNum);
-    inline LiveInterval& getCurrentSubinterval(int basketNum, RegIdx regNum);
-    inline LiveInterval& getNextSubinterval(int basketNum, RegIdx regNum);
-    inline bool isIterateable(int basketNum, RegIdx regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state.
-    inline void iterateSubinterval(int basketNum, RegIdx regNum);
-    inline void moveEventLater(std::multimap<size_t, LAEvent>& queue, RegIdx regNum, int eventType, size_t oldOpnum, size_t newOpnum);
+    LivenessAnalysisAlgo* impl;
 };
 /*
 TODO(ch): Implement with RISC-V RVV
@@ -120,17 +83,17 @@ public:
     void clearSpillPlaceholders(int basketNum);
 
     inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-                                            const std::vector<size_t>&  a_returnRegisters,
-                                            const std::vector<size_t>&  a_callerSavedRegisters,
-                                            const std::vector<size_t>&  a_calleeSavedRegisters);
+    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+                                            const std::vector<int>&  a_returnRegisters,
+                                            const std::vector<int>&  a_callerSavedRegisters,
+                                            const std::vector<int>&  a_calleeSavedRegisters);
         
-    void getOverridenParams(std::vector<size_t> (&regParsOverride)[RB_AMOUNT]) const;
+    void getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const;
 private:
     Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
     // register to be erased from all of them.
-    void removeFromAllVessels(int basketNum, size_t reg);
+    void removeFromAllVessels(int basketNum, int reg);
 
     enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
     enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
@@ -142,7 +105,7 @@ private:
     uint64_t m_spillPlaceholders[RB_AMOUNT]; //There used outer register ordering
     uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
     std::set<RegIdx> m_usedCallee[RB_AMOUNT];
-    std::vector<size_t> m_registersO[RB_AMOUNT][VESS_AMOUNT];
+    std::vector<int> m_registersO[RB_AMOUNT][VESS_AMOUNT];
 };
 
 /*
@@ -168,14 +131,14 @@ public:
     virtual bool is_inplace() const override final { return false; } 
     virtual PassID pass_id() const override final { return CP_REGISTER_ALLOCATION; }
 
-    inline size_t epilogueSize() const { return m_epilogueSize; }
+    inline int epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
     RegisterPool m_pool;
     const std::vector<LiveInterval>* m_live_intervals;
     int m_snippet_caused_spills;
     bool m_have_function_calls;
-    size_t m_epilogueSize;
+    int m_epilogueSize;
 };
-};
+}
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

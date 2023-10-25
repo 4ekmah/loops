@@ -20,7 +20,6 @@ PTEST_1(exponentiation_by_squaring, int64_t, _p, {
     IReg ptrA, n, ptrPow;
     STARTFUNC_(TESTNAME, &ptrA, &n, &ptrPow)
     {
-        IReg res = CONST_(1);
         IReg offset = CONST_(0);
         IReg i = CONST_(0);
         WHILE_(i < n)
@@ -45,7 +44,7 @@ PTESTexe_1(exponentiation_by_squaring, int64_t, _p, {
         int tmp = static_cast<int>(::pow(X[n], _p));
         EXPECT_EQ(resArr[n], tmp);
     }
-});
+})
 
 PTESTfix_1(exponentiation_by_squaring, 0);
 PTESTfix_1(exponentiation_by_squaring, 1);
@@ -82,7 +81,7 @@ PTESTexe_2(exponentiation_by_squaring_v, typename, _Tp, int64_t, _p, {
         _Tp tmp = static_cast<int>(::pow(v[vnum], _p));
         EXPECT_EQ(res_pow[vnum], tmp);
     }
-});
+})
 
 PTESTfix_2(exponentiation_by_squaring_v, uint32_t, 0);
 PTESTfix_2(exponentiation_by_squaring_v, uint32_t, 4);
@@ -125,8 +124,8 @@ LTESTexe(exp_f32, {
     tested(&dest[0], &src[0], src.size());
     for (size_t i = 0; i < src.size(); i++ )
         EXPECT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
-    });
+    })
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 
-};
+}
 #endif//__LOOPS_TEST_MATH_HPP__

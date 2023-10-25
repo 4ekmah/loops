@@ -44,10 +44,10 @@ public:
     //directTranslation == true avoids most part of passes, like register allocation or controlBlocks2Jumps.
     //It's assumed, that code is already written in manner of being projected to target architecture. It's used for tests only(even for listing-only tests).
     inline void directTranslationOn() { m_directTranslation = true; }
-    void overrideRegisterSet(int basketNum, const std::vector<size_t>&  a_parameterRegisters,
-        const std::vector<size_t>&  a_returnRegisters,
-        const std::vector<size_t>&  a_callerSavedRegisters,
-        const std::vector<size_t>&  a_calleeSavedRegisters);
+    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+        const std::vector<int>&  a_returnRegisters,
+        const std::vector<int>&  a_callerSavedRegisters,
+        const std::vector<int>&  a_calleeSavedRegisters);
 
     size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
 private:
@@ -66,5 +66,5 @@ inline FuncImpl* getImpl(Func* wrapper)
         throw std::runtime_error("Null context pointer.");
     return static_cast<FuncImpl*>(_getImpl(wrapper));
 }
-};
+}
 #endif // __LOOPS_FUNC_IMPL_HPP__

@@ -77,7 +77,14 @@ template<> struct DWCTestTraits<float> {
 
 inline __fp16 f16_t2armf16(f16_t tc)
 {
-    return *(reinterpret_cast<__fp16*>(&(tc.bits)));
+    union uconv_
+    {
+        uint16_t bits;
+        __fp16 val;
+        uconv_() : bits(0) {} 
+    } conv;
+    conv.bits = tc.bits;
+    return conv.val;
 }
 
 template<> struct DWCTestTraits<f16_t> {
@@ -167,8 +174,6 @@ void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W,
                 typename DWCTestTraits<_Tp>::neon_ftype res = b;
                 for(int k = 0; k < kh * kw; k++)
                 {
-                    int krow = k/kw;
-                    int kcol = k - krow * kw;
                     typename DWCTestTraits<_Tp>::neon_ftype toAdd = DWCTestTraits<_Tp>::dup(inC[koffsets[k]]);
                     typename DWCTestTraits<_Tp>::neon_ftype weight = DWCTestTraits<_Tp>::dup(ker[k]);
                     res = DWCTestTraits<_Tp>::fma(res, toAdd, weight);
@@ -193,7 +198,7 @@ void DepthwiseconvTestImpl::ref(_Tp* data, _Tp* kernel, _Tp* bias, int H, int W,
 }
 
 template<typename _Tp>
-dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+dwc_algs_limits DepthwiseconvTestImpl::ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int /*padding_bottom*/, int /*padding_right*/, int stride_y, int stride_x, int /*dilation_y*/, int /*dilation_x*/)
 {
     //TODO(ch): Just written, already need refactoring via introducing set of operations on tensor masks/maps and defining precise rules about
     //corner case values(e.g. Cms = NC+1, Cme = 0). Also, after all, I don't like maps of start and end conditions correctness. There must be only map of ability
@@ -360,7 +365,6 @@ bool DepthwiseconvTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W,
                     return false;
                 }
     tocheck += C*H*W;
-    _Tp maxdiff(0);
     for(int k = 0; k < C; k++)
         for(int i = 0; i < H; i++)
             for(int j = 0; j < W; j++)
@@ -469,11 +473,10 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     if(perf)
     {
         Timer t;
-        int ret;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
             t.start();
-            ret = func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
+            func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
             t.stop();
         }
         if(compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
@@ -486,8 +489,7 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     }
     else
     {
-        int ret;
-        ret = func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
+        func(inptr, kptr, bptr, H, W, C, NC, kCS, optr, H0, W0, &algs_limits);
         if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
         {
             (*out)<<"    FAILED!"<<std::endl;
@@ -510,12 +512,12 @@ template <typename _Tp>
 struct mtCallData
 {
     typename DWCTestTraits<_Tp>::dwconv_t func;
-    int H, W, C, NC, kCS, H0, W0;
     _Tp *data, *result, *kernel, *bias;
+    int H, W, C, NC, kCS, H0, W0;
     dwc_algs_limits* algs_limits;
     mtCallData(){}
     mtCallData(typename DWCTestTraits<_Tp>::dwconv_t func_, _Tp* data_, _Tp* kernel_, _Tp* bias_, int H_, int W_, int C_, int NC_, int kCS_, _Tp* result_, int H0_, int W0_, dwc_algs_limits* algs_limits_):
-        func(func_), data(data_), kernel(kernel_), bias(bias_), H(H_), W(W_), C(C_), NC(NC_), kCS(kCS_), result(result_), H0(H0_), W0(W0_), algs_limits(algs_limits_){}
+        func(func_), data(data_), result(result_), kernel(kernel_), bias(bias_), H(H_), W(W_), C(C_), NC(NC_), kCS(kCS_), H0(H0_), W0(W0_), algs_limits(algs_limits_){}
 };
 
 template <typename _Tp>
@@ -528,7 +530,6 @@ static void mtCall(void* data_)
 template <typename _Tp>
 bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
 {
-    const int TESTITERATIONS = 30;
     int kh = fxt[1];
     int kw = fxt[2];
     const int N = fxt[3];
@@ -602,11 +603,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
         std::vector<_Tp> outdata(H0*W0*NCtask * 3, empty_value);
         _Tp* optr = &(outdata[0]) + H0*W0*NCtask;
 
-        int NCtaskTail  = NC % NCtask_;
-        int tailTaskNum = NC / NCtask_;
-
-        int ret;
-        ret = func(inptr + NC0 * H * W, kptr, bptr, H, W, C, NCtask, kCS, optr, H0, W0, algs_limits);
+        func(inptr + NC0 * H * W, kptr, bptr, H, W, C, NCtask, kCS, optr, H0, W0, algs_limits);
         if(!compare(&(outdata[0]), optrref + NC0 * H0 * W0, NCtask, H0, W0, empty_value))
         {
             (*out)<<"    FAILED! Portion " << ntask <<std::endl;
@@ -966,5 +963,5 @@ void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
     (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
     (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

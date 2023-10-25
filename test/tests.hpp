@@ -11,6 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <list>
 #include <iostream>
+#include <sstream>
 #include <ostream>
 #include <iomanip>
 #include <math.h>
@@ -28,7 +29,8 @@ namespace loops
 class Test
 {
 public:
-    Test(std::ostream& out, Context& ctx): m_out(&out), CTX(ctx) {}
+    Test(std::ostream& out, Context& ctx): CTX(ctx), m_out(&out) {}
+    virtual ~Test() {}
     virtual void generateCode() = 0;
     virtual bool testExecution(const std::string& fixName) = 0;
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
@@ -71,14 +73,14 @@ public:
     {
         std::shared_ptr<T> toAdd = std::make_shared<T>(*m_out, CTX);
         m_testList.push_back(std::static_pointer_cast<Test>(toAdd));
-    };
+    }
 private:
     std::list<std::shared_ptr<Test> > m_testList;
     Context CTX;
     std::ostream* m_out;
     TestSuite(std::ostream& a_out = std::cout);
 };
-};
+}
 
 struct Timer
 {
@@ -119,10 +121,11 @@ struct Timer
         return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
     #endif
     }
-    char* str()
+    std::string str()
     {
-        sprintf(buf, "min=%.3gms, gmean=%.3gms", min_ms(), gmean_ms());
-        return buf;
+        std::stringstream outstr;
+        outstr << "min=" << std::setprecision(3) << min_ms() << " ms, gmean=" << std::setprecision(3) << gmean_ms() << " ms" << std::endl;
+        return outstr.str();
     }
 };
 
@@ -184,6 +187,7 @@ class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
+    ~funcname() override {}                                     \
     virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \
@@ -385,7 +389,7 @@ public:                                                                         
             getImpl(&func)->directTranslationOn();                              \
         }                                                                       \
     }                                                                           \
-    virtual bool testExecution(const std::string& fixName)                      \
+    virtual bool testExecution(const std::string& /*fixName*/)                  \
                                                      override                   \
     { return true; }                                                            \
     virtual std::vector<std::string> fixturesNames() const                      \

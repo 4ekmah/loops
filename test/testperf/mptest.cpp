@@ -98,7 +98,7 @@ void MaxpoolTest::run()
 { impl->run(); }
 
 template<typename _Tp>
-void MaxpoolTestImpl::gendata(_Tp* data, int kh, int kw, int H, int W, int C)
+void MaxpoolTestImpl::gendata(_Tp* data, int /*kh*/, int /*kw*/, int H, int W, int C)
 {
     for (int i = 0 ; i < C*H*W ; i++)
         data[i] = _Tp((rand() % 10000)/5000.0f - 1);
@@ -161,7 +161,7 @@ void MaxpoolTestImpl::ref(_Tp* data, int H, int W, int C, _Tp* result, int H0, i
 }
 
 template<typename _Tp>
-dwc_algs_limits MaxpoolTestImpl::ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+dwc_algs_limits MaxpoolTestImpl::ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int /*padding_bottom*/, int /*padding_right*/, int stride_y, int stride_x, int /*dilation_y*/, int /*dilation_x*/)
 {
     //TODO(ch): Just written, already need refactoring via introducing set of operations on tensor masks/maps and defining precise rules about
     //corner case values(e.g. Cms = NC+1, Cme = 0). Also, after all, I don't like maps of start and end conditions correctness. There must be only map of ability
@@ -328,7 +328,6 @@ bool MaxpoolTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W, _Tp e
                     return false;
                 }
     tocheck += C*H*W;
-    _Tp maxdiff(0);
     for(int k = 0; k < C; k++)
         for(int i = 0; i < H; i++)
             for(int j = 0; j < W; j++)
@@ -395,11 +394,10 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     if(perf)
     {
         Timer t;
-        int ret;
         for(int testiter = 0; testiter < TESTITERATIONS; testiter++)
         {
             t.start();
-            ret = func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
+            func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
             t.stop();
         }
         if(compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
@@ -412,8 +410,7 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     }
     else
     {
-        int ret;
-        ret = func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
+        func(inptr, H, W, NC, optr, H0, W0, &algs_limits);
         if(!compare(&(outdata[0]), optrref, NC, H0, W0, empty_value))
         {
             (*out)<<"    FAILED!"<<std::endl;
@@ -436,12 +433,12 @@ template <typename _Tp>
 struct mtCallData
 {
     typename MPTestTraits<_Tp>::maxpool_t func;
-    int H, W, NC, H0, W0;
     _Tp *data, *result;
+    int H, W, NC, H0, W0;
     dwc_algs_limits* algs_limits;
     mtCallData(){}
     mtCallData(typename MPTestTraits<_Tp>::maxpool_t func_, _Tp* data_, int H_, int W_, int NC_, _Tp* result_, int H0_, int W0_, dwc_algs_limits* algs_limits_):
-        func(func_), data(data_), H(H_), W(W_), NC(NC_), result(result_), H0(H0_), W0(W0_), algs_limits(algs_limits_){}
+        func(func_), data(data_), result(result_), H(H_), W(W_), NC(NC_),  H0(H0_), W0(W0_), algs_limits(algs_limits_){}
 };
 
 template <typename _Tp>
@@ -454,7 +451,6 @@ void mtCall(void* data_)
 template <typename _Tp>
 bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
 {
-    const int TESTITERATIONS = 30;
     int kh = fxt[1];
     int kw = fxt[2];
     const int N = fxt[3];
@@ -518,17 +514,12 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
     for(int ntask = 0; ntask < threads; ntask++)
     {
         int NCtask = (ntask < tailTaskNum) ? NCtask_ + 1: NCtask_;
-        int kCS = NC0 % C;
         dwc_algs_limits* algs_limits = (ntask < tailTaskNum) ? &algs_limits_ : &algs_limits_tail;
 
         std::vector<_Tp> outdata(H0*W0*NCtask * 3, empty_value);
         _Tp* optr = &(outdata[0]) + H0*W0*NCtask;
 
-        int NCtaskTail  = NC % NCtask_;
-        int tailTaskNum = NC / NCtask_;
-
-        int ret;
-        ret = func(inptr + NC0 * H * W, H, W, NCtask, optr, H0, W0, algs_limits);
+        func(inptr + NC0 * H * W, H, W, NCtask, optr, H0, W0, algs_limits);
         if(!compare(&(outdata[0]), optrref + NC0 * H0 * W0, NCtask, H0, W0, empty_value))
         {
             (*out)<<"    FAILED! Portion " << ntask <<std::endl;
@@ -799,5 +790,5 @@ void MaxpoolTestImpl::run()
         }
     };
 }
-};
+}
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

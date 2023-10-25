@@ -11,11 +11,11 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
-Bitwriter::Bitwriter(const Backend* a_backend): m_buffer(std::make_shared<std::vector<uint8_t> >(MINIMAL_BUFFER_SIZE, 0))
+Bitwriter::Bitwriter(const Backend* a_backend) : m_backend(a_backend)
+    , m_buffer(std::make_shared<std::vector<uint8_t> >((size_t)MINIMAL_BUFFER_SIZE, (uint8_t)0))
     , m_size(0)
     , m_bitpos(0)
     , m_startsize(NOTRANSACTION)
-    , m_backend(a_backend)
 {}
 
 void Bitwriter::startInstruction()
@@ -25,13 +25,13 @@ void Bitwriter::startInstruction()
     m_startsize = m_size;
 }
 
-void Bitwriter::writeToken(uint64_t a_token, size_t a_fieldwidth)
+void Bitwriter::writeToken(uint64_t a_token, int a_fieldwidth)
 {
     if (a_fieldwidth > 64)
         throw std::runtime_error("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
         throw std::runtime_error("Bitwriter: writing token out of instruction");
-    if(m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
+    if((int)m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
     uint8_t* buffer = &m_buffer->operator[](0);
     uint64_t body = m_bitpos ? ((uint64_t)(*(buffer + m_size))) << 56 : 0;
@@ -72,7 +72,7 @@ void Bitwriter::endInstruction()
 
     if(m_backend->isMonowidthInstruction())
     {
-        const size_t instrsize = m_backend->instructionWidth();
+        const int instrsize = m_backend->instructionWidth();
         if (m_size - m_startsize != instrsize)
             throw std::runtime_error("Bitwriter: non-standard instruction width.");
     }
@@ -80,8 +80,8 @@ void Bitwriter::endInstruction()
     {
         if(m_size > m_startsize + 1)
         {
-            size_t lesser = m_startsize;
-            size_t bigger = m_size - 1;
+            int lesser = m_startsize;
+            int bigger = m_size - 1;
             for(;lesser<bigger;++lesser,--bigger)
                 std::swap(m_buffer->operator[](lesser), m_buffer->operator[](bigger));
         }
@@ -89,20 +89,21 @@ void Bitwriter::endInstruction()
     m_startsize = NOTRANSACTION;
 }
 
-uint64_t Bitwriter::revertToken(uint64_t a_tok, size_t dwidth)
+uint64_t Bitwriter::revertToken(uint64_t a_tok, int dwidth)
 {
     dwidth = (dwidth + 7) >> 3;
-    size_t endpos = dwidth - 1;
+    int endpos = dwidth - 1;
     dwidth = dwidth >> 1;
     uint8_t* bytearr = reinterpret_cast<uint8_t*>(&a_tok);
-    for (size_t p1 = 0; p1 < dwidth; p1++)
+    for (int p1 = 0; p1 < dwidth; p1++)
         std::swap(bytearr[p1], bytearr[endpos - p1]);
     return a_tok;
 }
 
-BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
-   ,width(fieldsize)
-   ,fieldOflags(0)
+BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
+   , width(fieldsize)
+   , fieldOflags(0)
+   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMIT)
         throw std::runtime_error("Binary translator: wrong token constructor.");
@@ -110,10 +111,10 @@ BinTranslation::Token::Token(int tag, size_t fieldsize): tag(tag), arVecNum(-1)
         throw std::runtime_error("Binary translator: omit immediate must not have field width.");
 }
 
-BinTranslation::Token::Token(int tag, uint64_t val, size_t fieldsize):tag(tag)
-   ,width(fieldsize)
-   ,fieldOflags(val)
-   ,arVecNum(-1)
+BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize):tag(tag)
+   , width(fieldsize)
+   , fieldOflags(val)
+   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_STATIC)
         throw std::runtime_error("Binary translator: wrong token constructor.");
@@ -134,17 +135,17 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Token& det : m_compound)
     {
-        uint64_t pos = (det.arVecNum != -1) ? uint64_t(1) << det.arVecNum : 0;
+        uint64_t pos = (det.srcArgnum != UNDEFINED_ARGUMENT_NUMBER) ? uint64_t(1) << det.srcArgnum : 0;
 
         switch (det.tag)
         {
         case (Token::T_REG):
-            if (op.args[det.arVecNum].tag != Arg::IREG && op.args[det.arVecNum].tag != Arg::VREG)
+            if (op.args[det.srcArgnum].tag != Arg::IREG && op.args[det.srcArgnum].tag != Arg::VREG)
                 throw std::runtime_error("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_SPILLED):
-            if (op.args[det.arVecNum].tag != Arg::ISPILLED)
+            if (op.args[det.srcArgnum].tag != Arg::ISPILLED)
                 throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
@@ -152,7 +153,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_ADDRESS):
         case (Token::T_OFFSET):
         case (Token::T_STACKOFFSET):
-            if (op.args[det.arVecNum].tag != Arg::IIMMEDIATE)
+            if (op.args[det.srcArgnum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
@@ -176,7 +177,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             piece = det.fieldOflags;
             break;
         case (Token::T_REG):
-            piece = op.args[det.arVecNum].idx;
+            piece = op.args[det.srcArgnum].idx;
             break;
         case (Token::T_ADDRESS):
         {
@@ -186,7 +187,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_OFFSET):
         case (Token::T_STACKOFFSET):
         case (Token::T_SPILLED):
-            piece = static_cast<uint64_t>(op.args[det.arVecNum].value);
+            piece = static_cast<uint64_t>(op.args[det.srcArgnum].value);
             if(det.fieldOflags & Token::T_INVERT_IMM)
                 piece = ~piece;
             if (det.tag == Token::T_SPILLED)
@@ -202,4 +203,4 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     bits->endInstruction();
     return;
 }
-};
+}

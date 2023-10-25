@@ -13,7 +13,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
 
 //TODO(ch): create normal class for performance testing and integrate it in general testing system, please.
-int main(int argc, char** argv)
+int main(int /*argc*/, char** /*argv*/)
 {
 #if __LOOPS_ARCH ==  __LOOPS_AARCH64
     loops::DepthwiseconvTest dwc(&std::cout); //TODO(ch): use common context.

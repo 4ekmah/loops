@@ -32,18 +32,17 @@ min_max_select(i0, i1, i2, i3)
     30 : add       i18, i18, 4   
     31 : jmp       0             
     32 : label 2:                
-    33 : mov       i0, 4         
-    34 : unspill   i20, 3        
-    35 : sar       i0, i20, 2    
-    36 : unspill   i20, 2        
-    37 : sar       i1, i20, 2    
-    38 : unspill   i20, 1        
-    39 : store.i32 i20, i0       
-    40 : unspill   i20, 0        
-    41 : store.i32 i20, i1       
-    42 : mov       i0, 0         
-    43 : unspill   i18, 4        
-    44 : unspill   i19, 5        
-    45 : unspill   i20, 6        
-    46 : add       i31, i31, 64  
-    47 : ret                     
+    33 : unspill   i20, 3        
+    34 : sar       i0, i20, 2    
+    35 : unspill   i20, 2        
+    36 : sar       i1, i20, 2    
+    37 : unspill   i20, 1        
+    38 : store.i32 i20, i0       
+    39 : unspill   i20, 0        
+    40 : store.i32 i20, i1       
+    41 : mov       i0, 0         
+    42 : unspill   i18, 4        
+    43 : unspill   i19, 5        
+    44 : unspill   i20, 6        
+    45 : add       i31, i31, 64  
+    46 : ret                     
