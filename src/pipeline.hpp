@@ -39,8 +39,6 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual PassID pass_id() const override final { return CP_IMMEDIATE_IMPLANTATION; }
     virtual ~ImmediateImplantation() {}
-private:
-    int m_epilogueSize;
 };
 
 class ElifElimination: public CompilerPass
@@ -51,8 +49,6 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual PassID pass_id() const override final { return CP_ELIF_ELIMINATION; }
     virtual ~ElifElimination() {}
-private:
-    int m_epilogueSize;
 };
 
 class Cf2jumps: public CompilerPass
@@ -120,7 +116,6 @@ private:
     Syntfunc m_data;
     CodeCollecting m_codecol;
     Backend* m_backend;
-    Func* m_func;
     FuncBodyBuf m_buffer;
     int m_current_pass;
     int m_target_pass;

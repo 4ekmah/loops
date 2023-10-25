@@ -84,6 +84,7 @@ namespace SyntopTranslationConstruction
 class Backend
 {
 public:
+    virtual ~Backend();
     bool isImmediateFit(const Syntop& a_op, int argnum) const;
     virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const;
     virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const;

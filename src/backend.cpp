@@ -77,6 +77,9 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
     return res;
 }
 
+Backend::~Backend()
+{}
+
 bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
 {
     bool found;

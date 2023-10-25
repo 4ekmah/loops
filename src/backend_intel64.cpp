@@ -1182,6 +1182,9 @@ namespace loops
 #endif
     }
 
+    Intel64Backend::~Intel64Backend()
+    {}
+
     std::set<int> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
     {
         switch (a_op.opcode)

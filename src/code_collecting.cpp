@@ -21,7 +21,6 @@ namespace loops
 {
 
     CodeCollecting::CodeCollecting(Syntfunc &a_data, Func *a_func) : CompilerPass(((FuncImpl *)a_func)->getContext()->getBackend())
-        , m_func(a_func)
         , m_data(a_data)
         , m_returnType(RT_NOTDEFINED)
     {

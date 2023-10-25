@@ -160,18 +160,18 @@ LTESTexe(big_immediates, {
     const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, *((int64_t*)&e)};
     std::vector<int64_t> scalars(scalars_ref.size(), 0);
     tested((void*)&(scalars[0]), TBI_SCALARS);
-    for(int i = 0; i < scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
+    for(int i = 0; i < (int)scalars.size(); i++) EXPECT_EQ(scalars[i], scalars_ref[i]);
 
     const std::vector<uint8_t> i8_0_ref = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                                            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
     std::vector<uint8_t> i8_0(i8_0_ref.size(), 0);
     tested((void*)&(i8_0[0]), TBI_I8_0);
-    for(int i = 0; i < i8_0.size(); i++) EXPECT_EQ(i8_0[i], i8_0_ref[i]);
+    for(int i = 0; i < (int)i8_0.size(); i++) EXPECT_EQ(i8_0[i], i8_0_ref[i]);
 
     const std::vector<int8_t> i8_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128,-128};
     std::vector<int8_t> i8_1(i8_1_ref.size(), 0);
     tested((void*)&(i8_1[0]), TBI_I8_1);
-    for(int i = 0; i < i8_1.size(); i++) EXPECT_EQ(i8_1[i], i8_1_ref[i]);
+    for(int i = 0; i < (int)i8_1.size(); i++) EXPECT_EQ(i8_1[i], i8_1_ref[i]);
 
 
     const std::vector<uint16_t> i16_0_ref = {0,0,0,0,0,0,0,0,
@@ -179,14 +179,14 @@ LTESTexe(big_immediates, {
                                              256,256,256,256,256,256,256,256};
     std::vector<uint16_t> i16_0(i16_0_ref.size(), 0);
     tested((void*)&(i16_0[0]), TBI_I16_0);
-    for(int i = 0; i < i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
+    for(int i = 0; i < (int)i16_0.size(); i++) EXPECT_EQ(i16_0[i], i16_0_ref[i]);
 
 
     const std::vector<int16_t> i16_1_ref = {-128,-128,-128,-128,-128,-128,-128,-128,
                                             -129,-129,-129,-129,-129,-129,-129,-129};
     std::vector<int16_t> i16_1(i16_1_ref.size(), 0);
     tested((void*)&(i16_1[0]), TBI_I16_1);
-    for(int i = 0; i < i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
+    for(int i = 0; i < (int)i16_1.size(); i++) EXPECT_EQ(i16_1[i], i16_1_ref[i]);
 
 
     const std::vector<uint32_t> i32_0_ref = {0,0,0,0,
@@ -194,13 +194,13 @@ LTESTexe(big_immediates, {
                                              256,256,256,256};
     std::vector<uint32_t> i32_0(i32_0_ref.size(), 0);
     tested((void*)&(i32_0[0]), TBI_I32_0);
-    for(int i = 0; i < i32_0.size(); i++) EXPECT_EQ(i32_0[i], i32_0_ref[i]);
+    for(int i = 0; i < (int)i32_0.size(); i++) EXPECT_EQ(i32_0[i], i32_0_ref[i]);
 
     const std::vector<int32_t> i32_1_ref = {-128,-128,-128,-128,
                                             -129,-129,-129,-129};
     std::vector<int32_t> i32_1(i32_1_ref.size(), 0);
     tested((void*)&(i32_1[0]), TBI_I32_1);
-    for(int i = 0; i < i32_1.size(); i++) EXPECT_EQ(i32_1[i], i32_1_ref[i]);
+    for(int i = 0; i < (int)i32_1.size(); i++) EXPECT_EQ(i32_1[i], i32_1_ref[i]);
 
 
     const std::vector<uint64_t> i64_0_ref= {0,0,
@@ -208,18 +208,18 @@ LTESTexe(big_immediates, {
                                             0xff00,0xff00};
     std::vector<uint64_t> i64_0(i64_0_ref.size(), 0);
     tested((void*)&(i64_0[0]), TBI_I64_0);
-    for(int i = 0; i < i64_0.size(); i++) EXPECT_EQ(i64_0[i], i64_0_ref[i]);
+    for(int i = 0; i < (int)i64_0.size(); i++) EXPECT_EQ(i64_0[i], i64_0_ref[i]);
 
     const std::vector<int64_t> i64_1_ref = {-256,-256};
     std::vector<int64_t> i64_1(i64_1_ref.size(), 0);
     tested((void*)&(i64_1[0]), TBI_I64_1);
-    for(int i = 0; i < i64_1.size(); i++) EXPECT_EQ(i64_1[i], i64_1_ref[i]);
+    for(int i = 0; i < (int)i64_1.size(); i++) EXPECT_EQ(i64_1[i], i64_1_ref[i]);
 
     const std::vector<uint64_t> i64_2_ref = {256,256,
                                              254,254};
     std::vector<uint64_t> i64_2(i64_2_ref.size(), 0);
     tested((void*)&(i64_2[0]), TBI_I64_2);
-    for(int i = 0; i < i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
+    for(int i = 0; i < (int)i64_2.size(); i++) EXPECT_EQ(i64_2[i], i64_2_ref[i]);
 })
 
 //TODO(ch)[IMPORTANT]: There obviously needed test, which prooves, that CALL_ of function, which uses vector, doesn't corrupt vector registers.

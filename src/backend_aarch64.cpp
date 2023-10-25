@@ -1010,7 +1010,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(esizIdx != WrongStat);
             static const uint64_t esizeStatSizes[] = {4, 3, 2};
             uint64_t esizSSiz = esizeStatSizes[esizIdx];
-            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
             return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1030,7 +1030,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(esizIdx != WrongStat);
             static const uint64_t esizeStatSizes[] = {4, 3, 2};
             uint64_t esizSSiz = esizeStatSizes[esizIdx];
-            static const uint64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
+            static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
             return BiT({ BTsta(opprefix, 9), BTsta(1, esizSSiz), BTimm(2, 7 - esizSSiz), BTsta(0b101001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1864,6 +1864,9 @@ Aarch64Backend::Aarch64Backend()
 #endif
 }
 
+Aarch64Backend::~Aarch64Backend()
+{}
+
 int Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
 {
     switch (a_op.opcode)
@@ -1974,7 +1977,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
                 if (BinTranslation::Token::T_INPUT & flagmask)
                 {
                     std::set<int> res;
-                    for(size_t arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
+                    for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
                     return res;
                 }
                 if (BinTranslation::Token::T_OUTPUT & flagmask)
@@ -2210,10 +2213,11 @@ std::unordered_map<int, std::string> Aarch64Backend::getOpStrings() const
 Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
 {
     Assembly2Hex a2hPass(this);
-    a2hPass.process(*((Syntfunc*)(nullptr)), toP);
+    Syntfunc dummyFunc;
+    a2hPass.process(dummyFunc, toP);
     const FuncBodyBuf buffer = a2hPass.result_buffer();
 
-    return [buffer](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* )
+    return [buffer](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend* )
     {
         uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
@@ -2221,7 +2225,7 @@ Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
     };
 }
 
-Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& toP) const
+Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& /*toP*/) const
 {
     return [](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
     {

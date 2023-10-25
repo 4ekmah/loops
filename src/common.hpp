@@ -346,7 +346,7 @@ namespace loops
         Func getFunc(const std::string &name);
         bool hasFunc(const std::string &name);
         std::string getPlatformName() const;
-        size_t vbytes() const;
+        int vbytes() const;
         void compileAll();
         inline void debugModeOn() { m_debug_mode = true; }
         inline bool debug_mode() const { return m_debug_mode; }

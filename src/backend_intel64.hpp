@@ -70,6 +70,7 @@ namespace loops
     {
     public:
         Intel64Backend();
+        virtual ~Intel64Backend() override;
         virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const override final;
         virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;

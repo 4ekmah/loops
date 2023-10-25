@@ -30,6 +30,7 @@ class Test
 {
 public:
     Test(std::ostream& out, Context& ctx): CTX(ctx), m_out(&out) {}
+    virtual ~Test() {}
     virtual void generateCode() = 0;
     virtual bool testExecution(const std::string& fixName) = 0;
     bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
@@ -186,6 +187,7 @@ class funcname: public Test                                     \
 {                                                               \
 public:                                                         \
     funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
+    ~funcname() override {}                                     \
     virtual void generateCode() override                        \
     {                                                           \
         std::string TESTNAME = #funcname;                       \

@@ -18,7 +18,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-
+#if !(__LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC)
     /*
     Next four functions are taken from FP16 library.
     Link: https://github.com/Maratyszcza/FP16
@@ -104,6 +104,8 @@ namespace loops
             (two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
         return fp32_from_bits(result);
     }
+#endif
+
     f16_t::f16_t() : bits(0){}
 
     f16_t::f16_t(float x)
@@ -348,7 +350,7 @@ namespace loops
     bool Context::hasFunc(const std::string& name) { return static_cast<ContextImpl*>(impl)->hasFunc(name); }
 
     std::string Context::getPlatformName() const {return static_cast<ContextImpl*>(impl)->getPlatformName(); }
-    size_t Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
+    int Context::vbytes() const {return static_cast<ContextImpl*>(impl)->vbytes(); }
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
     void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
@@ -676,7 +678,7 @@ namespace loops
     std::string ContextImpl::getPlatformName() const
     { return m_backend->name(); }
 
-    size_t ContextImpl::vbytes() const
+    int ContextImpl::vbytes() const
     { return m_backend->getVectorRegisterBits() >> 3; }
 
     void ContextImpl::compileAll()

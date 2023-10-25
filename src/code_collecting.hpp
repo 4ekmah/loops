@@ -70,7 +70,6 @@ private:
     enum {UC_CORRECT_PREFFERED = 1};
     void unpack_condition_(Syntfunc& condition_buffer, Expr& expr, int labeltrue, int labelfalse, int flags = 0);
     void reopen_endif(bool cond_prefix_allowed = false);
-    Func* m_func;
     std::deque<ControlFlowBracket> m_cflowStack;
     Syntfunc& m_data;
     enum {RT_NOTDEFINED, RT_REGISTER, RT_VOID};

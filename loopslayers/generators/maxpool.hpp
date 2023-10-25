@@ -43,8 +43,8 @@ public:
     typename MPGenTraits<_Tp>::maxpool_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha);
     dwc_algs_limits calc_maxpool_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x);
 private:
-    bool m_done; 
     Context CTX;
+    bool m_done;
     enum { MULTI_H = 3 };
     enum { PADHOR = 1, PADVER = 2, INITDEST = 4, MULTILINE = 8, PREINCREMENT_IDXS = 16};
     void loadVector(const IReg& base, std::vector<VReg<_Tp> >& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags);
@@ -100,7 +100,7 @@ private:
     { return upDiv(add, ratio); }
     //lower border for all c, satisfies inequality
     //c*H*W + Y*W + X >= 0
-    inline int downC(int C, int H, int W, int y, int x)
+    inline int downC(int /*C*/, int H, int W, int y, int x)
     { return downBorder(-y*W-x, H*W); }
     //upper border for all c, satisfies inequality
     //c*H*W + Y*W + X < C*W*H
@@ -108,7 +108,7 @@ private:
     { return upperBorder(C*H*W - y*W - x, H*W);}
     //lower border for all y, satisfies inequality
     //Cf*H*W + (y * stride_y + ys)*W + X >= 0, where y
-    inline int downY(int C, int H, int W, int Cf, int stride_y, int ys, int x)
+    inline int downY(int /*C*/, int H, int W, int Cf, int stride_y, int ys, int x)
     {
         Cf = std::max(Cf,0);
         return downBorder(-Cf*H*W-x-ys*W, W * stride_y);
@@ -126,7 +126,7 @@ private:
     { return Cf < C ? M * upperBorder((C-Cf)*H*W - x - (ys + y0) * W, W * M * stride_y) + y0 : 0; }
     //lower border for all x, satisfies inequality
     //Cf*H*W + Yf*W + x * stride_x + xs  >= 0
-    inline int downX(int C, int H, int W, int Cf, int Yf, int stride_x, int xs)
+    inline int downX(int /*C*/, int H, int W, int Cf, int Yf, int stride_x, int xs)
     {
         Cf = std::max(Cf,0);
         Yf = std::max(Yf,0);
@@ -212,7 +212,6 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
         IReg Xis = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Xis));
         IReg Xie = load_<int64_t>(algsLimits, offsetof(dwc_algs_limits, Xie));
 
-        IReg offset = CONST_(0);
         IReg channel = CONST_(0);
         dstride.copyidx(W << elemshift);
         
@@ -519,7 +518,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
 }
 
 template<typename _Tp>
-dwc_algs_limits MaxpoolGenerator<_Tp>::calc_maxpool_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
+dwc_algs_limits MaxpoolGenerator<_Tp>::calc_maxpool_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int /*padding_bottom*/, int /*padding_right*/, int stride_y, int stride_x)
 {
     int Cms, Cme;
     int lsimd = stride_x == 1 ? upMultipleOf(kw + lanes - 2, lanes) - 1:
@@ -833,7 +832,6 @@ void MaxpoolGenerator<_Tp>::onlylineInitLast(const VReg<uintM>& WcondV, IReg& yi
     int lastVRegNum = horVecsPerOut-1;
     IReg vertMaxesPtr = base + lastVRegNum*CTX.vbytes()*stride_x + (x << elemshift);
     VReg<intC> horIdxs_ = flags&PADHOR ? VReg<intC>(broadcast<intC>(x+(lastVRegNum*lanes*stride_x)) + countingPattern) : VReg<intC>();
-    int ldretsneeded = std::min(((lanes - 1)*stride_x + kw - 1)%(lanes*stride_x), stride_x);
     
     if(flags&PADVER)
     {
@@ -894,7 +892,7 @@ VReg<_Tp> MaxpoolGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
         case(ACT_RELU): return static_cast<VReg<_Tp>&&>(max(res, v0)); break;
         case(ACT_RELU6): return static_cast<VReg<_Tp>&&>(max(min(res, v6),v0)); break;
         case(ACT_LRELU): return static_cast<VReg<_Tp>&&>(alpha < 1 ? max(res,res * valpha) : min(res,res * valpha) ); break;
-        defaout: throw std::runtime_error("Unknown activation");
+        default: throw std::runtime_error("Unknown activation");
     };
     return VReg<_Tp>();
 }

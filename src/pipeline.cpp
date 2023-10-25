@@ -362,7 +362,6 @@ namespace loops
 
     Pipeline::Pipeline(Backend *a_backend, Func *a_func, const std::string &name, std::initializer_list<IReg *> params) : m_codecol(m_data, a_func)
         , m_backend(a_backend)
-        , m_func(a_func)
         , m_current_pass(0)
         , m_mode(PM_REGULAR)
     {
