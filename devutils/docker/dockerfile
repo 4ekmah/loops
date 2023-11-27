@@ -1,0 +1,21 @@
+FROM debian:latest
+
+#Installing development tools and environment
+RUN apt update && apt install git mc build-essential cmake openssh-server sudo -y
+
+# Creating user and privilegies
+RUN groupadd devloops && useradd -ms /bin/bash -g devloops devloops
+RUN echo 'root:change_this_password' | chpasswd
+RUN echo 'devloops:change_this_password' | chpasswd
+RUN usermod -aG sudo devloops
+RUN mkdir -p /home/devloops/.ssh
+
+#Downloading and building loops
+RUN mkdir -p /home/devloops/loops && git clone https://github.com/4ekmah/loops.git /home/devloops/loops
+RUN mkdir -p /home/devloops/loops/build && cd /home/devloops/loops/build && cmake ../ . && make -j8 
+RUN chgrp -R devloops /home/devloops/loops && chown -R devloops /home/devloops/loops
+
+#Start and open ssh access
+EXPOSE 22
+RUN service ssh start
+CMD ["/usr/sbin/sshd","-D"]
