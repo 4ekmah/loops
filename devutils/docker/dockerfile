@@ -9,6 +9,7 @@ RUN echo 'root:change_this_password' | chpasswd
 RUN echo 'devloops:change_this_password' | chpasswd
 RUN usermod -aG sudo devloops
 RUN mkdir -p /home/devloops/.ssh
+RUN chgrp -R devloops /home/devloops/.ssh && chown -R devloops /home/devloops/.ssh
 
 #Downloading loops
 RUN mkdir -p /home/devloops/loops && git clone https://github.com/4ekmah/loops.git /home/devloops/loops
