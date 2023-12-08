@@ -17,6 +17,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "src/common.hpp"
 #include "src/func_impl.hpp"
 #include "src/reg_allocator.hpp"
+#include <gtest/gtest.h>
 
 namespace loops
 {
@@ -549,25 +550,57 @@ static void hw()
 {
     get_test_ostream()<<"Hello world!"<<std::endl;
 }
-LTEST(helloworld_call, {
-    STARTFUNC_(TESTNAME)
+// LTEST(helloworld_call, {
+//     STARTFUNC_(TESTNAME)
+//     {
+//         CALL_(hw);
+//         RETURN_();
+//     }
+//     });
+// LTESTexe(helloworld_call, {
+//     typedef void(*helloworld_call_f)();
+//     helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(EXEPTR);
+//     reset_test_ostream();
+//     tested();
+//     std::string res = get_test_ostream_result();
+//     reset_test_ostream();
+//     get_test_ostream()<<"Hello world!"<<std::endl;
+//     std::string refres = get_test_ostream_result();
+//     reset_test_ostream();
+//     EXPECT_EQ(res, refres);
+//     })
+
+TEST(calls, helloworld_call) {
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    STARTFUNC_("helloworld_call")
     {
         CALL_(hw);
         RETURN_();
     }
-    });
-LTESTexe(helloworld_call, {
     typedef void(*helloworld_call_f)();
-    helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(EXEPTR);
+    Func fnc = ctx.getFunc("helloworld_call");
+    helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(fnc.ptr());
+    // helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(ctx.getFunc("helloworld_call").ptr());
+    std::string res;
+    bool notfailed = true;
+    try
+    {
+        reset_test_ostream();
+        tested();
+        res = get_test_ostream_result();
+    }
+    catch(const std::exception& e)
+    {
+        notfailed = false;
+    }
+    ASSERT_EQ(notfailed, true);
     reset_test_ostream();
-    tested();
-    std::string res = get_test_ostream_result();
-    reset_test_ostream();
-    get_test_ostream()<<"Hello world!"<<std::endl;
+    hw();
     std::string refres = get_test_ostream_result();
-    reset_test_ostream();
-    EXPECT_EQ(res, refres);
-    })
+    reset_test_ostream();    
+    ASSERT_EQ(res, refres);
+}
 
 static void snake_dprint(int64_t x, int64_t y)
 {
