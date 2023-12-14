@@ -21,26 +21,38 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-LTEST(a_plus_b, {
+//DUBUG: Create test, which uses compile_all method.
+//DUBUG: Append mode which interpret text inequality as a warning.
+//DUBUG: Append code recreation mode, it also have to interpret text inequality as a warning, to sequentially apply 2 GTEST macro.
+TEST(basic, a_plus_b)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg a, b;
-    STARTFUNC_(TESTNAME, &a, &b)
+    STARTFUNC_(test_info_->name(), &a, &b)
     {
         a+=b;
         RETURN_(a);
     }
-});
-LTESTexe(a_plus_b, {
     typedef int64_t (*a_plus_b_f)(int64_t a, int64_t b);
-    a_plus_b_f tested = reinterpret_cast<a_plus_b_f>(EXEPTR);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    a_plus_b_f tested = reinterpret_cast<a_plus_b_f>(func.ptr());
     std::vector<int64_t> A = {3,2,4,2,3,4,1};
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
     for(size_t n = 0; n < A.size(); n++)
-        EXPECT_EQ(tested(A[n],B[n]), A[n]+B[n]);
-})
+        ASSERT_EQ(tested(A[n],B[n]), A[n]+B[n]);
+}
 
-LTEST(min_max_scalar, {
+TEST(basic, min_max_scalar)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
-    STARTFUNC_(TESTNAME, &ptr, &n, &minpos_addr, &maxpos_addr)
+    STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
     {
         IReg i = CONST_(0);
         IReg minpos = CONST_(0);
@@ -70,12 +82,13 @@ LTEST(min_max_scalar, {
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
     }
-});
-LTESTexe(min_max_scalar, {
-    typedef int (*minmaxscalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
+    typedef int64_t (*min_max_scalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    min_max_scalar_f tested = reinterpret_cast<min_max_scalar_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
-    minmaxscalar_f tested = reinterpret_cast<minmaxscalar_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
     for(int num = 0; num < (int)v.size(); num++)
@@ -85,19 +98,22 @@ LTESTexe(min_max_scalar, {
         if(v[rmaxpos] < v[num])
             rmaxpos = num;
     }
-    EXPECT_EQ(rmaxpos, maxpos);
-    EXPECT_EQ(rminpos, minpos);
-    EXPECT_EQ(retval, 0);
-})
+    ASSERT_EQ(rmaxpos, maxpos);
+    ASSERT_EQ(rminpos, minpos);
+    ASSERT_EQ(retval, 0);
+}
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #undef min // Windows.h implements min and max as macro.
 #undef max //
 #endif
-LTEST(min_max_select, {
-    using namespace loops;
+TEST(basic, min_max_select)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
-    STARTFUNC_(TESTNAME, &ptr, &n, &minpos_addr, &maxpos_addr)
+    STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
     {
         IReg i = CONST_(0);
         IReg minpos = CONST_(0);
@@ -120,30 +136,35 @@ LTEST(min_max_select, {
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
     }
-    });
-LTESTexe(min_max_select, {
-    typedef int (*minmaxselect_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
+    typedef int64_t (*min_max_select_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    min_max_select_f tested = reinterpret_cast<min_max_select_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
-    minmaxselect_f tested = reinterpret_cast<minmaxselect_f>(EXEPTR);
     int retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
-    for (int num = 0; num < (int)v.size(); num++)
+    for(int num = 0; num < (int)v.size(); num++)
     {
-        if (v[rminpos] > v[num])
+        if(v[rminpos] > v[num])
             rminpos = num;
-        if (v[rmaxpos] < v[num])
+        if(v[rmaxpos] < v[num])
             rmaxpos = num;
     }
-    EXPECT_EQ(rmaxpos, maxpos);
-    EXPECT_EQ(rminpos, minpos);
-    EXPECT_EQ(retval, 0);
-    })
+    ASSERT_EQ(rmaxpos, maxpos);
+    ASSERT_EQ(rminpos, minpos);
+    ASSERT_EQ(retval, 0);
+}
 
-enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
-LTEST(triangle_types, {
+TEST(basic, triangle_types)
+{
+    enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg a, b, c;
-    STARTFUNC_(TESTNAME, &a, &b, &c)
+    STARTFUNC_(test_info_->name(), &a, &b, &c)
     {
         IF_(a <= 0 || b <= 0 || c <= 0)
             RETURN_(NOT_A_TRIANGLE);
@@ -159,34 +180,38 @@ LTEST(triangle_types, {
             RETURN_(OBTUSE_TRIANGLE);
         ELSE_
             RETURN_(ACUTE_TRIANGLE);
-
     }
-});
-LTESTexe(triangle_types, {
-    typedef int (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
-    triangle_types_f tested = reinterpret_cast<triangle_types_f>(EXEPTR);
-    EXPECT_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(1,2,-3), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(1,2,5), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(5,2,1), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(1,5,2), int(NOT_A_TRIANGLE));
-    EXPECT_EQ(tested(1,1,1), int(EQUILATERAL_TRIANGLE));
-    EXPECT_EQ(tested(1,1,2), int(ISOSCELES_TRIANGLE));
-    EXPECT_EQ(tested(1,2,1), int(ISOSCELES_TRIANGLE));
-    EXPECT_EQ(tested(2,1,1), int(ISOSCELES_TRIANGLE));
-    EXPECT_EQ(tested(3,4,5), int(RIGHT_TRIANGLE));
-    EXPECT_EQ(tested(5,4,3), int(RIGHT_TRIANGLE));
-    EXPECT_EQ(tested(3,5,4), int(RIGHT_TRIANGLE));
-    EXPECT_EQ(tested(5,6,9), int(OBTUSE_TRIANGLE));
-    EXPECT_EQ(tested(9,5,6), int(OBTUSE_TRIANGLE));
-    EXPECT_EQ(tested(5,9,6), int(OBTUSE_TRIANGLE));
-    EXPECT_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
-})
+    typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    triangle_types_f tested = reinterpret_cast<triangle_types_f>(func.ptr());
+    ASSERT_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(1,2,-3), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(1,2,5), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(5,2,1), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(1,5,2), int(NOT_A_TRIANGLE));
+    ASSERT_EQ(tested(1,1,1), int(EQUILATERAL_TRIANGLE));
+    ASSERT_EQ(tested(1,1,2), int(ISOSCELES_TRIANGLE));
+    ASSERT_EQ(tested(1,2,1), int(ISOSCELES_TRIANGLE));
+    ASSERT_EQ(tested(2,1,1), int(ISOSCELES_TRIANGLE));
+    ASSERT_EQ(tested(3,4,5), int(RIGHT_TRIANGLE));
+    ASSERT_EQ(tested(5,4,3), int(RIGHT_TRIANGLE));
+    ASSERT_EQ(tested(3,5,4), int(RIGHT_TRIANGLE));
+    ASSERT_EQ(tested(5,6,9), int(OBTUSE_TRIANGLE));
+    ASSERT_EQ(tested(9,5,6), int(OBTUSE_TRIANGLE));
+    ASSERT_EQ(tested(5,9,6), int(OBTUSE_TRIANGLE));
+    ASSERT_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
+}
 
-LTEST(nonnegative_odd, {
+TEST(basic, nonnegative_odd)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg ptr, n;
-    STARTFUNC_(TESTNAME, &ptr, &n)
+    STARTFUNC_(test_info_->name(), &ptr, &n)
     {
         IReg i = CONST_(0);
         IReg res = CONST_(-(int64_t)sizeof(int));
@@ -210,16 +235,17 @@ LTEST(nonnegative_odd, {
         res /= sizeof(int);
         RETURN_(res);
     }
-});
-LTESTexe(nonnegative_odd, {
-    typedef int (*nonnegative_odd_f)(const int* ptr, int64_t n);
-    nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(EXEPTR);
+    typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
-    EXPECT_EQ(tested(&v[0], v.size()), 3);
-    EXPECT_EQ(tested(0, 0), -1);
-})
+    ASSERT_EQ(tested(&v[0], v.size()), 3);
+    ASSERT_EQ(tested(0, 0), -1);
+}
 
-LTEST(all_loads_all_stores, {
+LTEST(all_loads_all_stores, { //DUBUG: Implement switch_spill_stress_test_mode_on with given amount of argument registers!
     IReg iptr, ityp, optr, otyp, n;
     STARTFUNC_(TESTNAME, &iptr, &ityp, &optr, &otyp, &n )
     {
@@ -342,9 +368,13 @@ LTESTexe(all_loads_all_stores, {
         }
     })
 
-LTEST(nullify_msb_lsb, {
+TEST(basic, nullify_msb_lsb)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg in, elsb, emsb;
-    STARTFUNC_(TESTNAME, &in, &elsb, &emsb )
+    STARTFUNC_(test_info_->name(), &in, &elsb, &emsb)
     {
         IReg msb = in | ushift_right(in,1);
         msb |= ushift_right(msb, 2);
@@ -361,10 +391,11 @@ LTEST(nullify_msb_lsb, {
         store_<uint64_t>(elsb, lsb);
         RETURN_();
     }
-    });
-LTESTexe(nullify_msb_lsb, {
-    typedef void (*erode_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
-    erode_msb_lsb_f tested = reinterpret_cast<erode_msb_lsb_f>(EXEPTR);
+    typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    nullify_msb_lsb_f tested = reinterpret_cast<nullify_msb_lsb_f>(func.ptr());
     std::vector<uint64_t> v = { 0x6000000000000000, 2, 0xf0, 7, 0xffffffff };
     for (uint64_t tchk : v)
     {
@@ -384,10 +415,10 @@ LTESTexe(nullify_msb_lsb, {
         EXPECT_EQ(remsb, emsb);
         EXPECT_EQ(relsb, elsb);
     }
-    })
+}
 
 //This implementation(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-LTEST(bresenham, {
+LTEST(bresenham, { //DUBUG: Implement switch_spill_stress_test_mode_on with given amount of argument registers!
     IReg canvas, w, x0, y0, x1, y1, filler;
     STARTFUNC_(TESTNAME, &canvas, &w, &x0, &y0, &x1, &y1, &filler)
     {
@@ -485,13 +516,16 @@ LTESTexe(bresenham, {
         EXPECT_EQ(optr[symbn], canvasRef[symbn]);
     })
 
-LTEST(conditionpainter, {
+TEST(basic, conditionpainter)
+{
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    // const int h = ymax - ymin + 1;
+    const int h = ymax - ymin + 1;
     const int w = xmax - xmin + 1;
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg ptr;
-    USE_CONTEXT_(CTX);
-    STARTFUNC_(TESTNAME, &ptr)
+    STARTFUNC_(test_info_->name(), &ptr)
     {
         IReg y = CONST_(ymin);
         WHILE_(y<=ymax)
@@ -512,28 +546,25 @@ LTEST(conditionpainter, {
         }
         RETURN_();
     }
-    });
-void conditionpainter_ref(int64_t* ptr)
-{
-    const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    // const int h = ymax - ymin + 1
-    const int w = xmax - xmin + 1;
-    for(int y = ymin; y <= ymax; y++)
-        for(int x = xmin; x <= xmax; x++)
-        {
-            int datax = x - xmin;
-            int datay = y - ymin;
-            ptr[datay * w + datax] = (y >= x + 3 && y <=4 && x >= -2 && x <= 0) || (y<=x-1 && x>=0 && y<=0 && x*x + y*y <= 9);
-            ptr[datay * w + datax] += (((x >= 2 && x <= 4) || (y >= 1 && y <= 3)) && (x*x + y*y <= 16) ? 2 : 0);
-            if(((2*y >=x && y<= -(x+3)*(x+3))||(y <= 2*x && y >= -(x+3)*(x+3))) && x <= 0)
-                ptr[datay * w + datax] += 3;
-        }
-}
-LTESTexe(conditionpainter, {
-    typedef void (*conditionpainter_f)(int64_t* canvas);
-    conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(EXEPTR);
-    const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1, w = xmax - xmin + 1;
+    typedef int64_t (*conditionpainter_f)(int64_t* canvas);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
+
+    auto conditionpainter_ref = [](int64_t* ptr)
+    {
+        for(int y = ymin; y <= ymax; y++)
+            for(int x = xmin; x <= xmax; x++)
+            {
+                int datax = x - xmin;
+                int datay = y - ymin;
+                ptr[datay * w + datax] = (y >= x + 3 && y <=4 && x >= -2 && x <= 0) || (y<=x-1 && x>=0 && y<=0 && x*x + y*y <= 9);
+                ptr[datay * w + datax] += (((x >= 2 && x <= 4) || (y >= 1 && y <= 3)) && (x*x + y*y <= 16) ? 2 : 0);
+                if(((2*y >=x && y<= -(x+3)*(x+3))||(y <= 2*x && y >= -(x+3)*(x+3))) && x <= 0)
+                    ptr[datay * w + datax] += 3;
+            }
+    };
     int64_t canvas_ref[w*h];
     int64_t canvas[3*w*h];
     memset(canvas_ref, 0, w*h*sizeof(int64_t));
@@ -544,61 +575,34 @@ LTESTexe(conditionpainter, {
     for(int y = 0; y < h; y++)
         for(int x = 0; x < w; x++)
             EXPECT_EQ(canvas_ref[y*w + x], canvas[y*w + x + w*h]);
-    })
+}
 
 static void hw()
 {
     get_test_ostream()<<"Hello world!"<<std::endl;
 }
-// LTEST(helloworld_call, {
-//     STARTFUNC_(TESTNAME)
-//     {
-//         CALL_(hw);
-//         RETURN_();
-//     }
-//     });
-// LTESTexe(helloworld_call, {
-//     typedef void(*helloworld_call_f)();
-//     helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(EXEPTR);
-//     reset_test_ostream();
-//     tested();
-//     std::string res = get_test_ostream_result();
-//     reset_test_ostream();
-//     get_test_ostream()<<"Hello world!"<<std::endl;
-//     std::string refres = get_test_ostream_result();
-//     reset_test_ostream();
-//     EXPECT_EQ(res, refres);
-//     })
-
-TEST(calls, helloworld_call) {
+TEST(calls, helloworld_call)
+{
     Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
-    STARTFUNC_("helloworld_call")
+    STARTFUNC_(test_info_->name())
     {
         CALL_(hw);
         RETURN_();
     }
     typedef void(*helloworld_call_f)();
-    Func fnc = ctx.getFunc("helloworld_call");
-    helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(fnc.ptr());
-    // helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(ctx.getFunc("helloworld_call").ptr());
-    std::string res;
-    bool notfailed = true;
-    try
-    {
-        reset_test_ostream();
-        tested();
-        res = get_test_ostream_result();
-    }
-    catch(const std::exception& e)
-    {
-        notfailed = false;
-    }
-    ASSERT_EQ(notfailed, true);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // ASSERT_ASSEMBLY_CORRECT(func);
+    helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(func.ptr());
+    reset_test_ostream();
+    tested();
+    std::string res = get_test_ostream_result();
     reset_test_ostream();
     hw();
     std::string refres = get_test_ostream_result();
-    reset_test_ostream();    
+    reset_test_ostream();
     ASSERT_EQ(res, refres);
 }
 
@@ -606,49 +610,56 @@ static void snake_dprint(int64_t x, int64_t y)
 {
     get_test_ostream()<<"(x, y) = ("<< (int)x << ", " << (int)y << ")" << std::endl;
 }
-LTEST(snake, {
-    IReg ptr, h, w;
-    STARTFUNC_(TESTNAME, &ptr, &h, &w)
+TEST(calls, snake)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     {
-        IReg diagamount = (h + w - 1);
-        IReg curvalue = CONST_(0);
-        IReg curdx = CONST_(1);
-        IReg curdy = -curdx;
-        IReg dn = CONST_(0);
-        WHILE_(dn < diagamount)
+        IReg ptr, h, w;
+        STARTFUNC_(test_info_->name(), &ptr, &h, &w)
         {
-            IReg x = CONST_(0);
-            IReg y = CONST_(0);
-            IF_(dn&1) //Diagonal moving down
+            IReg diagamount = (h + w - 1);
+            IReg curvalue = CONST_(0);
+            IReg curdx = CONST_(1);
+            IReg curdy = -curdx;
+            IReg dn = CONST_(0);
+            WHILE_(dn < diagamount)
             {
-                IReg wm1 = w - 1;
-                x = min(wm1, dn);
-                y = select(dn > wm1, dn - (wm1), 0);
+                IReg x = CONST_(0);
+                IReg y = CONST_(0);
+                IF_(dn&1) //Diagonal moving down
+                {
+                    IReg wm1 = w - 1;
+                    x = min(wm1, dn);
+                    y = select(dn > wm1, dn - (wm1), 0);
+                }
+                ELSE_ //Diagonal moving up
+                {
+                    IReg hm1 = h - 1;
+                    x = select(dn > hm1, dn - (hm1), 0);
+                    y = min(hm1, dn);
+                }
+                WHILE_(x>=0 && x < w && y >= 0 && y < h)
+                {
+                    CALL_(snake_dprint, x, y);
+                    store_<uint8_t>(ptr, y * w + x, curvalue);
+                    curvalue += 1;
+                    x += curdx;
+                    y += curdy;
+                }
+                curdx = -curdx;
+                curdy = -curdy;
+                dn += 1;
             }
-            ELSE_ //Diagonal moving up
-            {
-                IReg hm1 = h - 1;
-                x = select(dn > hm1, dn - (hm1), 0);
-                y = min(hm1, dn);
-            }
-            WHILE_(x>=0 && x < w && y >= 0 && y < h)
-            {
-                CALL_(snake_dprint, x, y);
-                store_<uint8_t>(ptr, y * w + x, curvalue);
-                curvalue += 1;
-                x += curdx;
-                y += curdy;
-            }
-            curdx = -curdx;
-            curdy = -curdy;
-            dn += 1;
+            RETURN_();
         }
-        RETURN_();
     }
-    });
-LTESTexe(snake, {
     typedef void(*snake_f)(uint8_t*, int64_t, int64_t);
-    snake_f tested = reinterpret_cast<snake_f>(EXEPTR);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // ASSERT_ASSEMBLY_CORRECT(func);
+    snake_f tested = reinterpret_cast<snake_f>(func.ptr());
     const int h = 10, w = 5;
     uint8_t canvas[3 * h*w];
     uint8_t canvas_ref[h*w];
@@ -656,7 +667,7 @@ LTESTexe(snake, {
     memset(canvas_ref, 0, h*w);
     reset_test_ostream();
     tested(&(canvas[h*w]), h, w);
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     std::string dprint = get_test_ostream_result();
     reset_test_ostream();
     int diagamount = (h + w - 1);
@@ -708,9 +719,9 @@ LTESTexe(snake, {
     reset_test_ostream();
     for(int y = 0; y < h ; y++)
         for(int x = 0; x < w ; x++)
-            EXPECT_EQ(canvas[y * w + x + h*w], canvas_ref[y * w + x]);
-    EXPECT_EQ(dprint, dprint_ref);
-    })
+            ASSERT_EQ(canvas[y * w + x + h*w], canvas_ref[y * w + x]);
+    ASSERT_EQ(dprint, dprint_ref);
+}
 
 static int64_t lesser_dbl(int64_t a, int64_t b)
 {
@@ -724,9 +735,13 @@ static int64_t lesser_dbl(int64_t a, int64_t b)
     conv1.val64 = b;
     return conv0.val < conv1.val;
 }
-LTEST(sort_double, {
+TEST(calls, sort_double)
+{
+    Context ctx;
+    switch_spill_stress_test_mode_on(ctx);
+    USE_CONTEXT_(ctx);
     IReg ptr, n;
-    STARTFUNC_(TESTNAME, &ptr, &n)
+    STARTFUNC_(test_info_->name(), &ptr, &n)
     {
         n <<= 3; //*sizeof(double)
         IReg nm1 = n - sizeof(double);
@@ -752,16 +767,18 @@ LTEST(sort_double, {
         }
         RETURN_();
     }
-    });
-LTESTexe(sort_double, {
     typedef void(*sort_double_f)(double*, int64_t);
-    sort_double_f tested = reinterpret_cast<sort_double_f>(EXEPTR);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // ASSERT_ASSEMBLY_CORRECT(func);
+    sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
     std::vector<double> arr = {7.3, 2.0, 5.3, 10.0, -500000.0, -17.0, 70.0, 1.9, 71212.7878, 12.0};
     std::vector<double> arr_ref = arr;
     tested(&(arr[0]), arr.size());
     std::sort(arr_ref.begin(), arr_ref.end());
     for(int pos = 0; pos < (int)arr_ref.size(); pos++)
-        EXPECT_EQ(arr[pos], arr_ref[pos]);
-    })
+        ASSERT_EQ(arr[pos], arr_ref[pos]);
+
+}
 }
 #endif//__LOOPS_TEST_BASIC_HPP__

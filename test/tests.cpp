@@ -15,111 +15,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-
-inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttributes for windows
-{
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
-}
-
-inline std::string toLower(const std::string& tL)
-{
-    std::string res = tL;
-    std::transform(res.begin(), res.end(), res.begin(), [](char t) {return (char)::tolower(t); });
-    return res;
-}
-
-bool Test::testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong)
-{
-    loops::Func func = CTX.getFunc(a_fixtureName);
-    std::string tarcname = CTX.getPlatformName();
-    std::string arcOSsuffix = toLower(tarcname);
-    std::string bfilename(LOOPS_TEST_DIR"/refasm/");
-    arcOSsuffix += std::string("/") + toLower(OSname());
-    std::string tfilename = bfilename;
-    bool result = true;
-    { //Bytecode check
-        bool rewrite = false;
-        std::string bctext;
-        ::std::ostringstream bcstream(bctext, ::std::ios::out);
-        func.printBytecode(bcstream);
-        bctext = bcstream.str();
-        bfilename += arcOSsuffix + "/bytecode/";
-        bfilename += a_fixtureName + ".tst";
-        if(fileexists(bfilename))
-        {
-            std::ifstream refstream(bfilename.c_str(), ::std::ios::in);
-            if(!refstream.good())
-                (*m_out)<<"    Bytecode check failed: cannot open file: \""<<bfilename<<"\"."<<std::endl;
-            std::string bcref((std::istreambuf_iterator<char>(refstream)),
-                             std::istreambuf_iterator<char>());
-            if(!checkListingEquality(bctext, bcref, "Bytecode check failed"))
-            {
-                if(a_rewriteIfWrong)
-                    rewrite = a_rewriteIfWrong;
-                result = false;
-            }
-        }
-        else
-        {
-            (*m_out)<<"    Bytecode check failed: file doesn't exist: \""<<bfilename<<"\"."<<std::endl;
-            if(a_rewriteIfWrong)
-                rewrite = a_rewriteIfWrong;
-            result = false;
-        }
-        if(rewrite)
-        {
-            std::ofstream rwrtstream(bfilename.c_str(), ::std::ios::out);
-            if(!rwrtstream.good())
-                (*m_out)<<"    Bytecode check failed: cannot open file for rewrite: \""<<bfilename<<"\"."<<std::endl;
-            rwrtstream<<bctext;
-            rwrtstream.close();
-        }
-    }
-    if (result || a_rewriteIfWrong) //Target assembly check
-    {
-        bool rewrite = false;
-        std::string tatext;
-        ::std::ostringstream tastream(tatext, ::std::ios::out);
-        func.printAssembly(tastream);
-        tatext = tastream.str();
-        tfilename += arcOSsuffix + "/";
-        tfilename += a_fixtureName + ".tst";
-        if(fileexists(tfilename))
-        {
-            std::ifstream refstream(tfilename.c_str(), ::std::ios::in);
-            if(!refstream.good())
-                (*m_out)<<"    Check for "<<tarcname<<" failed: cannot open file: \""<<tfilename<<"\"."<<std::endl;
-
-            
-            std::string bcref((std::istreambuf_iterator<char>(refstream)),
-                             std::istreambuf_iterator<char>());
-            if(!checkListingEquality(tatext, bcref, "Check for "+tarcname+" failed"))
-            {
-                if(a_rewriteIfWrong)
-                    rewrite = a_rewriteIfWrong;
-                result = false;
-            }
-        }
-        else
-        {
-            (*m_out)<<"    Check for "<<tarcname<<" failed: file doesn't exist: \""<<tfilename<<"\"."<<std::endl;
-            if(a_rewriteIfWrong)
-                rewrite = a_rewriteIfWrong;
-            result = false;
-        }
-        if(rewrite)
-        {
-            std::ofstream rwrtstream(tfilename.c_str(), ::std::ios::out);
-            if(!rwrtstream.good())
-                (*m_out)<<"    Check for "<<tarcname<<" failed: cannot open file for rewrite: \""<<tfilename<<"\"."<<std::endl;
-            rwrtstream<<tatext;
-            rwrtstream.close();
-        }
-    }
-    return result;
-}
-std::string Test::OSname()
+std::string OSname()
 {
     #if __LOOPS_OS == __LOOPS_LINUX
         return "Linux";
@@ -132,7 +28,14 @@ std::string Test::OSname()
     #endif
 }
 
-bool Test::checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes)
+inline std::string toLower(const std::string& tL)
+{
+    std::string res = tL;
+    std::transform(res.begin(), res.end(), res.begin(), [](char t) {return (char)::tolower(t); });
+    return res;
+}
+
+bool checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes, std::ostream& out_stream)
 {
     size_t rowNum = 1;
     size_t colNum = 1;
@@ -176,8 +79,8 @@ bool Test::checkListingEquality(const std::string& curL, const std::string& refL
     }
     if(!result)
     {
-        (*m_out)<<mainErrorMes.c_str()<<std::endl;
-        (*m_out)<<"        Row: " << rowNum<< " | Col: "<<colNum<<std::endl;
+        out_stream<<mainErrorMes.c_str()<<std::endl;
+        out_stream<<"        Row: " << rowNum<< " | Col: "<<colNum<<std::endl;
         size_t curErrEndPos = curL.find_first_of('\n', curPos); //TODO(ch): What about windows style endlines?
         size_t refErrEndPos = refL.find_first_of('\n', refPos);
         colNum-=1;
@@ -185,8 +88,219 @@ bool Test::checkListingEquality(const std::string& curL, const std::string& refL
         refPos -= colNum;
         std::string curProblemLine = curL.substr(curPos, curErrEndPos - curPos);
         std::string refProblemLine = refL.substr(refPos, refErrEndPos - refPos);
-        (*m_out)<<"        Current listing line: \""<<curProblemLine<<"\""<<std::endl;
-        (*m_out)<<"        Reference line      : \""<<refProblemLine<<"\""<<std::endl;
+        out_stream<<"        Current listing line: \""<<curProblemLine<<"\""<<std::endl;
+        out_stream<<"        Reference line      : \""<<refProblemLine<<"\""<<std::endl;
+    }
+    return result;
+}
+
+inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttributes for windows
+{
+  struct stat buffer;
+  return (stat(name.c_str(), &buffer) == 0);
+}
+
+bool intermediate_representation_is_stable(Func func)
+{
+    //DUBUG: this function have not to print anything, but have to create error message with details and provide it to GTEST's macro higher.
+    //DUBUG: so delete all cout references.
+    const std::string func_name = func.name();
+    const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
+    const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
+    const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
+    bool result = true;
+    const bool a_rewriteIfWrong = false; //DUBUG: create some regulation flags. 
+    bool rewrite = false;
+    std::string irtext;
+    ::std::ostringstream irstream(irtext, ::std::ios::out);
+    func.printBytecode(irstream);
+    irtext = irstream.str();
+    if(fileexists(irfilename))
+    {
+        std::ifstream refstream(irfilename.c_str(), ::std::ios::in);
+        if(!refstream.good())
+        {
+            std::cout << "    Intermediate representation check failed: cannot open file: \""<<irfilename<<"\"."<<std::endl;
+            return false; //DUBUG: but recreate if needed.
+        }
+        std::string irref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
+        if(!checkListingEquality(irtext, irref, "Intermediate representation check failed", std::cout))
+        {
+            
+            if(a_rewriteIfWrong)
+                rewrite = a_rewriteIfWrong;
+            result = false;
+        }
+    }
+    else
+    {
+        std::cout<<"    Intermediate representation check failed: file doesn't exist: \""<<irfilename<<"\"."<<std::endl;
+        if(a_rewriteIfWrong)
+            rewrite = a_rewriteIfWrong;
+        result = false;
+    }
+    if(rewrite)
+    {
+        std::ofstream rwrtstream(irfilename.c_str(), ::std::ios::out);
+        if(!rwrtstream.good())
+            std::cout<<"    Intermediate representation check failed: cannot open file for rewrite: \""<<irfilename<<"\"."<<std::endl;
+        rwrtstream<<irtext;
+        rwrtstream.close();
+    }
+    return result;
+}
+
+bool assembly_is_stable(Func func)
+{
+    //DUBUG: this function have not to print anything, but have to create error message with details and provide it to GTEST's macro higher.
+    //DUBUG: so delete all cout references.
+    const std::string func_name = func.name();
+    const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
+    const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
+    const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/" + func_name + ".tst";
+    bool result = true;
+    const bool a_rewriteIfWrong = false; //DUBUG: create some regulation flags. 
+    bool rewrite = false;
+    std::string atext;
+    ::std::ostringstream astream(atext, ::std::ios::out);
+    func.printAssembly(astream);
+    atext = astream.str();
+    if(fileexists(afilename))
+    {
+        std::ifstream refstream(afilename.c_str(), ::std::ios::in);
+        if(!refstream.good())
+            std::cout<<"    Check for "<<tarcname<<" failed: cannot open file: \""<<afilename<<"\"."<<std::endl;
+
+        
+        std::string bcref((std::istreambuf_iterator<char>(refstream)),
+                            std::istreambuf_iterator<char>());
+        if(!checkListingEquality(atext, bcref, "Check for "+tarcname+" failed", std::cout))
+        {
+            if(a_rewriteIfWrong)
+                rewrite = a_rewriteIfWrong;
+            result = false;
+        }
+    }
+    else
+    {
+        std::cout<<"    Check for "<<tarcname<<" failed: file doesn't exist: \""<<afilename<<"\"."<<std::endl;
+        if(a_rewriteIfWrong)
+            rewrite = a_rewriteIfWrong;
+        result = false;
+    }
+    if(rewrite)
+    {
+        std::ofstream rwrtstream(afilename.c_str(), ::std::ios::out);
+        if(!rwrtstream.good())
+            std::cout<<"    Check for "<<tarcname<<" failed: cannot open file for rewrite: \""<<afilename<<"\"."<<std::endl;
+        rwrtstream<<atext;
+        rwrtstream.close();
+    }
+    return result;
+}
+
+void switch_spill_stress_test_mode_on(Context& CTX)
+{
+    getImpl(&CTX)->getBackend()->switchOnSpillStressMode();
+}
+
+void direct_translation_on(Func& func)
+{
+    getImpl(&func)->directTranslationOn();
+}
+
+Func* get_assembly_reg_param(Func& func)
+{
+    return getImpl(&func);
+}
+
+bool Test::testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong)
+{
+    loops::Func func = CTX.getFunc(a_fixtureName);
+    std::string tarcname = CTX.getPlatformName();
+    std::string arcOSsuffix = toLower(tarcname);
+    std::string bfilename(LOOPS_TEST_DIR"/refasm/");
+    arcOSsuffix += std::string("/") + toLower(OSname());
+    std::string tfilename = bfilename;
+    bool result = true;
+    { //Bytecode check
+        bool rewrite = false;
+        std::string bctext;
+        ::std::ostringstream bcstream(bctext, ::std::ios::out);
+        func.printBytecode(bcstream);
+        bctext = bcstream.str();
+        bfilename += arcOSsuffix + "/bytecode/";
+        bfilename += a_fixtureName + ".tst";
+        if(fileexists(bfilename))
+        {
+            std::ifstream refstream(bfilename.c_str(), ::std::ios::in);
+            if(!refstream.good())
+                (*m_out)<<"    Bytecode check failed: cannot open file: \""<<bfilename<<"\"."<<std::endl;
+            std::string bcref((std::istreambuf_iterator<char>(refstream)),
+                             std::istreambuf_iterator<char>());
+            if(!checkListingEquality(bctext, bcref, "Bytecode check failed", *m_out))
+            {
+                if(a_rewriteIfWrong)
+                    rewrite = a_rewriteIfWrong;
+                result = false;
+            }
+        }
+        else
+        {
+            (*m_out)<<"    Bytecode check failed: file doesn't exist: \""<<bfilename<<"\"."<<std::endl;
+            if(a_rewriteIfWrong)
+                rewrite = a_rewriteIfWrong;
+            result = false;
+        }
+        if(rewrite)
+        {
+            std::ofstream rwrtstream(bfilename.c_str(), ::std::ios::out);
+            if(!rwrtstream.good())
+                (*m_out)<<"    Bytecode check failed: cannot open file for rewrite: \""<<bfilename<<"\"."<<std::endl;
+            rwrtstream<<bctext;
+            rwrtstream.close();
+        }
+    }
+    if (result || a_rewriteIfWrong) //Target assembly check
+    {
+        bool rewrite = false;
+        std::string tatext;
+        ::std::ostringstream tastream(tatext, ::std::ios::out);
+        func.printAssembly(tastream);
+        tatext = tastream.str();
+        tfilename += arcOSsuffix + "/";
+        tfilename += a_fixtureName + ".tst";
+        if(fileexists(tfilename))
+        {
+            std::ifstream refstream(tfilename.c_str(), ::std::ios::in);
+            if(!refstream.good())
+                (*m_out)<<"    Check for "<<tarcname<<" failed: cannot open file: \""<<tfilename<<"\"."<<std::endl;
+
+            
+            std::string bcref((std::istreambuf_iterator<char>(refstream)),
+                             std::istreambuf_iterator<char>());
+            if(!checkListingEquality(tatext, bcref, "Check for "+tarcname+" failed", *m_out))
+            {
+                if(a_rewriteIfWrong)
+                    rewrite = a_rewriteIfWrong;
+                result = false;
+            }
+        }
+        else
+        {
+            (*m_out)<<"    Check for "<<tarcname<<" failed: file doesn't exist: \""<<tfilename<<"\"."<<std::endl;
+            if(a_rewriteIfWrong)
+                rewrite = a_rewriteIfWrong;
+            result = false;
+        }
+        if(rewrite)
+        {
+            std::ofstream rwrtstream(tfilename.c_str(), ::std::ios::out);
+            if(!rwrtstream.good())
+                (*m_out)<<"    Check for "<<tarcname<<" failed: cannot open file for rewrite: \""<<tfilename<<"\"."<<std::endl;
+            rwrtstream<<tatext;
+            rwrtstream.close();
+        }
     }
     return result;
 }

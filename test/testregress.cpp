@@ -12,6 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "testregress/test_intel64.hpp"
 #include <gtest/gtest.h>
 
+//DUBUG: don't forget to append license information.
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -31,7 +31,7 @@ public:
     void printBytecode(std::ostream& out, int uptoPASS = CP_COLLECTING);
     void printAssembly(std::ostream& out, int columns);
 
-     inline ContextImpl* getContext() { return m_context; }
+    inline ContextImpl* getContext() { return m_context; }
 
     const Syntfunc& get_data() const;
     const FuncBodyBuf get_hex_body();

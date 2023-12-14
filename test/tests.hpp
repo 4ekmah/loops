@@ -25,6 +25,19 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
+std::string OSname();
+bool intermediate_representation_is_stable(Func func);
+bool assembly_is_stable(Func func);
+void switch_spill_stress_test_mode_on(Context& CTX); //DUBUG: And something similar for arguments amount control.
+void direct_translation_on(Func& func);
+Func* get_assembly_reg_param(Func& func);
+
+//DUBUG: Hm, looks like we can create there our own output, particularly generated in intermediate_representation_is_stable
+#define ASSERT_IR_CORRECT(func) EXPECT_TRUE(intermediate_representation_is_stable(func)) << "Incorrect intermediate representation"
+#define ASSERT_ASSEMBLY_CORRECT(func) EXPECT_TRUE(assembly_is_stable(func)) << "Incorrect intermediate representation"
+
+#define PREPARE_ASSEMBLY_TESTING(testname) loops::Func func = ctx.getFunc(testname); direct_translation_on(func); Func* _f = get_assembly_reg_param(func)
+#define DEFINE_ASSEMBLY_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
 
 class Test
 {
@@ -53,14 +66,12 @@ public:
         
     }
 
-    static std::string OSname();
 #define EXPECT_EQ(a,b) if(!expect_eq((a),(b))) return false;
 #define EXPECT_NEAR(a,b,err) if(!expect_near((a),(b),(err))) return false
 protected:
     Context CTX;
 private:
     std::ostream* m_out;
-    bool checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes);
 };
 
 class TestSuite
