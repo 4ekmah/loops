@@ -1988,22 +1988,5 @@ namespace loops
                 break;
             }
     }
-    
-    void Intel64Backend::switchOnSpillStressMode()
-    {
-#if __LOOPS_OS == __LOOPS_WINDOWS
-        m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
-        m_returnRegisters[RB_INT] = { RAX };
-        m_callerSavedRegisters[RB_INT] = {};
-        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
-#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-        m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX };
-        m_returnRegisters[RB_INT] = { RAX };
-        m_callerSavedRegisters[RB_INT] = {};
-        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
-#else
-#error Unknown OS
-#endif
-    }
 }
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64

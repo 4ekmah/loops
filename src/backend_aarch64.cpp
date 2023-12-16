@@ -2268,19 +2268,6 @@ Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& /*toP*/) const
     };
 }
 
-void Aarch64Backend::switchOnSpillStressMode()
-{
-    m_parameterRegisters[RB_INT] = { R0, R1, R2, R3 };
-    m_returnRegisters[RB_INT] = { R0, R1, R2, R3 };
-    m_callerSavedRegisters[RB_INT] = {};
-    m_calleeSavedRegisters[RB_INT] = { /*PR,*/ R19, R20, R21, R22 };
-
-    m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
-    m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
-    m_callerSavedRegisters[RB_VEC] = { };
-    m_calleeSavedRegisters[RB_VEC] = { Q29, Q30, Q31 };
-}
-
 void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
     //Note: Also handle some before-register-allocation snippets.

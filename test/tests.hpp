@@ -23,18 +23,18 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "src/func_impl.hpp"
 
+#define RECREATE_REFERENCE_TEXTS false
 namespace loops
 {
-std::string OSname();
-bool intermediate_representation_is_stable(Func func);
-bool assembly_is_stable(Func func);
-void switch_spill_stress_test_mode_on(Context& CTX); //DUBUG: And something similar for arguments amount control.
+bool intermediate_representation_is_stable(Func func, std::string& errmessage);
+bool assembly_is_stable(Func func, std::string& errmessage);
+void switch_spill_stress_test_mode_on(Func& func); //DUBUG: And something similar for arguments amount control.
 void direct_translation_on(Func& func);
 Func* get_assembly_reg_param(Func& func);
 
-//DUBUG: Hm, looks like we can create there our own output, particularly generated in intermediate_representation_is_stable
-#define ASSERT_IR_CORRECT(func) EXPECT_TRUE(intermediate_representation_is_stable(func)) << "Incorrect intermediate representation"
-#define ASSERT_ASSEMBLY_CORRECT(func) EXPECT_TRUE(assembly_is_stable(func)) << "Incorrect intermediate representation"
+//DUBUG: rename ASSERT -> EXPECT there.
+#define ASSERT_IR_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(intermediate_representation_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
+#define ASSERT_ASSEMBLY_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(assembly_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
 
 #define PREPARE_ASSEMBLY_TESTING(testname) loops::Func func = ctx.getFunc(testname); direct_translation_on(func); Func* _f = get_assembly_reg_param(func)
 #define DEFINE_ASSEMBLY_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
@@ -67,7 +67,6 @@ public:
     }
 
 #define EXPECT_EQ(a,b) if(!expect_eq((a),(b))) return false;
-#define EXPECT_NEAR(a,b,err) if(!expect_near((a),(b),(err))) return false
 protected:
     Context CTX;
 private:
@@ -189,45 +188,6 @@ loops::Expr immtyped(int64_t val, loops::Func* func)
 std::ostream& get_test_ostream();
 void reset_test_ostream();
 std::string get_test_ostream_result();
-
-//TODO(ch): Interesting solution for test substitution is class derivation
-//with using RTTI for taking name of class. Still not really easy to decide what to 
-// do with fixtures, but there is a thought to think.
-#define LTEST(funcname, ...)                                    \
-class funcname: public Test                                     \
-{                                                               \
-public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
-    ~funcname() override {}                                     \
-    virtual void generateCode() override                        \
-    {                                                           \
-        std::string TESTNAME = #funcname;                       \
-        USE_CONTEXT_(CTX)                                       \
-        __VA_ARGS__                                             \
-    }                                                           \
-    virtual bool testExecution(const std::string& fixName)      \
-                                                       override;\
-    virtual std::vector<std::string> fixturesNames() const      \
-                                                     override   \
-    { return std::vector<std::string>(1, #funcname);}           \
-};                                                              \
-class funcname##_reg                                            \
-{                                                               \
-public:                                                         \
-    funcname##_reg()                                            \
-    {                                                           \
-        TestSuite::getInstance()->regTest<funcname>();          \
-    };                                                          \
-};                                                              \
-funcname##_reg funcname##_reg_instance
-
-#define LTESTexe(funcname, ...)                                 \
-bool funcname::testExecution(const std::string& fixName)        \
-{                                                               \
-    void* EXEPTR = CTX.getFunc(fixName).ptr();                  \
-    __VA_ARGS__                                                 \
-    return true;                                                \
-}
 
 #define PTEST_1(funcname, _pT1, _p1, ...)                       \
 class funcname: public Test                                     \
@@ -383,38 +343,5 @@ public:                                                         \
     };                                                          \
 };                                                              \
 funcname##_gfix_##_p1##_p2 inst##funcname##_gfix_##_p1##_p2
-
-
-#define LTESTcomposer(funcname, ...)                                            \
-class funcname: public Test                                                     \
-{                                                                               \
-public:                                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {}                 \
-    virtual void generateCode() override                                        \
-    {                                                                           \
-        std::string TESTNAME = #funcname;                                       \
-        if(__Loops_FuncScopeBracket_ __loops_func_{&CTX, (TESTNAME), {}}); else \
-        {                                                                       \
-            __VA_ARGS__                                                         \
-            loops::Func func = CTX.getFunc(TESTNAME);                           \
-            getImpl(&func)->directTranslationOn();                              \
-        }                                                                       \
-    }                                                                           \
-    virtual bool testExecution(const std::string& /*fixName*/)                  \
-                                                     override                   \
-    { return true; }                                                            \
-    virtual std::vector<std::string> fixturesNames() const                      \
-                                                     override                   \
-    { return std::vector<std::string>(1, #funcname);}                           \
-};                                                                              \
-class funcname##_reg                                                            \
-{                                                                               \
-public:                                                                         \
-    funcname##_reg()                                                            \
-    {                                                                           \
-        TestSuite::getInstance()->regTest<funcname>();                          \
-    };                                                                          \
-};                                                                              \
-funcname##_reg funcname##_reg_instance
 
 #endif//__LOOPS_TESTS_HPP__

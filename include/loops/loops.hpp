@@ -346,7 +346,9 @@ public:
     Func& operator=(const Func& f);
     virtual ~Func();
 
-    std::string name() const; //TODO(ch): what for we need name here? 
+    std::string name() const;
+    int signature() const; //Currently it returns only amount of function's scalar parameters(all are int64_t, basically).
+
     void* ptr(); // returns function pointer. Ensure, that all passed parameters are 64-bit wide.
     void printBytecode(std::ostream& out) const;
     enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };

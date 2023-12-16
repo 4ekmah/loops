@@ -262,6 +262,7 @@ namespace loops
     }
 
     std::string Func::name() const { return static_cast<FuncImpl*>(impl)->name(); }
+    int Func::signature() const { return static_cast<FuncImpl*>(impl)->signature(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
     void Func::printBytecode(std::ostream& out) const

@@ -12,13 +12,15 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iostream>
 #include <vector>
 
-namespace loops
+using namespace loops;
+
+TEST(aarch64, ten_args_to_sum) //There we are testing stack parameter passing.
 {
-LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
+    Context ctx;
+    USE_CONTEXT_(ctx);
     IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
-    STARTFUNC_(TESTNAME, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+    STARTFUNC_(test_info_->name(), &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
     {
-        getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
         IReg res = a0 * 1;
         res += a1 * 2;
         res += a2 * 3;
@@ -31,18 +33,19 @@ LTEST(ten_args_to_sum, { //There we are testing stack parameter passing.
         res += a9 * 2;
         RETURN_(res);
     }
-    });
-LTESTexe(ten_args_to_sum, {
     typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
-    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(EXEPTR);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(func.ptr());
     std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
-    EXPECT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-    })
+    ASSERT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+}
 
 TEST(aarch64, nullify_msb_lsb_v)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg iptr, omptr, olptr, n;
     STARTFUNC_(test_info_->name(), &iptr, &omptr, &olptr, &n)
@@ -71,6 +74,7 @@ TEST(aarch64, nullify_msb_lsb_v)
     }
     typedef int64_t (*nullify_msb_lsb_v_f)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     nullify_msb_lsb_v_f tested = reinterpret_cast<nullify_msb_lsb_v_f>(func.ptr());
@@ -99,7 +103,6 @@ TEST(aarch64, big_immediates)
 {
     enum {TBI_SCALARS, TBI_I8_0, TBI_I8_1, TBI_I16_0, TBI_I16_1, TBI_I32_0, TBI_I32_1, TBI_I64_0, TBI_I64_1, TBI_I64_2};
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg targetptr, tasknum;
     STARTFUNC_(test_info_->name(), &targetptr, &tasknum)
@@ -171,6 +174,7 @@ TEST(aarch64, big_immediates)
     }
     typedef int64_t (*big_immediates_f)(void*, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     big_immediates_f tested = reinterpret_cast<big_immediates_f>(func.ptr());
@@ -1408,8 +1412,6 @@ TEST(aarch64, instruction_set_test)
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     ASSERT_ASSEMBLY_CORRECT(func);
-}
-
 }
 #endif
 #endif// __LOOPS_ARCH == __LOOPS_AARCH64

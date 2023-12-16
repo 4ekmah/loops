@@ -19,15 +19,11 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "src/reg_allocator.hpp"
 #include <gtest/gtest.h>
 
-namespace loops
-{
+using namespace loops;
 //DUBUG: Create test, which uses compile_all method.
-//DUBUG: Append mode which interpret text inequality as a warning.
-//DUBUG: Append code recreation mode, it also have to interpret text inequality as a warning, to sequentially apply 2 GTEST macro.
 TEST(basic, a_plus_b)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg a, b;
     STARTFUNC_(test_info_->name(), &a, &b)
@@ -37,6 +33,7 @@ TEST(basic, a_plus_b)
     }
     typedef int64_t (*a_plus_b_f)(int64_t a, int64_t b);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     a_plus_b_f tested = reinterpret_cast<a_plus_b_f>(func.ptr());
@@ -49,7 +46,6 @@ TEST(basic, a_plus_b)
 TEST(basic, min_max_scalar)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
     STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
@@ -84,6 +80,7 @@ TEST(basic, min_max_scalar)
     }
     typedef int64_t (*min_max_scalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     min_max_scalar_f tested = reinterpret_cast<min_max_scalar_f>(func.ptr());
@@ -110,7 +107,6 @@ TEST(basic, min_max_scalar)
 TEST(basic, min_max_select)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
     STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
@@ -138,6 +134,7 @@ TEST(basic, min_max_select)
     }
     typedef int64_t (*min_max_select_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     min_max_select_f tested = reinterpret_cast<min_max_select_f>(func.ptr());
@@ -161,7 +158,6 @@ TEST(basic, triangle_types)
 {
     enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg a, b, c;
     STARTFUNC_(test_info_->name(), &a, &b, &c)
@@ -183,6 +179,7 @@ TEST(basic, triangle_types)
     }
     typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     triangle_types_f tested = reinterpret_cast<triangle_types_f>(func.ptr());
@@ -208,7 +205,6 @@ TEST(basic, triangle_types)
 TEST(basic, nonnegative_odd)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg ptr, n;
     STARTFUNC_(test_info_->name(), &ptr, &n)
@@ -237,6 +233,7 @@ TEST(basic, nonnegative_odd)
     }
     typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(func.ptr());
@@ -245,15 +242,44 @@ TEST(basic, nonnegative_odd)
     ASSERT_EQ(tested(0, 0), -1);
 }
 
-LTEST(all_loads_all_stores, { //DUBUG: Implement switch_spill_stress_test_mode_on with given amount of argument registers!
-    IReg iptr, ityp, optr, otyp, n;
-    STARTFUNC_(TESTNAME, &iptr, &ityp, &optr, &otyp, &n )
+template <typename inT, typename outT>
+static inline bool AldrAstrTestInner(const uint8_t* inA, uint8_t* outA, int siz)
+{
+    bool res = true;
+    for (int num = 0; num < siz; num++)
     {
-        if (CTX.getPlatformName() == "AArch64")
-            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4 }, { 0, 1, 2, 3, 4 }, {}, { 18, 19, 20, 21, 22 });
-        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
-            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8 }, { 0 }, {}, { 12, 13, 14, 15 });
+        inT read = *reinterpret_cast<const inT*>(inA + num * loops::ElemTraits<inT>::elemsize);
+        outT written = *reinterpret_cast<outT*>(outA + num * loops::ElemTraits<outT>::elemsize);
+        res &= static_cast<outT>(read) == written;
+    }
+    return res;
+}
 
+template <typename inT>
+static inline bool AldrAstrTest(const uint8_t* inA, uint8_t* outA, int siz, int otyp)
+{
+    bool chck = false;
+    switch (otyp)
+    {
+    case (loops::TYPE_U8):  chck = AldrAstrTestInner<inT, uint8_t>(inA, outA, siz); break;
+    case (loops::TYPE_I8):  chck = AldrAstrTestInner<inT, int8_t>(inA, outA, siz); break;
+    case (loops::TYPE_U16): chck = AldrAstrTestInner<inT, uint16_t>(inA, outA, siz); break;
+    case (loops::TYPE_I16): chck = AldrAstrTestInner<inT, int16_t>(inA, outA, siz); break;
+    case (loops::TYPE_U32): chck = AldrAstrTestInner<inT, uint32_t>(inA, outA, siz); break;
+    case (loops::TYPE_I32): chck = AldrAstrTestInner<inT, int32_t>(inA, outA, siz); break;
+    case (loops::TYPE_U64): chck = AldrAstrTestInner<inT, uint64_t>(inA, outA, siz); break;
+    case (loops::TYPE_I64): chck = AldrAstrTestInner<inT, int64_t>(inA, outA, siz); break;
+    };
+    return chck;
+}
+
+TEST(basic, all_loads_all_stores)
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    IReg iptr, ityp, optr, otyp, n;
+    STARTFUNC_(test_info_->name(), &iptr, &ityp, &optr, &otyp, &n)
+    {
         IReg num = CONST_(0);
         IReg i_offset = CONST_(0);
         IReg o_offset = CONST_(0);
@@ -305,40 +331,12 @@ LTEST(all_loads_all_stores, { //DUBUG: Implement switch_spill_stress_test_mode_o
             num += 1;
         }
     }
-    });
-template <typename inT, typename outT>
-static inline bool AldrAstrTestInner(const uint8_t* inA, uint8_t* outA, int siz)
-{
-    bool res = true;
-    for (int num = 0; num < siz; num++)
-    {
-        inT read = *reinterpret_cast<const inT*>(inA + num * loops::ElemTraits<inT>::elemsize);
-        outT written = *reinterpret_cast<outT*>(outA + num * loops::ElemTraits<outT>::elemsize);
-        res &= static_cast<outT>(read) == written;
-    }
-    return res;
-}
-template <typename inT>
-static inline bool AldrAstrTest(const uint8_t* inA, uint8_t* outA, int siz, int otyp)
-{
-    bool chck = false;
-    switch (otyp)
-    {
-    case (loops::TYPE_U8):  chck = AldrAstrTestInner<inT, uint8_t>(inA, outA, siz); break;
-    case (loops::TYPE_I8):  chck = AldrAstrTestInner<inT, int8_t>(inA, outA, siz); break;
-    case (loops::TYPE_U16): chck = AldrAstrTestInner<inT, uint16_t>(inA, outA, siz); break;
-    case (loops::TYPE_I16): chck = AldrAstrTestInner<inT, int16_t>(inA, outA, siz); break;
-    case (loops::TYPE_U32): chck = AldrAstrTestInner<inT, uint32_t>(inA, outA, siz); break;
-    case (loops::TYPE_I32): chck = AldrAstrTestInner<inT, int32_t>(inA, outA, siz); break;
-    case (loops::TYPE_U64): chck = AldrAstrTestInner<inT, uint64_t>(inA, outA, siz); break;
-    case (loops::TYPE_I64): chck = AldrAstrTestInner<inT, int64_t>(inA, outA, siz); break;
-    };
-    return chck;
-}
-LTESTexe(all_loads_all_stores, {
-    typedef int64_t(*all_loads_all_stores_f)(const void* iptr, int ityp, void* optr, int otyp, int64_t n);
-    all_loads_all_stores_f tested = reinterpret_cast<all_loads_all_stores_f>(EXEPTR);
-
+    typedef int64_t (*all_loads_all_stores_f)(const void* iptr, int ityp, void* optr, int otyp, int64_t n);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    all_loads_all_stores_f tested = reinterpret_cast<all_loads_all_stores_f>(func.ptr());
     static const size_t BYTE_ARR_SIZE = 40;
     const uint8_t v[BYTE_ARR_SIZE] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                                        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0xff,
@@ -364,14 +362,12 @@ LTESTexe(all_loads_all_stores, {
             case (loops::TYPE_U64): chck = AldrAstrTest<uint64_t>(v, res, siz, otyp); break;
             case (loops::TYPE_I64): chck = AldrAstrTest<int64_t>(v, res, siz, otyp); break;
             };
-            EXPECT_EQ(chck, true);
+            ASSERT_EQ(chck, true);
         }
-    })
-
+}
 TEST(basic, nullify_msb_lsb)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg in, elsb, emsb;
     STARTFUNC_(test_info_->name(), &in, &elsb, &emsb)
@@ -393,6 +389,7 @@ TEST(basic, nullify_msb_lsb)
     }
     typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     nullify_msb_lsb_f tested = reinterpret_cast<nullify_msb_lsb_f>(func.ptr());
@@ -417,104 +414,107 @@ TEST(basic, nullify_msb_lsb)
     }
 }
 
-//This implementation(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-LTEST(bresenham, { //DUBUG: Implement switch_spill_stress_test_mode_on with given amount of argument registers!
-    IReg canvas, w, x0, y0, x1, y1, filler;
-    STARTFUNC_(TESTNAME, &canvas, &w, &x0, &y0, &x1, &y1, &filler)
+//Implementations(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+TEST(basic, bresenham)
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
     {
-        if (CTX.getPlatformName() == "AArch64")
-            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6 }, { 0, 1, 2, 3, 4, 5, 6 }, {}, { 18, 19, 20, 21, 22 });
-        else if(CTX.getPlatformName() == "Intel64" && OSname() == "Linux")
-            getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7, 6, 2, 1, 8, 9 }, { 0 }, {}, { 12, 13, 14, 15 });
-
-        IReg dx = abs(x1 - x0);
-        IReg sx = sign(x1 - x0);
-        IReg dy = -abs(y1 - y0);
-        IReg sy = sign(y1 - y0);
-        IReg error = dx + dy;
-        WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
+        IReg canvas, w, x0, y0, x1, y1, filler;
+        STARTFUNC_(test_info_->name(), &canvas, &w, &x0, &y0, &x1, &y1, &filler)
         {
-            store_<uint8_t>(canvas, y0* w + x0, filler);
-            IF_(x0 == x1 && y0 == y1)
-                BREAK_;
-            IReg e2 = error << 1;
-            IF_(e2 >= dy)
+            IReg dx = abs(x1 - x0);
+            IReg sx = sign(x1 - x0);
+            IReg dy = -abs(y1 - y0);
+            IReg sy = sign(y1 - y0);
+            IReg error = dx + dy;
+            WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
             {
-                IF_(x0 == x1)
+                store_<uint8_t>(canvas, y0* w + x0, filler);
+                IF_(x0 == x1 && y0 == y1)
                     BREAK_;
+                IReg e2 = error << 1;
+                IF_(e2 >= dy)
+                {
+                    IF_(x0 == x1)
+                        BREAK_;
+                    error = error + dy;
+                    x0 = x0 + sx;
+                }
+                IF_(e2 <= dx)
+                {
+                    IF_(y0 == y1)
+                        BREAK_;
+                    error = error + dx;
+                    y0 = y0 + sy;
+                }
+            }
+            RETURN_();
+        }
+    }
+    typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    bresenham_f tested = reinterpret_cast<bresenham_f>(func.ptr());
+
+    auto bresenham_ref = [](uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
+    {
+        int64_t dx = std::abs(x1 - x0);
+        int64_t sx = (x1 - x0) == 0 ? 0 : ((x1 - x0) > 0 ? 1 : -1);
+        int64_t dy = -std::abs(y1 - y0);
+        int64_t sy = (y1 - y0) == 0 ? 0 : ((y1 - y0) > 0 ? 1 : -1);
+        int64_t error = dx + dy;
+        while (true)
+        {
+            canvas[y0 * w + x0] = (uint8_t)filler;
+            if (x0 == x1 && y0 == y1)
+                break;
+            int64_t e2 = 2 * error;
+            if (e2 >= dy)
+            {
+                if (x0 == x1)
+                    break;
                 error = error + dy;
                 x0 = x0 + sx;
             }
-            IF_(e2 <= dx)
+            if (e2 <= dx)
             {
-                IF_(y0 == y1)
-                    BREAK_;
+                if (y0 == y1)
+                    break;
                 error = error + dx;
                 y0 = y0 + sy;
             }
         }
-        RETURN_();
-    }
-    });
-static void BresenhamRef(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
-{
-    int64_t dx = std::abs(x1 - x0);
-    int64_t sx = (x1 - x0) == 0 ? 0 : ((x1 - x0) > 0 ? 1 : -1);
-    int64_t dy = -std::abs(y1 - y0);
-    int64_t sy = (y1 - y0) == 0 ? 0 : ((y1 - y0) > 0 ? 1 : -1);
-    int64_t error = dx + dy;
-    while (true)
-    {
-        canvas[y0 * w + x0] = (uint8_t)filler;
-        if (x0 == x1 && y0 == y1)
-            break;
-        int64_t e2 = 2 * error;
-        if (e2 >= dy)
-        {
-            if (x0 == x1)
-                break;
-            error = error + dy;
-            x0 = x0 + sx;
-        }
-        if (e2 <= dx)
-        {
-            if (y0 == y1)
-                break;
-            error = error + dx;
-            y0 = y0 + sy;
-        }
-    }
-}
-LTESTexe(bresenham, {
-    typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
-    bresenham_f tested = reinterpret_cast<bresenham_f>(EXEPTR);
+    };
     int64_t w = 15;
     int64_t h = 15;
     std::vector<uint8_t> canvas(3 * w * h, 0);
     uint8_t* optr = (&canvas[0]) + w * h;
     memset(optr, ' ', w * h);
     tested(optr, w, 0, 0, 14, 14, '1');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     tested(optr, w, 0, 11, 7, 7, '2');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     tested(optr, w, 14, 7, 11, 14, '3');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     tested(optr, w, 5, 3, 8, 3, '4');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     tested(optr, w, 9, 2, 9, 13, '5');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     tested(optr, w, 14, 1, 14, 1, '6');
-    EXPECT_EQ(memok(&canvas[0], w, h), true);
+    ASSERT_EQ(memok(&canvas[0], w, h), true);
     std::vector<uint8_t> canvasRef(w * h, ' ');
-    BresenhamRef(&canvasRef[0], w, 0, 0, 14, 14, '1');
-    BresenhamRef(&canvasRef[0], w, 0, 11, 7, 7, '2');
-    BresenhamRef(&canvasRef[0], w, 14, 7, 11, 14, '3');
-    BresenhamRef(&canvasRef[0], w, 5, 3, 8, 3, '4');
-    BresenhamRef(&canvasRef[0], w, 9, 2, 9, 13, '5');
-    BresenhamRef(&canvasRef[0], w, 14, 1, 14, 1, '6');
+    bresenham_ref(&canvasRef[0], w, 0, 0, 14, 14, '1');
+    bresenham_ref(&canvasRef[0], w, 0, 11, 7, 7, '2');
+    bresenham_ref(&canvasRef[0], w, 14, 7, 11, 14, '3');
+    bresenham_ref(&canvasRef[0], w, 5, 3, 8, 3, '4');
+    bresenham_ref(&canvasRef[0], w, 9, 2, 9, 13, '5');
+    bresenham_ref(&canvasRef[0], w, 14, 1, 14, 1, '6');
     for (int symbn = 0; symbn < w * h; symbn++)
-        EXPECT_EQ(optr[symbn], canvasRef[symbn]);
-    })
+        ASSERT_EQ(optr[symbn], canvasRef[symbn]);
+}
 
 TEST(basic, conditionpainter)
 {
@@ -522,7 +522,6 @@ TEST(basic, conditionpainter)
     const int h = ymax - ymin + 1;
     const int w = xmax - xmin + 1;
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg ptr;
     STARTFUNC_(test_info_->name(), &ptr)
@@ -548,6 +547,7 @@ TEST(basic, conditionpainter)
     }
     typedef int64_t (*conditionpainter_f)(int64_t* canvas);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     ASSERT_IR_CORRECT(func);
     ASSERT_ASSEMBLY_CORRECT(func);
     conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
@@ -584,7 +584,6 @@ static void hw()
 TEST(calls, helloworld_call)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     STARTFUNC_(test_info_->name())
     {
@@ -593,6 +592,7 @@ TEST(calls, helloworld_call)
     }
     typedef void(*helloworld_call_f)();
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
     // ASSERT_ASSEMBLY_CORRECT(func);
     helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(func.ptr());
@@ -613,7 +613,6 @@ static void snake_dprint(int64_t x, int64_t y)
 TEST(calls, snake)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     {
         IReg ptr, h, w;
@@ -657,6 +656,7 @@ TEST(calls, snake)
     }
     typedef void(*snake_f)(uint8_t*, int64_t, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
     // ASSERT_ASSEMBLY_CORRECT(func);
     snake_f tested = reinterpret_cast<snake_f>(func.ptr());
@@ -738,7 +738,6 @@ static int64_t lesser_dbl(int64_t a, int64_t b)
 TEST(calls, sort_double)
 {
     Context ctx;
-    switch_spill_stress_test_mode_on(ctx);
     USE_CONTEXT_(ctx);
     IReg ptr, n;
     STARTFUNC_(test_info_->name(), &ptr, &n)
@@ -769,6 +768,7 @@ TEST(calls, sort_double)
     }
     typedef void(*sort_double_f)(double*, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
     // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
     // ASSERT_ASSEMBLY_CORRECT(func);
     sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
@@ -780,5 +780,5 @@ TEST(calls, sort_double)
         ASSERT_EQ(arr[pos], arr_ref[pos]);
 
 }
-}
+
 #endif//__LOOPS_TEST_BASIC_HPP__

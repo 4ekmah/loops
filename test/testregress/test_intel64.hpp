@@ -16,52 +16,55 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include <iostream>
 
-namespace loops
+using namespace loops;
+
+TEST(intel64, arithm_arrs)
 {
-    LTEST(arithm_arrs, { //There we are testing stack parameter passing. //DUBUG: Implement switch_spill_stress_test_mode_on with given amount of argument registers!
-        IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
-        STARTFUNC_(TESTNAME, &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv )
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
+    STARTFUNC_(test_info_->name(), &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv)
+    {
+        IReg offset = CONST_(0);
+        IReg i = CONST_(0);
+        WHILE_(i < n)
         {
-            if(OSname() == "Linux") 
-                getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7,6,2,1,8,9 }, { 0 }, {}, { 12, 13, 14, 15 });
-            IReg offset = CONST_(0);
-            IReg i = CONST_(0);
-            WHILE_(i < n)
-            {
-                IReg a = load_<int>(ptrA, offset);
-                IReg b = load_<int>(ptrB, offset);
-                store_<int>(ptrAdd, a + b);
-                store_<int>(ptrSub, a - b);
-                store_<int>(ptrMul, a * b);
-                store_<int>(ptrDiv, a / b);
-                i += 1;
-                offset += sizeof(int);
-                ptrAdd += sizeof(int);
-                ptrSub += sizeof(int);
-                ptrMul += sizeof(int);
-                ptrDiv += sizeof(int);
-            };
-            RETURN_(0);
-        }
-        });
-    LTESTexe(arithm_arrs, {
-        typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
-        arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(EXEPTR);
-        std::vector<int> A = { 8, 2, -5, 7, 6 };
-        std::vector<int> B = { 2, -5, 7, 6, 8 };
-        int addArr[5];
-        int subArr[5];
-        int mulArr[5];
-        int divArr[5];
-        EXPECT_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
-        for (size_t n = 0; n < 5; n++)
-        {
-            EXPECT_EQ(A[n] + B[n], addArr[n]);
-            EXPECT_EQ(A[n] - B[n], subArr[n]);
-            EXPECT_EQ(A[n] * B[n], mulArr[n]);
-            EXPECT_EQ(A[n] / B[n], divArr[n]);
-        }
-        })
+            IReg a = load_<int>(ptrA, offset);
+            IReg b = load_<int>(ptrB, offset);
+            store_<int>(ptrAdd, a + b);
+            store_<int>(ptrSub, a - b);
+            store_<int>(ptrMul, a * b);
+            store_<int>(ptrDiv, a / b);
+            i += 1;
+            offset += sizeof(int);
+            ptrAdd += sizeof(int);
+            ptrSub += sizeof(int);
+            ptrMul += sizeof(int);
+            ptrDiv += sizeof(int);
+        };
+        RETURN_(0);
+    }
+    typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(func.ptr());
+    std::vector<int> A = { 8, 2, -5, 7, 6 };
+    std::vector<int> B = { 2, -5, 7, 6, 8 };
+    int addArr[5];
+    int subArr[5];
+    int mulArr[5];
+    int divArr[5];
+    ASSERT_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
+    for (size_t n = 0; n < 5; n++)
+    {
+        ASSERT_EQ(A[n] + B[n], addArr[n]);
+        ASSERT_EQ(A[n] - B[n], subArr[n]);
+        ASSERT_EQ(A[n] * B[n], mulArr[n]);
+        ASSERT_EQ(A[n] / B[n], divArr[n]);
+    }
+}
 
 TEST(intel64, instruction_set_test)
 {
@@ -749,7 +752,6 @@ TEST(intel64, instruction_set_test)
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     ASSERT_ASSEMBLY_CORRECT(func);
-}
 }
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__

@@ -409,6 +409,7 @@ namespace loops
 
     void Pipeline::overrideRegisterSet(int basketNum, const std::vector<int> &a_parameterRegisters, const std::vector<int> &a_returnRegisters, const std::vector<int> &a_callerSavedRegisters, const std::vector<int> &a_calleeSavedRegisters)
     {
+        //DUBUG: append assertions, that overriding vessels are subsets of a vessels of given architecture.
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
         m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;

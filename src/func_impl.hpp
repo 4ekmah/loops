@@ -26,6 +26,7 @@ public:
     static Func makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
 
     std::string name() const { return m_pipeline->get_data().name; }
+    int signature() const { return (int)m_pipeline->get_data().params.size(); }
     void* ptr();
     void endFunc();
     void printBytecode(std::ostream& out, int uptoPASS = CP_COLLECTING);

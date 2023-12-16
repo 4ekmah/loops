@@ -13,8 +13,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "arm_neon.h"
 #endif
 
-namespace loops
-{
+using namespace loops;
+
 PTEST_1(exponentiation_by_squaring, int64_t, _p, {
     int p = _p;
     IReg ptrA, n, ptrPow;
@@ -96,10 +96,12 @@ PTESTfix_2(exponentiation_by_squaring_v, double, 0);
 PTESTfix_2(exponentiation_by_squaring_v, double, 4);
 PTESTfix_2(exponentiation_by_squaring_v, double, 9);
 
-LTEST(exp_f32, {
+TEST(math, exp_f32)
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
     IReg dest, src, n;
-    USE_CONTEXT_(CTX);
-    STARTFUNC_(TESTNAME, &dest, &src, &n)
+    STARTFUNC_(test_info_->name(), &dest, &src, &n)
     {
         auto expc = expInit(CTX);
         IReg offset = CONST_(0);
@@ -112,20 +114,20 @@ LTEST(exp_f32, {
         }
         RETURN_();
     }
-    });
-
-LTESTexe(exp_f32, {
     typedef void (*exp_f32_f)(float* dest, const float* src, int n);
-    exp_f32_f tested = reinterpret_cast<exp_f32_f>(EXEPTR);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    ASSERT_IR_CORRECT(func);
+    ASSERT_ASSEMBLY_CORRECT(func);
+    exp_f32_f tested = reinterpret_cast<exp_f32_f>(func.ptr());
+
     const float ln15 = ::log(15);
     std::vector<float> src  = { 88.3762626647949f, -90, 1, 2, -15, 4.6, 23.1, -3, 13.7, -14.8, 18.2, 56, 22.12, 85.05, -12.6, -36.6,
                                 9.9, -12.5, 44, 1.7, 64.2, 34.8, -15.7, 55.5, 69, -34, ln15, 9, 0.2, 62.13, -74.5, -18.1 };
     std::vector<float> dest(src.size(), 0);
     tested(&dest[0], &src[0], src.size());
     for (size_t i = 0; i < src.size(); i++ )
-        EXPECT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
-    })
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64
-
+        ASSERT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
 }
+#endif //__LOOPS_ARCH == __LOOPS_AARCH64
 #endif//__LOOPS_TEST_MATH_HPP__
