@@ -17,7 +17,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "src/common.hpp"
 #include "src/func_impl.hpp"
 #include "src/reg_allocator.hpp"
-#include <gtest/gtest.h>
 
 using namespace loops;
 //DUBUG: Create test, which uses compile_all method.
@@ -34,8 +33,8 @@ TEST(basic, a_plus_b)
     typedef int64_t (*a_plus_b_f)(int64_t a, int64_t b);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     a_plus_b_f tested = reinterpret_cast<a_plus_b_f>(func.ptr());
     std::vector<int64_t> A = {3,2,4,2,3,4,1};
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
@@ -81,8 +80,8 @@ TEST(basic, min_max_scalar)
     typedef int64_t (*min_max_scalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     min_max_scalar_f tested = reinterpret_cast<min_max_scalar_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
@@ -135,8 +134,8 @@ TEST(basic, min_max_select)
     typedef int64_t (*min_max_select_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     min_max_select_f tested = reinterpret_cast<min_max_select_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
@@ -180,8 +179,8 @@ TEST(basic, triangle_types)
     typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     triangle_types_f tested = reinterpret_cast<triangle_types_f>(func.ptr());
     ASSERT_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
     ASSERT_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
@@ -234,8 +233,8 @@ TEST(basic, nonnegative_odd)
     typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     ASSERT_EQ(tested(&v[0], v.size()), 3);
@@ -334,8 +333,8 @@ TEST(basic, all_loads_all_stores)
     typedef int64_t (*all_loads_all_stores_f)(const void* iptr, int ityp, void* optr, int otyp, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     all_loads_all_stores_f tested = reinterpret_cast<all_loads_all_stores_f>(func.ptr());
     static const size_t BYTE_ARR_SIZE = 40;
     const uint8_t v[BYTE_ARR_SIZE] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -390,8 +389,8 @@ TEST(basic, nullify_msb_lsb)
     typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     nullify_msb_lsb_f tested = reinterpret_cast<nullify_msb_lsb_f>(func.ptr());
     std::vector<uint64_t> v = { 0x6000000000000000, 2, 0xf0, 7, 0xffffffff };
     for (uint64_t tchk : v)
@@ -409,8 +408,8 @@ TEST(basic, nullify_msb_lsb)
         remsb |= remsb >> 32;
         remsb = (remsb + 1) >> 1;
         remsb ^= tchk;
-        EXPECT_EQ(remsb, emsb);
-        EXPECT_EQ(relsb, elsb);
+        ASSERT_EQ(remsb, emsb);
+        ASSERT_EQ(relsb, elsb);
     }
 }
 
@@ -455,8 +454,8 @@ TEST(basic, bresenham)
     typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     bresenham_f tested = reinterpret_cast<bresenham_f>(func.ptr());
 
     auto bresenham_ref = [](uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
@@ -548,8 +547,8 @@ TEST(basic, conditionpainter)
     typedef int64_t (*conditionpainter_f)(int64_t* canvas);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
 
     auto conditionpainter_ref = [](int64_t* ptr)
@@ -570,11 +569,11 @@ TEST(basic, conditionpainter)
     memset(canvas_ref, 0, w*h*sizeof(int64_t));
     memset(canvas, 0, 3*w*h*sizeof(int64_t));
     tested(canvas + w*h);
-    EXPECT_EQ(memok((uint8_t*)&canvas[0], w * sizeof(int64_t), h), true);
+    ASSERT_EQ(memok((uint8_t*)&canvas[0], w * sizeof(int64_t), h), true);
     conditionpainter_ref(canvas_ref);
     for(int y = 0; y < h; y++)
         for(int x = 0; x < w; x++)
-            EXPECT_EQ(canvas_ref[y*w + x], canvas[y*w + x + w*h]);
+            ASSERT_EQ(canvas_ref[y*w + x], canvas[y*w + x + w*h]);
 }
 
 static void hw()
@@ -593,8 +592,8 @@ TEST(calls, helloworld_call)
     typedef void(*helloworld_call_f)();
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // ASSERT_ASSEMBLY_CORRECT(func);
+    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // EXPECT_ASSEMBLY_CORRECT(func);
     helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(func.ptr());
     reset_test_ostream();
     tested();
@@ -657,8 +656,8 @@ TEST(calls, snake)
     typedef void(*snake_f)(uint8_t*, int64_t, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // ASSERT_ASSEMBLY_CORRECT(func);
+    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // EXPECT_ASSEMBLY_CORRECT(func);
     snake_f tested = reinterpret_cast<snake_f>(func.ptr());
     const int h = 10, w = 5;
     uint8_t canvas[3 * h*w];
@@ -769,8 +768,8 @@ TEST(calls, sort_double)
     typedef void(*sort_double_f)(double*, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // ASSERT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // ASSERT_ASSEMBLY_CORRECT(func);
+    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
+    // EXPECT_ASSEMBLY_CORRECT(func);
     sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
     std::vector<double> arr = {7.3, 2.0, 5.3, 10.0, -500000.0, -17.0, 70.0, 1.9, 71212.7878, 12.0};
     std::vector<double> arr_ref = arr;

@@ -47,8 +47,8 @@ TEST(intel64, arithm_arrs)
     typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(func.ptr());
     std::vector<int> A = { 8, 2, -5, 7, 6 };
     std::vector<int> B = { 2, -5, 7, 6, 8 };
@@ -751,7 +751,7 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CALL_NORET, { spilled32 });
     }
     loops::Func func = ctx.getFunc(test_info_->name());
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__

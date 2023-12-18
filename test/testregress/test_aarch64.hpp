@@ -36,8 +36,8 @@ TEST(aarch64, ten_args_to_sum) //There we are testing stack parameter passing.
     typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(func.ptr());
     std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
     ASSERT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
@@ -75,8 +75,8 @@ TEST(aarch64, nullify_msb_lsb_v)
     typedef int64_t (*nullify_msb_lsb_v_f)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     nullify_msb_lsb_v_f tested = reinterpret_cast<nullify_msb_lsb_v_f>(func.ptr());
     std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
     std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -175,8 +175,8 @@ TEST(aarch64, big_immediates)
     typedef int64_t (*big_immediates_f)(void*, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    ASSERT_IR_CORRECT(func);
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
     big_immediates_f tested = reinterpret_cast<big_immediates_f>(func.ptr());
     double e = 2.718281828459045235360287471352;
     union uconv_
@@ -1411,7 +1411,7 @@ TEST(aarch64, instruction_set_test)
         newiopNoret(OP_CALL_NORET, { x15 });
     }
     loops::Func func = ctx.getFunc(test_info_->name());
-    ASSERT_ASSEMBLY_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif
 #endif// __LOOPS_ARCH == __LOOPS_AARCH64
