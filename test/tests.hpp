@@ -26,7 +26,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #define RECREATE_REFERENCE_TEXTS false
 
-void switch_spill_stress_test_mode_on(loops::Func& func); //DUBUG: And something similar for arguments amount control.
+void switch_spill_stress_test_mode_on(loops::Func& func);
 void direct_translation_on(loops::Func& func);
 
 bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage);

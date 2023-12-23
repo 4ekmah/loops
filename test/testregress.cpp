@@ -18,8 +18,4 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
 
     return RUN_ALL_TESTS();
-    // loops::TestSuite* suite = loops::TestSuite::getInstance();
-    // suite->run(false);
-
-    // return 0;
 }

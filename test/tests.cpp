@@ -179,62 +179,142 @@ void direct_translation_on(loops::Func& func)
     getImpl(&func)->directTranslationOn();
 }
 
-bool checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes, std::ostream& out_stream)
+struct listing_token
 {
-    size_t rowNum = 1;
-    size_t colNum = 1;
-    size_t curPos = 0;
-    size_t refPos = 0;
-    const size_t curSiz = curL.size();
-    const size_t refSiz = refL.size();
-    bool result = true;
-    std::string mainErrorMes = "    " + errMes +": ";
-    while(true)   //TODO(ch): Line vs line comparing and avoid spaces duplicates.
+    std::string token;
+    size_t line;
+    size_t col;
+    listing_token(const std::string& a_token, size_t a_line, size_t a_col): token(a_token), line(a_line), col(a_col){}
+};
+
+struct tokenized_line
+{
+    std::string wholeline;
+    std::vector<listing_token> words;
+    size_t line;
+    tokenized_line(const std::string a_wholeline, size_t a_line): wholeline(a_wholeline), line(a_line)
     {
-        if(curPos == curSiz && refSiz!=curSiz)
+        size_t pos = 0;
+        const size_t sz = wholeline.size();
+        while(pos < sz && wholeline[pos] == ' ') pos++;
+        while(pos < sz)
         {
-            mainErrorMes += "Unexpected end of listing.";
+            size_t tokenend = pos;
+            while(tokenend < sz && wholeline[tokenend] != ' ') tokenend++;
+            words.push_back(listing_token(std::string(wholeline.begin()+pos, wholeline.begin()+tokenend), line, pos));
+            pos = tokenend;
+            while(pos < sz && wholeline[pos] == ' ') pos++;
+        }
+    }
+};
+
+static std::vector<tokenized_line> tokenizer(const std::string& text)
+{
+    std::vector<tokenized_line> res;
+    const size_t sz = text.size();
+    size_t pos = 0;
+    size_t line = 0;
+    while (pos < sz)
+    {
+        size_t newpos = text.find('\n',pos);
+        newpos = (newpos == std::string::npos ? sz : newpos);
+        size_t justafter = newpos;//DUBUG: Don't forget about \r for windows.
+        res.push_back(tokenized_line(std::string(text.begin()+pos, text.begin()+justafter), line));
+        pos = newpos + 1;
+        line++;
+    }
+    while(res.size() && res.back().words.size() == 0)
+        res.pop_back();
+    return res;
+}
+
+std::string create_pointing_lines(int ptr, int underlying_start, int underlying_end)
+{
+    std::stringstream resstream;
+    resstream << std::string(8 + underlying_start,' ') + std::string(underlying_end - underlying_start, '~') << std::endl;
+    resstream << std::string(8 + ptr,' ') + "^" << std::endl;
+    return resstream.str();
+}
+
+
+bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errMes, std::ostream& out_stream)
+{
+    std::string endline; {std::stringstream tmpstream; tmpstream << std::endl; endline = tmpstream.str();}
+    std::vector<tokenized_line> cur_tokenized = tokenizer(curL);
+    std::vector<tokenized_line> ref_tokenized = tokenizer(refL); 
+    bool result = true;
+    std::string main_error_line;
+    std::string refline;
+    std::string ref_underline;
+    std::string curline;
+    std::string cur_underline;
+
+    size_t lines_amount = std::max(ref_tokenized.size(), cur_tokenized.size()); 
+    for(size_t line = 0; line < lines_amount; line++)
+    {
+        if(line >= ref_tokenized.size())
+        {
+            main_error_line = std::string("    ") + errMes + ": Listing have extra line number " + std::to_string(line + 1) + endline;
+            curline = std::string("    Current line: ") + endline + "        "  + cur_tokenized[line].wholeline + endline;
             result = false;
             break;
         }
-        if(refPos == refSiz && refSiz!=curSiz)
+
+        if(line >= cur_tokenized.size())
         {
-            mainErrorMes += "Extra data in listing.";
+            main_error_line = std::string("    ") + errMes + ": Listing doesn't have line number " + std::to_string(line + 1) + endline;
+            curline = std::string("    Reference line: ") + endline + "        "  + ref_tokenized[line].wholeline + endline;
             result = false;
             break;
         }
-        if(curPos == curSiz)
-            break;
-        if(curL[curPos] != refL[refPos])
+
+        size_t words_amount = std::max(ref_tokenized[line].words.size(), cur_tokenized[line].words.size()); 
+        for(size_t word = 0; word < words_amount; word++)
         {
-            mainErrorMes += "Listing doesn't equal to reference.";
-            result = false;
+            if(word >= ref_tokenized[line].words.size())
+            {
+                std::string& curword = cur_tokenized[line].words[word].token;
+                main_error_line = std::string("    ") + errMes + ": Extra token in listing on line " + std::to_string(line + 1) + endline;
+                refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].wholeline.size()) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
+                curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].words[word].col + 1) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
+                cur_underline = create_pointing_lines(cur_tokenized[line].words[word].col, cur_tokenized[line].words[word].col, cur_tokenized[line].words[word].col + curword.size());
+                result = false;
+                break;
+            }
+
+            if(word >= cur_tokenized[line].words.size())
+            {
+                std::string& refword = ref_tokenized[line].words[word].token;
+                main_error_line = std::string("    ") + errMes + ": Missing token in listing on line " + std::to_string(line + 1) + endline;
+                refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].words[word].col + 1) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
+                ref_underline = create_pointing_lines(ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col + refword.size());
+                curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].wholeline.size()) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
+                result = false;
+                break;
+            }
+
+            std::string& refword = ref_tokenized[line].words[word].token;
+            std::string& curword = cur_tokenized[line].words[word].token;
+            if(refword != curword)
+            {
+                size_t inequal_pos = 0; for(;inequal_pos < refword.size() && inequal_pos < curword.size() && refword[inequal_pos] == curword[inequal_pos]; inequal_pos++);
+                assert(curword.size() > 0 && refword.size() > 0);
+                size_t ref_inpos = std::min(inequal_pos, refword.size() - 1);
+                size_t cur_inpos = std::min(inequal_pos, curword.size() - 1);
+                main_error_line = std::string("    ") + errMes + ": Listing doesn't equal to reference on line " + std::to_string(line + 1) + endline;
+                refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].words[word].col + 1) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
+                ref_underline = create_pointing_lines(ref_tokenized[line].words[word].col + ref_inpos, ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col + refword.size());
+                curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].words[word].col + 1) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
+                cur_underline = create_pointing_lines(cur_tokenized[line].words[word].col + cur_inpos, cur_tokenized[line].words[word].col, cur_tokenized[line].words[word].col + curword.size());
+                result = false;
+                break;
+            }
+        }
+        if(!result) 
             break;
-        }
-        if(curL[curPos] == '\n') //TODO(ch): What about windows style endlines?
-        {
-            colNum = 1;
-            ++rowNum;
-        }
-        else
-            ++colNum;
-        ++curPos;
-        ++refPos;
     }
     if(!result)
-    {
-        out_stream<<mainErrorMes.c_str()<<std::endl;
-        out_stream<<"        Row: " << rowNum<< " | Col: "<<colNum<<std::endl;
-        size_t curErrEndPos = curL.find_first_of('\n', curPos); //TODO(ch): What about windows style endlines?
-        size_t refErrEndPos = refL.find_first_of('\n', refPos);
-        colNum-=1;
-        curPos -= colNum;
-        refPos -= colNum;
-        std::string curProblemLine = curL.substr(curPos, curErrEndPos - curPos);
-        std::string refProblemLine = refL.substr(refPos, refErrEndPos - refPos);
-        out_stream<<"        Current listing line: \""<<curProblemLine<<"\""<<std::endl;
-        out_stream<<"        Reference line      : \""<<refProblemLine<<"\""<<std::endl;
-    }
+        out_stream << main_error_line << refline << ref_underline << curline << cur_underline;
     return result;
 }
 
@@ -268,7 +348,7 @@ bool intermediate_representation_is_stable(loops::Func func, std::string& errmes
         else
         {
             std::string irref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-            if(!checkListingEquality(irtext, irref, "Intermediate representation check failed", errstream))
+            if(!check_listing_equality(irtext, irref, "Intermediate representation check failed", errstream))
             {
                 rewrite = RECREATE_REFERENCE_TEXTS;
                 result = false;
@@ -317,7 +397,7 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage)
         else
         {
             std::string bcref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-            if(!checkListingEquality(atext, bcref, "Check for "+tarcname+" failed", errstream))
+            if(!check_listing_equality(atext, bcref, "Check for "+tarcname+" failed", errstream))
             {
                 rewrite = RECREATE_REFERENCE_TEXTS;
                 result = false;
