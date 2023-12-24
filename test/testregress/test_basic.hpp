@@ -85,7 +85,7 @@ TEST(basic, min_max_scalar)
     min_max_scalar_f tested = reinterpret_cast<min_max_scalar_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
-    int retval = tested(&v[0], v.size(), &minpos, &maxpos);
+    int64_t retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
     for(int num = 0; num < (int)v.size(); num++)
     {
@@ -139,7 +139,7 @@ TEST(basic, min_max_select)
     min_max_select_f tested = reinterpret_cast<min_max_select_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
-    int retval = tested(&v[0], v.size(), &minpos, &maxpos);
+    int64_t retval = tested(&v[0], v.size(), &minpos, &maxpos);
     int rminpos = 0, rmaxpos = 0;
     for(int num = 0; num < (int)v.size(); num++)
     {
@@ -276,58 +276,60 @@ TEST(basic, all_loads_all_stores)
 {
     Context ctx;
     USE_CONTEXT_(ctx);
-    IReg iptr, ityp, optr, otyp, n;
-    STARTFUNC_(test_info_->name(), &iptr, &ityp, &optr, &otyp, &n)
     {
-        IReg num = CONST_(0);
-        IReg i_offset = CONST_(0);
-        IReg o_offset = CONST_(0);
-        IReg ielemsize = select(ityp > TYPE_I8, CONST_(2), CONST_(1));
-        ielemsize = select(ityp > TYPE_I16, CONST_(4), ielemsize);
-        ielemsize = select(ityp > TYPE_I32, CONST_(8), ielemsize);
-        IReg oelemsize = select(otyp > TYPE_I8, CONST_(2), CONST_(1));
-        oelemsize = select(otyp > TYPE_I16, CONST_(4), oelemsize);
-        oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
-        WHILE_(num < n)
+        IReg iptr, ityp, optr, otyp, n;
+        STARTFUNC_(test_info_->name(), &iptr, &ityp, &optr, &otyp, &n)
         {
-            IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
-            IF_(ityp == TYPE_U8)
-                x = load_<uint8_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_I8)
-                x = load_<int8_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_U16)
-                x = load_<uint16_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_I16)
-                x = load_<int16_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_U32)
-                x = load_<uint32_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_I32)
-                x = load_<int32_t>(iptr, i_offset);
-            ELIF_(ityp == TYPE_U64)
-                x = load_<uint64_t>(iptr, i_offset);
-            ELSE_
-                x = load_<int64_t>(iptr, i_offset);
+            IReg num = CONST_(0);
+            IReg i_offset = CONST_(0);
+            IReg o_offset = CONST_(0);
+            IReg ielemsize = select(ityp > TYPE_I8, CONST_(2), CONST_(1));
+            ielemsize = select(ityp > TYPE_I16, CONST_(4), ielemsize);
+            ielemsize = select(ityp > TYPE_I32, CONST_(8), ielemsize);
+            IReg oelemsize = select(otyp > TYPE_I8, CONST_(2), CONST_(1));
+            oelemsize = select(otyp > TYPE_I16, CONST_(4), oelemsize);
+            oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
+            WHILE_(num < n)
+            {
+                IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
+                IF_(ityp == TYPE_U8)
+                    x = load_<uint8_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_I8)
+                    x = load_<int8_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_U16)
+                    x = load_<uint16_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_I16)
+                    x = load_<int16_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_U32)
+                    x = load_<uint32_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_I32)
+                    x = load_<int32_t>(iptr, i_offset);
+                ELIF_(ityp == TYPE_U64)
+                    x = load_<uint64_t>(iptr, i_offset);
+                ELSE_
+                    x = load_<int64_t>(iptr, i_offset);
 
-            IF_(otyp == TYPE_U8)
-                store_<uint8_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_I8)
-                store_<int8_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_U16)
-                store_<uint16_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_I16)
-                store_<int16_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_U32)
-                store_<uint32_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_I32)
-                store_<int32_t>(optr, o_offset, x);
-            ELIF_(otyp == TYPE_U64)
-                store_<uint64_t>(optr, o_offset, x);
-            ELSE_
-                store_<int64_t>(optr, o_offset, x);
+                IF_(otyp == TYPE_U8)
+                    store_<uint8_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_I8)
+                    store_<int8_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_U16)
+                    store_<uint16_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_I16)
+                    store_<int16_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_U32)
+                    store_<uint32_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_I32)
+                    store_<int32_t>(optr, o_offset, x);
+                ELIF_(otyp == TYPE_U64)
+                    store_<uint64_t>(optr, o_offset, x);
+                ELSE_
+                    store_<int64_t>(optr, o_offset, x);
 
-            i_offset += ielemsize;
-            o_offset += oelemsize;
-            num += 1;
+                i_offset += ielemsize;
+                o_offset += oelemsize;
+                num += 1;
+            }
         }
     }
     typedef int64_t (*all_loads_all_stores_f)(const void* iptr, int ityp, void* optr, int otyp, int64_t n);
@@ -368,23 +370,25 @@ TEST(basic, nullify_msb_lsb)
 {
     Context ctx;
     USE_CONTEXT_(ctx);
-    IReg in, elsb, emsb;
-    STARTFUNC_(test_info_->name(), &in, &elsb, &emsb)
     {
-        IReg msb = in | ushift_right(in,1);
-        msb |= ushift_right(msb, 2);
-        msb |= ushift_right(msb, 4);
-        msb |= ushift_right(msb, 8);
-        msb |= ushift_right(msb, 16);
-        msb |= ushift_right(msb, 32);
-        msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
-        msb = ushift_right(msb, 1);
-        msb ^= in;
-        store_<uint64_t>(emsb, msb);
-        IReg lsb = in & ~(in - 1);
-        lsb ^= in;
-        store_<uint64_t>(elsb, lsb);
-        RETURN_();
+        IReg in, elsb, emsb;
+        STARTFUNC_(test_info_->name(), &in, &elsb, &emsb)
+        {
+            IReg msb = in | ushift_right(in, 1);
+            msb |= ushift_right(msb, 2);
+            msb |= ushift_right(msb, 4);
+            msb |= ushift_right(msb, 8);
+            msb |= ushift_right(msb, 16);
+            msb |= ushift_right(msb, 32);
+            msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
+            msb = ushift_right(msb, 1);
+            msb ^= in;
+            store_<uint64_t>(emsb, msb);
+            IReg lsb = in & ~(in - 1);
+            lsb ^= in;
+            store_<uint64_t>(elsb, lsb);
+            RETURN_();
+        }
     }
     typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
     loops::Func func = ctx.getFunc(test_info_->name());
@@ -551,7 +555,7 @@ TEST(basic, conditionpainter)
     EXPECT_ASSEMBLY_CORRECT(func);
     conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
 
-    auto conditionpainter_ref = [](int64_t* ptr)
+    auto conditionpainter_ref = [xmin, xmax, ymin, ymax, w](int64_t* ptr)
     {
         for(int y = ymin; y <= ymax; y++)
             for(int x = xmin; x <= xmax; x++)

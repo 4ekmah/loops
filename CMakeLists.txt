@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 project(Loops)
 
-add_subdirectory(thirdparty/googletest EXCLUDE_FROM_ALL)
-
 set(CMAKE_CXX_STANDARD 17)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -41,6 +39,10 @@ add_executable(testregress ${testregress_hdrs}
 include_directories(testregress "${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories(testregress "${CMAKE_CURRENT_SOURCE_DIR}/test")
 include_directories(testregress "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/googletest/include")
+if (MSVC)
+	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+endif()
+add_subdirectory(thirdparty/googletest EXCLUDE_FROM_ALL)
 target_link_libraries(testregress loops gtest)
 if (MSVC)
     set_target_properties(testregress PROPERTIES COMPILE_FLAGS /DLOOPS_TEST_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/test\\")

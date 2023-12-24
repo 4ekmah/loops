@@ -22,27 +22,29 @@ TEST(intel64, arithm_arrs)
 {
     Context ctx;
     USE_CONTEXT_(ctx);
-    IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
-    STARTFUNC_(test_info_->name(), &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv)
     {
-        IReg offset = CONST_(0);
-        IReg i = CONST_(0);
-        WHILE_(i < n)
+        IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
+        STARTFUNC_(test_info_->name(), &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv)
         {
-            IReg a = load_<int>(ptrA, offset);
-            IReg b = load_<int>(ptrB, offset);
-            store_<int>(ptrAdd, a + b);
-            store_<int>(ptrSub, a - b);
-            store_<int>(ptrMul, a * b);
-            store_<int>(ptrDiv, a / b);
-            i += 1;
-            offset += sizeof(int);
-            ptrAdd += sizeof(int);
-            ptrSub += sizeof(int);
-            ptrMul += sizeof(int);
-            ptrDiv += sizeof(int);
-        };
-        RETURN_(0);
+            IReg offset = CONST_(0);
+            IReg i = CONST_(0);
+            WHILE_(i < n)
+            {
+                IReg a = load_<int>(ptrA, offset);
+                IReg b = load_<int>(ptrB, offset);
+                store_<int>(ptrAdd, a + b);
+                store_<int>(ptrSub, a - b);
+                store_<int>(ptrMul, a * b);
+                store_<int>(ptrDiv, a / b);
+                i += 1;
+                offset += sizeof(int);
+                ptrAdd += sizeof(int);
+                ptrSub += sizeof(int);
+                ptrMul += sizeof(int);
+                ptrDiv += sizeof(int);
+            };
+            RETURN_(0);
+        }
     }
     typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
     loops::Func func = ctx.getFunc(test_info_->name());

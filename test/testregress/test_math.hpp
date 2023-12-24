@@ -41,7 +41,7 @@ TEST_P(fixed_power, fixed_power)
         ASSERT_EQ(tested(X[n]), ::pow(X[n], p));
 }
 
-INSTANTIATE_TEST_CASE_P(math, fixed_power, ::testing::Values(0, 1, 9));
+INSTANTIATE_TEST_SUITE_P(math, fixed_power, ::testing::Values(0, 1, 9));
 
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 template <typename _Tp, int _p>

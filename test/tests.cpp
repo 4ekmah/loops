@@ -34,7 +34,8 @@ inline std::string toLower(const std::string& tL)
     std::transform(res.begin(), res.end(), res.begin(), [](char t) {return (char)::tolower(t); });
     return res;
 }
-
+#undef min
+#undef max
 void switch_spill_stress_test_mode_on(loops::Func& func)
 {
     ContextImpl* CTX = ((FuncImpl*)getImpl(&func))->getContext();
@@ -218,7 +219,7 @@ static std::vector<tokenized_line> tokenizer(const std::string& text)
     {
         size_t newpos = text.find('\n',pos);
         newpos = (newpos == std::string::npos ? sz : newpos);
-        size_t justafter = newpos;//DUBUG: Don't forget about \r for windows.
+        size_t justafter = newpos;
         res.push_back(tokenized_line(std::string(text.begin()+pos, text.begin()+justafter), line));
         pos = newpos + 1;
         line++;
@@ -228,7 +229,7 @@ static std::vector<tokenized_line> tokenizer(const std::string& text)
     return res;
 }
 
-std::string create_pointing_lines(int ptr, int underlying_start, int underlying_end)
+std::string create_pointing_lines(size_t ptr, size_t underlying_start, size_t underlying_end)
 {
     std::stringstream resstream;
     resstream << std::string(8 + underlying_start,' ') + std::string(underlying_end - underlying_start, '~') << std::endl;
@@ -240,8 +241,8 @@ std::string create_pointing_lines(int ptr, int underlying_start, int underlying_
 bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errMes, std::ostream& out_stream)
 {
     std::string endline; {std::stringstream tmpstream; tmpstream << std::endl; endline = tmpstream.str();}
-    std::vector<tokenized_line> cur_tokenized = tokenizer(curL);
     std::vector<tokenized_line> ref_tokenized = tokenizer(refL); 
+    std::vector<tokenized_line> cur_tokenized = tokenizer(curL);
     bool result = true;
     std::string main_error_line;
     std::string refline;
