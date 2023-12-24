@@ -1,155 +1,155 @@
 conditionpainter(i0)
      0 : sub        i31, i31, 64  
      1 : spill      1, i0         
-     2 : spill      4, i18        
-     3 : spill      5, i19        
-     4 : spill      6, i20        
-     5 : spill      7, i21        
-     6 : mov        i20, -5       
-     7 : spill      0, i20        
-     8 : label 0:                 
-     9 : unspill    i20, 0        
-    10 : cmp        i20, 5        
-    11 : jmp_gt 2                 
-    12 : unspill    i20, 0        
-    13 : add        i2, i20, 5    
-    14 : mov        i3, 11        
-    15 : mul        i2, i2, i3    
-    16 : mov        i3, 8         
-    17 : mul        i20, i2, i3   
-    18 : spill      3, i20        
-    19 : mov        i20, -5       
-    20 : spill      2, i20        
-    21 : label 3:                 
-    22 : unspill    i20, 2        
-    23 : cmp        i20, 5        
-    24 : jmp_gt 5                 
-    25 : unspill    i20, 2        
-    26 : add        i18, i20, 3   
-    27 : unspill    i20, 0        
-    28 : cmp        i20, i18      
-    29 : iverson_ge i18           
-    30 : unspill    i20, 0        
-    31 : cmp        i20, 4        
-    32 : iverson_le i19           
-    33 : and        i18, i18, i19 
-    34 : mov        i19, -2       
-    35 : unspill    i20, 2        
-    36 : cmp        i20, i19      
-    37 : iverson_ge i19           
-    38 : and        i18, i18, i19 
-    39 : unspill    i20, 2        
-    40 : cmp        i20, 0        
-    41 : iverson_le i19           
-    42 : and        i18, i18, i19 
-    43 : unspill    i20, 2        
-    44 : sub        i19, i20, 1   
-    45 : unspill    i20, 0        
-    46 : cmp        i20, i19      
-    47 : iverson_le i19           
-    48 : unspill    i20, 2        
-    49 : cmp        i20, 0        
-    50 : iverson_ge i1            
-    51 : and        i1, i19, i1   
-    52 : unspill    i20, 0        
-    53 : cmp        i20, 0        
-    54 : iverson_le i19           
-    55 : and        i1, i1, i19   
-    56 : unspill    i20, 2        
-    57 : mul        i19, i20, i20 
-    58 : unspill    i20, 0        
-    59 : mul        i0, i20, i20  
-    60 : add        i0, i19, i0   
-    61 : cmp        i0, 9         
-    62 : iverson_le i0            
-    63 : and        i0, i1, i0    
-    64 : or         i0, i18, i0   
+     2 : spill      5, i25        
+     3 : spill      6, i26        
+     4 : spill      7, i27        
+     5 : mov        i26, -5       
+     6 : spill      0, i26        
+     7 : label 0:                 
+     8 : unspill    i26, 0        
+     9 : cmp        i26, 5        
+    10 : jmp_gt 2                 
+    11 : unspill    i26, 0        
+    12 : add        i2, i26, 5    
+    13 : mov        i3, 11        
+    14 : mul        i2, i2, i3    
+    15 : mov        i3, 8         
+    16 : mul        i26, i2, i3   
+    17 : spill      3, i26        
+    18 : mov        i26, -5       
+    19 : spill      2, i26        
+    20 : label 3:                 
+    21 : unspill    i26, 2        
+    22 : cmp        i26, 5        
+    23 : jmp_gt 5                 
+    24 : unspill    i26, 2        
+    25 : add        i25, i26, 3   
+    26 : unspill    i26, 0        
+    27 : cmp        i26, i25      
+    28 : iverson_ge i25           
+    29 : unspill    i26, 0        
+    30 : cmp        i26, 4        
+    31 : iverson_le i1            
+    32 : and        i1, i25, i1   
+    33 : mov        i25, -2       
+    34 : unspill    i26, 2        
+    35 : cmp        i26, i25      
+    36 : iverson_ge i25           
+    37 : and        i1, i1, i25   
+    38 : unspill    i26, 2        
+    39 : cmp        i26, 0        
+    40 : iverson_le i25           
+    41 : and        i1, i1, i25   
+    42 : unspill    i26, 2        
+    43 : sub        i25, i26, 1   
+    44 : unspill    i26, 0        
+    45 : cmp        i26, i25      
+    46 : iverson_le i25           
+    47 : unspill    i26, 2        
+    48 : cmp        i26, 0        
+    49 : iverson_ge i0            
+    50 : and        i0, i25, i0   
+    51 : unspill    i26, 0        
+    52 : cmp        i26, 0        
+    53 : iverson_le i25           
+    54 : and        i0, i0, i25   
+    55 : unspill    i26, 2        
+    56 : mul        i25, i26, i26 
+    57 : unspill    i26, 0        
+    58 : mul        i3, i26, i26  
+    59 : add        i3, i25, i3   
+    60 : cmp        i3, 9         
+    61 : iverson_le i3            
+    62 : and        i0, i0, i3    
+    63 : or         i26, i1, i0   
+    64 : spill      4, i26        
     65 : mov        i1, 2         
-    66 : mov        i18, 0        
-    67 : unspill    i20, 2        
-    68 : cmp        i20, 2        
-    69 : iverson_ge i19           
-    70 : unspill    i20, 2        
-    71 : cmp        i20, 4        
-    72 : iverson_le i3            
-    73 : and        i3, i19, i3   
-    74 : unspill    i20, 0        
-    75 : cmp        i20, 1        
-    76 : iverson_ge i19           
-    77 : unspill    i20, 0        
-    78 : cmp        i20, 3        
-    79 : iverson_le i2            
-    80 : and        i2, i19, i2   
-    81 : or         i2, i3, i2    
-    82 : unspill    i20, 2        
-    83 : mul        i3, i20, i20  
-    84 : unspill    i20, 0        
-    85 : mul        i19, i20, i20 
-    86 : add        i3, i3, i19   
-    87 : cmp        i3, 16        
-    88 : iverson_le i3            
-    89 : and        i2, i2, i3    
-    90 : cmp        i2, 0         
-    91 : select_ne  i1, i1, i18   
-    92 : add        i0, i0, i1    
-    93 : mov        i1, 2         
-    94 : unspill    i20, 0        
-    95 : mul        i1, i20, i1   
-    96 : unspill    i20, 2        
-    97 : cmp        i1, i20       
-    98 : jmp_gt 8                 
-    99 : unspill    i20, 2        
-   100 : add        i1, i20, 3    
-   101 : neg        i1, i1        
-   102 : unspill    i20, 2        
-   103 : add        i2, i20, 3    
-   104 : mul        i1, i1, i2    
-   105 : unspill    i20, 0        
-   106 : cmp        i20, i1       
-   107 : jmp_le 9                 
-   108 : label 8:                 
-   109 : mov        i1, 2         
-   110 : unspill    i20, 2        
-   111 : mul        i1, i20, i1   
-   112 : unspill    i20, 0        
-   113 : cmp        i20, i1       
-   114 : jmp_gt 7                 
-   115 : unspill    i20, 2        
-   116 : add        i1, i20, 3    
-   117 : neg        i1, i1        
-   118 : unspill    i20, 2        
-   119 : add        i2, i20, 3    
-   120 : mul        i1, i1, i2    
-   121 : unspill    i20, 0        
-   122 : cmp        i20, i1       
-   123 : jmp_gt 7                 
-   124 : label 9:                 
-   125 : unspill    i20, 2        
-   126 : cmp        i20, 0        
-   127 : jmp_gt 7                 
-   128 : add        i0, i0, 3     
-   129 : label 7:                 
-   130 : unspill    i20, 1        
-   131 : unspill    i21, 3        
-   132 : add        i1, i20, i21  
-   133 : unspill    i20, 2        
-   134 : add        i2, i20, 5    
-   135 : shl        i2, i2, 3     
-   136 : add        i1, i1, i2    
-   137 : store.i64  i1, i0        
-   138 : unspill    i20, 2        
-   139 : add        i20, i20, 1   
-   140 : spill      2, i20        
-   141 : jmp        3             
-   142 : label 5:                 
-   143 : unspill    i20, 0        
-   144 : add        i20, i20, 1   
-   145 : spill      0, i20        
-   146 : jmp        0             
-   147 : label 2:                 
-   148 : unspill    i18, 4        
-   149 : unspill    i19, 5        
-   150 : unspill    i20, 6        
-   151 : unspill    i21, 7        
+    66 : mov        i3, 0         
+    67 : unspill    i26, 2        
+    68 : cmp        i26, 2        
+    69 : iverson_ge i25           
+    70 : unspill    i26, 2        
+    71 : cmp        i26, 4        
+    72 : iverson_le i2            
+    73 : and        i2, i25, i2   
+    74 : unspill    i26, 0        
+    75 : cmp        i26, 1        
+    76 : iverson_ge i25           
+    77 : unspill    i26, 0        
+    78 : cmp        i26, 3        
+    79 : iverson_le i0            
+    80 : and        i0, i25, i0   
+    81 : or         i0, i2, i0    
+    82 : unspill    i26, 2        
+    83 : mul        i2, i26, i26  
+    84 : unspill    i26, 0        
+    85 : mul        i25, i26, i26 
+    86 : add        i2, i2, i25   
+    87 : cmp        i2, 16        
+    88 : iverson_le i2            
+    89 : and        i0, i0, i2    
+    90 : cmp        i0, 0         
+    91 : select_ne  i0, i1, i3    
+    92 : unspill    i26, 4        
+    93 : add        i0, i26, i0   
+    94 : mov        i1, 2         
+    95 : unspill    i26, 0        
+    96 : mul        i1, i26, i1   
+    97 : unspill    i26, 2        
+    98 : cmp        i1, i26       
+    99 : jmp_gt 8                 
+   100 : unspill    i26, 2        
+   101 : add        i1, i26, 3    
+   102 : neg        i1, i1        
+   103 : unspill    i26, 2        
+   104 : add        i2, i26, 3    
+   105 : mul        i1, i1, i2    
+   106 : unspill    i26, 0        
+   107 : cmp        i26, i1       
+   108 : jmp_le 9                 
+   109 : label 8:                 
+   110 : mov        i1, 2         
+   111 : unspill    i26, 2        
+   112 : mul        i1, i26, i1   
+   113 : unspill    i26, 0        
+   114 : cmp        i26, i1       
+   115 : jmp_gt 7                 
+   116 : unspill    i26, 2        
+   117 : add        i1, i26, 3    
+   118 : neg        i1, i1        
+   119 : unspill    i26, 2        
+   120 : add        i2, i26, 3    
+   121 : mul        i1, i1, i2    
+   122 : unspill    i26, 0        
+   123 : cmp        i26, i1       
+   124 : jmp_gt 7                 
+   125 : label 9:                 
+   126 : unspill    i26, 2        
+   127 : cmp        i26, 0        
+   128 : jmp_gt 7                 
+   129 : add        i0, i0, 3     
+   130 : label 7:                 
+   131 : unspill    i26, 1        
+   132 : unspill    i27, 3        
+   133 : add        i1, i26, i27  
+   134 : unspill    i26, 2        
+   135 : add        i2, i26, 5    
+   136 : shl        i2, i2, 3     
+   137 : add        i1, i1, i2    
+   138 : store.i64  i1, i0        
+   139 : unspill    i26, 2        
+   140 : add        i26, i26, 1   
+   141 : spill      2, i26        
+   142 : jmp        3             
+   143 : label 5:                 
+   144 : unspill    i26, 0        
+   145 : add        i26, i26, 1   
+   146 : spill      0, i26        
+   147 : jmp        0             
+   148 : label 2:                 
+   149 : unspill    i25, 5        
+   150 : unspill    i26, 6        
+   151 : unspill    i27, 7        
    152 : add        i31, i31, 64  
    153 : ret                      

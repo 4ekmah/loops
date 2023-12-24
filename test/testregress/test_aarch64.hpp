@@ -68,7 +68,7 @@ TEST(aarch64, nullify_msb_lsb_v)
             VReg<uint32_t> lsb = in & ~(in - one);
             lsb ^= in;
             storevec(olptr, offset, lsb);
-            offset += CTX.vbytes();
+            offset += ctx.vbytes();
         }
         RETURN_();
     }
@@ -126,49 +126,49 @@ TEST(aarch64, big_immediates)
         }
         ELIF_(tasknum == TBI_I8_0)
         {
-            storevec(targetptr, VCONST_(uint8_t, 0));   targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint8_t, 255)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint8_t, 0));   targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint8_t, 255)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I8_1)
         {
-            storevec(targetptr, VCONST_(int8_t, -128)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int8_t, -128)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I16_0)
         {
-            storevec(targetptr, VCONST_(uint16_t, 0));   targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint16_t, 255)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint16_t, 256)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint16_t, 0));   targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint16_t, 255)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint16_t, 256)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I16_1)
         {
-            storevec(targetptr, VCONST_(int16_t, -128)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(int16_t, -129)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int16_t, -128)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(int16_t, -129)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I32_0)
         {
-            storevec(targetptr, VCONST_(uint32_t, 0));   targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint32_t, 255)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint32_t, 256)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint32_t, 0));   targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint32_t, 255)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint32_t, 256)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I32_1)
         {
-            storevec(targetptr, VCONST_(int32_t, -128)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(int32_t, -129)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int32_t, -128)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(int32_t, -129)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I64_0)
         {
-            storevec(targetptr, VCONST_(uint64_t, 0));   targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint64_t, 255)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint64_t, 0xff00)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 0));   targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 255)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 0xff00)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I64_1)
         {
-            storevec(targetptr, VCONST_(int64_t, -256)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(int64_t, -256)); targetptr += ctx.vbytes();
         }
         ELIF_(tasknum == TBI_I64_2)
         {
-            storevec(targetptr, VCONST_(uint64_t, 256)); targetptr += CTX.vbytes();
-            storevec(targetptr, VCONST_(uint64_t, 254)); targetptr += CTX.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 256)); targetptr += ctx.vbytes();
+            storevec(targetptr, VCONST_(uint64_t, 254)); targetptr += ctx.vbytes();
         }
         RETURN_();
     }

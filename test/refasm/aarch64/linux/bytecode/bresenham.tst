@@ -1,75 +1,79 @@
 bresenham(i0, i1, i2, i3, i4, i5, i6)
-     0 : sub       i31, i31, 64  
-     1 : spill     4, i18        
-     2 : spill     5, i19        
-     3 : spill     6, i20        
-     4 : spill     7, i21        
-     5 : sub       i18, i4, i2   
-     6 : cmp       i18, 0        
-     7 : arm_cneg  i18, i18, 32  
-     8 : sub       i19, i4, i2   
-     9 : cmp       i19, 0        
-    10 : sar       i20, i19, 63  
-    11 : arm_cinc  i20, i20, 29  
-    12 : spill     0, i20        
-    13 : sub       i19, i5, i3   
-    14 : cmp       i19, 0        
-    15 : arm_cneg  i19, i19, 32  
-    16 : neg       i20, i19      
-    17 : spill     1, i20        
-    18 : sub       i19, i5, i3   
-    19 : cmp       i19, 0        
-    20 : sar       i20, i19, 63  
-    21 : arm_cinc  i20, i20, 29  
-    22 : spill     3, i20        
-    23 : unspill   i20, 1        
-    24 : add       i21, i18, i20 
-    25 : spill     2, i21        
-    26 : label 0:                
-    27 : cmp       i0, 0         
-    28 : jmp_eq 2                
-    29 : mul       i19, i3, i1   
-    30 : add       i19, i19, i2  
-    31 : store.u8  i0, i19, i6   
-    32 : cmp       i2, i4        
-    33 : jmp_ne 4                
-    34 : cmp       i3, i5        
+     0 : sub       i31, i31, 80  
+     1 : spill     5, i25        
+     2 : spill     6, i26        
+     3 : spill     7, i27        
+     4 : spill     8, i28        
+     5 : sub       i25, i4, i2   
+     6 : cmp       i25, 0        
+     7 : arm_cneg  i26, i25, 32  
+     8 : spill     0, i26        
+     9 : sub       i25, i4, i2   
+    10 : cmp       i25, 0        
+    11 : sar       i26, i25, 63  
+    12 : arm_cinc  i26, i26, 29  
+    13 : spill     1, i26        
+    14 : sub       i25, i5, i3   
+    15 : cmp       i25, 0        
+    16 : arm_cneg  i25, i25, 32  
+    17 : neg       i26, i25      
+    18 : spill     2, i26        
+    19 : sub       i25, i5, i3   
+    20 : cmp       i25, 0        
+    21 : sar       i26, i25, 63  
+    22 : arm_cinc  i26, i26, 29  
+    23 : spill     4, i26        
+    24 : unspill   i26, 0        
+    25 : unspill   i27, 2        
+    26 : add       i28, i26, i27 
+    27 : spill     3, i28        
+    28 : label 0:                
+    29 : cmp       i0, 0         
+    30 : jmp_eq 2                
+    31 : mul       i25, i3, i1   
+    32 : add       i25, i25, i2  
+    33 : store.u8  i0, i25, i6   
+    34 : cmp       i2, i4        
     35 : jmp_ne 4                
-    36 : jmp       2             
-    37 : label 4:                
-    38 : unspill   i20, 2        
-    39 : shl       i19, i20, 1   
-    40 : unspill   i20, 1        
-    41 : cmp       i19, i20      
-    42 : jmp_gt 6                
-    43 : cmp       i2, i4        
-    44 : jmp_ne 8                
-    45 : jmp       2             
-    46 : label 8:                
-    47 : unspill   i21, 1        
-    48 : unspill   i20, 2        
-    49 : add       i20, i20, i21 
-    50 : spill     2, i20        
-    51 : unspill   i20, 0        
-    52 : add       i2, i2, i20   
-    53 : label 6:                
-    54 : cmp       i19, i18      
-    55 : jmp_gt 10               
-    56 : cmp       i3, i5        
-    57 : jmp_ne 12               
-    58 : jmp       2             
-    59 : label 12:               
-    60 : unspill   i20, 2        
-    61 : add       i20, i20, i18 
-    62 : spill     2, i20        
-    63 : unspill   i20, 3        
-    64 : add       i3, i3, i20   
-    65 : label 10:               
-    66 : jmp       0             
-    67 : label 2:                
-    68 : unspill   i18, 4        
-    69 : unspill   i19, 5        
-    70 : unspill   i20, 6        
-    71 : unspill   i21, 7        
-    72 : add       i31, i31, 64  
-    73 : ret                     
+    36 : cmp       i3, i5        
+    37 : jmp_ne 4                
+    38 : jmp       2             
+    39 : label 4:                
+    40 : unspill   i26, 3        
+    41 : shl       i25, i26, 1   
+    42 : unspill   i26, 2        
+    43 : cmp       i25, i26      
+    44 : jmp_gt 6                
+    45 : cmp       i2, i4        
+    46 : jmp_ne 8                
+    47 : jmp       2             
+    48 : label 8:                
+    49 : unspill   i27, 2        
+    50 : unspill   i26, 3        
+    51 : add       i26, i26, i27 
+    52 : spill     3, i26        
+    53 : unspill   i26, 1        
+    54 : add       i2, i2, i26   
+    55 : label 6:                
+    56 : unspill   i26, 0        
+    57 : cmp       i25, i26      
+    58 : jmp_gt 10               
+    59 : cmp       i3, i5        
+    60 : jmp_ne 12               
+    61 : jmp       2             
+    62 : label 12:               
+    63 : unspill   i27, 0        
+    64 : unspill   i26, 3        
+    65 : add       i26, i26, i27 
+    66 : spill     3, i26        
+    67 : unspill   i26, 4        
+    68 : add       i3, i3, i26   
+    69 : label 10:               
+    70 : jmp       0             
+    71 : label 2:                
+    72 : unspill   i25, 5        
+    73 : unspill   i26, 6        
+    74 : unspill   i27, 7        
+    75 : unspill   i28, 8        
+    76 : add       i31, i31, 80  
+    77 : ret                     

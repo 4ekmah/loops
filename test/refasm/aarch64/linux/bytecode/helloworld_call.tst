@@ -2,9 +2,9 @@ helloworld_call()
      0 : sub          i31, i31, 416     
      1 : arm_stp      i31, 50, i29, i30 
      2 : mov          i29, i31          
-     3 : mov          i0, 19440         
-     4 : arm_movk     i0, 10, 16        
-     5 : arm_movk     i0, 1, 32         
+     3 : mov          i0, 42256         
+     4 : arm_movk     i0, 48117, 16     
+     5 : arm_movk     i0, 43690, 32     
      6 : arm_stp      i31, 0, i0, i1    
      7 : arm_stp      i31, 2, i2, i3    
      8 : arm_stp      i31, 4, i4, i5    

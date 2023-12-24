@@ -1,158 +1,158 @@
 all_loads_all_stores(i0, i1, i2, i3, i4)
      0 : sub       i31, i31, 64  
-     1 : spill     4, i18        
-     2 : spill     5, i19        
-     3 : spill     6, i20        
-     4 : spill     7, i21        
-     5 : mov       i20, 0        
-     6 : spill     2, i20        
-     7 : mov       i20, 0        
-     8 : spill     1, i20        
-     9 : mov       i20, 0        
-    10 : spill     0, i20        
-    11 : mov       i19, 2        
-    12 : mov       i18, 1        
+     1 : spill     3, i4         
+     2 : spill     5, i25        
+     3 : spill     6, i26        
+     4 : spill     7, i27        
+     5 : mov       i26, 0        
+     6 : spill     2, i26        
+     7 : mov       i26, 0        
+     8 : spill     0, i26        
+     9 : mov       i26, 0        
+    10 : spill     1, i26        
+    11 : mov       i25, 2        
+    12 : mov       i4, 1         
     13 : cmp       i1, 1         
-    14 : select_gt i18, i19, i18 
-    15 : mov       i19, 4        
+    14 : select_gt i4, i25, i4   
+    15 : mov       i25, 4        
     16 : cmp       i1, 3         
-    17 : select_gt i18, i19, i18 
-    18 : mov       i19, 8        
+    17 : select_gt i4, i25, i4   
+    18 : mov       i25, 8        
     19 : cmp       i1, 5         
-    20 : select_gt i20, i19, i18 
-    21 : spill     3, i20        
-    22 : mov       i19, 2        
-    23 : mov       i18, 1        
+    20 : select_gt i26, i25, i4  
+    21 : spill     4, i26        
+    22 : mov       i25, 2        
+    23 : mov       i4, 1         
     24 : cmp       i3, 1         
-    25 : select_gt i18, i19, i18 
-    26 : mov       i19, 4        
+    25 : select_gt i4, i25, i4   
+    26 : mov       i25, 4        
     27 : cmp       i3, 3         
-    28 : select_gt i18, i19, i18 
-    29 : mov       i19, 8        
+    28 : select_gt i4, i25, i4   
+    29 : mov       i25, 8        
     30 : cmp       i3, 5         
-    31 : select_gt i18, i19, i18 
+    31 : select_gt i4, i25, i4   
     32 : label 0:                
-    33 : unspill   i20, 2        
-    34 : cmp       i20, i4       
-    35 : jmp_ge 2                
-    36 : mov       i19, 0        
-    37 : cmp       i1, 0         
-    38 : jmp_ne 4                
-    39 : unspill   i20, 1        
-    40 : load.u8   i19, i0, i20  
-    41 : jmp       5             
-    42 : label 4:                
-    43 : cmp       i1, 1         
-    44 : jmp_ne 7                
-    45 : unspill   i20, 1        
-    46 : load.i8   i19, i0, i20  
-    47 : jmp       8             
-    48 : label 7:                
-    49 : cmp       i1, 2         
-    50 : jmp_ne 10               
-    51 : unspill   i20, 1        
-    52 : load.u16  i19, i0, i20  
-    53 : jmp       11            
-    54 : label 10:               
-    55 : cmp       i1, 3         
-    56 : jmp_ne 13               
-    57 : unspill   i20, 1        
-    58 : load.i16  i19, i0, i20  
-    59 : jmp       14            
-    60 : label 13:               
-    61 : cmp       i1, 4         
-    62 : jmp_ne 16               
-    63 : unspill   i20, 1        
-    64 : load.u32  i19, i0, i20  
-    65 : jmp       17            
-    66 : label 16:               
-    67 : cmp       i1, 5         
-    68 : jmp_ne 19               
-    69 : unspill   i20, 1        
-    70 : load.i32  i19, i0, i20  
-    71 : jmp       20            
-    72 : label 19:               
-    73 : cmp       i1, 6         
-    74 : jmp_ne 22               
-    75 : unspill   i20, 1        
-    76 : load.u64  i19, i0, i20  
-    77 : jmp       23            
-    78 : label 22:               
-    79 : unspill   i20, 1        
-    80 : load.i64  i19, i0, i20  
-    81 : label 5:                
-    82 : label 8:                
-    83 : label 11:               
-    84 : label 14:               
-    85 : label 17:               
-    86 : label 20:               
-    87 : label 23:               
-    88 : cmp       i3, 0         
-    89 : jmp_ne 25               
-    90 : unspill   i20, 0        
-    91 : store.u8  i2, i20, i19  
-    92 : jmp       26            
-    93 : label 25:               
-    94 : cmp       i3, 1         
-    95 : jmp_ne 28               
-    96 : unspill   i20, 0        
-    97 : store.i8  i2, i20, i19  
-    98 : jmp       29            
-    99 : label 28:               
-   100 : cmp       i3, 2         
-   101 : jmp_ne 31               
-   102 : unspill   i20, 0        
-   103 : store.u16 i2, i20, i19  
-   104 : jmp       32            
-   105 : label 31:               
-   106 : cmp       i3, 3         
-   107 : jmp_ne 34               
-   108 : unspill   i20, 0        
-   109 : store.i16 i2, i20, i19  
-   110 : jmp       35            
-   111 : label 34:               
-   112 : cmp       i3, 4         
-   113 : jmp_ne 37               
-   114 : unspill   i20, 0        
-   115 : store.u32 i2, i20, i19  
-   116 : jmp       38            
-   117 : label 37:               
-   118 : cmp       i3, 5         
-   119 : jmp_ne 40               
-   120 : unspill   i20, 0        
-   121 : store.i32 i2, i20, i19  
-   122 : jmp       41            
-   123 : label 40:               
-   124 : cmp       i3, 6         
-   125 : jmp_ne 43               
-   126 : unspill   i20, 0        
-   127 : store.u64 i2, i20, i19  
-   128 : jmp       44            
-   129 : label 43:               
-   130 : unspill   i20, 0        
-   131 : store.i64 i2, i20, i19  
-   132 : label 26:               
-   133 : label 29:               
-   134 : label 32:               
-   135 : label 35:               
-   136 : label 38:               
-   137 : label 41:               
-   138 : label 44:               
-   139 : unspill   i20, 1        
-   140 : unspill   i21, 3        
-   141 : add       i20, i20, i21 
-   142 : spill     1, i20        
-   143 : unspill   i20, 0        
-   144 : add       i20, i20, i18 
-   145 : spill     0, i20        
-   146 : unspill   i20, 2        
-   147 : add       i20, i20, 1   
-   148 : spill     2, i20        
-   149 : jmp       0             
-   150 : label 2:                
-   151 : unspill   i18, 4        
-   152 : unspill   i19, 5        
-   153 : unspill   i20, 6        
-   154 : unspill   i21, 7        
+    33 : unspill   i27, 3        
+    34 : unspill   i26, 2        
+    35 : cmp       i26, i27      
+    36 : jmp_ge 2                
+    37 : mov       i25, 0        
+    38 : cmp       i1, 0         
+    39 : jmp_ne 4                
+    40 : unspill   i26, 0        
+    41 : load.u8   i25, i0, i26  
+    42 : jmp       5             
+    43 : label 4:                
+    44 : cmp       i1, 1         
+    45 : jmp_ne 7                
+    46 : unspill   i26, 0        
+    47 : load.i8   i25, i0, i26  
+    48 : jmp       8             
+    49 : label 7:                
+    50 : cmp       i1, 2         
+    51 : jmp_ne 10               
+    52 : unspill   i26, 0        
+    53 : load.u16  i25, i0, i26  
+    54 : jmp       11            
+    55 : label 10:               
+    56 : cmp       i1, 3         
+    57 : jmp_ne 13               
+    58 : unspill   i26, 0        
+    59 : load.i16  i25, i0, i26  
+    60 : jmp       14            
+    61 : label 13:               
+    62 : cmp       i1, 4         
+    63 : jmp_ne 16               
+    64 : unspill   i26, 0        
+    65 : load.u32  i25, i0, i26  
+    66 : jmp       17            
+    67 : label 16:               
+    68 : cmp       i1, 5         
+    69 : jmp_ne 19               
+    70 : unspill   i26, 0        
+    71 : load.i32  i25, i0, i26  
+    72 : jmp       20            
+    73 : label 19:               
+    74 : cmp       i1, 6         
+    75 : jmp_ne 22               
+    76 : unspill   i26, 0        
+    77 : load.u64  i25, i0, i26  
+    78 : jmp       23            
+    79 : label 22:               
+    80 : unspill   i26, 0        
+    81 : load.i64  i25, i0, i26  
+    82 : label 5:                
+    83 : label 8:                
+    84 : label 11:               
+    85 : label 14:               
+    86 : label 17:               
+    87 : label 20:               
+    88 : label 23:               
+    89 : cmp       i3, 0         
+    90 : jmp_ne 25               
+    91 : unspill   i26, 1        
+    92 : store.u8  i2, i26, i25  
+    93 : jmp       26            
+    94 : label 25:               
+    95 : cmp       i3, 1         
+    96 : jmp_ne 28               
+    97 : unspill   i26, 1        
+    98 : store.i8  i2, i26, i25  
+    99 : jmp       29            
+   100 : label 28:               
+   101 : cmp       i3, 2         
+   102 : jmp_ne 31               
+   103 : unspill   i26, 1        
+   104 : store.u16 i2, i26, i25  
+   105 : jmp       32            
+   106 : label 31:               
+   107 : cmp       i3, 3         
+   108 : jmp_ne 34               
+   109 : unspill   i26, 1        
+   110 : store.i16 i2, i26, i25  
+   111 : jmp       35            
+   112 : label 34:               
+   113 : cmp       i3, 4         
+   114 : jmp_ne 37               
+   115 : unspill   i26, 1        
+   116 : store.u32 i2, i26, i25  
+   117 : jmp       38            
+   118 : label 37:               
+   119 : cmp       i3, 5         
+   120 : jmp_ne 40               
+   121 : unspill   i26, 1        
+   122 : store.i32 i2, i26, i25  
+   123 : jmp       41            
+   124 : label 40:               
+   125 : cmp       i3, 6         
+   126 : jmp_ne 43               
+   127 : unspill   i26, 1        
+   128 : store.u64 i2, i26, i25  
+   129 : jmp       44            
+   130 : label 43:               
+   131 : unspill   i26, 1        
+   132 : store.i64 i2, i26, i25  
+   133 : label 26:               
+   134 : label 29:               
+   135 : label 32:               
+   136 : label 35:               
+   137 : label 38:               
+   138 : label 41:               
+   139 : label 44:               
+   140 : unspill   i26, 0        
+   141 : unspill   i27, 4        
+   142 : add       i26, i26, i27 
+   143 : spill     0, i26        
+   144 : unspill   i26, 1        
+   145 : add       i26, i26, i4  
+   146 : spill     1, i26        
+   147 : unspill   i26, 2        
+   148 : add       i26, i26, 1   
+   149 : spill     2, i26        
+   150 : jmp       0             
+   151 : label 2:                
+   152 : unspill   i25, 5        
+   153 : unspill   i26, 6        
+   154 : unspill   i27, 7        
    155 : add       i31, i31, 64  
    156 : ret                     

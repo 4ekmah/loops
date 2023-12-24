@@ -1,9 +1,9 @@
-exponentiation_by_squaring_v_float_9(i0, i1, i2)
+fixed_power_v_float_9(i0, i1, i2)
      0 : sub      i31, i31, 16 
-     1 : spill    0, i18       
+     1 : spill    0, i25       
      2 : mov      i3, 0        
-     3 : mov      i18, 4       
-     4 : mul      i2, i2, i18  
+     3 : mov      i25, 4       
+     4 : mul      i2, i2, i25  
      5 : label 0:              
      6 : cmp      i3, i2       
      7 : jmp_ge 2              
@@ -17,6 +17,6 @@ exponentiation_by_squaring_v_float_9(i0, i1, i2)
     15 : jmp      0            
     16 : label 2:              
     17 : mov      i0, 0        
-    18 : unspill  i18, 0       
+    18 : unspill  i25, 0       
     19 : add      i31, i31, 16 
     20 : ret                   

@@ -49,103 +49,7 @@ void switch_spill_stress_test_mode_on(loops::Func& func)
     std::vector<int> vcallers = CTX->getBackend()->callerSavedRegisters(RB_VEC);
     std::vector<int> vcallees = CTX->getBackend()->calleeSavedRegisters(RB_VEC);
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64
-enum Aarch64Reg //DUBUG: we don't need to know here certain register distribution, there have to work exactly algorithm
-{
-    R0   =  0,
-    R1   =  1,
-    R2   =  2,
-    R3   =  3,
-    R4   =  4,
-    R5   =  5,
-    R6   =  6,
-    R7   =  7,
-    XR   =  8,
-    R9   =  9,
-    R10  = 10,
-    R11  = 11,
-    R12  = 12,
-    R13  = 13,
-    R14  = 14,
-    R15  = 15,
-    IP0  = 16,
-    IP1  = 17,
-    PR   = 18,
-    R19  = 19,
-    R20  = 20,
-    R21  = 21,
-    R22  = 22,
-    R23  = 23,
-    R24  = 24,
-    R25  = 25,
-    R26  = 26,
-    R27  = 27,
-    R28  = 28,
-    FP   = 29,
-    LR   = 30,
-    SP   = 31
-};
-
-enum Aarch64VReg
-{
-    Q0   =  0,
-    Q1   =  1,
-    Q2   =  2,
-    Q3   =  3,
-    Q4   =  4,
-    Q5   =  5,
-    Q6   =  6,
-    Q7   =  7,
-    Q8   =  8,
-    Q9   =  9,
-    Q10   =  10,
-    Q11   =  11,
-    Q12   =  12,
-    Q13   =  13,
-    Q14   =  14,
-    Q15   =  15,
-    Q16   =  16,
-    Q17   =  17,
-    Q18   =  18,
-    Q19   =  19,
-    Q20   =  20,
-    Q21   =  21,
-    Q22   =  22,
-    Q23   =  23,
-    Q24   =  24,
-    Q25   =  25,
-    Q26   =  26,
-    Q27   =  27,
-    Q28   =  28,
-    Q29   =  29,
-    Q30   =  30,
-    Q31   =  31,
-};
-
-    sparam = { R0, R1, R2, R3 };
-    sreturn = { R0, R1, R2, R3 };
-    scallees = {};
-    scallers = { PR, R19, R20, R21, R22 };
-
-    vparam = { Q0, Q1, Q2, Q3 };
-    vreturn = { Q0, Q1, Q2, Q3 };
-    vcallees = { };
-    vcallers = { Q29, Q30, Q31 };
-
-        //if (CTX.getPlatformName() == "AArch64")
-        //     getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6, 7 }, { 0, 1, 2, 3, 4, 5, 6, 7 }, {}, { 18, 19, 20, 21, 22 });
-        //     getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4, 5, 6 }   , { 0, 1, 2, 3, 4, 5, 6 }   , {}, { 18, 19, 20, 21, 22 });
-        //     getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 0, 1, 2, 3, 4 }         , { 0, 1, 2, 3, 4 }         , {}, { 18, 19, 20, 21, 22 });
-        //m_calleeSavedRegisters[RB_INT] = { |||PR, R19, R20, R21, R22|||, R23, R24, R25, R26, R27, R28 };
-
-#elif __LOOPS_ARCH == __LOOPS_INTEL64
-    //DUBUG read comments lower and clear after: 
-//1.) We are taking first "default_params_amount" registers from params basket.
-//2.) Take intersect with return basket. If it is empty, take first register.
-//3.) Take 0 of callee_saved registers
-//4.) Take common_amount - sizeof(union of p.1 and p.2) last registers from caller_saved.
-//5.) Now take "params_amount" from params basket and correct accordingly to p.2 return registers.
-    const size_t common_amount = 9; //Well, tell me why?
+    const size_t common_amount = 8; //Well, tell me why?
     const size_t default_params_amount = 4;
     const size_t params_amount = std::min((size_t)std::max(func.signature(), 4), sparam.size()); //Accordingly to function signature. Can be more than default_params_amount, but not vice versa.
     {
@@ -162,15 +66,7 @@ enum Aarch64VReg
         for(int regnum = (int)sreturn.size() - 1; regnum >= 0; regnum--)
             if(ireturn.count(sreturn[regnum]) == 0)
                 sreturn.erase(sreturn.begin()+regnum);
-    // #if __LOOPS_OS == __LOOPS_WINDOWS
-    //     sparam = { RCX, RDX, R8, R9 };
-    //     sreturn = { RAX };
-    //     scallees = {};
-    //     scallers = { R12, R13, R14, R15 };
     }
-#else
-#error Unknown CPU
-#endif
     getImpl(&func)->overrideRegisterSet(RB_INT, sparam, sreturn, scallers, scallees);
     getImpl(&func)->overrideRegisterSet(RB_VEC, vparam, vreturn, vcallers, vcallees);
 }

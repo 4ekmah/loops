@@ -2,9 +2,9 @@ helloworld_call()
      0 : sub  sp, sp, #0x1a0      ; ff 83 06 d1  
      1 : stp  x29, x30, sp, #0x32 ; fd 7b 19 a9  
      2 : mov  x29, sp             ; fd 03 1f aa  
-     3 : mov  x0, #0x4bf0         ; 00 7e 89 d2  
-     4 : movk x0, #0x0a, #0x01    ; 40 01 a0 f2  
-     5 : movk x0, #0x01, #0x02    ; 20 00 c0 f2  
+     3 : mov  x0, #0xa510         ; 00 a2 94 d2  
+     4 : movk x0, #0xbbf5, #0x01  ; a0 7e b7 f2  
+     5 : movk x0, #0xaaaa, #0x02  ; 40 55 d5 f2  
      6 : stp  x0, x1, sp, #0      ; e0 07 00 a9  
      7 : stp  x2, x3, sp, #0x02   ; e2 0f 01 a9  
      8 : stp  x4, x5, sp, #0x04   ; e4 17 02 a9  

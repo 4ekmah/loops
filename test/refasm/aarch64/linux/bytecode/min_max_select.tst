@@ -2,47 +2,47 @@ min_max_select(i0, i1, i2, i3)
      0 : sub       i31, i31, 64  
      1 : spill     1, i2         
      2 : spill     0, i3         
-     3 : spill     4, i18        
-     4 : spill     5, i19        
-     5 : spill     6, i20        
-     6 : mov       i18, 0        
-     7 : mov       i20, 0        
-     8 : spill     3, i20        
-     9 : mov       i20, 0        
-    10 : spill     2, i20        
-    11 : load.i32  i2, i0        
-    12 : mov       i3, i2        
-    13 : shl       i1, i1, 2     
+     3 : spill     5, i25        
+     4 : spill     6, i26        
+     5 : mov       i25, 0        
+     6 : mov       i26, 0        
+     7 : spill     3, i26        
+     8 : mov       i26, 0        
+     9 : spill     2, i26        
+    10 : load.i32  i2, i0        
+    11 : mov       i3, i2        
+    12 : shl       i26, i1, 2    
+    13 : spill     4, i26        
     14 : label 0:                
-    15 : cmp       i18, i1       
-    16 : jmp_ge 2                
-    17 : load.i32  i19, i0, i18  
-    18 : cmp       i19, i2       
-    19 : unspill   i20, 3        
-    20 : select_gt i20, i18, i20 
-    21 : spill     3, i20        
-    22 : cmp       i19, i2       
-    23 : select_gt i2, i19, i2   
-    24 : cmp       i19, i3       
-    25 : unspill   i20, 2        
-    26 : select_gt i20, i18, i20 
-    27 : spill     2, i20        
-    28 : cmp       i19, i3       
-    29 : select_gt i3, i19, i3   
-    30 : add       i18, i18, 4   
-    31 : jmp       0             
-    32 : label 2:                
-    33 : unspill   i20, 3        
-    34 : sar       i0, i20, 2    
-    35 : unspill   i20, 2        
-    36 : sar       i1, i20, 2    
-    37 : unspill   i20, 1        
-    38 : store.i32 i20, i0       
-    39 : unspill   i20, 0        
-    40 : store.i32 i20, i1       
-    41 : mov       i0, 0         
-    42 : unspill   i18, 4        
-    43 : unspill   i19, 5        
-    44 : unspill   i20, 6        
+    15 : unspill   i26, 4        
+    16 : cmp       i25, i26      
+    17 : jmp_ge 2                
+    18 : load.i32  i1, i0, i25   
+    19 : cmp       i1, i2        
+    20 : unspill   i26, 3        
+    21 : select_gt i26, i25, i26 
+    22 : spill     3, i26        
+    23 : cmp       i1, i2        
+    24 : select_gt i2, i1, i2    
+    25 : cmp       i1, i3        
+    26 : unspill   i26, 2        
+    27 : select_gt i26, i25, i26 
+    28 : spill     2, i26        
+    29 : cmp       i1, i3        
+    30 : select_gt i3, i1, i3    
+    31 : add       i25, i25, 4   
+    32 : jmp       0             
+    33 : label 2:                
+    34 : unspill   i26, 3        
+    35 : sar       i0, i26, 2    
+    36 : unspill   i26, 2        
+    37 : sar       i1, i26, 2    
+    38 : unspill   i26, 1        
+    39 : store.i32 i26, i0       
+    40 : unspill   i26, 0        
+    41 : store.i32 i26, i1       
+    42 : mov       i0, 0         
+    43 : unspill   i25, 5        
+    44 : unspill   i26, 6        
     45 : add       i31, i31, 64  
     46 : ret                     
