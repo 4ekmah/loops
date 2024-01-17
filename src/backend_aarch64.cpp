@@ -234,7 +234,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_MOVK):
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
            index[2].value >= 1 && index[2].value <= 3)
-            return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, IO) });
         break;
     case (AARCH64_ADD):
         if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
@@ -1851,7 +1851,7 @@ Aarch64Backend::Aarch64Backend()
     m_parameterRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_callerSavedRegisters[RB_INT] = { XR, R9, R10, R11, R12, R13, R14, R15, IP0, IP1 };
-    m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 };
+    m_calleeSavedRegisters[RB_INT] = { /*PR, TODO: sort out with calling convention and meaning of this register.*/ R19, R20, R21, R22, R23, R24, R25, R26, R27, R28 };
 
     m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7 };
     m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
@@ -1887,13 +1887,7 @@ int Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& 
     return Backend::reusingPreferences(a_op, undefinedArgNums);
 }
 
-#if __LOOPS_OS == __LOOPS_MAC
 #define LOOPS_VCALLER_SAVED_AMOUNT 16
-#elif __LOOPS_OS == __LOOPS_LINUX
-#define LOOPS_VCALLER_SAVED_AMOUNT 8
-#else
-#error Unsupported OS
-#endif
 
 int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
 {
@@ -2279,7 +2273,7 @@ void Aarch64Backend::switchOnSpillStressMode()
     m_parameterRegisters[RB_INT] = { R0, R1, R2, R3 };
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3 };
     m_callerSavedRegisters[RB_INT] = {};
-    m_calleeSavedRegisters[RB_INT] = { PR, R19, R20, R21, R22 };
+    m_calleeSavedRegisters[RB_INT] = { /*PR,*/ R19, R20, R21, R22 };
 
     m_parameterRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
     m_returnRegisters[RB_VEC] = { Q0, Q1, Q2, Q3 };
