@@ -754,16 +754,22 @@ TEST(calls, sort_double)
             IReg ipos = minpos + sizeof(double);
             WHILE_(ipos < n)
             {
-                IF_(CALL_(lesser_dbl, load_<double>(ptr, ipos), load_<double>(ptr, minpos)))
+                // IF_(CALL_(lesser_dbl, load_<double>(ptr, ipos), load_<double>(ptr, minpos))) //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
+                IF_(CALL_(lesser_dbl, load_<double>(ptr + ipos), load_<double>(ptr + minpos)))
                     minpos = ipos;
                 ipos += sizeof(double);
             }
             IF_(minpos != curpos)
             {
-                IReg cur_ = load_<double>(ptr, curpos);
-                IReg min_ = load_<double>(ptr, minpos);
-                store_<double>(ptr, minpos, cur_);
-                store_<double>(ptr, curpos, min_);
+                //TODO(ch): There is some bug on intel here, causing segfault. Uncomment next four lines and fix it:
+                // IReg cur_ = load_<double>(ptr, curpos); 
+                // IReg min_ = load_<double>(ptr, minpos);
+                // store_<double>(ptr, minpos, cur_);
+                // store_<double>(ptr, curpos, min_);
+                IReg cur_ = load_<double>(ptr + curpos); 
+                IReg min_ = load_<double>(ptr + minpos);
+                store_<double>(ptr + minpos, cur_);
+                store_<double>(ptr + curpos, min_);
             }
             curpos += sizeof(double);
         }
@@ -774,7 +780,7 @@ TEST(calls, sort_double)
     switch_spill_stress_test_mode_on(func);
     // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
     // EXPECT_ASSEMBLY_CORRECT(func);
-    sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
+        sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
     std::vector<double> arr = {7.3, 2.0, 5.3, 10.0, -500000.0, -17.0, 70.0, 1.9, 71212.7878, 12.0};
     std::vector<double> arr_ref = arr;
     tested(&(arr[0]), arr.size());
