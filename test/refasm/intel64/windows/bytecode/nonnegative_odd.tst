@@ -1,42 +1,46 @@
 nonnegative_odd(i0, i1)
-     0 : sub      i4, i4, 40  
-     1 : spill    4, i12      
-     2 : mov      i8, 0       
-     3 : mov      i9, -4      
-     4 : mul      i2, i2, 4   
-     5 : label 0:             
-     6 : cmp      i8, i2      
-     7 : jmp_ge 2             
-     8 : load.i32 i0, i1, i8  
-     9 : cmp      i0, 0       
-    10 : jmp_ge 4             
-    11 : add      i8, i8, 4   
-    12 : jmp      0           
-    13 : label 4:             
-    14 : mov      i12, 2      
-    15 : spill    1, i2       
-    16 : x86_cqo              
-    17 : mod      i0, i0, i12 
-    18 : mov      i0, i2      
-    19 : unspill  i2, 1       
-    20 : cmp      i0, 0       
-    21 : jmp_eq 6             
-    22 : mov      i9, i8      
-    23 : jmp      2           
-    24 : label 6:             
-    25 : add      i8, i8, 4   
-    26 : jmp      0           
-    27 : label 2:             
-    28 : mov      i1, 4       
-    29 : spill    0, i0       
-    30 : spill    1, i2       
-    31 : mov      i0, i9      
-    32 : x86_cqo              
-    33 : div      i0, i0, i1  
-    34 : mov      i1, i0      
-    35 : unspill  i0, 0       
-    36 : unspill  i2, 1       
-    37 : mov      i0, i1      
-    38 : unspill  i12, 4      
-    39 : add      i4, i4, 40  
-    40 : ret                  
+     0 : sub      i4, i4, 56 
+     1 : spill    5, i13     
+     2 : mov      i8, 0      
+     3 : mov      i13, -4    
+     4 : spill    4, i13     
+     5 : mul      i2, i2, 4  
+     6 : label 0:            
+     7 : cmp      i8, i2     
+     8 : jmp_ge 2            
+     9 : load.i32 i0, i1, i8 
+    10 : cmp      i0, 0      
+    11 : jmp_ge 4            
+    12 : add      i8, i8, 4  
+    13 : jmp      0          
+    14 : label 4:            
+    15 : mov      i9, 2      
+    16 : spill    0, i0      
+    17 : spill    1, i2      
+    18 : x86_cqo             
+    19 : mod      i0, i0, i9 
+    20 : mov      i9, i2     
+    21 : unspill  i0, 0      
+    22 : unspill  i2, 1      
+    23 : cmp      i9, 0      
+    24 : jmp_eq 6            
+    25 : mov      s4, i8     
+    26 : jmp      2          
+    27 : label 6:            
+    28 : add      i8, i8, 4  
+    29 : jmp      0          
+    30 : label 2:            
+    31 : mov      i1, 4      
+    32 : unspill  i13, 4     
+    33 : spill    0, i0      
+    34 : spill    1, i2      
+    35 : mov      i0, i13    
+    36 : x86_cqo             
+    37 : div      i0, i0, i1 
+    38 : mov      i1, i0     
+    39 : unspill  i0, 0      
+    40 : unspill  i2, 1      
+    41 : mov      i0, i1     
+    42 : unspill  i13, 5     
+    43 : add      i4, i4, 56 
+    44 : ret                 
