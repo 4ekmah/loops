@@ -7,10 +7,12 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include "src/common.hpp"
 #include "src/reg_allocator.hpp"
+#include <filesystem>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <locale>
+#include <zip_file.hpp>
 #include <sys/stat.h> //TODO(ch): *nix-only. Use winbase.h for Windows 
 
 using namespace loops;
@@ -317,6 +319,34 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage)
     }
     errmessage = errstream.str();
     return result;
+}
+
+void unzip_listings()
+{
+    // Directories job example
+    // if(!std::filesystem::directory_entry("/home/qohen/development/linux/loops/test/refasm/passes/").exists())
+    // {
+    //     std::filesystem::create_directory("/home/qohen/development/linux/loops/test/refasm/passes/");
+    // }
+    // // Read example
+    // {
+    // miniz_cpp::zip_file file("/home/qohen/development/linux/loops/test/refasm/aarch64_linux.zip");
+    // // auto meow = file.infolist();
+    // // file.extract(meow[0], "/home/qohen/development/linux/loops/test/refasm");
+    // // Subdirectory meow have to be precreated, miniz doesn't care about it and fails to create new file in given path.
+    // file.extract("meow/a_plus_b.tst", "/home/qohen/development/linux/loops/test/refasm");
+    // // return 0;
+    // }
+}
+
+void refresh_zip_listings()
+{
+    // // Write example
+    // {
+    //     miniz_cpp::zip_file file;
+    //     file.write("./loops/test/refasm/aarch64/linux/a_plus_b.tst", "meow/a_plus_b.tst");
+    //     file.save("./loops/test/refasm/aarch64_linux.zip");
+    // }
 }
 
 loops::Func* get_assembly_reg_param(loops::Func& func)

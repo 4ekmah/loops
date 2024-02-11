@@ -53,8 +53,7 @@ else()
     if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -Werror)
     else()
-        #DUBUG: switch on and make miniz buildable!
-        #target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        target_compile_options(testregress PRIVATE -Wall -Wextra -Wpedantic -Werror)
     endif()
 endif()
 

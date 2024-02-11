@@ -37,6 +37,9 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage);
 #define PREPARE_ASSEMBLY_TESTING(testname) loops::Func func = ctx.getFunc(testname); direct_translation_on(func); Func* _f = get_assembly_reg_param(func)
 #define DEFINE_ASSEMBLY_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
 
+void unzip_listings();
+void refresh_zip_listings();
+
 template<typename _Tp> struct typestring {};
 
 template<> struct typestring<int32_t> { static inline std::string get() { return "int32_t"; } };
