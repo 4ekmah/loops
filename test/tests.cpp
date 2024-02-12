@@ -4,6 +4,7 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
+#include <zip_file.hpp>
 #include "tests.hpp"
 #include "src/common.hpp"
 #include "src/reg_allocator.hpp"
@@ -12,7 +13,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <fstream>
 #include <sstream>
 #include <locale>
-#include <zip_file.hpp>
 #include <sys/stat.h> //TODO(ch): *nix-only. Use winbase.h for Windows 
 
 using namespace loops;
@@ -28,6 +28,17 @@ static inline std::string OSname()
     #else
         #error Unknown OS
     #endif
+}
+
+static inline std::string ARCHname()
+{
+#if __LOOPS_ARCH == __LOOPS_INTEL64
+    return "Intel64";
+#elif __LOOPS_ARCH == __LOOPS_AARCH64
+    return "Aarch64";
+#else
+#error Unknown CPU
+#endif
 }
 
 inline std::string toLower(const std::string& tL)
@@ -229,7 +240,8 @@ bool intermediate_representation_is_stable(loops::Func func, std::string& errmes
     const std::string func_name = func.name();
     const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
     const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
-    const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
+    const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/listings/bytecode/") + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
+    //const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: delete
     bool result = true;
     bool rewrite = false;
     std::string irtext;
@@ -278,7 +290,8 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage)
     const std::string func_name = func.name();
     const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
     const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
-    const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/" + func_name + ".tst";
+    const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/listings/target/") + func_name + ".tst";
+    //const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/" + func_name + ".tst"; //DUBUG: delete
     bool result = true;
     bool rewrite = false;
     std::string atext;
@@ -323,30 +336,43 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage)
 
 void unzip_listings()
 {
-    // Directories job example
-    // if(!std::filesystem::directory_entry("/home/qohen/development/linux/loops/test/refasm/passes/").exists())
-    // {
-    //     std::filesystem::create_directory("/home/qohen/development/linux/loops/test/refasm/passes/");
-    // }
-    // // Read example
-    // {
-    // miniz_cpp::zip_file file("/home/qohen/development/linux/loops/test/refasm/aarch64_linux.zip");
-    // // auto meow = file.infolist();
-    // // file.extract(meow[0], "/home/qohen/development/linux/loops/test/refasm");
-    // // Subdirectory meow have to be precreated, miniz doesn't care about it and fails to create new file in given path.
-    // file.extract("meow/a_plus_b.tst", "/home/qohen/development/linux/loops/test/refasm");
-    // // return 0;
-    // }
+    assert(std::filesystem::directory_entry(LOOPS_TEST_DIR"/refasm/").exists());
+    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
+    std::filesystem::remove_all(listings_root);  //DUBUG: hardcore, I would say. Softer synchronization is needed.
+    //1.)Check and recreate folder system.
+    {
+        if(!std::filesystem::directory_entry(listings_root).exists())
+            std::filesystem::create_directory(listings_root);
+        std::vector<std::string> passes_names = { "bytecode", "target" };
+        for(std::string passname : passes_names)
+            if(!std::filesystem::directory_entry(listings_root + passname).exists())
+                std::filesystem::create_directory(listings_root + passname);
+    }
+    //2.)Unpack all zip files. 
+    const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
+    miniz_cpp::zip_file file(zipname);
+    auto files2unpack = file.infolist();
+    for (miniz_cpp::zip_info& fil : files2unpack)
+        file.extract(fil.filename, listings_root);
 }
 
 void refresh_zip_listings()
 {
-    // // Write example
-    // {
-    //     miniz_cpp::zip_file file;
-    //     file.write("./loops/test/refasm/aarch64/linux/a_plus_b.tst", "meow/a_plus_b.tst");
-    //     file.save("./loops/test/refasm/aarch64_linux.zip");
-    // }
+    const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
+    std::filesystem::remove(zipname); //DUBUG: hardcore, I would say. Softer synchronization is needed.
+    miniz_cpp::zip_file file;
+    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
+    std::vector<std::string> passes_names = { "bytecode", "target" };
+    for (std::string passname : passes_names)
+    {
+        std::filesystem::directory_iterator pass_dir(listings_root + passname);
+        for (auto fil : pass_dir)
+            if (fil.path().filename().extension().string() == ".tst")
+            {//DUBUG: add CRC check
+                file.write(listings_root + passname + "/" + fil.path().filename().string(), passname + "/" + fil.path().filename().string());
+            }
+    }
+    file.save(zipname);    
 }
 
 loops::Func* get_assembly_reg_param(loops::Func& func)
