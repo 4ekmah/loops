@@ -61,11 +61,6 @@ namespace loops
         INTEL64_RET    = 44 
     };
 
-    enum {
-        CP_INTEL64_BRA_SNIPPETS = CP_ARCH_SPECIFIC,
-        CP_INTEL64_ARA_SNIPPETS
-    };
-
     class Intel64Backend : public Backend
     {
     public:

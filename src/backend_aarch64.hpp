@@ -120,12 +120,6 @@ enum {
     AARCH64_RET    = 98
 };
 
-enum {
-    CP_AARCH64_BIG_IMMEDIATES = CP_ARCH_SPECIFIC,
-    CP_AARCH64_SNIPPETS,
-};
-
-
 class Aarch64Backend : public Backend
 {
 public:

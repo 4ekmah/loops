@@ -34,3 +34,4 @@
 #Build and IDE folders
 .vscode/
 build/
+test/refasm/listings

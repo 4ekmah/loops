@@ -1804,7 +1804,7 @@ public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual ~AArch64BigImmediates() override {}
     virtual bool is_inplace() const override final { return false; }
-    virtual PassID pass_id() const override final { return CP_AARCH64_BIG_IMMEDIATES; }
+    virtual std::string pass_id() const override final { return "CP_AARCH64_BIG_IMMEDIATES"; }
     static CompilerPassPtr make(const Backend* a_backend)
     {
         std::shared_ptr<AArch64BigImmediates> res;
@@ -1820,7 +1820,7 @@ class AArch64ARASnippets : public CompilerPass
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual bool is_inplace() const override final { return false; }
-    virtual PassID pass_id() const override final { return CP_AARCH64_SNIPPETS; }
+    virtual std::string pass_id() const override final { return "CP_AARCH64_SNIPPETS"; }
     virtual ~AArch64ARASnippets() override {}
     static CompilerPassPtr make(const Backend* a_backend)
     {

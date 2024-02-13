@@ -1124,7 +1124,7 @@ namespace loops
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64BRASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual PassID pass_id() const override final { return CP_INTEL64_BRA_SNIPPETS; }
+        virtual std::string pass_id() const override final { return "CP_INTEL64_BRA_SNIPPETS"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64BRASnippets> res;
@@ -1141,7 +1141,7 @@ namespace loops
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual PassID pass_id() const override final { return CP_INTEL64_ARA_SNIPPETS; }
+        virtual std::string pass_id() const override final { return "CP_INTEL64_ARA_SNIPPETS"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64ARASnippets> res;

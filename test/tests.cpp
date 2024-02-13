@@ -236,6 +236,64 @@ inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttribute
 
 bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage)
 {
+    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
+    std::vector<std::string> passes_names = loops::Context().get_all_passes();
+    passes_names.pop_back();
+    std::vector<std::string> folders_names = passes_names;
+    for (int passn = 0; passn < folders_names.size(); passn++)
+        folders_names[passn] = listings_root + std::to_string(passn + 1) + "_" + folders_names[passn]+ "/";
+
+    const std::string func_name = func.name();
+    for (int passn = 0; passn < folders_names.size() - 1; passn++)
+    {
+        std::stringstream errstream;
+        const std::string irfilename = folders_names[passn] + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
+                                                                                                                     //const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: delete
+        bool result = true;
+        bool rewrite = false;
+        std::string irtext;
+        ::std::ostringstream irstream(irtext, ::std::ios::out);
+        func.printBytecode(irstream, passes_names[passn+1]);
+        irtext = irstream.str();
+        if (fileexists(irfilename))
+        {
+            std::ifstream refstream(irfilename.c_str(), ::std::ios::in);
+            if (!refstream.good())
+            {
+                errstream << "    Intermediate representation check failed: cannot open file: \"" << irfilename << "\"." << std::endl;
+                rewrite = RECREATE_REFERENCE_TEXTS;
+            }
+            else
+            {
+                std::string irref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
+                if (!check_listing_equality(irtext, irref, "Intermediate representation check failed", errstream))
+                {
+                    rewrite = RECREATE_REFERENCE_TEXTS;
+                    result = false;
+                }
+            }
+        }
+        else
+        {
+            errstream << "    Intermediate representation check failed: file doesn't exist: \"" << irfilename << "\"." << std::endl;
+            rewrite = RECREATE_REFERENCE_TEXTS;
+            result = false;
+        }
+        if (rewrite)
+        {
+            std::ofstream rwrtstream(irfilename.c_str(), ::std::ios::out);
+            if (!rwrtstream.good())
+                errstream << "    Intermediate representation check failed: cannot open file for rewrite: \"" << irfilename << "\"." << std::endl;
+            rwrtstream << irtext;
+            rwrtstream.close();
+        }
+        errmessage = errstream.str();
+    }
+    return true; //DUBUG: nooot suuure.
+}
+
+bool intermediate_representation_is_stable_(loops::Func func, std::string& errmessage)
+{
     std::stringstream errstream;
     const std::string func_name = func.name();
     const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
@@ -343,7 +401,12 @@ void unzip_listings()
     {
         if(!std::filesystem::directory_entry(listings_root).exists())
             std::filesystem::create_directory(listings_root);
-        std::vector<std::string> passes_names = { "bytecode", "target" };
+        std::vector<std::string> passes_names = loops::Context().get_all_passes();
+        passes_names.pop_back();
+        for (int passn = 0; passn < passes_names.size(); passn++)
+            passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
+        passes_names.push_back("bytecode"); //DUBUG: delete these two lines
+        passes_names.push_back("target");
         for(std::string passname : passes_names)
             if(!std::filesystem::directory_entry(listings_root + passname).exists())
                 std::filesystem::create_directory(listings_root + passname);
@@ -362,7 +425,12 @@ void refresh_zip_listings()
     std::filesystem::remove(zipname); //DUBUG: hardcore, I would say. Softer synchronization is needed.
     miniz_cpp::zip_file file;
     std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
-    std::vector<std::string> passes_names = { "bytecode", "target" };
+    std::vector<std::string> passes_names = loops::Context().get_all_passes();
+    passes_names.pop_back();
+    for (int passn = 0; passn < passes_names.size(); passn++)
+        passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
+    passes_names.push_back("bytecode"); //DUBUG: delete these two lines
+    passes_names.push_back("target");
     for (std::string passname : passes_names)
     {
         std::filesystem::directory_iterator pass_dir(listings_root + passname);

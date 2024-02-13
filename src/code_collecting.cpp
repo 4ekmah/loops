@@ -39,7 +39,7 @@ namespace loops
         if (m_cflowStack.size())
             throw std::runtime_error("Unclosed control flow bracket."); // TODO(ch): Look at stack for providing more detailed information.
     }
-    PassID CodeCollecting::pass_id() const { return CP_COLLECTING; }
+    std::string CodeCollecting::pass_id() const { return "CP_COLLECTING"; }
 
     Arg CodeCollecting::reg_constr(Expr &fromwho)
     {

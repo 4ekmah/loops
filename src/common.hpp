@@ -328,7 +328,7 @@ namespace loops
         CompilerPass(const Backend *a_backend) : m_backend(a_backend) {}
         virtual void process(Syntfunc &a_dest, const Syntfunc &a_source) = 0;
         virtual bool is_inplace() const = 0;
-        virtual PassID pass_id() const = 0;
+        virtual std::string pass_id() const = 0;
         virtual ~CompilerPass() {}
 
     protected:
@@ -350,10 +350,11 @@ namespace loops
         void compileAll();
         inline void debugModeOn() { m_debug_mode = true; }
         inline bool debug_mode() const { return m_debug_mode; }
+        std::vector<std::string> get_all_passes();
 
         int m_refcount;
-        inline Func *getCurrentFunc() { return &m_currentFunc; }
-        inline Backend *getBackend() { return m_backend.get(); }
+        inline Func* getCurrentFunc() { return &m_currentFunc; }
+        inline Backend* getBackend() { return m_backend.get(); }
         Context getPublicInterface();
 
     private:

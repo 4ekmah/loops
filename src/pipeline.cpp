@@ -378,9 +378,10 @@ namespace loops
         m_mode = PM_FINDORDER;
         run();
         m_mode = PM_REGULAR;
+        m_cp_collecting_pass_num = m_pass_ordering.at("CP_COLLECTING");
     }
 
-    void Pipeline::run_until(PassID a_passID)
+    void Pipeline::run_until(const std::string& a_passID)
     {
         int target_pass = m_pass_ordering.at(a_passID) - 1;
         m_target_pass = target_pass;
@@ -388,7 +389,7 @@ namespace loops
         m_current_pass = target_pass + 1;
     }
 
-    void Pipeline::run_until_including(PassID a_passID)
+    void Pipeline::run_until_including(const std::string& a_passID)
     {
         int target_pass = m_pass_ordering.at(a_passID);
         m_target_pass = target_pass;
@@ -396,14 +397,14 @@ namespace loops
         m_current_pass = target_pass + 1;
     }
 
-    void Pipeline::pass_until(PassID a_passID)
+    void Pipeline::pass_until(const std::string& a_passID)
     {
         m_current_pass = m_pass_ordering.at(a_passID);
     }
 
     CodeCollecting *Pipeline::get_code_collecting()
     {
-        AssertMsg(m_current_pass <= CP_COLLECTING, "Attempt to add instruction to already finished function.");
+        AssertMsg(m_current_pass <= m_cp_collecting_pass_num, "Attempt to add instruction to already finished function.");
         return &m_codecol;
     }
 
@@ -414,6 +415,14 @@ namespace loops
         m_returnRegistersO[basketNum] = a_returnRegisters;
         m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;
         m_calleeSavedRegistersO[basketNum] = a_calleeSavedRegisters;
+    }
+
+    std::vector<std::string> Pipeline::get_all_passes()
+    {
+        std::vector<std::string> result(m_pass_ordering.size());
+        for (auto pass : m_pass_ordering)
+            result[pass.second] = pass.first;
+        return result;
     }
 
     void Pipeline::run()
@@ -453,7 +462,7 @@ namespace loops
         if (m_mode == PM_FINDORDER)
         {
             Assert(m_pass_ordering.find(a_pass->pass_id()) == m_pass_ordering.end());
-            m_pass_ordering.insert(std::pair<int, int>(a_pass->pass_id(), (int)m_pass_ordering.size()));
+            m_pass_ordering.insert(std::pair<std::string, int>(a_pass->pass_id(), (int)m_pass_ordering.size()));
             return;
         }
         int passnum = m_pass_ordering.at(a_pass->pass_id());
