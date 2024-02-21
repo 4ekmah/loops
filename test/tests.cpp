@@ -17,6 +17,8 @@ See https://github.com/4ekmah/loops/LICENSE
 
 using namespace loops;
 
+#define LISTINGS_ROOT LOOPS_TEST_DIR"/refasm/listings/"
+
 static inline std::string OSname()
 {
     #if __LOOPS_OS == __LOOPS_LINUX
@@ -147,7 +149,7 @@ std::string create_pointing_lines(size_t ptr, size_t underlying_start, size_t un
 }
 
 
-bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errMes, std::ostream& out_stream)
+bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errPrefix, std::ostream& out_stream)
 {
     std::string endline; {std::stringstream tmpstream; tmpstream << std::endl; endline = tmpstream.str();}
     std::vector<tokenized_line> ref_tokenized = tokenizer(refL); 
@@ -164,7 +166,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
     {
         if(line >= ref_tokenized.size())
         {
-            main_error_line = std::string("    ") + errMes + ": Listing have extra line number " + std::to_string(line + 1) + endline;
+            main_error_line = errPrefix + "Listing have extra line number " + std::to_string(line + 1) + endline;
             curline = std::string("    Current line: ") + endline + "        "  + cur_tokenized[line].wholeline + endline;
             result = false;
             break;
@@ -172,7 +174,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
 
         if(line >= cur_tokenized.size())
         {
-            main_error_line = std::string("    ") + errMes + ": Listing doesn't have line number " + std::to_string(line + 1) + endline;
+            main_error_line = errPrefix + "Listing doesn't have line number " + std::to_string(line + 1) + endline;
             curline = std::string("    Reference line: ") + endline + "        "  + ref_tokenized[line].wholeline + endline;
             result = false;
             break;
@@ -184,7 +186,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
             if(word >= ref_tokenized[line].words.size())
             {
                 std::string& curword = cur_tokenized[line].words[word].token;
-                main_error_line = std::string("    ") + errMes + ": Extra token in listing on line " + std::to_string(line + 1) + endline;
+                main_error_line = errPrefix + "Extra token in listing on line " + std::to_string(line + 1) + endline;
                 refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].wholeline.size()) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
                 curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].words[word].col + 1) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
                 cur_underline = create_pointing_lines(cur_tokenized[line].words[word].col, cur_tokenized[line].words[word].col, cur_tokenized[line].words[word].col + curword.size());
@@ -195,7 +197,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
             if(word >= cur_tokenized[line].words.size())
             {
                 std::string& refword = ref_tokenized[line].words[word].token;
-                main_error_line = std::string("    ") + errMes + ": Missing token in listing on line " + std::to_string(line + 1) + endline;
+                main_error_line = errPrefix + "Missing token in listing on line " + std::to_string(line + 1) + endline;
                 refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].words[word].col + 1) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
                 ref_underline = create_pointing_lines(ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col + refword.size());
                 curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].wholeline.size()) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
@@ -211,7 +213,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
                 assert(curword.size() > 0 && refword.size() > 0);
                 size_t ref_inpos = std::min(inequal_pos, refword.size() - 1);
                 size_t cur_inpos = std::min(inequal_pos, curword.size() - 1);
-                main_error_line = std::string("    ") + errMes + ": Listing doesn't equal to reference on line " + std::to_string(line + 1) + endline;
+                main_error_line = errPrefix + "Listing doesn't equal to reference on line " + std::to_string(line + 1) + endline;
                 refline = std::string("    Reference line, column ") + std::to_string(ref_tokenized[line].words[word].col + 1) + ":" + endline + "        " + ref_tokenized[line].wholeline + endline;
                 ref_underline = create_pointing_lines(ref_tokenized[line].words[word].col + ref_inpos, ref_tokenized[line].words[word].col, ref_tokenized[line].words[word].col + refword.size());
                 curline = std::string("    Current line, column ") + std::to_string(cur_tokenized[line].words[word].col + 1) + ":" + endline + "        "  + cur_tokenized[line].wholeline + endline;
@@ -228,96 +230,46 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
     return result;
 }
 
-inline bool fileexists(const std::string& name) //TODO(ch): use GetFileAttributes for windows
+inline bool fileexists(const std::string& name) //DUBUG: delete file!
 {
   struct stat buffer;
   return (stat(name.c_str(), &buffer) == 0);
 }
 
-bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage)
-{
-    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
-    std::vector<std::string> passes_names = loops::Context().get_all_passes();
-    passes_names.pop_back();
-    std::vector<std::string> folders_names = passes_names;
-    for (int passn = 0; passn < folders_names.size(); passn++)
-        folders_names[passn] = listings_root + std::to_string(passn + 1) + "_" + folders_names[passn]+ "/";
-
-    const std::string func_name = func.name();
-    for (int passn = 0; passn < folders_names.size() - 1; passn++)
-    {
-        std::stringstream errstream;
-        const std::string irfilename = folders_names[passn] + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
-                                                                                                                     //const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: delete
-        bool result = true;
-        bool rewrite = false;
-        std::string irtext;
-        ::std::ostringstream irstream(irtext, ::std::ios::out);
-        func.printBytecode(irstream, passes_names[passn+1]);
-        irtext = irstream.str();
-        if (fileexists(irfilename))
-        {
-            std::ifstream refstream(irfilename.c_str(), ::std::ios::in);
-            if (!refstream.good())
-            {
-                errstream << "    Intermediate representation check failed: cannot open file: \"" << irfilename << "\"." << std::endl;
-                rewrite = RECREATE_REFERENCE_TEXTS;
-            }
-            else
-            {
-                std::string irref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-                if (!check_listing_equality(irtext, irref, "Intermediate representation check failed", errstream))
-                {
-                    rewrite = RECREATE_REFERENCE_TEXTS;
-                    result = false;
-                }
-            }
-        }
-        else
-        {
-            errstream << "    Intermediate representation check failed: file doesn't exist: \"" << irfilename << "\"." << std::endl;
-            rewrite = RECREATE_REFERENCE_TEXTS;
-            result = false;
-        }
-        if (rewrite)
-        {
-            std::ofstream rwrtstream(irfilename.c_str(), ::std::ios::out);
-            if (!rwrtstream.good())
-                errstream << "    Intermediate representation check failed: cannot open file for rewrite: \"" << irfilename << "\"." << std::endl;
-            rwrtstream << irtext;
-            rwrtstream.close();
-        }
-        errmessage = errstream.str();
-    }
-    return true; //DUBUG: nooot suuure.
-}
-
-bool intermediate_representation_is_stable_(loops::Func func, std::string& errmessage)
+bool check_listing_at_pass(loops::Func func, std::string& errmessage,
+                           const std::string& passname, const std::string& filename)
 {
     std::stringstream errstream;
-    const std::string func_name = func.name();
-    const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
-    const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
-    const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/listings/bytecode/") + func_name + ".tst"; //DUBUG: change dir: bytecode -> IR
-    //const std::string irfilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/bytecode/" + func_name + ".tst"; //DUBUG: delete
+
     bool result = true;
     bool rewrite = false;
-    std::string irtext;
-    ::std::ostringstream irstream(irtext, ::std::ios::out);
-    func.printBytecode(irstream);
-    irtext = irstream.str();
-    if(fileexists(irfilename))
+    std::string curtext;
+    ::std::ostringstream curstream(curtext, ::std::ios::out);
+    std::string errprefix;
+    if (passname == "CP_IR_TO_ASSEMBLY")
     {
-        std::ifstream refstream(irfilename.c_str(), ::std::ios::in);
+        func.printAssembly(curstream);
+        const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
+        errprefix = std::string("    Check ") + tarcname + " assembly listing is failed: ";
+    }
+    else
+    {
+        errprefix = std::string("    Check of intermediate representation at pass ") + passname + "is failed: ";
+        func.printIR(curstream, passname);
+    }
+    curtext = curstream.str();
+    if(std::filesystem::exists(filename))
+    {
+        std::ifstream refstream(filename.c_str(), ::std::ios::in);
         if(!refstream.good())
         {
-            errstream << "    Intermediate representation check failed: cannot open file: \""<<irfilename<<"\"."<<std::endl;
+            errstream << errprefix + "cannot open file : \"" << filename << "\"." << std::endl;
             rewrite = RECREATE_REFERENCE_TEXTS;
         }
         else
         {
-            std::string irref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-            if(!check_listing_equality(irtext, irref, "Intermediate representation check failed", errstream))
+            std::string reftext((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
+            if(!check_listing_equality(curtext, reftext, errprefix, errstream))
             {
                 rewrite = RECREATE_REFERENCE_TEXTS;
                 result = false;
@@ -326,97 +278,82 @@ bool intermediate_representation_is_stable_(loops::Func func, std::string& errme
     }
     else
     {
-        errstream<<"    Intermediate representation check failed: file doesn't exist: \""<<irfilename<<"\"."<<std::endl;
+        errstream << errprefix + "file doesn't exist: \""<<filename<<"\"."<<std::endl;
         rewrite = RECREATE_REFERENCE_TEXTS;
         result = false;
     }
     if(rewrite)
     {
-        std::ofstream rwrtstream(irfilename.c_str(), ::std::ios::out);
+        std::ofstream rwrtstream(filename.c_str(), ::std::ios::out);
         if(!rwrtstream.good())
-            errstream<<"    Intermediate representation check failed: cannot open file for rewrite: \""<<irfilename<<"\"."<<std::endl;
-        rwrtstream<<irtext;
+            errstream<< errprefix + "cannot open file for rewrite: \""<<filename<<"\"."<<std::endl;
+        rwrtstream<<curtext;
         rwrtstream.close();
     }
     errmessage = errstream.str();
+    return result;
+}
+
+bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage)
+{
+    std::vector<std::string> passes_names = loops::Context().get_all_passes();
+    passes_names.pop_back();//We are not considering binaries. 
+    passes_names.pop_back();//And we are not considering assembly in this function. 
+    const std::string func_name = func.name();
+    bool result = true;
+    for (int passn = 0; passn < passes_names.size(); passn++)
+    {
+        std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func_name + ".tst";
+        std::stringstream errstream;
+        std::string interm_message;
+        bool success = check_listing_at_pass(func, interm_message, passes_names[passn], filename);
+        if (!success)
+        {
+            result = false;
+            #if (RECREATE_REFERENCE_TEXTS == true)
+                errmessage = interm_message + errmessage;
+            #else 
+                errmessage = interm_message;
+                break;
+            #endif 
+        }
+    }
     return result;
 }
 
 bool assembly_is_stable(loops::Func func, std::string& errmessage)
 {
-    std::stringstream errstream;
-    const std::string func_name = func.name();
-    const std::string tarcname = ((FuncImpl*)getImpl(&func))->getContext()->getPlatformName();
-    const std::string arcOSsuffix = toLower(tarcname) + "/" + toLower(OSname());
-    const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/listings/target/") + func_name + ".tst";
-    //const std::string afilename = std::string(LOOPS_TEST_DIR"/refasm/") + arcOSsuffix + "/" + func_name + ".tst"; //DUBUG: delete
-    bool result = true;
-    bool rewrite = false;
-    std::string atext;
-    ::std::ostringstream astream(atext, ::std::ios::out);
-    func.printAssembly(astream);
-    atext = astream.str();
-    if(fileexists(afilename))
-    {
-        std::ifstream refstream(afilename.c_str(), ::std::ios::in);
-        if(!refstream.good())
-        {
-            errstream<<"    Check for "<<tarcname<<" failed: cannot open file: \""<<afilename<<"\"."<<std::endl;
-            rewrite = RECREATE_REFERENCE_TEXTS;
-        }
-        else
-        {
-            std::string bcref((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-            if(!check_listing_equality(atext, bcref, "Check for "+tarcname+" failed", errstream))
-            {
-                rewrite = RECREATE_REFERENCE_TEXTS;
-                result = false;
-            }
-        }
-    }
-    else
-    {
-        errstream<<"    Check for "<<tarcname<<" failed: file doesn't exist: \""<<afilename<<"\"."<<std::endl;
-        rewrite = RECREATE_REFERENCE_TEXTS;
-        result = false;
-    }
-    if(rewrite)
-    {
-        std::ofstream rwrtstream(afilename.c_str(), ::std::ios::out);
-        if(!rwrtstream.good())
-            errstream<<"    Check for "<<tarcname<<" failed: cannot open file for rewrite: \""<<afilename<<"\"."<<std::endl;
-        rwrtstream<<atext;
-        rwrtstream.close();
-    }
-    errmessage = errstream.str();
-    return result;
+    std::vector<std::string> passes_names = loops::Context().get_all_passes();
+    auto found = std::find(passes_names.begin(), passes_names.end(), "CP_IR_TO_ASSEMBLY");
+    Assert(found >= passes_names.begin() && found < passes_names.end());
+    int passn = (int)(found - passes_names.begin());
+    std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func.name() + ".tst";
+    return check_listing_at_pass(func, errmessage, passes_names[passn], filename);
 }
 
 void unzip_listings()
 {
+    //DUBUG: It have to work even if zip doesn't exist
     assert(std::filesystem::directory_entry(LOOPS_TEST_DIR"/refasm/").exists());
-    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
-    std::filesystem::remove_all(listings_root);  //DUBUG: hardcore, I would say. Softer synchronization is needed.
+    std::filesystem::remove_all(LISTINGS_ROOT);  //DUBUG: hardcore, I would say. Softer synchronization is needed.
     //1.)Check and recreate folder system.
     {
-        if(!std::filesystem::directory_entry(listings_root).exists())
-            std::filesystem::create_directory(listings_root);
+        if(!std::filesystem::directory_entry(LISTINGS_ROOT).exists())
+            std::filesystem::create_directory(LISTINGS_ROOT);
         std::vector<std::string> passes_names = loops::Context().get_all_passes();
         passes_names.pop_back();
         for (int passn = 0; passn < passes_names.size(); passn++)
             passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
-        passes_names.push_back("bytecode"); //DUBUG: delete these two lines
-        passes_names.push_back("target");
         for(std::string passname : passes_names)
-            if(!std::filesystem::directory_entry(listings_root + passname).exists())
-                std::filesystem::create_directory(listings_root + passname);
+            if(!std::filesystem::directory_entry(LISTINGS_ROOT + passname).exists())
+                std::filesystem::create_directory(LISTINGS_ROOT + passname);
     }
     //2.)Unpack all zip files. 
     const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
     miniz_cpp::zip_file file(zipname);
     auto files2unpack = file.infolist();
     for (miniz_cpp::zip_info& fil : files2unpack)
-        file.extract(fil.filename, listings_root);
+        file.extract(fil.filename, LISTINGS_ROOT);
 }
 
 void refresh_zip_listings()
@@ -424,20 +361,17 @@ void refresh_zip_listings()
     const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
     std::filesystem::remove(zipname); //DUBUG: hardcore, I would say. Softer synchronization is needed.
     miniz_cpp::zip_file file;
-    std::string listings_root = LOOPS_TEST_DIR"/refasm/listings/";
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     passes_names.pop_back();
     for (int passn = 0; passn < passes_names.size(); passn++)
         passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
-    passes_names.push_back("bytecode"); //DUBUG: delete these two lines
-    passes_names.push_back("target");
     for (std::string passname : passes_names)
     {
-        std::filesystem::directory_iterator pass_dir(listings_root + passname);
+        std::filesystem::directory_iterator pass_dir(LISTINGS_ROOT + passname);
         for (auto fil : pass_dir)
             if (fil.path().filename().extension().string() == ".tst")
             {//DUBUG: add CRC check
-                file.write(listings_root + passname + "/" + fil.path().filename().string(), passname + "/" + fil.path().filename().string());
+                file.write(LISTINGS_ROOT + passname + "/" + fil.path().filename().string(), passname + "/" + fil.path().filename().string());
             }
     }
     file.save(zipname);    

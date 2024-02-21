@@ -24,7 +24,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "src/func_impl.hpp"
 
-#define RECREATE_REFERENCE_TEXTS true
+#define RECREATE_REFERENCE_TEXTS false
 
 void switch_spill_stress_test_mode_on(loops::Func& func);
 void direct_translation_on(loops::Func& func);

@@ -273,7 +273,7 @@ namespace loops
         a_dest.program.push_back(Syntop(OP_RET, {}));
     }
 
-    void Bytecode2Assembly::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void IR2Assembly::process(Syntfunc &a_dest, const Syntfunc &a_source)
     {
         std::unordered_map<size_t, size_t> label_map;
         std::unordered_map<size_t, std::vector<label_ref_info>> label_ref_map;
@@ -383,21 +383,21 @@ namespace loops
 
     void Pipeline::run_until(const std::string& a_passID)
     {
-        int target_pass = m_pass_ordering.at(a_passID) - 1;
-        m_target_pass = target_pass;
-        run();
-        m_current_pass = target_pass + 1;
-    }
-
-    void Pipeline::run_until_including(const std::string& a_passID)
-    {
         int target_pass = m_pass_ordering.at(a_passID);
         m_target_pass = target_pass;
         run();
         m_current_pass = target_pass + 1;
     }
 
-    void Pipeline::pass_until(const std::string& a_passID)
+    void Pipeline::run_all_before(const std::string& a_passID)
+    {
+        int target_pass = m_pass_ordering.at(a_passID) - 1;
+        m_target_pass = target_pass;
+        run();
+        m_current_pass = target_pass + 1;
+    }
+
+    void Pipeline::skip_until(const std::string& a_passID)
     {
         m_current_pass = m_pass_ordering.at(a_passID);
     }
@@ -450,7 +450,7 @@ namespace loops
         auto afterRegAlloc = m_backend->getAfterRegAllocPasses();
         for (CompilerPassPtr araPass : afterRegAlloc)
             run_pass(araPass.get());
-        Bytecode2Assembly b2aPass(m_backend);
+        IR2Assembly b2aPass(m_backend);
         run_pass(&b2aPass);
         Assembly2Hex a2hPass(m_backend);
         run_pass(&a2hPass);

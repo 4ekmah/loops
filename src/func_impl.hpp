@@ -29,7 +29,7 @@ public:
     int signature() const { return (int)m_pipeline->get_data().params.size(); }
     void* ptr();
     void endFunc();
-    void printBytecode(std::ostream& out, const std::string& uptoPASS = "CP_COLLECTING");
+    void printIR(std::ostream& out, const std::string& uptoPASS);
     void printAssembly(std::ostream& out, int columns);
 
     inline ContextImpl* getContext() { return m_context; }

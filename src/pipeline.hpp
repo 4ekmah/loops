@@ -17,20 +17,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops {
 
-//enum //DUBUG
-//{
-//    CP_NOPASS = 0,
-//    CP_COLLECTING,
-//    CP_IMMEDIATE_IMPLANTATION,
-//    CP_ELIF_ELIMINATION,
-//    CP_LIVENESS_ANALYSIS,
-//    CP_REGISTER_ALLOCATION,
-//    CP_CONTROLFLOW_TO_JUMPS,
-//    CP_BYTECODE_TO_ASSEMBLY,
-//    CP_ASSEMBLY_TO_HEX,
-//    CP_ARCH_SPECIFIC,
-//};
-
 class ImmediateImplantation: public CompilerPass
 {
 public:
@@ -63,14 +49,14 @@ private:
     int m_epilogueSize;
 };
 
-class Bytecode2Assembly : public CompilerPass
+class IR2Assembly : public CompilerPass
 {
 public:
-    Bytecode2Assembly(const Backend* a_backend) : CompilerPass(a_backend) {}
+    IR2Assembly(const Backend* a_backend) : CompilerPass(a_backend) {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; }
-    virtual std::string pass_id() const override final { return "CP_BYTECODE_TO_ASSEMBLY"; }
-    virtual ~Bytecode2Assembly() override {}
+    virtual std::string pass_id() const override final { return "CP_IR_TO_ASSEMBLY"; }
+    virtual ~IR2Assembly() override {}
 protected:
     struct label_ref_info
     {
@@ -99,10 +85,10 @@ class Pipeline
 {
 public:
     Pipeline(Backend* a_backend, Func* a_func, const std::string& name, std::initializer_list<IReg*> params);
-    inline void full_run() { run_until_including("CP_ASSEMBLY_TO_HEX"); }
-    void run_until(const std::string& a_passID);          //DUBUG: I'm really don't like current situation 
-    void run_until_including(const std::string& a_passID);//with run_until functions. It's not obvious in usage, Uhm?
-    void pass_until(const std::string& a_passID);
+    inline void full_run() { run_until("CP_ASSEMBLY_TO_HEX"); }
+    void run_until(const std::string& a_passID);
+    void run_all_before(const std::string& a_passID);
+    void skip_until(const std::string& a_passID);
     inline const Syntfunc& get_data() const { return m_data; }
     const FuncBodyBuf result_buffer() const { return m_buffer; }
     CodeCollecting* get_code_collecting();

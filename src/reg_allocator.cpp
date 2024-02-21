@@ -181,7 +181,7 @@ Linear scan(algorithm description is given in paper: Poletto, Massimiliano; Sark
     spilled one of them.
 
     Next(on Intel64) is attempt to match instruction variation which support memory-placed
-    operands. For this used Backend's filterStackPlaceable method. In bytecode it looks like
+    operands. For this used Backend's filterStackPlaceable method. In IR it looks like
     substitution of IREG/VREG with ISPILLED/VSPILLED. Aarch64 don't have this optimization.
 
     All spilled input parameters are extracted from stack into one of three register are provided

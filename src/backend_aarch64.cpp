@@ -116,7 +116,7 @@ bool encodeImmShift(int64_t shift, int etyp, uint64_t& immh, uint64_t& immb)
     return true;
 }
 
-static inline int ICbytecode2Aarch64(int ic)
+static inline int IC_IR2Aarch64(int ic)
 {
     return ic == OP_NE  ? AARCH64_IC_NE : (
            ic == OP_EQ  ? AARCH64_IC_EQ : (
@@ -1351,14 +1351,14 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_CMP):      return SyT(AARCH64_CMP, { SAcop(0), SAcop(1) });
     case (OP_SELECT):
         if (index.size() == 4 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(ICbytecode2Aarch64(index[1].value)) });
+            return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(IC_IR2Aarch64(index[1].value)) });
         break;
     case (OP_IVERSON):
         if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[1].value))) });
+            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(IC_IR2Aarch64(index[1].value))) });
         break;
-    case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
-    case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(ICbytecode2Aarch64(index[2].value))) });
+    case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64(index[2].value))) });
+    case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64(index[2].value))) });
     case (OP_ARM_LDP):
         if(index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG &&
            index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE && index[2].idx != index[0].idx && index[2].idx != index[1].idx && index[0].idx != index[1].idx)
@@ -1681,7 +1681,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
         {
             if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype))
-                return SyT(AARCH64_SSHLL2, { SAcop(0), SAcop(1), SAimm(0)}); //TODO(ch): shift operation can be added to bytecode instruction set for better USSHL/SSHL representation.
+                return SyT(AARCH64_SSHLL2, { SAcop(0), SAcop(1), SAimm(0)}); //TODO(ch): shift operation can be added to IR instruction set for better USSHL/SSHL representation.
             else if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))
                 return SyT(AARCH64_USHLL2, { SAcop(0), SAcop(1), SAimm(0) });
         }
