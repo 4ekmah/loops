@@ -67,11 +67,6 @@ std::unordered_map<int, Printer::ColPrinter > opnameoverrules = {
         str << "select_" << cond_suffixes[(int)op[1].value];
     }},
     {OP_IVERSON, [](::std::ostream& str, const Syntop& op, int, Backend*){
-        //DUBUG: Delete this if
-        if (!(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end()))
-        {
-            Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
-        }
         Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && cond_suffixes.find((int)op[1].value) != cond_suffixes.end());
         str << "iverson_" << cond_suffixes[(int)op[1].value];
     }},

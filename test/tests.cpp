@@ -230,12 +230,6 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
     return result;
 }
 
-inline bool fileexists(const std::string& name) //DUBUG: delete file!
-{
-  struct stat buffer;
-  return (stat(name.c_str(), &buffer) == 0);
-}
-
 bool check_listing_at_pass(loops::Func func, std::string& errmessage,
                            const std::string& passname, const std::string& filename)
 {
@@ -331,11 +325,25 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage)
     return check_listing_at_pass(func, errmessage, passes_names[passn], filename);
 }
 
+bool zip_is_equal(const std::string& filename, miniz_cpp::zip_info& fil)
+{
+    bool res = std::filesystem::exists(filename) &&
+        fil.file_size == std::filesystem::file_size(filename);
+    if (res)
+    {
+        size_t fsize = std::filesystem::file_size(filename);
+        std::vector<char> buf(fsize, 0);
+        std::ifstream filstr(filename.c_str(), std::ios::in | std::ios::binary);
+        filstr.read(buf.data(), fsize);
+        uint32_t crc = mz_crc32(MZ_CRC32_INIT, (mz_uint8*)buf.data(), fsize);
+        res = crc == fil.crc;
+    }
+    return res;
+}
+
 void unzip_listings()
 {
-    //DUBUG: It have to work even if zip doesn't exist
     assert(std::filesystem::directory_entry(LOOPS_TEST_DIR"/refasm/").exists());
-    std::filesystem::remove_all(LISTINGS_ROOT);  //DUBUG: hardcore, I would say. Softer synchronization is needed.
     //1.)Check and recreate folder system.
     {
         if(!std::filesystem::directory_entry(LISTINGS_ROOT).exists())
@@ -350,16 +358,23 @@ void unzip_listings()
     }
     //2.)Unpack all zip files. 
     const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
+    if (!std::filesystem::exists(zipname))
+    {
+        std::cerr << "WARNING: There is no listing archive. Listings can be non-actual. Recreate listing by setting RECREATE_REFERENCE_TEXTS to true." << std::endl;
+        return;
+    }
+
     miniz_cpp::zip_file file(zipname);
     auto files2unpack = file.infolist();
     for (miniz_cpp::zip_info& fil : files2unpack)
-        file.extract(fil.filename, LISTINGS_ROOT);
+        if(!zip_is_equal(LISTINGS_ROOT + fil.filename, fil))
+            file.extract(fil.filename, LISTINGS_ROOT);
 }
 
 void refresh_zip_listings()
 {
+#if (RECREATE_REFERENCE_TEXTS == true)
     const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
-    std::filesystem::remove(zipname); //DUBUG: hardcore, I would say. Softer synchronization is needed.
     miniz_cpp::zip_file file;
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     passes_names.pop_back();
@@ -370,11 +385,10 @@ void refresh_zip_listings()
         std::filesystem::directory_iterator pass_dir(LISTINGS_ROOT + passname);
         for (auto fil : pass_dir)
             if (fil.path().filename().extension().string() == ".tst")
-            {//DUBUG: add CRC check
                 file.write(LISTINGS_ROOT + passname + "/" + fil.path().filename().string(), passname + "/" + fil.path().filename().string());
-            }
     }
-    file.save(zipname);    
+    file.save(zipname);
+#endif
 }
 
 loops::Func* get_assembly_reg_param(loops::Func& func)
