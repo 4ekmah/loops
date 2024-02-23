@@ -410,7 +410,30 @@ namespace loops
 
     void Pipeline::overrideRegisterSet(int basketNum, const std::vector<int> &a_parameterRegisters, const std::vector<int> &a_returnRegisters, const std::vector<int> &a_callerSavedRegisters, const std::vector<int> &a_calleeSavedRegisters)
     {
-        //DUBUG: append assertions, that overriding vessels are subsets of a vessels of given architecture.
+        std::set<int> m_parameterRegistersO_;
+        {
+            std::vector<int> parameterRegisters = m_backend->parameterRegisters(basketNum);
+            for (int reg : parameterRegisters) m_parameterRegistersO_.insert(reg);
+        }
+        std::set<int> m_returnRegistersO_;
+        {
+            std::vector<int> returnRegisters = m_backend->returnRegisters(basketNum);
+            for (int reg : returnRegisters) m_returnRegistersO_.insert(reg);
+        }
+        std::set<int> m_callerSavedRegistersO_;
+        {
+            std::vector<int> callerSavedRegisters = m_backend->callerSavedRegisters(basketNum);
+            for (int reg : callerSavedRegisters) m_callerSavedRegistersO_.insert(reg);
+        }
+        std::set<int> m_calleeSavedRegistersO_;
+        {
+            std::vector<int> calleeSavedRegisters = m_backend->calleeSavedRegisters(basketNum);
+            for (int reg : calleeSavedRegisters) m_calleeSavedRegistersO_.insert(reg);
+        }
+        for (int reg : a_parameterRegisters) Assert(m_parameterRegistersO_.find(reg) != m_parameterRegistersO_.end());
+        for (int reg : a_returnRegisters) Assert(m_returnRegistersO_.find(reg) != m_returnRegistersO_.end());
+        for (int reg : a_callerSavedRegisters) Assert(m_callerSavedRegistersO_.find(reg) != m_callerSavedRegistersO_.end());
+        for (int reg : a_calleeSavedRegisters) Assert(m_calleeSavedRegistersO_.find(reg) != m_calleeSavedRegistersO_.end());
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
         m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;

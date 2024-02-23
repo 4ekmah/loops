@@ -13,6 +13,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <unordered_map>
 #include <typeindex>
 #include <memory>
+#include <atomic>
 
 #define LOOPS_ASSERT_LINE_(x) #x
 #define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
@@ -352,7 +353,7 @@ namespace loops
         inline bool debug_mode() const { return m_debug_mode; }
         std::vector<std::string> get_all_passes();
 
-        int m_refcount;
+        std::atomic<int> m_refcount;
         inline Func* getCurrentFunc() { return &m_currentFunc; }
         inline Backend* getBackend() { return m_backend.get(); }
         Context getPublicInterface();

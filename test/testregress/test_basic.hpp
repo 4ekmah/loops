@@ -19,22 +19,21 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "src/reg_allocator.hpp"
 
 using namespace loops;
-//DUBUG: Create test, which uses compile_all method.
-TEST(basic, a_plus_b)
+
+Func make_a_plus_b(Context ctx, const std::string& fname)
 {
-    Context ctx;
     USE_CONTEXT_(ctx);
     IReg a, b;
-    STARTFUNC_(test_info_->name(), &a, &b)
+    STARTFUNC_(fname, &a, &b)
     {
         a+=b;
         RETURN_(a);
     }
+    return ctx.getFunc(fname);
+}
+void test_a_plus_b(Func func)
+{
     typedef int64_t (*a_plus_b_f)(int64_t a, int64_t b);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     a_plus_b_f tested = reinterpret_cast<a_plus_b_f>(func.ptr());
     std::vector<int64_t> A = {3,2,4,2,3,4,1};
     std::vector<int64_t> B = {4,4,5,5,4,6,5};
@@ -42,12 +41,21 @@ TEST(basic, a_plus_b)
         ASSERT_EQ(tested(A[n],B[n]), A[n]+B[n]);
 }
 
-TEST(basic, min_max_scalar)
+TEST(basic, a_plus_b)
 {
     Context ctx;
+    loops::Func func = make_a_plus_b(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_a_plus_b(func);
+}
+
+Func make_min_max_scalar(Context ctx, const std::string& fname)
+{
     USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
-    STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
+    STARTFUNC_(fname, &ptr, &n, &minpos_addr, &maxpos_addr)
     {
         IReg i = CONST_(0);
         IReg minpos = CONST_(0);
@@ -77,11 +85,12 @@ TEST(basic, min_max_scalar)
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
     }
+    return ctx.getFunc(fname);
+}
+
+void test_min_max_scalar(Func func)
+{
     typedef int64_t (*min_max_scalar_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     min_max_scalar_f tested = reinterpret_cast<min_max_scalar_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
@@ -99,16 +108,25 @@ TEST(basic, min_max_scalar)
     ASSERT_EQ(retval, 0);
 }
 
+TEST(basic, min_max_scalar)
+{
+    Context ctx;
+    loops::Func func = make_min_max_scalar(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_min_max_scalar(func);
+}
+
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #undef min // Windows.h implements min and max as macro.
 #undef max //
 #endif
-TEST(basic, min_max_select)
+Func make_min_max_select(Context ctx, const std::string& fname)
 {
-    Context ctx;
     USE_CONTEXT_(ctx);
     IReg ptr, n, minpos_addr, maxpos_addr;
-    STARTFUNC_(test_info_->name(), &ptr, &n, &minpos_addr, &maxpos_addr)
+    STARTFUNC_(fname, &ptr, &n, &minpos_addr, &maxpos_addr)
     {
         IReg i = CONST_(0);
         IReg minpos = CONST_(0);
@@ -131,11 +149,12 @@ TEST(basic, min_max_select)
         store_<int>(maxpos_addr, maxpos);
         RETURN_(0);
     }
+    return ctx.getFunc(fname);
+}
+
+void test_min_max_select(Func func)
+{
     typedef int64_t (*min_max_select_f)(const int* ptr, int64_t n, int* minpos, int* maxpos);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     min_max_select_f tested = reinterpret_cast<min_max_select_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
@@ -153,18 +172,27 @@ TEST(basic, min_max_select)
     ASSERT_EQ(retval, 0);
 }
 
-TEST(basic, triangle_types)
+TEST(basic, min_max_select)
 {
-    enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
     Context ctx;
+    loops::Func func = make_min_max_select(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_min_max_select(func);
+}
+
+enum {NOT_A_TRIANGLE, RIGHT_TRIANGLE, EQUILATERAL_TRIANGLE, ISOSCELES_TRIANGLE, ACUTE_TRIANGLE, OBTUSE_TRIANGLE};
+Func make_triangle_types(Context ctx, const std::string& fname)
+{
     USE_CONTEXT_(ctx);
     IReg a, b, c;
-    STARTFUNC_(test_info_->name(), &a, &b, &c)
+    STARTFUNC_(fname, &a, &b, &c)
     {
         IF_(a <= 0 || b <= 0 || c <= 0)
             RETURN_(NOT_A_TRIANGLE);
         ELIF_(a > b + c || b > a + c || c > a + b)
-                RETURN_(NOT_A_TRIANGLE);
+            RETURN_(NOT_A_TRIANGLE);
         ELIF_(a == b && a == c)
             RETURN_(EQUILATERAL_TRIANGLE);
         ELIF_(a == b || a == c || b == c)
@@ -176,11 +204,12 @@ TEST(basic, triangle_types)
         ELSE_
             RETURN_(ACUTE_TRIANGLE);
     }
+    return ctx.getFunc(fname);
+}
+
+void test_triangle_types(Func func)
+{
     typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     triangle_types_f tested = reinterpret_cast<triangle_types_f>(func.ptr());
     ASSERT_EQ(tested(-1,2,3), int(NOT_A_TRIANGLE));
     ASSERT_EQ(tested(1,-2,3), int(NOT_A_TRIANGLE));
@@ -201,12 +230,21 @@ TEST(basic, triangle_types)
     ASSERT_EQ(tested(7,5,6), int(ACUTE_TRIANGLE));
 }
 
-TEST(basic, nonnegative_odd)
+TEST(basic, triangle_types)
 {
     Context ctx;
+    loops::Func func = make_triangle_types(ctx, test_info_->name());
+    typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_triangle_types(func);
+}
+Func make_nonnegative_odd(Context ctx, const std::string& fname)
+{
     USE_CONTEXT_(ctx);
     IReg ptr, n;
-    STARTFUNC_(test_info_->name(), &ptr, &n)
+    STARTFUNC_(fname, &ptr, &n)
     {
         IReg i = CONST_(0);
         IReg res = CONST_(-(int64_t)sizeof(int));
@@ -230,15 +268,27 @@ TEST(basic, nonnegative_odd)
         res /= sizeof(int);
         RETURN_(res);
     }
+    return ctx.getFunc(fname);
+}
+
+void test_nonnegative_odd(Func func)
+{
     typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     nonnegative_odd_f tested = reinterpret_cast<nonnegative_odd_f>(func.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     ASSERT_EQ(tested(&v[0], v.size()), 3);
     ASSERT_EQ(tested(0, 0), -1);
+}
+
+TEST(basic, nonnegative_odd)
+{
+    Context ctx;
+    loops::Func func = make_nonnegative_odd(ctx, test_info_->name());
+    typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_nonnegative_odd(func);
 }
 
 template <typename inT, typename outT>
@@ -272,78 +322,76 @@ static inline bool AldrAstrTest(const uint8_t* inA, uint8_t* outA, int siz, int 
     return chck;
 }
 
-TEST(basic, all_loads_all_stores)
+Func make_all_loads_all_stores(Context ctx, const std::string& fname)
 {
-    Context ctx;
     USE_CONTEXT_(ctx);
+    IReg iptr, ityp, optr, otyp, n;
+    STARTFUNC_(fname, &iptr, &ityp, &optr, &otyp, &n)
     {
-        IReg iptr, ityp, optr, otyp, n;
-        STARTFUNC_(test_info_->name(), &iptr, &ityp, &optr, &otyp, &n)
+        IReg num = CONST_(0);
+        IReg i_offset = CONST_(0);
+        IReg o_offset = CONST_(0);
+        IReg ielemsize = select(ityp > TYPE_I8, CONST_(2), CONST_(1));
+        ielemsize = select(ityp > TYPE_I16, CONST_(4), ielemsize);
+        ielemsize = select(ityp > TYPE_I32, CONST_(8), ielemsize);
+        IReg oelemsize = select(otyp > TYPE_I8, CONST_(2), CONST_(1));
+        oelemsize = select(otyp > TYPE_I16, CONST_(4), oelemsize);
+        oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
+        WHILE_(num < n)
         {
-            IReg num = CONST_(0);
-            IReg i_offset = CONST_(0);
-            IReg o_offset = CONST_(0);
-            IReg ielemsize = select(ityp > TYPE_I8, CONST_(2), CONST_(1));
-            ielemsize = select(ityp > TYPE_I16, CONST_(4), ielemsize);
-            ielemsize = select(ityp > TYPE_I32, CONST_(8), ielemsize);
-            IReg oelemsize = select(otyp > TYPE_I8, CONST_(2), CONST_(1));
-            oelemsize = select(otyp > TYPE_I16, CONST_(4), oelemsize);
-            oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
-            WHILE_(num < n)
-            {
-                IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
-                IF_(ityp == TYPE_U8)
-                    x = load_<uint8_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_I8)
-                    x = load_<int8_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_U16)
-                    x = load_<uint16_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_I16)
-                    x = load_<int16_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_U32)
-                    x = load_<uint32_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_I32)
-                    x = load_<int32_t>(iptr, i_offset);
-                ELIF_(ityp == TYPE_U64)
-                    x = load_<uint64_t>(iptr, i_offset);
-                ELSE_
-                    x = load_<int64_t>(iptr, i_offset);
+            IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
+            IF_(ityp == TYPE_U8)
+                x = load_<uint8_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I8)
+                x = load_<int8_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U16)
+                x = load_<uint16_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I16)
+                x = load_<int16_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U32)
+                x = load_<uint32_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_I32)
+                x = load_<int32_t>(iptr, i_offset);
+            ELIF_(ityp == TYPE_U64)
+                x = load_<uint64_t>(iptr, i_offset);
+            ELSE_
+                x = load_<int64_t>(iptr, i_offset);
 
-                IF_(otyp == TYPE_U8)
-                    store_<uint8_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_I8)
-                    store_<int8_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_U16)
-                    store_<uint16_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_I16)
-                    store_<int16_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_U32)
-                    store_<uint32_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_I32)
-                    store_<int32_t>(optr, o_offset, x);
-                ELIF_(otyp == TYPE_U64)
-                    store_<uint64_t>(optr, o_offset, x);
-                ELSE_
-                    store_<int64_t>(optr, o_offset, x);
+            IF_(otyp == TYPE_U8)
+                store_<uint8_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I8)
+                store_<int8_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U16)
+                store_<uint16_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I16)
+                store_<int16_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U32)
+                store_<uint32_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_I32)
+                store_<int32_t>(optr, o_offset, x);
+            ELIF_(otyp == TYPE_U64)
+                store_<uint64_t>(optr, o_offset, x);
+            ELSE_
+                store_<int64_t>(optr, o_offset, x);
 
-                i_offset += ielemsize;
-                o_offset += oelemsize;
-                num += 1;
-            }
+            i_offset += ielemsize;
+            o_offset += oelemsize;
+            num += 1;
         }
     }
+    return ctx.getFunc(fname);
+}
+
+void test_all_loads_all_stores(Func func)
+{
     typedef int64_t (*all_loads_all_stores_f)(const void* iptr, int ityp, void* optr, int otyp, int64_t n);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     all_loads_all_stores_f tested = reinterpret_cast<all_loads_all_stores_f>(func.ptr());
     static const size_t BYTE_ARR_SIZE = 40;
     const uint8_t v[BYTE_ARR_SIZE] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                                       0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0xff,
-                                       0x02, 0x03, 0x04, 0xff, 0x06, 0x07, 0x00, 0xff,
-                                       0x03, 0xff, 0x05, 0xff, 0x07, 0xff, 0x01, 0xff,
-                                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0xff,
+        0x02, 0x03, 0x04, 0xff, 0x06, 0x07, 0x00, 0xff,
+        0x03, 0xff, 0x05, 0xff, 0x07, 0xff, 0x01, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     uint8_t res[BYTE_ARR_SIZE * sizeof(uint64_t)];
     for (int ityp = loops::TYPE_U8; ityp <= loops::TYPE_I64; ityp++)
         for (int otyp = loops::TYPE_U8; otyp <= loops::TYPE_I64; otyp++)
@@ -366,35 +414,44 @@ TEST(basic, all_loads_all_stores)
             ASSERT_EQ(chck, true);
         }
 }
-TEST(basic, nullify_msb_lsb)
+
+TEST(basic, all_loads_all_stores)
 {
     Context ctx;
-    USE_CONTEXT_(ctx);
-    {
-        IReg in, elsb, emsb;
-        STARTFUNC_(test_info_->name(), &in, &elsb, &emsb)
-        {
-            IReg msb = in | ushift_right(in, 1);
-            msb |= ushift_right(msb, 2);
-            msb |= ushift_right(msb, 4);
-            msb |= ushift_right(msb, 8);
-            msb |= ushift_right(msb, 16);
-            msb |= ushift_right(msb, 32);
-            msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
-            msb = ushift_right(msb, 1);
-            msb ^= in;
-            store_<uint64_t>(emsb, msb);
-            IReg lsb = in & ~(in - 1);
-            lsb ^= in;
-            store_<uint64_t>(elsb, lsb);
-            RETURN_();
-        }
-    }
-    typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
-    loops::Func func = ctx.getFunc(test_info_->name());
+    loops::Func func = make_all_loads_all_stores(ctx, test_info_->name());
     switch_spill_stress_test_mode_on(func);
     EXPECT_IR_CORRECT(func);
     EXPECT_ASSEMBLY_CORRECT(func);
+    test_all_loads_all_stores(func);
+}
+
+Func make_nullify_msb_lsb(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg in, elsb, emsb;
+    STARTFUNC_(fname, &in, &elsb, &emsb)
+    {
+        IReg msb = in | ushift_right(in, 1);
+        msb |= ushift_right(msb, 2);
+        msb |= ushift_right(msb, 4);
+        msb |= ushift_right(msb, 8);
+        msb |= ushift_right(msb, 16);
+        msb |= ushift_right(msb, 32);
+        msb += 1;  //It's assumed, that 0x8000000000000000 bit is switched off.
+        msb = ushift_right(msb, 1);
+        msb ^= in;
+        store_<uint64_t>(emsb, msb);
+        IReg lsb = in & ~(in - 1);
+        lsb ^= in;
+        store_<uint64_t>(elsb, lsb);
+        RETURN_();
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_nullify_msb_lsb(Func func)
+{
+    typedef int64_t (*nullify_msb_lsb_f)(uint64_t in, uint64_t* elsb, uint64_t* emsb);
     nullify_msb_lsb_f tested = reinterpret_cast<nullify_msb_lsb_f>(func.ptr());
     std::vector<uint64_t> v = { 0x6000000000000000, 2, 0xf0, 7, 0xffffffff };
     for (uint64_t tchk : v)
@@ -417,49 +474,57 @@ TEST(basic, nullify_msb_lsb)
     }
 }
 
-//Implementations(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-TEST(basic, bresenham)
+TEST(basic, nullify_msb_lsb)
 {
     Context ctx;
-    USE_CONTEXT_(ctx);
-    {
-        IReg canvas, w, x0, y0, x1, y1, filler;
-        STARTFUNC_(test_info_->name(), &canvas, &w, &x0, &y0, &x1, &y1, &filler)
-        {
-            IReg dx = abs(x1 - x0);
-            IReg sx = sign(x1 - x0);
-            IReg dy = -abs(y1 - y0);
-            IReg sy = sign(y1 - y0);
-            IReg error = dx + dy;
-            WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
-            {
-                store_<uint8_t>(canvas, y0* w + x0, filler);
-                IF_(x0 == x1 && y0 == y1)
-                    BREAK_;
-                IReg e2 = error << 1;
-                IF_(e2 >= dy)
-                {
-                    IF_(x0 == x1)
-                        BREAK_;
-                    error = error + dy;
-                    x0 = x0 + sx;
-                }
-                IF_(e2 <= dx)
-                {
-                    IF_(y0 == y1)
-                        BREAK_;
-                    error = error + dx;
-                    y0 = y0 + sy;
-                }
-            }
-            RETURN_();
-        }
-    }
-    typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
-    loops::Func func = ctx.getFunc(test_info_->name());
+    loops::Func func = make_nullify_msb_lsb(ctx, test_info_->name());
     switch_spill_stress_test_mode_on(func);
     EXPECT_IR_CORRECT(func);
     EXPECT_ASSEMBLY_CORRECT(func);
+    test_nullify_msb_lsb(func);
+}
+
+//Bresenham algorithm implementations(loops and reference) is taken from wikipedia: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+Func make_bresenham(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg canvas, w, x0, y0, x1, y1, filler;
+    STARTFUNC_(fname, &canvas, &w, &x0, &y0, &x1, &y1, &filler)
+    {
+        IReg dx = abs(x1 - x0);
+        IReg sx = sign(x1 - x0);
+        IReg dy = -abs(y1 - y0);
+        IReg sy = sign(y1 - y0);
+        IReg error = dx + dy;
+        WHILE_(canvas != 0)      //TODO(ch): this is substitution of while(true)
+        {
+            store_<uint8_t>(canvas, y0* w + x0, filler);
+            IF_(x0 == x1 && y0 == y1)
+                BREAK_;
+            IReg e2 = error << 1;
+            IF_(e2 >= dy)
+            {
+                IF_(x0 == x1)
+                    BREAK_;
+                error = error + dy;
+                x0 = x0 + sx;
+            }
+            IF_(e2 <= dx)
+            {
+                IF_(y0 == y1)
+                    BREAK_;
+                error = error + dx;
+                y0 = y0 + sy;
+            }
+        }
+        RETURN_();
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_bresenham(Func func)
+{
+    typedef void (*bresenham_f)(uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler);
     bresenham_f tested = reinterpret_cast<bresenham_f>(func.ptr());
 
     auto bresenham_ref = [](uint8_t* canvas, int64_t w, int64_t x0, int64_t y0, int64_t x1, int64_t y1, uint64_t filler)
@@ -519,15 +584,24 @@ TEST(basic, bresenham)
         ASSERT_EQ(optr[symbn], canvasRef[symbn]);
 }
 
-TEST(basic, conditionpainter)
+TEST(basic, bresenham)
+{
+    Context ctx;
+    loops::Func func = make_bresenham(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_bresenham(func);
+}
+
+Func make_conditionpainter(Context ctx, const std::string& fname)
 {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
     const int h = ymax - ymin + 1;
     const int w = xmax - xmin + 1;
-    Context ctx;
     USE_CONTEXT_(ctx);
     IReg ptr;
-    STARTFUNC_(test_info_->name(), &ptr)
+    STARTFUNC_(fname, &ptr)
     {
         IReg y = CONST_(ymin);
         WHILE_(y<=ymax)
@@ -548,11 +622,15 @@ TEST(basic, conditionpainter)
         }
         RETURN_();
     }
+    return ctx.getFunc(fname);
+}
+
+void test_conditionpainter(Func func)
+{
+    const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
+    const int h = ymax - ymin + 1;
+    const int w = xmax - xmin + 1;
     typedef int64_t (*conditionpainter_f)(int64_t* canvas);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
     conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
 
     auto conditionpainter_ref = [xmin, xmax, ymin, ymax, w](int64_t* ptr)
@@ -580,10 +658,45 @@ TEST(basic, conditionpainter)
             ASSERT_EQ(canvas_ref[y*w + x], canvas[y*w + x + w*h]);
 }
 
+TEST(basic, conditionpainter)
+{
+    Context ctx;
+    loops::Func func = make_conditionpainter(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_conditionpainter(func);
+}
+
+TEST(basic, compile_all)
+{
+    Context ctx;
+    loops::Func a_plus_b_func = make_a_plus_b(ctx, "a_plus_b");
+    loops::Func min_max_scalar_func = make_min_max_scalar(ctx, "min_max_scalar");
+    loops::Func min_max_select_func = make_min_max_select(ctx, "min_max_select");
+    loops::Func triangle_types_func = make_triangle_types(ctx, "triangle_types");
+    loops::Func nonnegative_odd_func = make_nonnegative_odd(ctx, "nonnegative_odd");
+    loops::Func all_loads_all_stores_func = make_all_loads_all_stores(ctx, "all_loads_all_stores");
+    loops::Func nullify_msb_lsb_func = make_nullify_msb_lsb(ctx, "nullify_msb_lsb");
+    loops::Func bresenham_func = make_bresenham(ctx, "bresenham");
+    loops::Func conditionpainter_func = make_conditionpainter(ctx, "conditionpainter");
+    ctx.compileAll();
+    test_a_plus_b(a_plus_b_func);
+    test_min_max_scalar(min_max_scalar_func);
+    test_min_max_select(min_max_select_func);
+    test_triangle_types(triangle_types_func);
+    test_nonnegative_odd(nonnegative_odd_func);
+    test_all_loads_all_stores(all_loads_all_stores_func);
+    test_nullify_msb_lsb(nullify_msb_lsb_func);
+    test_bresenham(bresenham_func);
+    test_conditionpainter(conditionpainter_func);
+}
+
 static void hw()
 {
     get_test_ostream()<<"Hello world!"<<std::endl;
 }
+
 TEST(calls, helloworld_call)
 {
     Context ctx;

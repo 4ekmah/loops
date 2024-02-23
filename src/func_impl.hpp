@@ -14,6 +14,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <deque>
 #include <map>
 #include <set>
+#include <atomic>
 
 namespace loops {
 
@@ -50,7 +51,7 @@ public:
         const std::vector<int>&  a_callerSavedRegisters,
         const std::vector<int>&  a_calleeSavedRegisters);
 
-    size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
+    std::atomic<size_t> m_refcount;
 private:
     ContextImpl* m_context;
 
