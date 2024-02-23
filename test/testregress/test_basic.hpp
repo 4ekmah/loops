@@ -596,8 +596,8 @@ TEST(calls, helloworld_call)
     typedef void(*helloworld_call_f)();
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // EXPECT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
+    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
     helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(func.ptr());
     reset_test_ostream();
     tested();
@@ -660,8 +660,8 @@ TEST(calls, snake)
     typedef void(*snake_f)(uint8_t*, int64_t, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // EXPECT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
+    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
     snake_f tested = reinterpret_cast<snake_f>(func.ptr());
     const int h = 10, w = 5;
     uint8_t canvas[3 * h*w];
@@ -778,8 +778,8 @@ TEST(calls, sort_double)
     typedef void(*sort_double_f)(double*, int64_t);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
-    // EXPECT_IR_CORRECT(func);  //DUBUG: switch on or what?
-    // EXPECT_ASSEMBLY_CORRECT(func);
+    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
+    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
         sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
     std::vector<double> arr = {7.3, 2.0, 5.3, 10.0, -500000.0, -17.0, 70.0, 1.9, 71212.7878, 12.0};
     std::vector<double> arr_ref = arr;

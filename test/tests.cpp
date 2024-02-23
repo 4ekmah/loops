@@ -12,6 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <set>
 #include <locale>
 #include <sys/stat.h> //TODO(ch): *nix-only. Use winbase.h for Windows 
 
@@ -148,8 +149,66 @@ std::string create_pointing_lines(size_t ptr, size_t underlying_start, size_t un
     return resstream.str();
 }
 
+struct listing_defect
+{
+    std::string func_name;
+    std::string pass_name;
+    size_t line;
+    size_t word;
+    listing_defect() {}
+    listing_defect(const std::string& a_func_name, const std::string& a_pass_name, size_t a_line, size_t a_word) : func_name(a_func_name)
+        , pass_name(a_pass_name)
+        , line(a_line)
+        , word(a_word){}
+    void write(std::ostream& out) const
+    {
+        size_t sz = func_name.size();
+        out.write((char*)&sz, sizeof(sz));
+        out.write(func_name.data(), sz);
+        sz = pass_name.size();
+        out.write((char*)&sz, sizeof(sz));
+        out.write(pass_name.data(), sz);
+        out.write((char*)&line, sizeof(line));
+        out.write((char*)&word, sizeof(word));
+    }
 
-bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errPrefix, std::ostream& out_stream)
+    static listing_defect read(std::istream& in)
+    {
+        listing_defect res;
+        size_t sz;
+        in.read((char*)&sz, sizeof(sz));
+        res.func_name.resize(sz, ' ');
+        in.read(res.func_name.data(), sz);
+        in.read((char*)&sz, sizeof(sz));
+        res.pass_name.resize(sz, ' ');
+        in.read(res.pass_name.data(), sz);
+        in.read((char*)&res.line, sizeof(res.line));
+        in.read((char*)&res.word, sizeof(res.word));
+        return res;
+    }
+};
+
+bool operator<(const listing_defect& a, const listing_defect& b)
+{
+    if (a.func_name < b.func_name)
+        return true;
+    else if (a.func_name > b.func_name)
+        return false;
+    else if (a.pass_name < b.pass_name)
+        return true;
+    else if (a.pass_name > b.pass_name)
+        return false;
+    else if (a.line < b.line)
+        return true;
+    else if (a.line > b.line)
+        return false;
+    else if (a.word < b.word)
+        return true;
+    return false;
+}
+std::set<listing_defect> defects;
+
+bool check_listing_equality(const std::string& curL, const std::string& refL, const std::string& errPrefix, std::ostream& out_stream, bool tolerable_defect, const std::string& func_name, const std::string& pass_name)
 {
     std::string endline; {std::stringstream tmpstream; tmpstream << std::endl; endline = tmpstream.str();}
     std::vector<tokenized_line> ref_tokenized = tokenizer(refL); 
@@ -209,6 +268,17 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
             std::string& curword = cur_tokenized[line].words[word].token;
             if(refword != curword)
             {
+                if (tolerable_defect)
+                {
+                    listing_defect defect(func_name, pass_name, line, word);
+#if (RECREATE_TOLERABLE_DEFECT == true)
+                    defects.insert(defect);
+                    continue;
+#else
+                    if (defects.find(defect) != defects.end())
+                        continue;
+#endif
+                }
                 size_t inequal_pos = 0; for(;inequal_pos < refword.size() && inequal_pos < curword.size() && refword[inequal_pos] == curword[inequal_pos]; inequal_pos++);
                 assert(curword.size() > 0 && refword.size() > 0);
                 size_t ref_inpos = std::min(inequal_pos, refword.size() - 1);
@@ -231,7 +301,7 @@ bool check_listing_equality(const std::string& curL, const std::string& refL, co
 }
 
 bool check_listing_at_pass(loops::Func func, std::string& errmessage,
-                           const std::string& passname, const std::string& filename)
+                           const std::string& passname, const std::string& filename, bool tolerable_defect)
 {
     std::stringstream errstream;
 
@@ -263,7 +333,7 @@ bool check_listing_at_pass(loops::Func func, std::string& errmessage,
         else
         {
             std::string reftext((std::istreambuf_iterator<char>(refstream)), std::istreambuf_iterator<char>());
-            if(!check_listing_equality(curtext, reftext, errprefix, errstream))
+            if(!check_listing_equality(curtext, reftext, errprefix, errstream, tolerable_defect, func.name(), passname))
             {
                 rewrite = RECREATE_REFERENCE_TEXTS;
                 result = false;
@@ -288,7 +358,7 @@ bool check_listing_at_pass(loops::Func func, std::string& errmessage,
     return result;
 }
 
-bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage)
+bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect)
 {
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     passes_names.pop_back();//We are not considering binaries. 
@@ -300,7 +370,7 @@ bool intermediate_representation_is_stable(loops::Func func, std::string& errmes
         std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func_name + ".tst";
         std::stringstream errstream;
         std::string interm_message;
-        bool success = check_listing_at_pass(func, interm_message, passes_names[passn], filename);
+        bool success = check_listing_at_pass(func, interm_message, passes_names[passn], filename, tolerable_defect);
         if (!success)
         {
             result = false;
@@ -315,14 +385,14 @@ bool intermediate_representation_is_stable(loops::Func func, std::string& errmes
     return result;
 }
 
-bool assembly_is_stable(loops::Func func, std::string& errmessage)
+bool assembly_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect)
 {
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     auto found = std::find(passes_names.begin(), passes_names.end(), "CP_IR_TO_ASSEMBLY");
     Assert(found >= passes_names.begin() && found < passes_names.end());
     int passn = (int)(found - passes_names.begin());
     std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func.name() + ".tst";
-    return check_listing_at_pass(func, errmessage, passes_names[passn], filename);
+    return check_listing_at_pass(func, errmessage, passes_names[passn], filename, tolerable_defect);
 }
 
 bool zip_is_equal(const std::string& filename, miniz_cpp::zip_info& fil)
@@ -367,12 +437,38 @@ void unzip_listings()
     miniz_cpp::zip_file file(zipname);
     auto files2unpack = file.infolist();
     for (miniz_cpp::zip_info& fil : files2unpack)
-        if(!zip_is_equal(LISTINGS_ROOT + fil.filename, fil))
+        if(
+#if (RECREATE_TOLERABLE_DEFECT == true)
+            fil.filename != "defect.bin" && 
+#endif
+            !zip_is_equal(LISTINGS_ROOT + fil.filename, fil))
             file.extract(fil.filename, LISTINGS_ROOT);
+
+    //3.)Read defect file
+    std::string defect_file = LISTINGS_ROOT"defect.bin";
+    if (std::filesystem::exists(zipname))
+    {
+        std::ifstream defectstr(defect_file.c_str(), std::ios::in | std::ios::binary);
+        size_t defect_sz;
+        defectstr.read((char*)&defect_sz, sizeof(defect_sz));
+        while(defect_sz--)
+            defects.insert(listing_defect::read(defectstr));
+    }
 }
 
 void refresh_zip_listings()
 {
+#if (RECREATE_TOLERABLE_DEFECT == true)
+    std::string defect_file = LISTINGS_ROOT"defect.bin";
+    {
+        std::ofstream defectstr(defect_file.c_str(), std::ios::out | std::ios::binary);
+        size_t defect_sz = defects.size();
+        defectstr.write((char*)&defect_sz, sizeof(defect_sz));
+        for (const listing_defect& defect : defects)
+            defect.write(defectstr);
+    }
+#endif
+
 #if (RECREATE_REFERENCE_TEXTS == true)
     const std::string zipname = std::string(LOOPS_TEST_DIR"/refasm/") + toLower(ARCHname()) + "_" + toLower(OSname()) + ".zip";
     miniz_cpp::zip_file file;
@@ -387,6 +483,9 @@ void refresh_zip_listings()
             if (fil.path().filename().extension().string() == ".tst")
                 file.write(LISTINGS_ROOT + passname + "/" + fil.path().filename().string(), passname + "/" + fil.path().filename().string());
     }
+    #if (RECREATE_TOLERABLE_DEFECT == true)
+        file.write(defect_file, "defect.bin");
+    #endif
     file.save(zipname);
 #endif
 }

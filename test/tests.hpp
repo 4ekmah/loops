@@ -24,15 +24,53 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "src/func_impl.hpp"
 
+//Reference listing archives creation reference:
+//
+//There is two flags managing process of updating listing and archives:
+//
+//RECREATE_REFERENCE_TEXTS enable listing files rewriting for files differs
+//with listings have been taken on test run(exception if files with tolerable defects: 
+//see lower). Also this flag swithched on delete old <arch>_<os>.zip archive and 
+//recreates it with updated listings.
+//NOTE: all the listing files in test/refasm/listings will be zipped, not just used
+//in tests, so be careful with test disabling - it's possible to rewrite something you 
+//don't to rewrite.
+//
+//RECREATE_TOLERABLE_DEFECT. There is a tests with unstable corresponding listings. 
+//For now the only case is function calling from loops-generated code. Loops call
+//function by hardcoding it's address in registers. Of course, on different test runs
+//address will be different and listings will be different. Structure will be the same,
+//but constants will changes all the time. For this reason there exist special versions
+//of GTEST except macro EXPECT_IR_CORRECT_TOLERABLE_DEFECT and 
+//EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT which consider mistakes in some certain
+//tokens on some certain lines as equality. The list of positions in which mistakes 
+//are acceptable is prelimiraly created and keeped in test/refasm/listing/defect.bin
+//and in corresponding place in archive. So RECREATE_TOLERABLE_DEFECT create this 
+//list, and saves it.
+//
+//So, the algorithm of full regeneration of listing package is:
+//1.) Delete test/refasm/<arch>_<os>.zip archive and test/refasm/listings folder/
+//2.) Run test suite with RECREATE_REFERENCE_TEXTS=true and
+//RECREATE_TOLERABLE_DEFECT=false. It will create listings.
+//3.) Run 5 or 10 times test suite with RECREATE_REFERENCE_TEXTS=false and
+//RECREATE_TOLERABLE_DEFECT=true. It will collect differences in all 
+//possible positions and create defect.bin file.
+//4.) Run test suite with RECREATE_REFERENCE_TEXTS=true and
+//RECREATE_TOLERABLE_DEFECT=true. It will save defect file into archive.
+
 #define RECREATE_REFERENCE_TEXTS false
+#define RECREATE_TOLERABLE_DEFECT false
 
 void switch_spill_stress_test_mode_on(loops::Func& func);
 void direct_translation_on(loops::Func& func);
 
-bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage);
-bool assembly_is_stable(loops::Func func, std::string& errmessage);
+bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect = false);
+bool assembly_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect = false);
 #define EXPECT_IR_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(intermediate_representation_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
 #define EXPECT_ASSEMBLY_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(assembly_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
+
+#define EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func) do { std::string _errmsg_; EXPECT_TRUE(intermediate_representation_is_stable(func, _errmsg_, true)) << _errmsg_; } while(false)
+#define EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func) do { std::string _errmsg_; EXPECT_TRUE(assembly_is_stable(func, _errmsg_, true)) << _errmsg_; } while(false)
 
 #define PREPARE_ASSEMBLY_TESTING(testname) loops::Func func = ctx.getFunc(testname); direct_translation_on(func); Func* _f = get_assembly_reg_param(func)
 #define DEFINE_ASSEMBLY_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
