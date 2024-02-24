@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 //TODO(ch): write some words, that this code was basically copied from xbyak
 #include "allocator.hpp"
 #include "loops/defines.hpp"
+#include <assert.h>
 #include <stdexcept>
 #include <string>
 #include <memory>

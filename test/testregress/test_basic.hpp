@@ -624,9 +624,9 @@ Func make_conditionpainter(Context ctx, const std::string& fname)
 
 void test_conditionpainter(Func func)
 {
-    const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1;
-    const int w = xmax - xmin + 1;
+    int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
+    int h = ymax - ymin + 1;
+    int w = xmax - xmin + 1;
     typedef int64_t (*conditionpainter_f)(int64_t* canvas);
     conditionpainter_f tested = reinterpret_cast<conditionpainter_f>(func.ptr());
 
@@ -643,10 +643,10 @@ void test_conditionpainter(Func func)
                     ptr[datay * w + datax] += 3;
             }
     };
-    int64_t canvas_ref[w*h];
-    int64_t canvas[3*w*h];
-    memset(canvas_ref, 0, w*h*sizeof(int64_t));
-    memset(canvas, 0, 3*w*h*sizeof(int64_t));
+    std::vector<int64_t> canvas_ref_(w*h, 0);
+    std::vector<int64_t> canvas_(3*w*h, 0);
+    int64_t* canvas_ref = canvas_ref_.data();
+    int64_t* canvas = canvas_.data();
     tested(canvas + w*h);
     ASSERT_EQ(memok((uint8_t*)&canvas[0], w * sizeof(int64_t), h), true);
     conditionpainter_ref(canvas_ref);
