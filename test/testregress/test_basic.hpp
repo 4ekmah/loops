@@ -234,7 +234,6 @@ TEST(basic, triangle_types)
 {
     Context ctx;
     loops::Func func = make_triangle_types(ctx, test_info_->name());
-    typedef int64_t (*triangle_types_f)(int64_t a, int64_t b, int64_t c);
     switch_spill_stress_test_mode_on(func);
     EXPECT_IR_CORRECT(func);
     EXPECT_ASSEMBLY_CORRECT(func);
@@ -284,7 +283,6 @@ TEST(basic, nonnegative_odd)
 {
     Context ctx;
     loops::Func func = make_nonnegative_odd(ctx, test_info_->name());
-    typedef int64_t (*nonnegative_odd_f)(const int* ptr, int64_t n);
     switch_spill_stress_test_mode_on(func);
     EXPECT_IR_CORRECT(func);
     EXPECT_ASSEMBLY_CORRECT(func);
@@ -597,7 +595,6 @@ TEST(basic, bresenham)
 Func make_conditionpainter(Context ctx, const std::string& fname)
 {
     const int xmin = -5, xmax = 5, ymin = -5, ymax = 5;
-    const int h = ymax - ymin + 1;
     const int w = xmax - xmin + 1;
     USE_CONTEXT_(ctx);
     IReg ptr;

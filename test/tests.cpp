@@ -365,7 +365,7 @@ bool intermediate_representation_is_stable(loops::Func func, std::string& errmes
     passes_names.pop_back();//And we are not considering assembly in this function. 
     const std::string func_name = func.name();
     bool result = true;
-    for (int passn = 0; passn < passes_names.size(); passn++)
+    for (int passn = 0; passn < (int)passes_names.size(); passn++)
     {
         std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func_name + ".tst";
         std::stringstream errstream;
@@ -420,7 +420,7 @@ void unzip_listings()
             std::filesystem::create_directory(LISTINGS_ROOT);
         std::vector<std::string> passes_names = loops::Context().get_all_passes();
         passes_names.pop_back();
-        for (int passn = 0; passn < passes_names.size(); passn++)
+        for (int passn = 0; passn < (int)passes_names.size(); passn++)
             passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
         for(std::string passname : passes_names)
             if(!std::filesystem::directory_entry(LISTINGS_ROOT + passname).exists())
@@ -474,7 +474,7 @@ void refresh_zip_listings()
     miniz_cpp::zip_file file;
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     passes_names.pop_back();
-    for (int passn = 0; passn < passes_names.size(); passn++)
+    for (int passn = 0; passn < (int)passes_names.size(); passn++)
         passes_names[passn] = std::to_string(passn + 1) + "_" + passes_names[passn];
     for (std::string passname : passes_names)
     {
