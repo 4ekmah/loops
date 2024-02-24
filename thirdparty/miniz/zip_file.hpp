@@ -1963,7 +1963,7 @@ static void tdefl_optimize_huffman_table(tdefl_compressor *d, int table_num, int
   d->m_bit_buffer |= (bits << d->m_bits_in); d->m_bits_in += len; \
   while (d->m_bits_in >= 8) { \
     if (d->m_pOutput_buf < d->m_pOutput_buf_end) \
-      *d->m_pOutput_buf++ = (mz_uint8)(d->m_bit_buffer); \
+      {*d->m_pOutput_buf++ = (mz_uint8)(d->m_bit_buffer);} \
       d->m_bit_buffer >>= 8; \
       d->m_bits_in -= 8; \
   } \
@@ -2373,7 +2373,9 @@ static MZ_FORCEINLINE void tdefl_find_match(tdefl_compressor *d, mz_uint lookahe
         if ((d->m_dict[probe_pos + match_len] == c0) && (d->m_dict[probe_pos + match_len - 1] == c1)) break;
       TDEFL_PROBE; TDEFL_PROBE; TDEFL_PROBE;
     }
-    if (!dist) break; p = s; q = d->m_dict + probe_pos; for (probe_len = 0; probe_len < max_match_len; probe_len++) if (*p++ != *q++) break;
+    if (!dist) break;
+    p = s; q = d->m_dict + probe_pos;
+    for (probe_len = 0; probe_len < max_match_len; probe_len++) if (*p++ != *q++) break;
     if (probe_len > match_len)
     {
       *pMatch_dist = dist; if ((*pMatch_len = match_len = probe_len) == max_match_len) return;

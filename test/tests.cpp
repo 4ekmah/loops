@@ -446,7 +446,7 @@ void unzip_listings()
 
     //3.)Read defect file
     std::string defect_file = LISTINGS_ROOT"defect.bin";
-    if (std::filesystem::exists(zipname))
+    if (std::filesystem::exists(defect_file))
     {
         std::ifstream defectstr(defect_file.c_str(), std::ios::in | std::ios::binary);
         size_t defect_sz;
