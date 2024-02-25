@@ -818,7 +818,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100};
             int opcode = opcodes[esize];
             Assert(opcode != -1);
-            int size_field = esize == 8 ? 1 : 0;
+            uint64_t size_field = esize == 8 ? 1 : 0;
             int S = 0;
             int Q = 0;
             if(esize == 8)
@@ -880,7 +880,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100}; 
             int opcode = opcodes[esize];
             Assert(opcode != -1);
-            int size_field = esize == 8 ? 1 : 0;
+            uint64_t size_field = esize == 8 ? 1 : 0;
             int S = 0;
             int Q = 0;
             if(esize == 8)
@@ -949,7 +949,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             uint64_t sizIdx = sizIdxs[elemsize];
             Assert(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
-            static const uint64_t sizStatSiz[] = {1, 2, 3, 4};
+            static const int sizStatSiz[] = {1, 2, 3, 4};
             return BiT({ BTsta(0b01001110000, 11), BTimm(2, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0b000001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
@@ -962,9 +962,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             int elemsize = elem_size(index[1].elemtype);
             uint64_t mainSta = elemsize == 8 ? 0b01001110000 : 0b00001110000;
-            const uint64_t WrongStat = 0xFFFFFFFF;
-            static const uint64_t dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
-            uint64_t dupSizeSWidth= dupSizeSWidthes[elemsize];
+            const int WrongStat = -1;
+            static const int dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
+            int dupSizeSWidth= dupSizeSWidthes[elemsize];
             Assert(dupSizeSWidth != WrongStat);
             static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
             uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
@@ -975,9 +975,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
         {
             int elemsize = elem_size(index[0].elemtype);
-            const uint64_t WrongStat = 0xFFFFFFFF;
-            static const uint64_t dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
-            uint64_t dupSizeSWidth= dupSizeSWidthes[elemsize];
+            const int WrongStat = -1;
+            static const int dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
+            int dupSizeSWidth = dupSizeSWidthes[elemsize];
             Assert(dupSizeSWidth != WrongStat);
             static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
             uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
@@ -991,7 +991,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             uint64_t sizIdx = sizIdxs[elemsize];
             Assert(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
-            static const uint64_t sizStatSiz[] = {1, 2, 3, 4};
+            static const int sizStatSiz[] = {1, 2, 3, 4};
             return BiT({ BTsta(0b01101110000, 11), BTimm(1, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0, 1), BTimm(3, 5-sizStatSiz[sizIdx]), BTsta(0, sizStatSiz[sizIdx] - 1), BTsta(1, 1), BTreg(2, 5, In), BTreg(0, 5, IO) });
         }
 
@@ -1008,8 +1008,8 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizIdx = esizIdxs[elemsize];
             Assert(esizIdx != WrongStat);
-            static const uint64_t esizeStatSizes[] = {4, 3, 2};
-            uint64_t esizSSiz = esizeStatSizes[esizIdx];
+            static const int esizeStatSizes[] = {4, 3, 2};
+            int esizSSiz = esizeStatSizes[esizIdx];
             static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
@@ -1028,8 +1028,8 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizIdx = esizIdxs[elemsize];
             Assert(esizIdx != WrongStat);
-            static const uint64_t esizeStatSizes[] = {4, 3, 2};
-            uint64_t esizSSiz = esizeStatSizes[esizIdx];
+            static const int esizeStatSizes[] = {4, 3, 2};
+            int esizSSiz = esizeStatSizes[esizIdx];
             static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
             if(index[2].value > shiftFieldMask[esizIdx])
                 break;
@@ -1351,14 +1351,14 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_CMP):      return SyT(AARCH64_CMP, { SAcop(0), SAcop(1) });
     case (OP_SELECT):
         if (index.size() == 4 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(IC_IR2Aarch64(index[1].value)) });
+            return SyT(AARCH64_CSEL, { SAcop(0), SAcop(2), SAcop(3), SAimm(IC_IR2Aarch64((int)index[1].value)) });
         break;
     case (OP_IVERSON):
         if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(IC_IR2Aarch64(index[1].value))) });
+            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[1].value))) });
         break;
-    case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64(index[2].value))) });
-    case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64(index[2].value))) });
+    case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[2].value))) });
+    case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[2].value))) });
     case (OP_ARM_LDP):
         if(index.size() == 4 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG &&
            index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE && index[2].idx != index[0].idx && index[2].idx != index[1].idx && index[0].idx != index[1].idx)
@@ -2045,8 +2045,8 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
     size_t regPassed[RB_AMOUNT];
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
-    size_t currOffset = 0;
-    size_t xBasket[RB_AMOUNT] = {1,1};
+    int currOffset = 0;
+    int xBasket[RB_AMOUNT] = {1,1};
     xBasket[RB_VEC] = getVectorRegisterBits() / 64;
     for(const Arg& arg : a_func.params)
     {
@@ -2462,7 +2462,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                    (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10) );
             Arg sp = argReg(RB_INT, SP);
             int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
-            std::vector<std::pair<int64_t, std::pair<int64_t, int64_t> > > spillLayout = {
+            std::vector<std::pair<int, std::pair<int, int> > > spillLayout = {
                 {0, {R0, R1}}, {2, {R2, R3}}, {4, {R4, R5}}, {6, {R6, R7}},{8, {XR, R9}}, {10, {R10, R11}}, {12, {R12, R13}}, {14, {R14, R15}}, {16, {IP0, IP1}}} ;
             //1.) Save scalar registers
             for(auto layPair : spillLayout)

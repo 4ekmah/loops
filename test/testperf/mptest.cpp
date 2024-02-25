@@ -58,7 +58,7 @@ template<> struct MPTestTraits<float> {
     static inline bool cmp_ne(ftype a, ftype b) { return (a!=b); } 
     static inline ftype max(ftype a, ftype b) { return std::max(a,b); }
     static inline ftype min(ftype a, ftype b) { return std::min(a,b); }
-    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
+    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_maxpool_algs_limits_f32(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1); }
     static inline maxpool_t generate_mp(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
     { return generate_maxpool_f32(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1, activation_type, alpha); }
@@ -76,7 +76,7 @@ template<> struct MPTestTraits<f16_t> {
     static inline bool cmp_ne(ftype a, ftype b) { return float(a)!=float(b); }
     static inline ftype max(ftype a, ftype b) { return (float(a) > float(b)) ? a : b; }
     static inline ftype min(ftype a, ftype b) { return (float(a) < float(b)) ? a : b; }
-    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
+    static inline void calc_dwc_algs_limits(Context* CTX, struct dwc_algs_limits* out, int C, int W, int H, int kw, int kh, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x)
     { calc_maxpool_algs_limits_f16(CTX, out, C, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1); }
     static inline maxpool_t generate_mp(Context* CTX, int kh, int kw, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha)
     { return generate_maxpool_f16(CTX, kh, kw, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1, activation_type, alpha); }

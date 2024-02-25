@@ -405,7 +405,7 @@ bool zip_is_equal(const std::string& filename, miniz_cpp::zip_info& fil)
         std::vector<char> buf(fsize, 0);
         std::ifstream filstr(filename.c_str(), std::ios::in | std::ios::binary);
         filstr.read(buf.data(), fsize);
-        uint32_t crc = mz_crc32(MZ_CRC32_INIT, (mz_uint8*)buf.data(), fsize);
+        uint32_t crc = (uint32_t)mz_crc32(MZ_CRC32_INIT, (mz_uint8*)buf.data(), fsize);
         res = crc == fil.crc;
     }
     return res;

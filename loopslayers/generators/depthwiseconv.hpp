@@ -41,7 +41,7 @@ class DepthwiseconvGenerator
 public:
     DepthwiseconvGenerator(Context aCTX) : CTX(aCTX), m_done(false) {}
     typename DWCGenTraits<_Tp>::dwconv_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha);
-    dwc_algs_limits calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x);
+    dwc_algs_limits calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x);
 private:
     Context CTX;
     bool m_done; 
@@ -778,7 +778,7 @@ VReg<_Tp> DepthwiseconvGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
 }
 
 template<typename _Tp>
-dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int /*padding_bottom*/, int /*padding_right*/, int stride_y, int stride_x)
+dwc_algs_limits DepthwiseconvGenerator<_Tp>::calc_dwc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int /*padding_bottom*/, int /*padding_right*/, int stride_y, int stride_x)
 {
     int Cms, Cme;
     int lanes = CTX.vlanes<_Tp>(); 

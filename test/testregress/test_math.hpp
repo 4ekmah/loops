@@ -136,7 +136,7 @@ TEST(math, exp_f32)
             RETURN_();
         }
     }
-    typedef void (*exp_f32_f)(float* dest, const float* src, int n);
+    typedef void (*exp_f32_f)(float* dest, const float* src, int64_t n);
     loops::Func func = ctx.getFunc(test_info_->name());
     switch_spill_stress_test_mode_on(func);
     EXPECT_IR_CORRECT(func);
