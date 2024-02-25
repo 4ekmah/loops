@@ -31,7 +31,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
     if (printheader)
         printHeader(out, toPrint);
     std::vector<std::string> pdetails;
-    std::vector<size_t> max_widthes(m_columns.size(), 0);
+    std::vector<int> max_widthes(m_columns.size(), 0);
     pdetails.reserve(m_columns.size() * (lastop-firstop));
     for(int rownum = firstop; rownum < lastop; rownum++)
         for (int colnum = 0; colnum < (int)m_columns.size(); colnum++)
@@ -42,7 +42,7 @@ void Printer::print(std::ostream& out, const Syntfunc& toPrint, bool printheader
             colprinter(str, toPrint.program[rownum], rownum, m_backend);
             str.flush();
             col = str.str();
-            max_widthes[colnum] = std::max(max_widthes[colnum], col.size());
+            max_widthes[colnum] = std::max(max_widthes[colnum], (int)col.size());
             pdetails.push_back(col);
         }
     for(int rownum = firstop; rownum < lastop; rownum++)

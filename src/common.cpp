@@ -262,11 +262,12 @@ namespace loops
     }
 
     std::string Func::name() const { return static_cast<FuncImpl*>(impl)->name(); }
+    int Func::signature() const { return static_cast<FuncImpl*>(impl)->signature(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
-    void Func::printBytecode(std::ostream& out) const
+    void Func::printIR(std::ostream& out, const std::string& passname) const
     {
-        static_cast<FuncImpl*>(impl)->printBytecode(out, CP_BYTECODE_TO_ASSEMBLY);
+        static_cast<FuncImpl*>(impl)->printIR(out, passname);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {
@@ -354,6 +355,8 @@ namespace loops
 
     void Context::compileAll() {static_cast<ContextImpl*>(impl)->compileAll(); }
     void Context::debugModeOn() {static_cast<ContextImpl*>(impl)->debugModeOn(); }
+
+    std::vector<std::string> Context::get_all_passes() { return static_cast<ContextImpl*>(impl)->get_all_passes(); }
 
     __Loops_CondPrefixMarker_::__Loops_CondPrefixMarker_(Context& CTX_):CTX(&CTX_) 
     {
@@ -714,6 +717,14 @@ namespace loops
         }
         alloc->protect2Execution(exebuf);
     }
+
+    std::vector<std::string> ContextImpl::get_all_passes()
+    {
+        FuncImpl dummy0("", this, {});
+        Pipeline dummy(getBackend(), &dummy0, "", {});
+        return dummy.get_all_passes();
+    }
+
     Context ContextImpl::getPublicInterface()
     {
         Assert(m_refcount>0);

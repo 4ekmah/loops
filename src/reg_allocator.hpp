@@ -44,7 +44,7 @@ public:
     virtual ~LivenessAnalysisAlgo();
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual bool is_inplace() const override final { return true; }
-        virtual PassID pass_id() const override final { return CP_LIVENESS_ANALYSIS; }
+        virtual std::string pass_id() const override final { return "CP_LIVENESS_ANALYSIS"; }
 
     virtual std::vector<LiveInterval>* live_intervals();
     virtual int getSnippetCausedSpills() const;
@@ -129,7 +129,7 @@ public:
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
-    virtual PassID pass_id() const override final { return CP_REGISTER_ALLOCATION; }
+    virtual std::string pass_id() const override final { return "CP_REGISTER_ALLOCATION"; }
 
     inline int epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }

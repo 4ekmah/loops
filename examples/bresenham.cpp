@@ -105,8 +105,8 @@ int main(int /*argc*/, char** /*argv*/)
     loops::Func brsfunc = genbresenham(CTX);
 
     std::cout << "--------BRESENHAMEXAMPLE---------" << std::endl;
-    std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
-    brsfunc.printBytecode(std::cout);
+    std::cout << "=========--IR-LISTING--==========" << std::endl;
+    brsfunc.printIR(std::cout);
     std::string platform = CTX.getPlatformName();
     std::transform(platform.begin(), platform.end(), platform.begin(), [](char t) {return (char)::toupper(t); });
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;

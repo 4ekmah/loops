@@ -30,7 +30,7 @@ public:
     CodeCollecting(Syntfunc& a_data, Func* a_func);
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
-    virtual PassID pass_id() const override final;
+    virtual std::string pass_id() const override final;
 
     inline void newiopNoret(int opcode, ::std::initializer_list<Expr> args);
     void loadvec_deinterleave2_(Arg& res1, Arg& res2, const Expr& base);

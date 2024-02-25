@@ -10,10 +10,15 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "testregress/test_math.hpp"
 #include "testregress/test_aarch64.hpp"
 #include "testregress/test_intel64.hpp"
+#include <gtest/gtest.h>
 
-int main(int /*argc*/, char** /*argv*/)
+int main(int argc, char** argv)
 {
-    loops::TestSuite* suite = loops::TestSuite::getInstance();
-    suite->run(false);
-    return 0;
+    unzip_listings();
+
+    ::testing::InitGoogleTest(&argc, argv);
+    int res = RUN_ALL_TESTS();
+    refresh_zip_listings();
+
+    return res;
 }

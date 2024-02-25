@@ -61,11 +61,6 @@ namespace loops
         INTEL64_RET    = 44 
     };
 
-    enum {
-        CP_INTEL64_BRA_SNIPPETS = CP_ARCH_SPECIFIC,
-        CP_INTEL64_ARA_SNIPPETS
-    };
-
     class Intel64Backend : public Backend
     {
     public:
@@ -83,7 +78,6 @@ namespace loops
         virtual std::unordered_map<int, std::string> getOpStrings() const override final;
         virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
         virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
-        virtual void switchOnSpillStressMode() override final;
     };
 
 }

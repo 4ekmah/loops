@@ -346,9 +346,14 @@ public:
     Func& operator=(const Func& f);
     virtual ~Func();
 
-    std::string name() const; //TODO(ch): what for we need name here? 
+    std::string name() const;
+    int signature() const; //Currently it returns only amount of function's scalar parameters(all are int64_t, basically).
+
     void* ptr(); // returns function pointer. Ensure, that all passed parameters are 64-bit wide.
-    void printBytecode(std::ostream& out) const;
+    
+    //If passname is empty, this function will print IR on stage just before IR to
+    //assembly translation. This stage have different names on different platforms.
+    void printIR(std::ostream& out, const std::string& passname = "") const;
     enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
     void printAssembly(std::ostream& out, int columns = PC_OPNUM | PC_OP | PC_HEX) const;
 
@@ -389,6 +394,7 @@ public:
     template<typename _Tp> inline int vlanes() const { return vbytes() / (int)sizeof(_Tp); }
     void compileAll();
     void debugModeOn();//Gives ability to print listings even after compilation
+    std::vector<std::string> get_all_passes();
 protected:
     Context(Context* a_impl): impl(a_impl) {}
     Context* impl;

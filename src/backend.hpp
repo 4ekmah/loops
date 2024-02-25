@@ -146,7 +146,6 @@ public:
     virtual std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
     virtual std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
-    virtual void switchOnSpillStressMode() = 0;
 
     const std::vector<CompilerPassPtr>& getAfterRegAllocPasses() const { return m_afterRegAllocPasses; }
     const std::vector<CompilerPassPtr>& getBeforeRegAllocPasses() const { return m_beforeRegAllocPasses; }

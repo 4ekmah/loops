@@ -120,12 +120,6 @@ enum {
     AARCH64_RET    = 98
 };
 
-enum {
-    CP_AARCH64_BIG_IMMEDIATES = CP_ARCH_SPECIFIC,
-    CP_AARCH64_SNIPPETS,
-};
-
-
 class Aarch64Backend : public Backend
 {
 public:
@@ -142,7 +136,6 @@ public:
     virtual std::unordered_map<int, std::string> getOpStrings() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
-    virtual void switchOnSpillStressMode() override final;
 };
 
 }

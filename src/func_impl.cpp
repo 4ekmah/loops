@@ -322,9 +322,17 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<int>& a_para
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
-void FuncImpl::printBytecode(std::ostream& out, int uptoPass)
+void FuncImpl::printIR(std::ostream& out, const std::string& uptoPass_)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
+    std::string uptoPass = uptoPass_;
+    if (uptoPass == "")
+    {
+        std::vector<std::string>  allpasses = l_pipeline.get_all_passes();
+        auto found = std::find(allpasses.begin(), allpasses.end(), "CP_IR_TO_ASSEMBLY");
+        Assert(found != allpasses.end() && found != allpasses.begin());
+        uptoPass = *(found - 1);
+    }
     l_pipeline.run_until(uptoPass);
     Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
     printer.print(out, l_pipeline.get_data());
@@ -333,7 +341,7 @@ void FuncImpl::printBytecode(std::ostream& out, int uptoPass)
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
-    l_pipeline.run_until_including(CP_BYTECODE_TO_ASSEMBLY);
+    l_pipeline.run_until("CP_IR_TO_ASSEMBLY");
     
     Backend* backend = m_context->getBackend();
     std::vector<Printer::ColPrinter> columnPrs;
@@ -374,9 +382,9 @@ const FuncBodyBuf FuncImpl::get_hex_body()
 
 void FuncImpl::endFunc()
 {
-    m_pipeline->run_until_including(CP_COLLECTING);
+    m_pipeline->run_until("CP_COLLECTING");
     if (m_directTranslation)
-        m_pipeline->pass_until(CP_BYTECODE_TO_ASSEMBLY);
+        m_pipeline->skip_until("CP_IR_TO_ASSEMBLY");
     if (m_context->debug_mode())
         m_debug_pipeline = std::make_shared<Pipeline>(*(m_pipeline.get()));
 }

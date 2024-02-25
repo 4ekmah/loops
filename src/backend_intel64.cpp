@@ -1124,7 +1124,7 @@ namespace loops
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64BRASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual PassID pass_id() const override final { return CP_INTEL64_BRA_SNIPPETS; }
+        virtual std::string pass_id() const override final { return "CP_INTEL64_BRA_SNIPPETS"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64BRASnippets> res;
@@ -1141,7 +1141,7 @@ namespace loops
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
         virtual ~Intel64ARASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual PassID pass_id() const override final { return CP_INTEL64_ARA_SNIPPETS; }
+        virtual std::string pass_id() const override final { return "CP_INTEL64_ARA_SNIPPETS"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
             std::shared_ptr<Intel64ARASnippets> res;
@@ -1987,23 +1987,6 @@ namespace loops
                 a_dest.program.push_back(op);
                 break;
             }
-    }
-    
-    void Intel64Backend::switchOnSpillStressMode()
-    {
-#if __LOOPS_OS == __LOOPS_WINDOWS
-        m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
-        m_returnRegisters[RB_INT] = { RAX };
-        m_callerSavedRegisters[RB_INT] = {};
-        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
-#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-        m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX };
-        m_returnRegisters[RB_INT] = { RAX };
-        m_callerSavedRegisters[RB_INT] = {};
-        m_calleeSavedRegisters[RB_INT] = { R12, R13, R14, R15 };
-#else
-#error Unknown OS
-#endif
     }
 }
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64

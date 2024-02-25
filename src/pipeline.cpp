@@ -273,7 +273,7 @@ namespace loops
         a_dest.program.push_back(Syntop(OP_RET, {}));
     }
 
-    void Bytecode2Assembly::process(Syntfunc &a_dest, const Syntfunc &a_source)
+    void IR2Assembly::process(Syntfunc &a_dest, const Syntfunc &a_source)
     {
         std::unordered_map<size_t, size_t> label_map;
         std::unordered_map<size_t, std::vector<label_ref_info>> label_ref_map;
@@ -378,17 +378,10 @@ namespace loops
         m_mode = PM_FINDORDER;
         run();
         m_mode = PM_REGULAR;
+        m_cp_collecting_pass_num = m_pass_ordering.at("CP_COLLECTING");
     }
 
-    void Pipeline::run_until(PassID a_passID)
-    {
-        int target_pass = m_pass_ordering.at(a_passID) - 1;
-        m_target_pass = target_pass;
-        run();
-        m_current_pass = target_pass + 1;
-    }
-
-    void Pipeline::run_until_including(PassID a_passID)
+    void Pipeline::run_until(const std::string& a_passID)
     {
         int target_pass = m_pass_ordering.at(a_passID);
         m_target_pass = target_pass;
@@ -396,23 +389,63 @@ namespace loops
         m_current_pass = target_pass + 1;
     }
 
-    void Pipeline::pass_until(PassID a_passID)
+    void Pipeline::run_all_before(const std::string& a_passID)
+    {
+        int target_pass = m_pass_ordering.at(a_passID) - 1;
+        m_target_pass = target_pass;
+        run();
+        m_current_pass = target_pass + 1;
+    }
+
+    void Pipeline::skip_until(const std::string& a_passID)
     {
         m_current_pass = m_pass_ordering.at(a_passID);
     }
 
     CodeCollecting *Pipeline::get_code_collecting()
     {
-        AssertMsg(m_current_pass <= CP_COLLECTING, "Attempt to add instruction to already finished function.");
+        AssertMsg(m_current_pass <= m_cp_collecting_pass_num, "Attempt to add instruction to already finished function.");
         return &m_codecol;
     }
 
     void Pipeline::overrideRegisterSet(int basketNum, const std::vector<int> &a_parameterRegisters, const std::vector<int> &a_returnRegisters, const std::vector<int> &a_callerSavedRegisters, const std::vector<int> &a_calleeSavedRegisters)
     {
+        std::set<int> m_parameterRegistersO_;
+        {
+            std::vector<int> parameterRegisters = m_backend->parameterRegisters(basketNum);
+            for (int reg : parameterRegisters) m_parameterRegistersO_.insert(reg);
+        }
+        std::set<int> m_returnRegistersO_;
+        {
+            std::vector<int> returnRegisters = m_backend->returnRegisters(basketNum);
+            for (int reg : returnRegisters) m_returnRegistersO_.insert(reg);
+        }
+        std::set<int> m_callerSavedRegistersO_;
+        {
+            std::vector<int> callerSavedRegisters = m_backend->callerSavedRegisters(basketNum);
+            for (int reg : callerSavedRegisters) m_callerSavedRegistersO_.insert(reg);
+        }
+        std::set<int> m_calleeSavedRegistersO_;
+        {
+            std::vector<int> calleeSavedRegisters = m_backend->calleeSavedRegisters(basketNum);
+            for (int reg : calleeSavedRegisters) m_calleeSavedRegistersO_.insert(reg);
+        }
+        for (int reg : a_parameterRegisters) Assert(m_parameterRegistersO_.find(reg) != m_parameterRegistersO_.end());
+        for (int reg : a_returnRegisters) Assert(m_returnRegistersO_.find(reg) != m_returnRegistersO_.end());
+        for (int reg : a_callerSavedRegisters) Assert(m_callerSavedRegistersO_.find(reg) != m_callerSavedRegistersO_.end());
+        for (int reg : a_calleeSavedRegisters) Assert(m_calleeSavedRegistersO_.find(reg) != m_calleeSavedRegistersO_.end());
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
         m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;
         m_calleeSavedRegistersO[basketNum] = a_calleeSavedRegisters;
+    }
+
+    std::vector<std::string> Pipeline::get_all_passes()
+    {
+        std::vector<std::string> result(m_pass_ordering.size());
+        for (auto pass : m_pass_ordering)
+            result[pass.second] = pass.first;
+        return result;
     }
 
     void Pipeline::run()
@@ -440,7 +473,7 @@ namespace loops
         auto afterRegAlloc = m_backend->getAfterRegAllocPasses();
         for (CompilerPassPtr araPass : afterRegAlloc)
             run_pass(araPass.get());
-        Bytecode2Assembly b2aPass(m_backend);
+        IR2Assembly b2aPass(m_backend);
         run_pass(&b2aPass);
         Assembly2Hex a2hPass(m_backend);
         run_pass(&a2hPass);
@@ -452,7 +485,7 @@ namespace loops
         if (m_mode == PM_FINDORDER)
         {
             Assert(m_pass_ordering.find(a_pass->pass_id()) == m_pass_ordering.end());
-            m_pass_ordering.insert(std::pair<int, int>(a_pass->pass_id(), (int)m_pass_ordering.size()));
+            m_pass_ordering.insert(std::pair<std::string, int>(a_pass->pass_id(), (int)m_pass_ordering.size()));
             return;
         }
         int passnum = m_pass_ordering.at(a_pass->pass_id());

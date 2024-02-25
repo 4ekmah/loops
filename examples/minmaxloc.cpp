@@ -53,8 +53,8 @@ int main(int /*argc*/, char** /*argv*/)
     loops::Func mmlfunc = genminmaxloc(CTX);
 
     std::cout << "--------MINMAXLOCEXAMPLE---------" << std::endl;
-    std::cout << "======--BYTECODE-LISTING--=======" << std::endl;
-    mmlfunc.printBytecode(std::cout);
+    std::cout << "=========--IR-LISTING--==========" << std::endl;
+    mmlfunc.printIR(std::cout);
     std::string platform = CTX.getPlatformName();
     std::transform(platform.begin(), platform.end(), platform.begin(), [](char t) {return (char)::toupper(t); });
     std::cout << "======--" << platform << "--LISTING--====== = " << std::endl;

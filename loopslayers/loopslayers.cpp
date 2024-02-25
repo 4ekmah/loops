@@ -31,7 +31,7 @@ dwconv_f32_t generate_dwc_f32(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int
     return 0;
 }
 
-void calc_dwc_algs_limits_f32(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+void calc_dwc_algs_limits_f32(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int /*H0*/, int /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
 {
     *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return;
@@ -42,7 +42,7 @@ dwconv_f16_t generate_dwc_f16(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int
     return 0;
 }
 
-void calc_dwc_algs_limits_f16(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+void calc_dwc_algs_limits_f16(loops_context /*ctx*/, dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int /*H0*/, int /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
 {
     *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return;
@@ -53,7 +53,7 @@ maxpool_f32_t generate_maxpool_f32(loops_context /*ctx*/, int /*kh*/, int /*kw*/
     return 0;
 }
 
-void calc_maxpool_algs_limits_f32(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+void calc_maxpool_algs_limits_f32(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int /*H0*/, int /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
 {
     *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return;
@@ -64,7 +64,7 @@ maxpool_f16_t generate_maxpool_f16(loops_context /*ctx*/, int /*kh*/, int /*kw*/
     return 0;
 }
 
-void calc_maxpool_algs_limits_f16(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int64_t /*H0*/, int64_t /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
+void calc_maxpool_algs_limits_f16(loops_context /*ctx*/, struct dwc_algs_limits* out, int /*NC*/, int /*H*/, int /*W*/, int /*kh*/, int /*kw*/, int /*H0*/, int /*W0*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/)
 {
     *out = dwc_algs_limits(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     return;
@@ -87,7 +87,7 @@ dwconv_f32_t generate_dwc_f32(loops_context ctx, int kh, int kw, int padding_top
     };
 }
 
-void calc_dwc_algs_limits_f32(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+void calc_dwc_algs_limits_f32(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
@@ -133,7 +133,7 @@ dwconv_f16_t generate_dwc_f16(loops_context ctx, int kh, int kw, int padding_top
     };
 }
 
-void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+void calc_dwc_algs_limits_f16(loops_context ctx, dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
@@ -179,7 +179,7 @@ maxpool_f32_t generate_maxpool_f32(loops_context ctx, int kh, int kw, int paddin
     };
 }
 
-void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+void calc_maxpool_algs_limits_f32(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||
@@ -225,7 +225,7 @@ maxpool_f16_t generate_maxpool_f16(loops_context ctx, int kh, int kw, int paddin
     };
 }
 
-void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int64_t H0, int64_t W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
+void calc_maxpool_algs_limits_f16(loops_context ctx, struct dwc_algs_limits* out, int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x)
 {
     loops::Context& CTX = *(loops::Context*)(ctx);
     if(NC <= 0 ||

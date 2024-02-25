@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #ifndef __LOOPS_TESTS_HPP__
 #define __LOOPS_TESTS_HPP__
 #include "loops/loops.hpp"
+#include <gtest/gtest.h>
 #include <vector>
 #include <map>
 #include <list>
@@ -23,63 +24,116 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "src/func_impl.hpp"
 
-namespace loops
-{
+//Reference listing archives creation reference:
+//
+//There is two flags managing process of updating listing and archives:
+//
+//RECREATE_REFERENCE_TEXTS enable listing files rewriting for files differs
+//with listings have been taken on test run(exception if files with tolerable defects: 
+//see lower). Also this flag swithched on delete old <arch>_<os>.zip archive and 
+//recreates it with updated listings.
+//NOTE: all the listing files in test/refasm/listings will be zipped, not just used
+//in tests, so be careful with test disabling - it's possible to rewrite something you 
+//don't to rewrite.
+//
+//RECREATE_TOLERABLE_DEFECT. There is a tests with unstable corresponding listings. 
+//For now the only case is function calling from loops-generated code. Loops call
+//function by hardcoding it's address in registers. Of course, on different test runs
+//address will be different and listings will be different. Structure will be the same,
+//but constants will changes all the time. For this reason there exist special versions
+//of GTEST except macro EXPECT_IR_CORRECT_TOLERABLE_DEFECT and 
+//EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT which consider mistakes in some certain
+//tokens on some certain lines as equality. The list of positions in which mistakes 
+//are acceptable is prelimiraly created and keeped in test/refasm/listing/defect.bin
+//and in corresponding place in archive. So RECREATE_TOLERABLE_DEFECT create this 
+//list, and saves it.
+//
+//So, the algorithm of full regeneration of listing package is:
+//1.) Delete test/refasm/<arch>_<os>.zip archive and test/refasm/listings folder/
+//2.) Run test suite with RECREATE_REFERENCE_TEXTS=true and
+//RECREATE_TOLERABLE_DEFECT=false. It will create listings.
+//3.) Run 5 or 10 times test suite with RECREATE_REFERENCE_TEXTS=false and
+//RECREATE_TOLERABLE_DEFECT=true. It will collect differences in all 
+//possible positions and create defect.bin file.
+//4.) Run test suite with RECREATE_REFERENCE_TEXTS=true and
+//RECREATE_TOLERABLE_DEFECT=true. It will save defect file into archive.
 
-class Test
-{
-public:
-    Test(std::ostream& out, Context& ctx): CTX(ctx), m_out(&out) {}
-    virtual ~Test() {}
-    virtual void generateCode() = 0;
-    virtual bool testExecution(const std::string& fixName) = 0;
-    bool testAssembly(const std::string& a_fixtureName, bool a_rewriteIfWrong);
-    virtual std::vector<std::string> fixturesNames() const = 0;
-    template<typename T>
-    inline bool expect_eq(const T& tstd, const T& ref)
-    {
-        bool res = (tstd == ref);
-        if (!res)
-            (*m_out)<<"    Failed:"<<tstd<<"!="<<ref<<std::endl;
-        return res;
-    }
-    template<typename T>
-    inline bool expect_near(const T& tstd, const T& ref, const T& err)
-    {
-        bool res = (::abs(tstd - ref) <= err);
-        if (!res)
-            (*m_out)<<"    Failed: distance between "<<tstd<<" and "<<ref<<" more than "<<err<<"."<<std::endl;
-        return res;
-        
-    }
+#define RECREATE_REFERENCE_TEXTS false
+#define RECREATE_TOLERABLE_DEFECT false
 
-    static std::string OSname();
-#define EXPECT_EQ(a,b) if(!expect_eq((a),(b))) return false;
-#define EXPECT_NEAR(a,b,err) if(!expect_near((a),(b),(err))) return false
-protected:
-    Context CTX;
-private:
-    std::ostream* m_out;
-    bool checkListingEquality(const std::string& curL, const std::string& refL, const std::string& errMes);
-};
+void switch_spill_stress_test_mode_on(loops::Func& func);
+void direct_translation_on(loops::Func& func);
 
-class TestSuite
+bool intermediate_representation_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect = false);
+bool assembly_is_stable(loops::Func func, std::string& errmessage, bool tolerable_defect = false);
+#define EXPECT_IR_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(intermediate_representation_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
+#define EXPECT_ASSEMBLY_CORRECT(func) do { std::string _errmsg_; EXPECT_TRUE(assembly_is_stable(func, _errmsg_)) << _errmsg_; } while(false)
+
+#define EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func) do { std::string _errmsg_; EXPECT_TRUE(intermediate_representation_is_stable(func, _errmsg_, true)) << _errmsg_; } while(false)
+#define EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func) do { std::string _errmsg_; EXPECT_TRUE(assembly_is_stable(func, _errmsg_, true)) << _errmsg_; } while(false)
+
+#define PREPARE_ASSEMBLY_TESTING(testname) loops::Func func = ctx.getFunc(testname); direct_translation_on(func); Func* _f = get_assembly_reg_param(func)
+#define DEFINE_ASSEMBLY_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
+
+void unzip_listings();
+void refresh_zip_listings();
+
+template<typename _Tp> struct typestring {};
+
+template<> struct typestring<int32_t> { static inline std::string get() { return "int32_t"; } };
+template<> struct typestring<uint32_t> { static inline std::string get() { return "uint32_t"; } };
+template<> struct typestring<float> { static inline std::string get() { return "float"; } };
+template<> struct typestring<double> { static inline std::string get() { return "double"; } };
+
+bool memok(uint8_t* canvas, int64_t w, int64_t h);
+//WARNING: test ostream is not thread-safe
+std::ostream& get_test_ostream();
+void reset_test_ostream();
+std::string get_test_ostream_result();
+
+loops::Func* get_assembly_reg_param(loops::Func& func);
+
+template<class T>
+void print_channel(T* data, int H, int W)
 {
-public:
-    static TestSuite* getInstance();
-    void run(bool rewriteListings = false);
-    template<typename T>
-    void regTest()
+    for (int i = 0; i < H; i++)
     {
-        std::shared_ptr<T> toAdd = std::make_shared<T>(*m_out, CTX);
-        m_testList.push_back(std::static_pointer_cast<Test>(toAdd));
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << data[i*W+j];
+        std::cout << std::endl;
     }
-private:
-    std::list<std::shared_ptr<Test> > m_testList;
-    Context CTX;
-    std::ostream* m_out;
-    TestSuite(std::ostream& a_out = std::cout);
-};
+    std::cout << std::endl;
+}
+
+template<class T>
+void print_channel(T* data, int H, int W, int stride) 
+{
+    for (int i = 0; i < H; i++)
+    {
+        for (int j = 0; j < W; j++)
+            std::cout << std::setw(6) << data[i*stride+j];
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+template<typename _Tp>
+loops::Expr iregtyped(const loops::Expr& reg)
+{
+    Assert(reg.opcode() == loops::EXPR_LEAF && reg.leaf().tag == loops::Arg::IREG);
+    loops::IReg ar; ar.func = reg.func(); ar.idx = reg.leaf().idx;
+    loops::IExpr ret(ar);
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret.notype();
+}
+
+template<typename _Tp>
+loops::Expr immtyped(int64_t val, loops::Func* func)
+{
+    loops::Expr ret(val);
+    ret.func() = func;
+    ret.type() = loops::ElemTraits<_Tp>::depth;
+    return ret;
 }
 
 struct Timer
@@ -128,282 +182,5 @@ struct Timer
         return outstr.str();
     }
 };
-
-bool memok(uint8_t* canvas, int64_t w, int64_t h);
-
-template<class T>
-void print_channel(T* data, int H, int W)
-{
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << data[i*W+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<class T>
-void print_channel(T* data, int H, int W, int stride) 
-{
-    for (int i = 0; i < H; i++)
-    {
-        for (int j = 0; j < W; j++)
-            std::cout << std::setw(6) << data[i*stride+j];
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<typename _Tp>
-loops::Expr iregtyped(const loops::Expr& reg)
-{
-    Assert(reg.opcode() == loops::EXPR_LEAF && reg.leaf().tag == loops::Arg::IREG);
-    loops::IReg ar; ar.func = reg.func(); ar.idx = reg.leaf().idx;
-    loops::IExpr ret(ar);
-    ret.type() = loops::ElemTraits<_Tp>::depth;
-    return ret.notype();
-}
-
-template<typename _Tp>
-loops::Expr immtyped(int64_t val, loops::Func* func)
-{
-    loops::Expr ret(val);
-    ret.func() = func;
-    ret.type() = loops::ElemTraits<_Tp>::depth;
-    return ret;
-}
-
-//WARNING: test ostream is not thread-safe
-std::ostream& get_test_ostream();
-void reset_test_ostream();
-std::string get_test_ostream_result();
-
-//TODO(ch): Interesting solution for test substitution is class derivation
-//with using RTTI for taking name of class. Still not really easy to decide what to 
-// do with fixtures, but there is a thought to think.
-#define LTEST(funcname, ...)                                    \
-class funcname: public Test                                     \
-{                                                               \
-public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx){}  \
-    ~funcname() override {}                                     \
-    virtual void generateCode() override                        \
-    {                                                           \
-        std::string TESTNAME = #funcname;                       \
-        USE_CONTEXT_(CTX)                                       \
-        __VA_ARGS__                                             \
-    }                                                           \
-    virtual bool testExecution(const std::string& fixName)      \
-                                                       override;\
-    virtual std::vector<std::string> fixturesNames() const      \
-                                                     override   \
-    { return std::vector<std::string>(1, #funcname);}           \
-};                                                              \
-class funcname##_reg                                            \
-{                                                               \
-public:                                                         \
-    funcname##_reg()                                            \
-    {                                                           \
-        TestSuite::getInstance()->regTest<funcname>();          \
-    };                                                          \
-};                                                              \
-funcname##_reg funcname##_reg_instance
-
-#define LTESTexe(funcname, ...)                                 \
-bool funcname::testExecution(const std::string& fixName)        \
-{                                                               \
-    void* EXEPTR = CTX.getFunc(fixName).ptr();                  \
-    __VA_ARGS__                                                 \
-    return true;                                                \
-}
-
-#define PTEST_1(funcname, _pT1, _p1, ...)                       \
-class funcname: public Test                                     \
-{                                                               \
-public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    static std::vector<std::string> m_fixturesNames;            \
-    static std::vector<void (*)(loops::Context)> m_generators;  \
-    static std::map<std::string,                                \
-                bool (funcname::*)(loops::Context)> m_executors;\
-    virtual std::vector<std::string> fixturesNames() const      \
-                                                     override   \
-    { return m_fixturesNames;}                                  \
-    virtual bool testExecution(const std::string& fixName)      \
-                                                        override\
-    {                                                           \
-        return (this->*m_executors[fixName])(CTX);              \
-    }                                                           \
-    virtual void generateCode() override                        \
-    {                                                           \
-        for(auto generator : m_generators)                      \
-            generator(CTX);                                     \
-    }                                                           \
-    template<_pT1 _p1>                                          \
-    static std::string pName();                                 \
-    template<_pT1 _p1>                                          \
-    bool testParameterizedExecution(loops::Context CTX);        \
-    template<_pT1 _p1>                                          \
-    static void genParameterizedCode(loops::Context CTX)        \
-    {                                                           \
-        std::string TESTNAME = pName<_p1>();                    \
-        USE_CONTEXT_(CTX)                                       \
-        __VA_ARGS__                                             \
-        m_fixturesNames.push_back(TESTNAME);                    \
-        m_executors[TESTNAME] =                                 \
-                     &funcname::testParameterizedExecution<_p1>;\
-    }                                                           \
-};                                                              \
-std::vector<std::string> funcname::m_fixturesNames;             \
-std::vector<void (*)(loops::Context)> funcname::m_generators;   \
-std::map<std::string, bool (funcname::*)(loops::Context)>       \
-                                          funcname::m_executors;\
-class funcname##_reg                                            \
-{                                                               \
-public:                                                         \
-    funcname##_reg()                                            \
-    {                                                           \
-        TestSuite::getInstance()->regTest<funcname>();          \
-    };                                                          \
-};                                                              \
-funcname##_reg funcname##_reg_instance
-
-#define PTESTexe_1(funcname, _pT1, _p1, ...)                    \
-template<_pT1 _p1>                                              \
-bool funcname::testParameterizedExecution(loops::Context CTX)   \
-{                                                               \
-    void* EXEPTR = CTX.getFunc(funcname::pName<_p1>()).ptr();   \
-    __VA_ARGS__                                                 \
-    return true;                                                \
-}
-
-#define PTESTfix_1(funcname, _p1)                               \
-template<>                                                      \
-std::string funcname::pName<_p1>()                              \
-{                                                               \
-    return std::string(#funcname) + "_" + #_p1;                 \
-}                                                               \
-class funcname##_gfix_##_p1                                     \
-{                                                               \
-public:                                                         \
-    funcname##_gfix_##_p1()                                     \
-    {                                                           \
-        funcname::m_generators.push_back(                       \
-              &(funcname::genParameterizedCode<_p1>));          \
-    };                                                          \
-};                                                              \
-funcname##_gfix_##_p1 inst##funcname##_gfix_##_p1
-
-
-#define PTEST_2(funcname, _pT1, _p1, _pT2, _p2, ...)            \
-class funcname: public Test                                     \
-{                                                               \
-public:                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {} \
-    static std::vector<std::string> m_fixturesNames;            \
-    static std::vector<void (*)(loops::Context)> m_generators;  \
-    static std::map<std::string,                                \
-                bool (funcname::*)(loops::Context)> m_executors;\
-    virtual std::vector<std::string> fixturesNames() const      \
-                                                     override   \
-    { return m_fixturesNames;}                                  \
-    virtual bool testExecution(const std::string& fixName)      \
-                                                        override\
-    {                                                           \
-        return (this->*m_executors[fixName])(CTX);              \
-    }                                                           \
-    virtual void generateCode() override                        \
-    {                                                           \
-        for(auto generator : m_generators)                      \
-            generator(CTX);                                     \
-    }                                                           \
-    template<_pT1 _p1, _pT2 _p2>                                \
-    static std::string pName();                                 \
-    template<_pT1 _p1, _pT2 _p2>                                \
-    bool testParameterizedExecution(loops::Context CTX);        \
-    template<_pT1 _p1, _pT2 _p2>                                \
-    static void genParameterizedCode(loops::Context CTX)        \
-    {                                                           \
-        std::string TESTNAME = pName<_p1, _p2>();               \
-        USE_CONTEXT_(CTX)                                       \
-        __VA_ARGS__                                             \
-        m_fixturesNames.push_back(TESTNAME);                    \
-        m_executors[TESTNAME] =                                 \
-                &funcname::testParameterizedExecution<_p1, _p2>;\
-    }                                                           \
-};                                                              \
-std::vector<std::string> funcname::m_fixturesNames;             \
-std::vector<void (*)(loops::Context)> funcname::m_generators;   \
-std::map<std::string, bool (funcname::*)(loops::Context)>       \
-                                          funcname::m_executors;\
-class funcname##_reg                                            \
-{                                                               \
-public:                                                         \
-    funcname##_reg()                                            \
-    {                                                           \
-        TestSuite::getInstance()->regTest<funcname>();          \
-    };                                                          \
-};                                                              \
-funcname##_reg funcname##_reg_instance
-
-#define PTESTexe_2(funcname, _pT1, _p1, _pT2, _p2, ...)         \
-template<_pT1 _p1, _pT2 _p2>                                    \
-bool funcname::testParameterizedExecution(loops::Context CTX)   \
-{                                                               \
-    void* EXEPTR = CTX.getFunc(funcname::pName<_p1, _p2>()).ptr();\
-    __VA_ARGS__                                                 \
-    return true;                                                \
-}
-
-#define PTESTfix_2(funcname, _p1, _p2)                          \
-template<>                                                      \
-std::string funcname::pName<_p1, _p2>()                         \
-{                                                               \
-    return std::string(#funcname) + "_" + #_p1 + "_" + #_p2;    \
-}                                                               \
-class funcname##_gfix_##_p1##_p2                                \
-{                                                               \
-public:                                                         \
-    funcname##_gfix_##_p1##_p2()                                \
-    {                                                           \
-        funcname::m_generators.push_back(                       \
-              &(funcname::genParameterizedCode<_p1, _p2>));     \
-    };                                                          \
-};                                                              \
-funcname##_gfix_##_p1##_p2 inst##funcname##_gfix_##_p1##_p2
-
-
-#define LTESTcomposer(funcname, ...)                                            \
-class funcname: public Test                                                     \
-{                                                                               \
-public:                                                                         \
-    funcname(std::ostream& out, Context& ctx): Test(out,ctx) {}                 \
-    virtual void generateCode() override                                        \
-    {                                                                           \
-        std::string TESTNAME = #funcname;                                       \
-        if(__Loops_FuncScopeBracket_ __loops_func_{&CTX, (TESTNAME), {}}); else \
-        {                                                                       \
-            __VA_ARGS__                                                         \
-            loops::Func func = CTX.getFunc(TESTNAME);                           \
-            getImpl(&func)->directTranslationOn();                              \
-        }                                                                       \
-    }                                                                           \
-    virtual bool testExecution(const std::string& /*fixName*/)                  \
-                                                     override                   \
-    { return true; }                                                            \
-    virtual std::vector<std::string> fixturesNames() const                      \
-                                                     override                   \
-    { return std::vector<std::string>(1, #funcname);}                           \
-};                                                                              \
-class funcname##_reg                                                            \
-{                                                                               \
-public:                                                                         \
-    funcname##_reg()                                                            \
-    {                                                                           \
-        TestSuite::getInstance()->regTest<funcname>();                          \
-    };                                                                          \
-};                                                                              \
-funcname##_reg funcname##_reg_instance
 
 #endif//__LOOPS_TESTS_HPP__

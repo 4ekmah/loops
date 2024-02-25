@@ -14,6 +14,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <deque>
 #include <map>
 #include <set>
+#include <atomic>
 
 namespace loops {
 
@@ -26,12 +27,13 @@ public:
     static Func makeWrapper(const std::string& name, ContextImpl* ctx, std::initializer_list<IReg*> params);
 
     std::string name() const { return m_pipeline->get_data().name; }
+    int signature() const { return (int)m_pipeline->get_data().params.size(); }
     void* ptr();
     void endFunc();
-    void printBytecode(std::ostream& out, int uptoPASS = CP_COLLECTING);
+    void printIR(std::ostream& out, const std::string& uptoPASS);
     void printAssembly(std::ostream& out, int columns);
 
-     inline ContextImpl* getContext() { return m_context; }
+    inline ContextImpl* getContext() { return m_context; }
 
     const Syntfunc& get_data() const;
     const FuncBodyBuf get_hex_body();
@@ -49,7 +51,7 @@ public:
         const std::vector<int>&  a_callerSavedRegisters,
         const std::vector<int>&  a_calleeSavedRegisters);
 
-    size_t m_refcount; //TODO: I must check if refcounting and impl logic is threadsafe.
+    std::atomic<size_t> m_refcount;
 private:
     ContextImpl* m_context;
 

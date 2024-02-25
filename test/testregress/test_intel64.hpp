@@ -16,14 +16,16 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include <iostream>
 
-namespace loops
+using namespace loops;
+
+TEST(intel64, arithm_arrs)
 {
-    LTEST(arithm_arrs, { //There we are testing stack parameter passing.
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    {
         IReg ptrA, ptrB, n, ptrAdd, ptrSub, ptrMul, ptrDiv;
-        STARTFUNC_(TESTNAME, &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv )
+        STARTFUNC_(test_info_->name(), &ptrA, &ptrB, &n, &ptrAdd, &ptrSub, &ptrMul, &ptrDiv)
         {
-            if(OSname() == "Linux") 
-                getImpl(getImpl(&CTX)->getCurrentFunc())->overrideRegisterSet(RB_INT, { 7,6,2,1,8,9 }, { 0 }, {}, { 12, 13, 14, 15 });
             IReg offset = CONST_(0);
             IReg i = CONST_(0);
             WHILE_(i < n)
@@ -43,56 +45,63 @@ namespace loops
             };
             RETURN_(0);
         }
-        });
-    LTESTexe(arithm_arrs, {
-        typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
-        arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(EXEPTR);
-        std::vector<int> A = { 8, 2, -5, 7, 6 };
-        std::vector<int> B = { 2, -5, 7, 6, 8 };
-        int addArr[5];
-        int subArr[5];
-        int mulArr[5];
-        int divArr[5];
-        EXPECT_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
-        for (size_t n = 0; n < 5; n++)
-        {
-            EXPECT_EQ(A[n] + B[n], addArr[n]);
-            EXPECT_EQ(A[n] - B[n], subArr[n]);
-            EXPECT_EQ(A[n] * B[n], mulArr[n]);
-            EXPECT_EQ(A[n] / B[n], divArr[n]);
-        }
-        })
+    }
+    typedef int (*arithm_arrs_f)(const int* ptrA, const int* ptrB, int64_t n, int* ptrAdd, int* ptrSub, int* ptrMul, int* ptrDiv);
+    loops::Func func = ctx.getFunc(test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    arithm_arrs_f tested = reinterpret_cast<arithm_arrs_f>(func.ptr());
+    std::vector<int> A = { 8, 2, -5, 7, 6 };
+    std::vector<int> B = { 2, -5, 7, 6, 8 };
+    int addArr[5];
+    int subArr[5];
+    int mulArr[5];
+    int divArr[5];
+    ASSERT_EQ(tested(&A[0], &B[0], A.size(), addArr, subArr, mulArr, divArr), 0);
+    for (size_t n = 0; n < 5; n++)
+    {
+        ASSERT_EQ(A[n] + B[n], addArr[n]);
+        ASSERT_EQ(A[n] - B[n], subArr[n]);
+        ASSERT_EQ(A[n] * B[n], mulArr[n]);
+        ASSERT_EQ(A[n] / B[n], divArr[n]);
+    }
+}
 
-#define DEFINE_CERTAIN_REG(name, number) IReg name##_0; name##_0.func = _f; name##_0.idx = number; IExpr name##_1(name##_0); Expr name = name##_1.notype()
-    LTESTcomposer(instruction_set_test, {
-        Func * _f = getImpl(getImpl(&CTX)->getCurrentFunc());
+TEST(intel64, instruction_set_test)
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    STARTFUNC_(test_info_->name())
+    {
+        PREPARE_ASSEMBLY_TESTING(test_info_->name());
 
-        DEFINE_CERTAIN_REG(rax, 0);
-        DEFINE_CERTAIN_REG(rcx, 1 );
-        DEFINE_CERTAIN_REG(rdi, 7 );
-        DEFINE_CERTAIN_REG(r8 , 8 );
-        DEFINE_CERTAIN_REG(r12, 12);
-        DEFINE_CERTAIN_REG(r13, 13);
-        DEFINE_CERTAIN_REG(r15, 15);
+        DEFINE_ASSEMBLY_REG(rax, 0);
+        DEFINE_ASSEMBLY_REG(rcx, 1 );
+        DEFINE_ASSEMBLY_REG(rdi, 7 );
+        DEFINE_ASSEMBLY_REG(r8 , 8 );
+        DEFINE_ASSEMBLY_REG(r12, 12);
+        DEFINE_ASSEMBLY_REG(r13, 13);
+        DEFINE_ASSEMBLY_REG(r15, 15);
 
-        DEFINE_CERTAIN_REG(eax , 0);
-        DEFINE_CERTAIN_REG(edi , 7);
-        DEFINE_CERTAIN_REG(r8d , 8);
-        DEFINE_CERTAIN_REG(r12d, 12);
-        DEFINE_CERTAIN_REG(r13d, 13);
+        DEFINE_ASSEMBLY_REG(eax , 0);
+        DEFINE_ASSEMBLY_REG(edi , 7);
+        DEFINE_ASSEMBLY_REG(r8d , 8);
+        DEFINE_ASSEMBLY_REG(r12d, 12);
+        DEFINE_ASSEMBLY_REG(r13d, 13);
 
-        DEFINE_CERTAIN_REG(ax  , 0 );
-        DEFINE_CERTAIN_REG(di  , 7 );
-        DEFINE_CERTAIN_REG(r8w , 8 );
-        DEFINE_CERTAIN_REG(r12w, 12);
-        DEFINE_CERTAIN_REG(r13w, 13);
+        DEFINE_ASSEMBLY_REG(ax  , 0 );
+        DEFINE_ASSEMBLY_REG(di  , 7 );
+        DEFINE_ASSEMBLY_REG(r8w , 8 );
+        DEFINE_ASSEMBLY_REG(r12w, 12);
+        DEFINE_ASSEMBLY_REG(r13w, 13);
 
-        DEFINE_CERTAIN_REG(al  , 0 );
-        DEFINE_CERTAIN_REG(cl  , 1 );
-        DEFINE_CERTAIN_REG(dil , 7 );
-        DEFINE_CERTAIN_REG(r8b , 8 );
-        DEFINE_CERTAIN_REG(r12b, 12);
-        DEFINE_CERTAIN_REG(r13b, 13);
+        DEFINE_ASSEMBLY_REG(al  , 0 );
+        DEFINE_ASSEMBLY_REG(cl  , 1 );
+        DEFINE_ASSEMBLY_REG(dil , 7 );
+        DEFINE_ASSEMBLY_REG(r8b , 8 );
+        DEFINE_ASSEMBLY_REG(r12b, 12);
+        DEFINE_ASSEMBLY_REG(r13b, 13);
 
         Expr spilled32(argSpilled(RB_INT, 32));
         Expr spilled0x1FFF(argSpilled(RB_INT, 0x1FFF));
@@ -742,8 +751,9 @@ namespace loops
         newiopNoret(OP_CALL_NORET, {  r8 });
         newiopNoret(OP_CALL_NORET, { r15 });
         newiopNoret(OP_CALL_NORET, { spilled32 });
-        });
-#undef DEFINE_CERTAIN_REG
+    }
+    loops::Func func = ctx.getFunc(test_info_->name());
+    EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
 #endif//__LOOPS_TEST_INTEL64_HPP__
