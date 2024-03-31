@@ -12,6 +12,44 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
+int print_syntfunc(FILE* out, syntfunc2print* func, printer_new* printer)
+{
+    int cols = printer->colprinters_size;
+    int rows = func->program_size;
+    printer->cells = (char**)malloc(cols * rows * sizeof(char*)); 
+
+    int* max_widthes = (int*)malloc(cols * sizeof(int));
+    memset(max_widthes, 0, cols * sizeof(int));
+    for(int row = 0; row < rows; row++)
+        for(int col = 0; col < cols; col++) 
+        {
+            //DUBUG: well, here we can also really call column printers and really get strings.
+            int collen = (int)strlen(printer->cells[row*cols + col]) + 1; //DUBUG: does C89 have size_t?
+            max_widthes[col] = (max_widthes[col] < collen ? collen : max_widthes[col]); //DUBUG: does C89 have ternary operator?
+        }
+
+    char** printtasks = (char**)malloc(cols * sizeof(char*));
+    char* printtasksbuf = (char*)malloc(cols * 10);
+    memset(printtasksbuf, 0, cols * 10);
+    for(int col = 0; col < cols; col++)
+    {
+        printtasks[col] = printtasksbuf + 10 * col; 
+        sprintf_s(printtasks[col], 10, "%%%ds", max_widthes[col]); 
+    }
+
+    for(int row = 0; row < rows; row++)
+    {
+        for(int col = 0; col < cols; col++) 
+            fprintf(out, printtasks[col], printer->cells[row * cols + col]);
+        fprintf(out, "\n");
+    }
+    free(max_widthes);
+    free(printtasks);
+    free(printtasksbuf);
+    free(printer->cells);
+    return 0;
+}
+
 void print_address(::std::ostream& str, int64_t addr)
 {
     static char hexsymb[] = "0123456789ABCDEF";

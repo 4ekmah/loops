@@ -17,6 +17,38 @@ See https://github.com/4ekmah/loops/LICENSE
 namespace loops
 {
 
+struct syntfunc2print //TODO: In the end, this struct have to be reunited with Syntfunc
+{
+    Syntop* program;  //TODO: this ridiculous (pointer, length) pairs have to be replaced with C-written implementation of vector.
+    int program_size;
+    Arg* params;
+    int params_size;
+    char* name;
+};
+
+struct column_printer; 
+
+typedef int (*print_column_t)(FILE* out, syntfunc2print* func, int row, column_printer* colprint);
+
+struct column_printer //DUBUG: check, that everything is needed
+{
+    print_column_t func;
+    char* buffer;
+    int currentoffset;
+};
+
+struct printer_new
+{
+    column_printer* colprinters;
+    int colprinters_size;
+    char** cells;
+};
+
+int create_ir_printer(int columnflags, printer_new** res);
+int create_assembly_printer(int columnflags, printer_new** res);
+int free_printer(printer_new* tofree);
+int print_syntfunc(FILE* out, syntfunc2print* func, printer_new* printer); //DUBUG: actually, it have to be member of printer_new, does C89 support member functions?
+
 void print_address(::std::ostream& str, int64_t addr);
 
 static inline ::std::ostream& operator<<(::std::ostream& str, const Arg& arg)
