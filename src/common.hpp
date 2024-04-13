@@ -14,6 +14,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <typeindex>
 #include <memory>
 #include <atomic>
+#include <uthash.h>
 
 #define LOOPS_ASSERT_LINE_(x) #x
 #define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
@@ -29,6 +30,19 @@ See https://github.com/4ekmah/loops/LICENSE
         ;                    \
     else                     \
         throw std::runtime_error(msg)
+
+
+enum {LOOPS_MAX_OPERATION_NAME_WIDTH = 30};
+typedef struct name_map_elem
+{
+    int enum_id;
+    char string_id[30];
+    UT_hash_handle hh;
+} name_map_elem;
+
+void add_name_to_map(name_map_elem** map_to_append, int id, const char* name);
+void free_name_map(name_map_elem** map_to_append);
+
 
 namespace loops
 {

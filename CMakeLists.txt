@@ -26,6 +26,7 @@ file(GLOB loops_ihdrs "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
 file(GLOB loops_srcs  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
 add_library(loops STATIC ${loops_hdrs} ${loops_himp} ${loops_srcs} ${loops_ihdrs})
 include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/uthash/src/")
 target_compile_options(loops ${CMP_OPTIONS})
 
 #LOOPSLAYERS LIBRARY

@@ -5,6 +5,7 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
+#include "printer.hpp"
 #include "backend_aarch64.hpp"
 #include "backend_intel64.hpp"
 #include "backend.hpp"
@@ -15,6 +16,60 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <stack>
 #include <cstring>
+
+// Initializer/finalizer sample for MSVC and GCC/Clang.
+// 2010-2016 Joe Lowe. Released into the public domain.
+#if defined(_MSC_VER)                  //TODO: redefine this macros with your compiler detection macroses(a-la __LOOPS_INTEL64).
+    #pragma section(".CRT$XCU",read)
+    #define INITIALIZER2_(f,p) \
+        static void f(void); \
+        __declspec(allocate(".CRT$XCU")) void (*f##_)(void) = f; \
+        __pragma(comment(linker,"/include:" p #f "_")) \
+        static void f(void)
+    #ifdef _WIN64
+        #define INITIALIZER(f) INITIALIZER2_(f,"")
+    #else
+        #define INITIALIZER(f) INITIALIZER2_(f,"_")
+    #endif
+#else
+    #define INITIALIZER(f) \
+        static void f(void) __attribute__((constructor)); \
+        static void f(void)
+#endif
+
+void add_name_to_map(name_map_elem** map_to_append, int id, const char* name)
+{
+    name_map_elem* map_to_append_ = *map_to_append;
+    name_map_elem* newelem = (name_map_elem*)malloc(sizeof(name_map_elem));
+    newelem->enum_id = id;
+    strncpy(newelem->string_id, name, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    HASH_ADD_INT(map_to_append_, enum_id, newelem );
+    *map_to_append = map_to_append_;
+}
+
+void free_name_map(name_map_elem** map_to_free)
+{
+  name_map_elem* map_to_free_ = *map_to_free;
+  name_map_elem* current_name;
+  name_map_elem* tmp;
+  HASH_ITER(hh, map_to_free_, current_name, tmp) 
+  {
+    HASH_DEL(map_to_free_, current_name);
+    free(current_name);
+  }
+  *map_to_free = NULL;
+}
+
+static void finalize(void)
+{
+    printer_h_deinitialize();
+}
+
+INITIALIZER(initialize)
+{
+    printer_h_initialize();
+    atexit(finalize);
+}
 
 namespace loops
 {

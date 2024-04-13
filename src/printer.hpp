@@ -13,6 +13,31 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <ostream>
 #include <vector>
 #include <unordered_map>
+#include <stdlib.h>
+#include <string.h>
+
+void printer_h_initialize();
+void printer_h_deinitialize();
+
+enum 
+{
+    LOOPS_ERR_NULL_POINTER,
+    LOOPS_ERR_POINTER_ARITHMETIC_ERROR,
+    LOOPS_ERR_OUT_OF_MEMORY,
+    LOOPS_ERR_UNKNOWN_FLAG,
+    LOOPS_POSITIVE_SIZE_NEEDED,
+    LOOPS_UNIMAGINARY_BIG_STRING,
+};
+
+typedef struct buffer_list//DUBUG: make or find normal universal list implementation
+{
+    char* buffer;
+    int buffer_size;
+    struct buffer_list* next;
+} buffer_list;
+
+int augment_buffer(buffer_list* to_augment, int buffer_size /*ignored, if to_augment is not null*/, buffer_list** out);
+void free_buffer_list(buffer_list* to_free);
 
 namespace loops
 {
@@ -26,28 +51,37 @@ struct syntfunc2print //TODO: In the end, this struct have to be reunited with S
     char* name;
 };
 
-struct column_printer; 
+struct column_printer;
+struct printer_new;
+typedef int (*print_column_t)(struct printer_new* printer, struct column_printer* colprinter, syntfunc2print* func, int row);
 
-typedef int (*print_column_t)(FILE* out, syntfunc2print* func, int row, column_printer* colprint);
-
-struct column_printer //DUBUG: check, that everything is needed
+typedef struct column_printer //DUBUG: check, that everything is needed
 {
     print_column_t func;
     char* buffer;
-    int currentoffset;
-};
+    int auxdata;
+} column_printer;
 
-struct printer_new
+typedef struct printer_new
 {
     column_printer* colprinters;
     int colprinters_size;
+    int columnflags;
+    buffer_list* buffers_head;
+    buffer_list* buffers_tail;
     char** cells;
-};
+    int* cell_sizes; //DUBUG: implement, use it!
+    int current_cell;
+    int current_offset;
+} printer_new;
+
+int loops_printf(printer_new* printer, const char *__restrict __format, ...);
+void close_printer_cell(printer_new* printer);
 
 int create_ir_printer(int columnflags, printer_new** res);
-int create_assembly_printer(int columnflags, printer_new** res);
-int free_printer(printer_new* tofree);
-int print_syntfunc(FILE* out, syntfunc2print* func, printer_new* printer); //DUBUG: actually, it have to be member of printer_new, does C89 support member functions?
+// int create_assembly_printer(int columnflags, printer_new** res);
+void free_printer(printer_new* tofree);
+int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func);
 
 void print_address(::std::ostream& str, int64_t addr);
 

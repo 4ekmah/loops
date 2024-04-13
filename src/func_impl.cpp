@@ -322,8 +322,9 @@ void FuncImpl::overrideRegisterSet(int basketNum, const std::vector<int>& a_para
     m_pipeline->overrideRegisterSet(basketNum, a_parameterRegisters, a_returnRegisters, a_callerSavedRegisters, a_calleeSavedRegisters);
 }
 
-void FuncImpl::printIR(std::ostream& out, const std::string& uptoPass_)
+void FuncImpl::printIR(std::ostream& /*out*/, const std::string& uptoPass_)
 {
+    //DUBUG: deexpreremntize
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
     std::string uptoPass = uptoPass_;
     if (uptoPass == "")
@@ -334,8 +335,20 @@ void FuncImpl::printIR(std::ostream& out, const std::string& uptoPass_)
         uptoPass = *(found - 1);
     }
     l_pipeline.run_until(uptoPass);
-    Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
-    printer.print(out, l_pipeline.get_data());
+    printer_new* _printer;
+    Assert(create_ir_printer(Func::PC_OPNUM | Func::PC_OP, &_printer) == 0);
+    syntfunc2print s2p;
+    s2p.name = (char*)(l_pipeline.get_data().name.c_str());
+    s2p.params = (Arg*)l_pipeline.get_data().params.data();
+    s2p.params_size = (int)l_pipeline.get_data().params.size();
+    s2p.program = (Syntop*)l_pipeline.get_data().program.data();
+    s2p.program_size = (int)l_pipeline.get_data().program.size();
+
+    Assert(print_syntfunc(_printer, stderr/*DUBUG: extract from out */, &s2p) == 0);
+    free_printer(_printer);
+
+    // Printer printer({Printer::colNumPrinter(0), Printer::colOpnamePrinter(opstrings, opnameoverrules), Printer::colArgListPrinter(l_pipeline.get_data(), argoverrules)});
+    // printer.print(out, l_pipeline.get_data());
 }
 
 void FuncImpl::printAssembly(std::ostream& out, int columns)
