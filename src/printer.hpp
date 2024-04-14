@@ -29,22 +29,19 @@ enum
     LOOPS_UNIMAGINARY_BIG_STRING,
 };
 
-typedef struct buffer_list//DUBUG: make or find normal universal list implementation
+typedef struct buffer_list
 {
     char* buffer;
     int buffer_size;
     struct buffer_list* next;
 } buffer_list;
 
-int augment_buffer(buffer_list* to_augment, int buffer_size /*ignored, if to_augment is not null*/, buffer_list** out);
-void free_buffer_list(buffer_list* to_free);
-
 namespace loops
 {
 
 struct syntfunc2print //TODO: In the end, this struct have to be reunited with Syntfunc
 {
-    Syntop* program;  //TODO: this ridiculous (pointer, length) pairs have to be replaced with C-written implementation of vector.
+    Syntop* program;  //DUBUG: this ridiculous (pointer, length) pairs have to be replaced with C-written implementation of vector.
     int program_size;
     Arg* params;
     int params_size;
@@ -55,7 +52,7 @@ struct column_printer;
 struct printer_new;
 typedef int (*print_column_t)(struct printer_new* printer, struct column_printer* colprinter, syntfunc2print* func, int row);
 
-typedef struct column_printer //DUBUG: check, that everything is needed
+typedef struct column_printer
 {
     print_column_t func;
     char* buffer;

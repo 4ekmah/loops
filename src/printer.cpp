@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstdio>
 #include <sstream>
 #include <iomanip>
+#include <utlist.h>
 
 name_map_elem* opstrings = NULL;
 
@@ -85,44 +86,37 @@ void printer_h_deinitialize()
     free_name_map(&opstrings);
 }
 
-int augment_buffer(buffer_list* to_augment, int buffer_size, buffer_list** out)
+static int augment_buffer(buffer_list** head, int buffer_size, buffer_list** tail)
 {
-    while(to_augment != NULL && to_augment->next != NULL)
-        to_augment = to_augment->next;
-    if(to_augment != NULL) 
-        buffer_size = to_augment->buffer_size;
+    if(*head != NULL)
+        buffer_size = (*head)->buffer_size;
     if(buffer_size <= LOOPS_POSITIVE_SIZE_NEEDED)
         return LOOPS_POSITIVE_SIZE_NEEDED;
-    (*out) = (buffer_list*)malloc(sizeof(buffer_list));
-    if((*out) == NULL)
+    (*tail) = (buffer_list*)malloc(sizeof(buffer_list));
+    if(*tail == NULL) 
         return LOOPS_ERR_OUT_OF_MEMORY;
-    memset((*out), 0, sizeof(buffer_list));
-    (*out)->buffer = (char*)malloc(buffer_size);
-    if((*out)->buffer == NULL)
+    memset((*tail), 0, sizeof(buffer_list));
+    (*tail)->buffer = (char*)malloc(buffer_size);
+    if((*tail)->buffer == NULL)
     {
-        free(*out);
+        free(*tail);
         return LOOPS_ERR_OUT_OF_MEMORY;
     }
-    (*out)->buffer_size = buffer_size;
-    if(to_augment != NULL)
-        to_augment->next = *out;
+    (*tail)->buffer_size = buffer_size;
+    LL_APPEND(*head, *tail);
     return 0;
 }
 
-void free_buffer_list(buffer_list* to_free)
+static void free_buffer_list(buffer_list* to_free)
 {
-    while(to_free != NULL)
+    buffer_list* elt;
+    buffer_list* tmp;
+    LL_FOREACH_SAFE(to_free, elt, tmp)
     {
-        buffer_list* next = to_free->next;
-        free(to_free->buffer);
-        free(to_free);
-        to_free = next; 
-    }
+        LL_DELETE(to_free, elt);
+        free(elt);
+    }    
 }
-
-//DUBUG: you'll need different module(or move it to common.hpp), contains global init/deinit and 
-//in each module you'll need <modulename>_init and <modulename>_deinit functions.
-
 
 namespace loops
 {
@@ -144,7 +138,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
             return LOOPS_ERR_POINTER_ARITHMETIC_ERROR;
         int err = 0;
         buffer_list* newtail;
-        err = augment_buffer(printer->buffers_tail, 0, &newtail); 
+        err = augment_buffer(&(printer->buffers_head), 0, &newtail); 
         if(err != 0) 
             return err;
         if(current_cell_size > 0)
@@ -247,10 +241,9 @@ int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func)
     int cols = printer->colprinters_size;
     int rows = func->program_size;
 
-    err = augment_buffer(NULL, MAX_LINE_SIZE * rows, &(printer->buffers_head));
+    err = augment_buffer(&(printer->buffers_head), MAX_LINE_SIZE * rows, &(printer->buffers_tail));
     if(err != 0) 
         return err;
-    printer->buffers_tail = printer->buffers_head;
 
     printer->cells = NULL; 
     int* max_widthes = NULL;
