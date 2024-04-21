@@ -38,7 +38,7 @@ static void add_1suffix_opname_to_map(suffixed_opname** map_to_append, int id, c
     newelem->pieces[0].argnum = argnum;
     newelem->pieces[0].suffix_type = suffix_type;
     newelem->pieces[0].fracture_size = fracture_size;
-    strncpy(newelem->pieces[0].prefix, prefix, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[0].prefix, prefix, LOOPS_MAX_OPERATION_NAME_WIDTH);
     HASH_ADD_INT(map_to_append_, enum_id, newelem );
     *map_to_append = map_to_append_;
 }
@@ -53,11 +53,11 @@ static void add_2suffix_opname_to_map(suffixed_opname** map_to_append, int id, c
     newelem->pieces[0].argnum = argnum_0;
     newelem->pieces[0].suffix_type = suffix_type_0;
     newelem->pieces[0].fracture_size = 0;
-    strncpy(newelem->pieces[0].prefix, prefix_0, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[0].prefix, prefix_0, LOOPS_MAX_OPERATION_NAME_WIDTH);
     newelem->pieces[1].argnum = argnum_1;
     newelem->pieces[1].suffix_type = suffix_type_1;
     newelem->pieces[1].fracture_size = 0;
-    strncpy(newelem->pieces[1].prefix, prefix_1, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[1].prefix, prefix_1, LOOPS_MAX_OPERATION_NAME_WIDTH);
     HASH_ADD_INT(map_to_append_, enum_id, newelem );
     *map_to_append = map_to_append_;
 }
@@ -73,15 +73,15 @@ static void add_3suffix_opname_to_map(suffixed_opname** map_to_append, int id, c
     newelem->pieces[0].argnum = argnum_0;
     newelem->pieces[0].suffix_type = suffix_type_0;
     newelem->pieces[0].fracture_size = 0;
-    strncpy(newelem->pieces[0].prefix, prefix_0, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[0].prefix, prefix_0, LOOPS_MAX_OPERATION_NAME_WIDTH);
     newelem->pieces[1].argnum = argnum_1;
     newelem->pieces[1].suffix_type = suffix_type_1;
     newelem->pieces[1].fracture_size = 0;
-    strncpy(newelem->pieces[1].prefix, prefix_1, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[1].prefix, prefix_1, LOOPS_MAX_OPERATION_NAME_WIDTH);
     newelem->pieces[2].argnum = argnum_2;
     newelem->pieces[2].suffix_type = suffix_type_2;
     newelem->pieces[2].fracture_size = 0;
-    strncpy(newelem->pieces[2].prefix, prefix_2, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->pieces[2].prefix, prefix_2, LOOPS_MAX_OPERATION_NAME_WIDTH);
     HASH_ADD_INT(map_to_append_, enum_id, newelem );
     *map_to_append = map_to_append_;
 }
@@ -266,7 +266,8 @@ static int augment_buffer(buffer_list** head, int buffer_size, buffer_list** tai
         return LOOPS_ERR_OUT_OF_MEMORY;
     }
     (*tail)->buffer_size = buffer_size;
-    LL_APPEND(*head, *tail);
+    buffer_list* unreferenced_head = *head;
+    LL_APPEND(unreferenced_head, *tail);
     return 0;
 }
 
@@ -296,7 +297,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
         if(printer->current_cell == 0)
             return LOOPS_UNIMAGINARY_BIG_STRING;
         char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
-        int current_cell_size = printer->buffers_tail->buffer + printer->current_offset - current_cell_start;
+        int current_cell_size = (int)(printer->buffers_tail->buffer + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
             return LOOPS_ERR_POINTER_ARITHMETIC_ERROR;
         int err = 0;
@@ -329,7 +330,7 @@ void close_printer_cell(printer_new* printer)
     if(newcell < printer->buffers_tail->buffer || newcell >= (printer->buffers_tail->buffer + printer->buffers_tail->buffer_size)) //Buffer augmentation happened
         newcell = printer->buffers_tail->buffer;
     printer->cells[printer->current_cell] = newcell;
-    printer->cell_sizes[printer->current_cell] = strlen(newcell);
+    printer->cell_sizes[printer->current_cell] = (int)strlen(newcell);
     printer->current_cell++;
     printer->current_offset++;
 }
@@ -342,8 +343,6 @@ int col_num_printer(printer_new* printer, column_printer* colprinter, syntfunc2p
     close_printer_cell(printer);
     return 0;
 }
-
-#define ASSERT_OP_FORMAT(x) if (!(x)) return LOOPS_INCORRECT_OPERATION_FORMAT;
 
 int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
 {
@@ -362,14 +361,16 @@ int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, 
 
                 case OP_JCC:
                 {
-                    ASSERT_OP_FORMAT(op->args_size == 2 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IIMMEDIATE);
+                    if (!(op->args_size == 2 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IIMMEDIATE))
+                        return LOOPS_INCORRECT_OPERATION_FORMAT;
                     HASH_FIND_INT(cond_suffixes, &(op->args[0].value), found_name); if(found_name == NULL) return LOOPS_UNKNOWN_CONDITION;
                     err = loops_printf(printer, "jmp_%s %d", found_name->string_id, op->args[1].value); if(err != 0) return err;
                     break;
                 }
                 case OP_LABEL: //DUBUG: Frankly speaking, we have to overwrite here arguments, not name.
                 {
-                    ASSERT_OP_FORMAT(op->args_size == 1 && op->args[0].tag == Arg::IIMMEDIATE);
+                    if (!(op->args_size == 1 && op->args[0].tag == Arg::IIMMEDIATE))
+                        return LOOPS_INCORRECT_OPERATION_FORMAT;
                     err = loops_printf(printer, "label %d:", op->args[0].value); if(err != 0) return err;
                     break;
                 }
@@ -430,7 +431,90 @@ int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, 
     close_printer_cell(printer);
     return 0;
 }
-#undef ASSERT_OP_FORMAT
+
+int basic_arg_printer(printer_new* printer, Arg* arg)
+{
+    int err = 0;
+    switch (arg->tag)
+    {
+        case Arg::IREG:
+            if(arg->idx == Syntfunc::RETREG)
+                err = loops_printf(printer, "iR");
+            else
+                err = loops_printf(printer, "i%d", arg->idx);
+            break;
+        case Arg::ISPILLED:
+            err = loops_printf(printer, "s%d", arg->value);  //TODO(ch): Can we avoid spilled registers in IR?
+            break;
+        case Arg::IIMMEDIATE:
+            err = loops_printf(printer, "%d", arg->value);
+            break;
+        case Arg::VREG:
+            err = loops_printf(printer, "v%d", arg->idx);
+            break;
+        default:
+            err = LOOPS_UNKNOWN_ARGUMENT_TYPE;
+    };
+    return err;
+}
+
+int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+{
+    int err = 0;
+    Syntop* op = func->program + row;
+    switch(op->opcode)
+    {
+        case OP_LABEL:
+        case OP_JCC:
+            loops_printf(printer, "");//DUBUG: this is workaround. It have to be solved in close_printer_cell.
+            break;
+        // case VOP_DEF:
+        //     str<<op[0]; //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
+        //     break;
+        // case OP_CALL:
+        //     if (op.size() < 2 || op.args[0].tag == Arg::VREG)
+        //         throw std::runtime_error("Wrong CALL format");
+        //     str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
+        //     for(int anum = 2; anum < op.size(); anum++) str<<", "<<op[anum];
+        //     str << ")";
+        // case OP_CALL_NORET:
+        //     if (op.size() < 1 || op.args[0].tag == Arg::VREG)
+        //         throw std::runtime_error("Wrong CALL_NORET format");
+        //     str << "["; if(op.args[0].tag == Arg::IIMMEDIATE) print_address(str, op.args[0].value); else str << op.args[0]; str << "](";
+        //     for(int anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
+        //     if(op.size() > 1) str<<op[op.size() - 1];
+        //     str << ")";
+        //     break;
+        // case OP_SELECT:
+        //     str<<op[0]<<", "<< op[2]<<", "<<op[3];
+        //     break;
+        // case OP_IVERSON:
+        //     str<<op[0];
+        //     break;
+        default:
+            for(int anum = 0; anum < op->args_size - 1; anum++)
+            {
+                if(op->args[anum].flags & AF_NOPRINT) //DUBUG: I don't think this option have to exist.
+                    continue;
+                err = basic_arg_printer(printer, op->args + anum);
+                if(err != 0) 
+                    return err;
+                err = loops_printf(printer, ", ");
+                if(err != 0) 
+                    return err;
+            }
+            if(op->args_size > 0 && (op->args[op->args_size - 1].flags & AF_NOPRINT) == 0)
+            {
+                err = basic_arg_printer(printer, op->args + op->args_size - 1);
+                if(err != 0) 
+                    return err;
+            }
+    }
+    if(err != 0) 
+        return err;
+    close_printer_cell(printer);
+    return 0;
+}
 
 int create_ir_printer(int columnflags, printer_new** res)
 {
@@ -444,7 +528,7 @@ int create_ir_printer(int columnflags, printer_new** res)
         return LOOPS_ERR_OUT_OF_MEMORY;
     memset(*res, 0, sizeof(printer_new));
     (*res)->colprinters_size += ((columnflags & Func::PC_OPNUM) > 0);
-    (*res)->colprinters_size += ((columnflags & Func::PC_OP) > 0);
+    (*res)->colprinters_size += 2 * ((columnflags & Func::PC_OP) > 0);
     (*res)->colprinters = (column_printer*)malloc((*res)->colprinters_size * sizeof(column_printer));
     if((*res)->colprinters == NULL)
     {
@@ -462,7 +546,8 @@ int create_ir_printer(int columnflags, printer_new** res)
     if(columnflags & Func::PC_OP)
     {
         curcolprinter->func = &col_ir_opname_printer;
-        // curcolprinter->func = &col_ir_opargs_printer;
+        curcolprinter++;
+        curcolprinter->func = &col_ir_opargs_printer;
         curcolprinter++;
     }
     return 0;
@@ -592,15 +677,15 @@ Printer::ColPrinter Printer::colDelimeterPrinter()
     };
 }
 
-Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
+Printer::ColPrinter Printer::colOpnamePrinter(const std::unordered_map<int, std::string>& opstrings_, const std::unordered_map<int, Printer::ColPrinter >& p_overrules)
 {
-    return [opstrings, p_overrules](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* backend)
+    return [opstrings_, p_overrules](::std::ostream& out, const Syntop& toPrint, int rowNum, Backend* backend)
     {
         if(p_overrules.count(toPrint.opcode) == 0)
         {
-            if (opstrings.count(toPrint.opcode) == 0)
+            if (opstrings_.count(toPrint.opcode) == 0)
                 throw std::runtime_error("Printer: unprintable operation");
-            out<<opstrings.at(toPrint.opcode);
+            out<<opstrings_.at(toPrint.opcode);
         }
         else
             p_overrules.at(toPrint.opcode)(out, toPrint, rowNum, backend);

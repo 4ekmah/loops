@@ -31,18 +31,17 @@ See https://github.com/4ekmah/loops/LICENSE
     else                     \
         throw std::runtime_error(msg)
 
-
+char* loops_strncpy(char* dest, const char* src, std::size_t count);
 enum {LOOPS_MAX_OPERATION_NAME_WIDTH = 30};
 typedef struct name_map_elem
 {
     int enum_id;
-    char string_id[30];
+    char string_id[LOOPS_MAX_OPERATION_NAME_WIDTH];
     UT_hash_handle hh;
 } name_map_elem;
 
 void add_name_to_map(name_map_elem** map_to_append, int id, const char* name);
 void free_name_map(name_map_elem** map_to_append);
-
 
 namespace loops
 {

@@ -17,32 +17,44 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stack>
 #include <cstring>
 
-// Initializer/finalizer sample for MSVC and GCC/Clang.
-// 2010-2016 Joe Lowe. Released into the public domain.
-#if defined(_MSC_VER)                  //TODO: redefine this macros with your compiler detection macroses(a-la __LOOPS_INTEL64).
-    #pragma section(".CRT$XCU",read)
-    #define INITIALIZER2_(f,p) \
-        static void f(void); \
-        __declspec(allocate(".CRT$XCU")) void (*f##_)(void) = f; \
-        __pragma(comment(linker,"/include:" p #f "_")) \
-        static void f(void)
-    #ifdef _WIN64
-        #define INITIALIZER(f) INITIALIZER2_(f,"")
-    #else
-        #define INITIALIZER(f) INITIALIZER2_(f,"_")
-    #endif
+static void loops_initialize();
+//DUBUG: check it works everywhere and add easiest c++ initiliazer.
+#if defined(_MSC_VER) && defined(_WIN64)
+    #pragma section(".CRT$XCT",read)
+    __declspec(allocate(".CRT$XCT")) void (*loops_initialize_)(void) = loops_initialize;
+#elif defined(_MSC_VER) && defined(_WIN64)
+    #error Win32 is not supported.
 #else
-    #define INITIALIZER(f) \
-        static void f(void) __attribute__((constructor)); \
-        static void f(void)
+    static void loops_initialize_(void) __attribute__((constructor));
+    static void loops_initialize_(void) { loops_initialize(); }
 #endif
+static void finalize(void)
+{
+    printer_h_deinitialize();
+}
+
+static void loops_initialize()
+{
+    printer_h_initialize();
+    atexit(finalize);
+}
+
+char* loops_strncpy(char* dest, const char* src, std::size_t count)
+{
+#if _MSC_VER
+    strncpy_s(dest, count, src, _TRUNCATE);
+    return dest;
+#else
+    return strncpy(dest, src, count);
+#endif  
+}
 
 void add_name_to_map(name_map_elem** map_to_append, int id, const char* name)
 {
     name_map_elem* map_to_append_ = *map_to_append;
     name_map_elem* newelem = (name_map_elem*)malloc(sizeof(name_map_elem));
     newelem->enum_id = id;
-    strncpy(newelem->string_id, name, LOOPS_MAX_OPERATION_NAME_WIDTH);
+    loops_strncpy(newelem->string_id, name, LOOPS_MAX_OPERATION_NAME_WIDTH);
     HASH_ADD_INT(map_to_append_, enum_id, newelem );
     *map_to_append = map_to_append_;
 }
@@ -60,16 +72,6 @@ void free_name_map(name_map_elem** map_to_free)
   *map_to_free = NULL;
 }
 
-static void finalize(void)
-{
-    printer_h_deinitialize();
-}
-
-INITIALIZER(initialize)
-{
-    printer_h_initialize();
-    atexit(finalize);
-}
 
 namespace loops
 {
