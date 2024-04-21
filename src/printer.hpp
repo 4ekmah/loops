@@ -72,7 +72,7 @@ typedef struct printer_new
     buffer_list* buffers_head;
     buffer_list* buffers_tail;
     char** cells;
-    int* cell_sizes; //DUBUG: implement, use it!
+    int* cell_sizes;
     int current_cell;
     int current_offset;
 } printer_new;
@@ -81,7 +81,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format, ...);
 void close_printer_cell(printer_new* printer);
 
 int create_ir_printer(int columnflags, printer_new** res);
-// int create_assembly_printer(int columnflags, printer_new** res);
+// int create_assembly_printer(int columnflags, printer_new** res); //DUBUG
 void free_printer(printer_new* tofree);
 int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func);
 

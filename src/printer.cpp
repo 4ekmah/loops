@@ -18,7 +18,7 @@ typedef struct one_name_one_suffix
     char prefix[30];
     int argnum;
     int suffix_type;
-    int fracture_size; /*Ignored if == 0, If op->arg_size >= fracture_size, argnum converts to (argnum + 1)*/
+    int fracture_size; /*If op->arg_size >= fracture_size, argnum converts to (argnum + 1). Ignored if fracture_size == 0*/
 } one_name_one_suffix;
 
 typedef struct suffixed_opname
@@ -295,7 +295,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
     {
         if(printer->current_cell == 0)
             return LOOPS_UNIMAGINARY_BIG_STRING;
-        char* current_cell_start = printer->cells[printer->current_cell - 1] + strlen(printer->cells[printer->current_cell - 1]) + 1;
+        char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
         int current_cell_size = printer->buffers_tail->buffer + printer->current_offset - current_cell_start;
         if(current_cell_size < 0) 
             return LOOPS_ERR_POINTER_ARITHMETIC_ERROR;
@@ -325,10 +325,11 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
 
 void close_printer_cell(printer_new* printer)
 {
-    char* newcell = printer->current_cell == 0 ? printer->buffers_tail->buffer : printer->cells[printer->current_cell - 1] + strlen(printer->cells[printer->current_cell - 1]) + 1;
+    char* newcell = printer->current_cell == 0 ? printer->buffers_tail->buffer : printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
     if(newcell < printer->buffers_tail->buffer || newcell >= (printer->buffers_tail->buffer + printer->buffers_tail->buffer_size)) //Buffer augmentation happened
         newcell = printer->buffers_tail->buffer;
     printer->cells[printer->current_cell] = newcell;
+    printer->cell_sizes[printer->current_cell] = strlen(newcell);
     printer->current_cell++;
     printer->current_offset++;
 }
@@ -344,7 +345,7 @@ int col_num_printer(printer_new* printer, column_printer* colprinter, syntfunc2p
 
 #define ASSERT_OP_FORMAT(x) if (!(x)) return LOOPS_INCORRECT_OPERATION_FORMAT;
 
-int col_ir_operation_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
 {
     int err = 0;
     name_map_elem* found_name; 
@@ -424,7 +425,6 @@ int col_ir_operation_printer(printer_new* printer, column_printer* /*colprinter*
         if(err != 0) 
             return err;
     }
-    err = loops_printf(printer, " %d", op->size());
     if(err != 0) 
         return err;
     close_printer_cell(printer);
@@ -461,7 +461,8 @@ int create_ir_printer(int columnflags, printer_new** res)
 
     if(columnflags & Func::PC_OP)
     {
-        curcolprinter->func = &col_ir_operation_printer;
+        curcolprinter->func = &col_ir_opname_printer;
+        // curcolprinter->func = &col_ir_opargs_printer;
         curcolprinter++;
     }
     return 0;
@@ -485,17 +486,19 @@ int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func)
         return err;
 
     printer->cells = NULL; 
+    printer->cell_sizes = NULL; 
     int* max_widthes = NULL;
     char** printtasks = NULL;
     char* printtasksbuf = NULL;
     printer->cells = (char**)malloc(cols * rows * sizeof(char*)); 
+    printer->cell_sizes = (int*)malloc(cols * rows * sizeof(int)); 
     max_widthes = (int*)malloc(cols * sizeof(int));
     printtasks = (char**)malloc(cols * sizeof(char*));
     printtasksbuf = (char*)malloc(cols * 10);
     memset(max_widthes, 0, cols * sizeof(int));
     memset(printtasksbuf, 0, cols * 10);
 
-    if(printer->cells == NULL || max_widthes == NULL || printtasks == NULL || printtasksbuf == NULL)
+    if(printer->cells == NULL || printer->cell_sizes == NULL || max_widthes == NULL || printtasks == NULL || printtasksbuf == NULL)
     {
         err = LOOPS_ERR_OUT_OF_MEMORY;
         goto print_syntfunc_end;
@@ -506,7 +509,7 @@ int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func)
         for(int col = 0; col < cols; col++) 
         {
             printer->colprinters[col].func(printer, printer->colprinters + col, func, row); //DUBUG: you have to handle it with printing all you can to print.
-            int collen = (int)strlen(printer->cells[row*cols + col]) + 1;
+            int collen = printer->cell_sizes[row*cols + col] + 1;
             max_widthes[col] = (max_widthes[col] < collen ? collen : max_widthes[col]);
         }
 
@@ -527,6 +530,7 @@ print_syntfunc_end:
     free(max_widthes);
     free(printtasks);
     free(printtasksbuf);
+    free(printer->cell_sizes);
     free(printer->cells);
     return err;
 }
