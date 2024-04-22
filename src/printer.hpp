@@ -25,14 +25,14 @@ enum
     LOOPS_ERR_POINTER_ARITHMETIC_ERROR,
     LOOPS_ERR_OUT_OF_MEMORY,
     LOOPS_ERR_UNKNOWN_FLAG,
-    LOOPS_POSITIVE_SIZE_NEEDED,
-    LOOPS_UNIMAGINARY_BIG_STRING,
-    LOOPS_UNPRINTABLE_OPERATION,
-    LOOPS_UNKNOWN_TYPE,
-    LOOPS_UNKNOWN_CONDITION,
-    LOOPS_INCORRECT_OPERATION_FORMAT,
-    LOOPS_INCORRECT_ARGUMENT, 
-    LOOPS_UNKNOWN_ARGUMENT_TYPE,
+    LOOPS_ERR_POSITIVE_SIZE_NEEDED,
+    LOOPS_ERR_UNIMAGINARY_BIG_STRING,
+    LOOPS_ERR_UNPRINTABLE_OPERATION,
+    LOOPS_ERR_UNKNOWN_TYPE,
+    LOOPS_ERR_UNKNOWN_CONDITION,
+    LOOPS_ERR_INCORRECT_OPERATION_FORMAT,
+    LOOPS_ERR_INCORRECT_ARGUMENT, 
+    LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE,
 };
 
 typedef struct buffer_list
@@ -78,7 +78,8 @@ typedef struct printer_new
     int current_offset;
 } printer_new;
 
-int loops_printf(printer_new* printer, const char *__restrict __format, ...);
+int loops_printf(printer_new* printer, const char *__restrict __format, ...); //DUBUG: remove these new_ suffixes.
+int new_print_address(printer_new* printer, int64_t addr);
 void close_printer_cell(printer_new* printer);
 
 int create_ir_printer(int columnflags, printer_new** res);

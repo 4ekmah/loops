@@ -253,8 +253,8 @@ static int augment_buffer(buffer_list** head, int buffer_size, buffer_list** tai
 {
     if(*head != NULL)
         buffer_size = (*head)->buffer_size;
-    if(buffer_size <= LOOPS_POSITIVE_SIZE_NEEDED)
-        return LOOPS_POSITIVE_SIZE_NEEDED; //DUBUG: I think, it's needed LOOPS_THROW, which is return LOOPS_POSITIVE_SIZE_NEEDED, but in other cases is something more convinient in diagnostics, like usual throw or a place where it's possible to set breakpoint.
+    if(buffer_size <= LOOPS_ERR_POSITIVE_SIZE_NEEDED)
+        return LOOPS_ERR_POSITIVE_SIZE_NEEDED; //DUBUG: I think, it's needed LOOPS_THROW, which is return LOOPS_POSITIVE_SIZE_NEEDED, but in other cases is something more convinient in diagnostics, like usual throw or a place where it's possible to set breakpoint.
     (*tail) = (buffer_list*)malloc(sizeof(buffer_list));
     if(*tail == NULL) 
         return LOOPS_ERR_OUT_OF_MEMORY;
@@ -295,7 +295,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
     if(written < 0 || written >= chars_left)
     {
         if(printer->current_cell == 0)
-            return LOOPS_UNIMAGINARY_BIG_STRING;
+            return LOOPS_ERR_UNIMAGINARY_BIG_STRING;
         char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
         int current_cell_size = (int)(printer->buffers_tail->buffer + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
@@ -316,23 +316,47 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
         va_end(var_args2);
         if(written < 0 || written >= chars_left)
-            return LOOPS_UNIMAGINARY_BIG_STRING;
+            return LOOPS_ERR_UNIMAGINARY_BIG_STRING;
     }
-    nextcharpos[written] = 0;
     printer->current_offset += written;
     va_end ( var_args );
     return 0;    
 }
 
+int new_print_address(printer_new* printer, int64_t addr)
+{
+    int err = 0;
+    static char hexsymb[] = "0123456789ABCDEF";
+    char* bytes = (char*)(&addr);
+    err = loops_printf(printer, "0x"); 
+    for(int i = 0; i < 8 ; i++)
+    {
+        err = loops_printf(printer, "%c%c", hexsymb[(bytes[7-i]&0xF0)>>4], hexsymb[bytes[7-i]&0x0F]);
+        if(err != 0)
+            break;
+    }
+    return err;
+}
+
 void close_printer_cell(printer_new* printer)
 {
-    char* newcell = printer->current_cell == 0 ? printer->buffers_tail->buffer : printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
+    bool newbuffer = printer->current_cell == 0; 
+    printer->buffers_tail->buffer[printer->current_offset] = 0;
+    char* newcell = newbuffer ? printer->buffers_tail->buffer : printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
     if(newcell < printer->buffers_tail->buffer || newcell >= (printer->buffers_tail->buffer + printer->buffers_tail->buffer_size)) //Buffer augmentation happened
+    {
+        newbuffer = true;
         newcell = printer->buffers_tail->buffer;
+    }
+    int len = (newcell >= printer->buffers_tail->buffer + printer->buffers_tail->buffer_size) ? 0 : (int)strlen(newcell);
+    printer->cell_sizes[printer->current_cell] = len;
+    if(len == 0 && !newbuffer)
+        newcell--; //Empty strings don't use the
+    else 
+        printer->current_offset++;
     printer->cells[printer->current_cell] = newcell;
-    printer->cell_sizes[printer->current_cell] = (int)strlen(newcell);
     printer->current_cell++;
-    printer->current_offset++;
+    
 }
 
 int col_num_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* /*func*/, int /*row*/)
@@ -362,20 +386,20 @@ int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, 
                 case OP_JCC:
                 {
                     if (!(op->args_size == 2 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IIMMEDIATE))
-                        return LOOPS_INCORRECT_OPERATION_FORMAT;
-                    HASH_FIND_INT(cond_suffixes, &(op->args[0].value), found_name); if(found_name == NULL) return LOOPS_UNKNOWN_CONDITION;
+                        return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
+                    HASH_FIND_INT(cond_suffixes, &(op->args[0].value), found_name); if(found_name == NULL) return LOOPS_ERR_UNKNOWN_CONDITION;
                     err = loops_printf(printer, "jmp_%s %d", found_name->string_id, op->args[1].value); if(err != 0) return err;
                     break;
                 }
                 case OP_LABEL: //DUBUG: Frankly speaking, we have to overwrite here arguments, not name.
                 {
                     if (!(op->args_size == 1 && op->args[0].tag == Arg::IIMMEDIATE))
-                        return LOOPS_INCORRECT_OPERATION_FORMAT;
+                        return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
                     err = loops_printf(printer, "label %d:", op->args[0].value); if(err != 0) return err;
                     break;
                 }
                 default:
-                    return LOOPS_UNPRINTABLE_OPERATION;
+                    return LOOPS_ERR_UNPRINTABLE_OPERATION;
             }; 
         }
         else 
@@ -392,25 +416,25 @@ int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, 
                     if(onam_osuf->fracture_size > 0 && op->args_size >= onam_osuf->fracture_size) 
                         argnum++;
                     if(op->args_size <= argnum)
-                        return LOOPS_INCORRECT_OPERATION_FORMAT;
+                        return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
                     switch (onam_osuf->suffix_type)
                     {
                         case SUFFIX_CONDITION:
                             if(op->args[argnum].tag != loops::Arg::IIMMEDIATE)
-                                return LOOPS_INCORRECT_OPERATION_FORMAT;
+                                return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
                             HASH_FIND_INT(cond_suffixes, &(op->args[argnum].value), found_name);
                             if(found_name == NULL)
-                                return LOOPS_UNKNOWN_TYPE;
+                                return LOOPS_ERR_UNKNOWN_TYPE;
                             break;
                         case SUFFIX_ELEMTYPE:
                             if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG)
-                                return LOOPS_INCORRECT_OPERATION_FORMAT;
+                                return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
                             HASH_FIND_INT(type_suffixes, &(op->args[argnum].elemtype), found_name);
                             if(found_name == NULL)
-                                return LOOPS_UNKNOWN_TYPE;
+                                return LOOPS_ERR_UNKNOWN_TYPE;
                             break;
                         default: 
-                            return LOOPS_INCORRECT_ARGUMENT;
+                            return LOOPS_ERR_INCORRECT_ARGUMENT;
                     }
                     suffixstr = found_name->string_id;
                 }
@@ -453,7 +477,7 @@ int basic_arg_printer(printer_new* printer, Arg* arg)
             err = loops_printf(printer, "v%d", arg->idx);
             break;
         default:
-            err = LOOPS_UNKNOWN_ARGUMENT_TYPE;
+            err = LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE;
     };
     return err;
 }
@@ -466,31 +490,57 @@ int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprinter*/, 
     {
         case OP_LABEL:
         case OP_JCC:
-            loops_printf(printer, "");//DUBUG: this is workaround. It have to be solved in close_printer_cell.
             break;
-        // case VOP_DEF:
-        //     str<<op[0]; //TODO(ch): this is a workaround for providing context to newiop<...> with no arguments.
-        //     break;
-        // case OP_CALL:
-        //     if (op.size() < 2 || op.args[0].tag == Arg::VREG)
-        //         throw std::runtime_error("Wrong CALL format");
-        //     str << "["; if(op.args[1].tag == Arg::IIMMEDIATE) print_address(str, op.args[1].value); else str << op.args[1]; str << "](" << op.args[0];
-        //     for(int anum = 2; anum < op.size(); anum++) str<<", "<<op[anum];
-        //     str << ")";
-        // case OP_CALL_NORET:
-        //     if (op.size() < 1 || op.args[0].tag == Arg::VREG)
-        //         throw std::runtime_error("Wrong CALL_NORET format");
-        //     str << "["; if(op.args[0].tag == Arg::IIMMEDIATE) print_address(str, op.args[0].value); else str << op.args[0]; str << "](";
-        //     for(int anum = 1; anum + 1 < op.size(); anum++) str<<op[anum]<<", ";
-        //     if(op.size() > 1) str<<op[op.size() - 1];
-        //     str << ")";
-        //     break;
-        // case OP_SELECT:
-        //     str<<op[0]<<", "<< op[2]<<", "<<op[3];
-        //     break;
-        // case OP_IVERSON:
-        //     str<<op[0];
-        //     break;
+        case OP_IVERSON:
+        case VOP_DEF:
+            err = basic_arg_printer(printer, op->args);
+            break;
+        case OP_CALL:
+            if (op->args_size < 2 || op->args[0].tag == Arg::VREG)
+                return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
+            err = loops_printf(printer, "["); if(err != 0) return err;
+            if(op->args[1].tag == Arg::IIMMEDIATE)
+                err = new_print_address(printer, op->args[1].value);
+            else
+                err = basic_arg_printer(printer, op->args + 1);
+            if(err != 0) return err;
+            err = loops_printf(printer, "]("); if(err != 0) return err;
+            err = basic_arg_printer(printer, op->args); if(err != 0) return err;
+            for(int anum = 2; anum < op->args_size; anum++)
+            {
+                err = loops_printf(printer, ", "); if(err != 0) return err;
+                err = basic_arg_printer(printer, op->args + anum); if(err != 0) return err;
+            }
+            err = loops_printf(printer, ")");
+            break;
+        case OP_CALL_NORET:
+            if (op->args_size < 1 || op->args[0].tag == Arg::VREG)
+                return LOOPS_ERR_INCORRECT_OPERATION_FORMAT;
+            err = loops_printf(printer, "["); if(err != 0) return err;
+            if(op->args[0].tag == Arg::IIMMEDIATE)
+                err = new_print_address(printer, op->args[0].value);
+            else
+                err = basic_arg_printer(printer, op->args);
+            if(err != 0) return err;
+            for(int anum = 1; anum < op->args_size - 1; anum++)
+            {
+                err = basic_arg_printer(printer, op->args + anum); if(err != 0) return err;
+                err = loops_printf(printer, ", "); if(err != 0) return err;
+            }
+            if(op->args_size > 1)
+            {
+                err = basic_arg_printer(printer, op->args + op->args_size - 1);
+                if(err != 0) return err;
+            }
+            err = loops_printf(printer, ")");
+            break;
+        case OP_SELECT:
+            err = basic_arg_printer(printer, op->args); if(err != 0) return err;
+            err = loops_printf(printer, ", "); if(err != 0) return err;
+            err = basic_arg_printer(printer, op->args + 2); if(err != 0) return err;
+            err = loops_printf(printer, ", "); if(err != 0) return err;
+            err = basic_arg_printer(printer, op->args + 3); if(err != 0) return err;
+           break;
         default:
             for(int anum = 0; anum < op->args_size - 1; anum++)
             {
@@ -499,9 +549,7 @@ int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprinter*/, 
                 err = basic_arg_printer(printer, op->args + anum);
                 if(err != 0) 
                     return err;
-                err = loops_printf(printer, ", ");
-                if(err != 0) 
-                    return err;
+                err = loops_printf(printer, ", "); if(err != 0) return err;
             }
             if(op->args_size > 0 && (op->args[op->args_size - 1].flags & AF_NOPRINT) == 0)
             {
@@ -562,7 +610,7 @@ void free_printer(printer_new* tofree)
 int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func)
 {
     int err = 0;
-    static int MAX_LINE_SIZE = 82; //took from statistics  //DUBUG: as testing of all mechanincsof new printer you have to make it lesser.
+    static int MAX_LINE_SIZE = 82; //taken from statistics  //DUBUG: as testing of all mechanincsof new printer you have to make it lesser.
     int cols = printer->colprinters_size;
     int rows = func->program_size;
 
