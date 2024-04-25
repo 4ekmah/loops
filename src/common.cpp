@@ -17,6 +17,27 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stack>
 #include <cstring>
 
+name_map_elem errstrings_[] = 
+{
+/*  |                   enum_id                   |                                    string_id                                   |    */
+    {LOOPS_ERR_SUCCESS                            , "Loops: Success."                                                              , {}} ,
+    {LOOPS_ERR_NULL_POINTER                       , "Loops: Null pointer."                                                         , {}} ,
+    {LOOPS_ERR_POINTER_ARITHMETIC_ERROR           , "Loops: Pointer arithmetic error."                                             , {}} ,
+    {LOOPS_ERR_OUT_OF_MEMORY                      , "Loops: Out of memory."                                                        , {}} ,
+    {LOOPS_ERR_UNKNOWN_FLAG                       , "Loops: Unknown flag."                                                         , {}} ,
+    {LOOPS_ERR_POSITIVE_SIZE_NEEDED               , "Loops: Negative size."                                                        , {}} ,
+    {LOOPS_ERR_UNIMAGINARY_BIG_STRING             , "Loops: Unpredicted very big string."                                          , {}} ,
+    {LOOPS_ERR_UNPRINTABLE_OPERATION              , "Loops: Unprintable operation."                                                , {}} ,
+    {LOOPS_ERR_UNKNOWN_TYPE                       , "Loops: Unknown type."                                                         , {}} ,
+    {LOOPS_ERR_UNKNOWN_CONDITION                  , "Loops: Unknown condition type."                                               , {}} ,
+    {LOOPS_ERR_INCORRECT_OPERATION_FORMAT         , "Loops: Incorrect operation format."                                           , {}} ,
+    {LOOPS_ERR_INCORRECT_ARGUMENT                 , "Loops: Incorrect argument."                                                   , {}} ,
+    {LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                , {}} ,
+    {LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        , {}} ,
+    {LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly.", {}} ,
+};
+name_map_elem* errstrings = NULL;
+
 static void loops_initialize();
 //DUBUG: check it works everywhere and add easiest c++ initiliazer.
 #if defined(_MSC_VER) && defined(_WIN64)
@@ -31,10 +52,12 @@ static void loops_initialize();
 static void finalize(void)
 {
     printer_h_deinitialize();
+    free_name_map(&errstrings);
 }
 
 static void loops_initialize()
 {
+    initialize_name_map(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(name_map_elem));
     printer_h_initialize();
     atexit(finalize);
 }
@@ -49,14 +72,13 @@ char* loops_strncpy(char* dest, const char* src, std::size_t count)
 #endif  
 }
 
-void add_name_to_map(name_map_elem** map_to_append, int id, const char* name)
+void initialize_name_map(name_map_elem** out_map_ptr, name_map_elem* in_map_ptr, int size)
 {
-    name_map_elem* map_to_append_ = *map_to_append;
-    name_map_elem* newelem = (name_map_elem*)malloc(sizeof(name_map_elem));
-    newelem->enum_id = id;
-    loops_strncpy(newelem->string_id, name, LOOPS_MAX_OPERATION_NAME_WIDTH);
-    HASH_ADD_INT(map_to_append_, enum_id, newelem );
-    *map_to_append = map_to_append_;
+    name_map_elem* out_map_ptr_ = *out_map_ptr;
+    int opnum = 0;
+    for(; opnum < size; opnum++)
+        HASH_ADD_INT(out_map_ptr_, enum_id, in_map_ptr + opnum );
+    *out_map_ptr = out_map_ptr_;
 }
 
 void free_name_map(name_map_elem** map_to_free)
@@ -67,11 +89,20 @@ void free_name_map(name_map_elem** map_to_free)
   HASH_ITER(hh, map_to_free_, current_name, tmp) 
   {
     HASH_DEL(map_to_free_, current_name);
-    free(current_name);
   }
   *map_to_free = NULL;
 }
 
+char* get_errstring(int errid)
+{
+    static char* unknown_err = "Loops: Unknown error. Problem in error system.";
+    name_map_elem* found_name; 
+    HASH_FIND_INT(errstrings, &errid, found_name);
+    if (found_name == NULL)
+        return unknown_err;
+    else
+        return found_name->string_id;
+}
 
 namespace loops
 {
@@ -322,9 +353,9 @@ namespace loops
     int Func::signature() const { return static_cast<FuncImpl*>(impl)->signature(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
-    void Func::printIR(std::ostream& out, const std::string& passname) const
+    void Func::printIR(std::ostream& out, int columns, const std::string& passname) const
     {
-        static_cast<FuncImpl*>(impl)->printIR(out, passname);
+        static_cast<FuncImpl*>(impl)->printIR(out, columns, passname);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {

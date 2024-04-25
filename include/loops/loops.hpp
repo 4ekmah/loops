@@ -353,8 +353,9 @@ public:
     
     //If passname is empty, this function will print IR on stage just before IR to
     //assembly translation. This stage have different names on different platforms.
-    void printIR(std::ostream& out, const std::string& passname = "") const;
     enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
+    /*allowed colums for IR: PC_OPNUM, PC_OP */
+    void printIR(std::ostream& out, int columns = PC_OPNUM | PC_OP, const std::string& passname = "") const;
     void printAssembly(std::ostream& out, int columns = PC_OPNUM | PC_OP | PC_HEX) const;
 
 protected:

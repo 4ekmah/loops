@@ -17,6 +17,7 @@ int main(int argc, char** argv)
     unzip_listings();
 
     ::testing::InitGoogleTest(&argc, argv);
+    //::testing::GTEST_FLAG(filter) = "basic.triangle_types";
     int res = RUN_ALL_TESTS();
     refresh_zip_listings();
 

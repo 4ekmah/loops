@@ -19,22 +19,6 @@ See https://github.com/4ekmah/loops/LICENSE
 void printer_h_initialize();
 void printer_h_deinitialize();
 
-enum 
-{
-    LOOPS_ERR_NULL_POINTER,
-    LOOPS_ERR_POINTER_ARITHMETIC_ERROR,
-    LOOPS_ERR_OUT_OF_MEMORY,
-    LOOPS_ERR_UNKNOWN_FLAG,
-    LOOPS_ERR_POSITIVE_SIZE_NEEDED,
-    LOOPS_ERR_UNIMAGINARY_BIG_STRING,
-    LOOPS_ERR_UNPRINTABLE_OPERATION,
-    LOOPS_ERR_UNKNOWN_TYPE,
-    LOOPS_ERR_UNKNOWN_CONDITION,
-    LOOPS_ERR_INCORRECT_OPERATION_FORMAT,
-    LOOPS_ERR_INCORRECT_ARGUMENT, 
-    LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE,
-};
-
 typedef struct buffer_list
 {
     char* buffer;
@@ -85,7 +69,11 @@ void close_printer_cell(printer_new* printer);
 int create_ir_printer(int columnflags, printer_new** res);
 // int create_assembly_printer(int columnflags, printer_new** res); //DUBUG
 void free_printer(printer_new* tofree);
-int print_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func);
+int fprint_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func);
+/*
+* Allocate with malloc enough data for out string. Allocated out have to be free by user.
+*/
+int sprint_syntfunc(printer_new* printer, char** out, syntfunc2print* func);
 
 void print_address(::std::ostream& str, int64_t addr);
 

@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_COMMON_HPP__
 
 #include "loops/loops.hpp"
+#include "def_err.hpp"
 #include <functional>
 #include <set>
 #include <stack>
@@ -16,31 +17,15 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <atomic>
 #include <uthash.h>
 
-#define LOOPS_ASSERT_LINE_(x) #x
-#define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
-
-#undef Assert
-#define Assert(expr) \
-    if (expr)        \
-        ;            \
-    else             \
-        throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
-#define AssertMsg(expr, msg) \
-    if (expr)                \
-        ;                    \
-    else                     \
-        throw std::runtime_error(msg)
-
 char* loops_strncpy(char* dest, const char* src, std::size_t count);
-enum {LOOPS_MAX_OPERATION_NAME_WIDTH = 30};
 typedef struct name_map_elem
 {
     int enum_id;
-    char string_id[LOOPS_MAX_OPERATION_NAME_WIDTH];
+    char* string_id;
     UT_hash_handle hh;
 } name_map_elem;
 
-void add_name_to_map(name_map_elem** map_to_append, int id, const char* name);
+void initialize_name_map(name_map_elem** out_map_ptr, name_map_elem* in_map_ptr, int size);
 void free_name_map(name_map_elem** map_to_append);
 
 namespace loops
