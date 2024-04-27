@@ -85,26 +85,19 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
     l_pipeline.run_until("CP_IR_TO_ASSEMBLY");
-    
-    Backend* backend = m_context->getBackend();
-    std::vector<Printer::ColPrinter> columnPrs;
-    columnPrs.reserve(3);
-    if(columns&PC_OPNUM)
-        columnPrs.push_back(Printer::colNumPrinter(0));
-    if(columns&PC_OP)
-    {
-        columnPrs.push_back(Printer::colOpnamePrinter(backend->getOpStrings()));
-        columnPrs.push_back(Printer::colArgListPrinter(l_pipeline.get_data()));
-    }
-    if(columns&PC_HEX)
-    {
-        if(columns&PC_OP)
-            columnPrs.push_back(Printer::colDelimeterPrinter());
-        columnPrs.push_back(backend->colHexPrinter(l_pipeline.get_data()));
-    }
-    Printer printer(columnPrs);
-    printer.setBackend(backend);
-    printer.print(out, l_pipeline.get_data());
+    printer_new* _printer;
+    Assert(create_assembly_printer(columns, m_context->getBackend(), &_printer) == 0);
+    syntfunc2print s2p;
+    s2p.name = (char*)(l_pipeline.get_data().name.c_str());
+    s2p.params = (Arg*)l_pipeline.get_data().params.data();
+    s2p.params_size = (int)l_pipeline.get_data().params.size();
+    s2p.program = (Syntop*)l_pipeline.get_data().program.data();
+    s2p.program_size = (int)l_pipeline.get_data().program.size();
+    char* printed_str;
+    Assert(sprint_syntfunc(_printer, &printed_str, &s2p) == 0);
+    free_printer(_printer);
+    out << printed_str;
+    free(printed_str);
 }
 
 const Syntfunc& FuncImpl::get_data() const

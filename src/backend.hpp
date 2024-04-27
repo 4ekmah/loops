@@ -113,19 +113,12 @@ public:
     virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
-//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, FP) }));
-//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, LR) }));
-//    a_dest.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, FP), argReg(RB_INT, SP)}));
-//
-//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, FP),   argIImm(18) }));
-//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, LR),   argIImm(19) }));
-//}
 
     virtual Arg getSParg() const = 0;
 
-    virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
-    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
-    virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
+    virtual column_printer get_opname_printer() const = 0;
+    virtual column_printer get_opargs_printer() const = 0;
+    virtual column_printer get_hex_printer() const = 0;
     
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}

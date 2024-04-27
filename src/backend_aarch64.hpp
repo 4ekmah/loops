@@ -16,6 +16,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 #include <map>
 
+void backend_aarch64_h_initialize();
+void backend_aarch64_h_deinitialize();
+
 namespace loops
 {
 enum {
@@ -133,7 +136,7 @@ public:
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
     virtual Arg getSParg() const override final;
-    virtual std::unordered_map<int, std::string> getOpStrings() const override final;
+    virtual column_printer get_opname_printer() const override final;
     virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
     virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
 };

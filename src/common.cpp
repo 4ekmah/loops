@@ -35,6 +35,7 @@ name_map_elem errstrings_[] =
     {LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                , {}} ,
     {LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        , {}} ,
     {LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly.", {}} ,
+    {LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           , {}} ,
 };
 name_map_elem* errstrings = NULL;
 
@@ -51,6 +52,13 @@ static void loops_initialize();
 #endif
 static void finalize(void)
 {
+#if __LOOPS_ARCH == __LOOPS_AARCH64
+    backend_aarch64_h_deinitialize();
+#elif __LOOPS_ARCH == __LOOPS_INTEL64
+    backend_intel64_h_deinitialize();
+#else
+#error Unknown CPU
+#endif
     printer_h_deinitialize();
     free_name_map(&errstrings);
 }
@@ -59,6 +67,14 @@ static void loops_initialize()
 {
     initialize_name_map(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(name_map_elem));
     printer_h_initialize();
+#if __LOOPS_ARCH == __LOOPS_AARCH64
+    backend_aarch64_h_initialize();
+#elif __LOOPS_ARCH == __LOOPS_INTEL64
+    backend_intel64_h_initialize();
+#else
+#error Unknown CPU
+#endif
+
     atexit(finalize);
 }
 
@@ -823,5 +839,4 @@ namespace loops
         impl = nullptr;
         return ret;
     }
-
 }

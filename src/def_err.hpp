@@ -30,6 +30,7 @@ enum
     LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE,
     LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION,
     LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION,
+    LOOPS_ERR_INTERNAL_INCORRECT_OFFSET,
 };
 
 #define LOOPS_ASSERT_LINE_(x) #x
@@ -48,8 +49,7 @@ enum
         throw std::runtime_error(msg)
 
 char* get_errstring(int errid);
-#if 0 // __LOOPS_LANGUAGE  == __LOOPS_CPP //DUBUG: uncomment
-//class loops_exception, extracts error by 
+#if 0 //__LOOPS_LANGUAGE  == __LOOPS_CPP //DUBUG: uncomment
 class loops_exception : public std::exception
 {
 private:
@@ -64,6 +64,6 @@ public:
 #endif
 
 /*Macro for calling functions, which are able to throw exceptions. Rethrow them even if there is no exception support in language.*/
-#define LOOPS_CALL_THROW(x) do { int __loops_err__ = x; if(__loops_err__ != 0) LOOPS_THROW(__loops_err__); } while(0)
+#define LOOPS_CALL_THROW(x) do { int __loops_err__ = x; if(__loops_err__ != LOOPS_ERR_SUCCESS) LOOPS_THROW(__loops_err__); } while(0)
 
 #endif //__LOOPS_DEF_ERR_HPP__
