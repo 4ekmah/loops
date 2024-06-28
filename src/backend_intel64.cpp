@@ -112,59 +112,50 @@ namespace loops
                 break;
             if (index.size() == 2)
             {
-                switch (index[1].flags & (AF_LOWER8))
-                {
-                case (AF_LOWER8):
+                if(index[0].elemtype == TYPE_I8)
                 {
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                     static uint64_t statB[4] = { 0x480fbe, 0x4c0fbe, 0x490fbe, 0x4d0fbe };
                     return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) });        //movsx rax, byte ptr [rcx]
                 }
-                case (AF_LOWER16):
+                else if(index[0].elemtype == TYPE_I16)
                 {
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                     static uint64_t statB[4] = { 0x480fbf, 0x4c0fbf, 0x490fbf, 0x4d0fbf };
                     return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) });        //movsx rax, word ptr [rcx]
                 }
-                };
             }
             else if (index.size() == 3)
             {
                 if (index[2].tag == Arg::IREG)
                 {
-                    switch (index[1].flags & (AF_LOWER8))
-                    {
-                    case (AF_LOWER8):
+                    if(index[0].elemtype == TYPE_I8)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                         static uint64_t statB[8] = { 0x480fbe, 0x4c0fbe, 0x490fbe, 0x4d0fbe, 0x4a0fbe, 0x4e0fbe, 0x4b0fbe, 0x4f0fbe };
                         return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In) });  //movsx rax, byte ptr [rcx + rdx]
                     }
-                    case (AF_LOWER16):
+                    else if(index[0].elemtype == TYPE_I16)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                         static uint64_t statB[8] = { 0x480fbf, 0x4c0fbf, 0x490fbf, 0x4d0fbf, 0x4a0fbf, 0x4e0fbf, 0x4b0fbf, 0x4f0fbf };
                         return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In) });  //movsx rax, byte ptr [rcx + rdx]
                     }
-                    };
                 }
                 else if (index[2].tag == Arg::IIMMEDIATE)
                 {
-                    switch (index[1].flags & (AF_LOWER8))
-                    {
-                    case (AF_LOWER8):
+                    if(index[0].elemtype == TYPE_I8)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                         static uint64_t statB[4] = { 0x480fbe, 0x4c0fbe, 0x490fbe, 0x4d0fbe };
                         return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32) });    //movsx rax, byte ptr [rcx + <offset>]
                     }
-                    case (AF_LOWER16):
+                    else if(index[0].elemtype == TYPE_I16)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                         static uint64_t statB[4] = { 0x480fbf, 0x4c0fbf, 0x490fbf, 0x4d0fbf };
                         return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32) });     //movsx rax, word ptr [rcx + <offset>]
                     }
-                    };
                 }
             }
             break;
@@ -196,59 +187,50 @@ namespace loops
                 break;
             if (index.size() == 2)
             {
-                switch (index[1].flags & (AF_LOWER8))
-                {
-                case (AF_LOWER8):
+                if(index[0].elemtype == TYPE_U8)
                 {
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                     static uint64_t statB[4] = { 0x480fb6, 0x4c0fb6, 0x490fb6, 0x4d0fb6 };
                     return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) });        //movzx rax, byte ptr [rcx]
                 }
-                case (AF_LOWER16):
+                else if(index[0].elemtype == TYPE_U16)
                 {
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                     static uint64_t statB[4] = { 0x480fb7, 0x4c0fb7, 0x490fb7, 0x4d0fb7 };
                     return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) });        //movzx rax, word ptr [rcx]
                 }
-                };
             }
             else if (index.size() == 3)
             {
                 if (index[2].tag == Arg::IREG)
                 {
-                    switch (index[1].flags & (AF_LOWER8))
-                    {
-                    case (AF_LOWER8):
+                    if(index[0].elemtype == TYPE_U8)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                         static uint64_t statB[8] = { 0x480fb6, 0x4c0fb6, 0x490fb6, 0x4d0fb6, 0x4a0fb6, 0x4e0fb6, 0x4b0fb6, 0x4f0fb6 };
                         return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In) });  //movzx rax, byte ptr [rcx + rdx]
                     }
-                    case (AF_LOWER16):
+                    else if(index[0].elemtype == TYPE_U16)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                         static uint64_t statB[8] = { 0x480fb7, 0x4c0fb7, 0x490fb7, 0x4d0fb7, 0x4a0fb7, 0x4e0fb7, 0x4b0fb7, 0x4f0fb7 };
                         return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In) });  //movzx rax, byte ptr [rcx + rdx]
                     }
-                    };
                 }
                 else if (index[2].tag == Arg::IIMMEDIATE)
                 {
-                    switch (index[1].flags & (AF_LOWER8))
-                    {
-                    case (AF_LOWER8):
+                    if(index[0].elemtype == TYPE_U8)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                         static uint64_t statB[4] = { 0x480fb6, 0x4c0fb6, 0x490fb6, 0x4d0fb6 };
                         return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32) });    //movzx rax, byte ptr [rcx + <offset>]
                     }
-                    case (AF_LOWER16):
+                    else if(index[0].elemtype == TYPE_U16)
                     {
                         size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                         static uint64_t statB[4] = { 0x480fb7, 0x4c0fb7, 0x490fb7, 0x4d0fb7 };
                         return BiT({ nBkb(3, statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32) });     //movzx rax, word ptr [rcx + <offset>]
                     }
-                    };
                 }
             }
             break;
@@ -261,9 +243,8 @@ namespace loops
                     {
                         if (index[0].flags & AF_ADDRESS)
                         {
-                            switch (index[1].flags & (AF_LOWER8))
+                            if(elem_size(index[1].elemtype) == 1)
                             {
-                            case (AF_LOWER8):
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov [r12/r13], bx
                                 {
                                     return BiT({ nBkb(2, ((index[1].idx < 8) ? 0x4188 : 0x4588), 2, (index[0].idx == R12 ? 0 : 1)), BTreg(1, 3, In), BTreg(0, 3, In), BTsta((index[0].idx == R12 ? 0x24 : 0), 8) });
@@ -278,8 +259,10 @@ namespace loops
                                     static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
                                     static int statBn[4] = { 1, 2, 2, 2 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
-                                }
-                            case (AF_LOWER16):
+                                }                                
+                            }
+                            else if(elem_size(index[1].elemtype) == 2)
+                            {
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov [r12/r13], bx
                                 {
                                     return BiT({ nBkb(3, ((index[1].idx < 8) ? 0x664189 : 0x664589), 2, (index[0].idx == R12 ? 0 : 1)), BTreg(1, 3, In), BTreg(0, 3, In), BTsta((index[0].idx == R12 ? 0x24 : 0), 8) });
@@ -290,8 +273,9 @@ namespace loops
                                     static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
                                     static int statBn[4] = { 2, 3, 3, 3 };
                                     return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], bx
-                                }
-                            case (AF_LOWER32):
+                                }                                
+                            }
+                            else if(elem_size(index[1].elemtype) == 4)
                             {
                                 uint64_t stat = 0x224;
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov [r12/r13], ebx
@@ -307,7 +291,7 @@ namespace loops
                                     return BiT({ BTsta(stats[statn], statw[statn]), BTreg(1, 3, In), BTreg(0, 3, In) });
                                 }
                             }
-                            case (0):
+                            else if(elem_size(index[1].elemtype) == 8)
                             {
                                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                                 static uint64_t statB[4] = { 0x4889, 0x4989, 0x4c89, 0x4d89 };
@@ -316,25 +300,21 @@ namespace loops
                                 else
                                     return BiT({ nBkb(2, statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], rbx
                             }
-                            };
                         }
                         else if (index[1].flags & AF_ADDRESS)
                         {
-                            switch (index[0].flags & (AF_LOWER8))
+                            if(index[0].elemtype == TYPE_U32 || index[0].elemtype == TYPE_FP32)
                             {
-                                case (AF_LOWER32):
-                                {
-                                    static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
-                                    static int statBn[4] = { 1, 2, 2, 2 };
-                                    size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                                    return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov eax, [rbx]
-                                }
-                                case (0):
-                                {
-                                    static uint64_t statB[4] = { 0x488b, 0x4c8b, 0x498b, 0x4d8b };
-                                    size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                                    return BiT({ nBkb(2, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov rax, [rbx]
-                                }
+                                static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
+                                static int statBn[4] = { 1, 2, 2, 2 };
+                                size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
+                                return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov eax, [rbx]
+                            } 
+                            else if(elem_size(index[0].elemtype) == 8)
+                            {
+                                static uint64_t statB[4] = { 0x488b, 0x4c8b, 0x498b, 0x4d8b };
+                                size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
+                                return BiT({ nBkb(2, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTreg(1, 3, In) }); //mov rax, [rbx]
                             }
                         }
                         else
@@ -350,29 +330,34 @@ namespace loops
                     {
                         if (index[0].flags & AF_ADDRESS)
                         {
-                            switch (index[1].flags & (AF_LOWER8))
+                            if(elem_size(index[1].elemtype) == 1)
                             {
-                            case (AF_LOWER8):
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov byte ptr [r12/r13], <imm>
                                     return  BiT({ nBkb(2, 0x41c6, 5, index[0].idx == R12 ? 0 : 0b1000), BTreg(0, 3, In), BTsta(index[0].idx == R12 ? 0b00100100 : 0, 8), BTimm(1, 8) });
                                 else
                                     return  BiT({ index[0].idx < 8 ? nBkb(1, 0xc6, 5, 0) : nBkb(2, 0x41c6, 5, 0), BTreg(0, 3, In), BTimm(1, 8) });//mov byte ptr [rax], <imm>
-                            case (AF_LOWER16):
+                            }
+                            else if(elem_size(index[1].elemtype) == 2)
+                            {
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov word ptr [r12/r13], <imm>
                                     return  BiT({ nBkb(3, 0x6641c7, 5, index[0].idx == R12 ? 0 : 0b1000), BTreg(0, 3, In), BTsta(index[0].idx == R12 ? 0b00100100 : 0, 8), BTimm(1, 16) });
                                 else
                                     return  BiT({ index[0].idx < 8 ? nBkb(2, 0x66c7, 5, 0) : nBkb(3, 0x6641c7, 5, 0), BTreg(0, 3, In), BTimm(1, 16) });//mov word ptr [rax], <imm>
-                            case (AF_LOWER32):
+                            }
+                            else if(elem_size(index[1].elemtype) == 4)
+                            {
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov dword ptr [r12/r13], <imm>
                                     return  BiT({ nBkb(2, 0x41c7, 5, index[0].idx == R12 ? 0 : 0b1000), BTreg(0, 3, In), BTsta(index[0].idx == R12 ? 0b00100100 : 0, 8), BTimm(1, 32) });
                                 else
                                     return  BiT({ index[0].idx < 8 ? nBkb(1, 0xc7, 5, 0) : nBkb(2, 0x41c7, 5, 0), BTreg(0, 3, In), BTimm(1, 32) });//mov dword ptr [rax], <imm>
-                            case (0):
+                            }
+                            else if(elem_size(index[1].elemtype) == 8)
+                            {
                                 if (index[0].idx == R12 || index[0].idx == R13) //mov qword ptr [r12/r13], <imm>
                                     return  BiT({ nBkb(2, 0x49c7, 5, index[0].idx == R12 ? 0 : 0b1000), BTreg(0, 3, In), BTsta(index[0].idx == R12 ? 0b00100100 : 0, 8), BTimm(1, 32) });
                                 else
                                     return  BiT({ index[0].idx < 8 ? nBkb(2, 0x48c7, 5, 0) : nBkb(2, 0x49c7, 5, 0), BTreg(0, 3, In), BTimm(1, 32) });//mov qword ptr [rax], <imm>
-                            };
+                            }
                         }
                         else if(index[1].value > int64_t(0x7fffffff) || index[1].value < (-(int64_t(0x7fffffff) + 1)))
                         {
@@ -400,50 +385,42 @@ namespace loops
                         break;
                     if (index[2].tag == Arg::IREG)
                     {
-                        switch (index[0].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER32):
+                        if(index[0].elemtype == TYPE_U32 || index[0].elemtype == TYPE_FP32)
                         {
                             static int statBn[8] = { 1, 2, 2, 2, 2, 2, 2, 2 };
                             static uint64_t statB[8] = { 0x8b, 0x448b, 0x418b, 0x458b, 0x428b, 0x468b, 0x438b, 0x478b };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In)});  //mov eax, [rcx + rdx]
                         }
-                        case (0):
+                        else if(elem_size(index[0].elemtype)== 8)
                         {
                             static uint64_t statB[8] = { 0x488b, 0x4c8b, 0x498b, 0x4d8b, 0x4a8b, 0x4e8b, 0x4b8b, 0x4f8b };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             return BiT({ nBkb(2, statB[statn], 2, 0b00), BTreg(0, 3, Out), BTsta(0b10000, 5), BTreg(2, 3, In), BTreg(1, 3, In) });  //mov rax, [rcx + rdx]
                         }
-                        };
                     }
                     else if (index[2].tag == Arg::IIMMEDIATE)
                     {
-                        switch (index[0].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER32):
+                        if(index[0].elemtype == TYPE_U32 || index[0].elemtype == TYPE_FP32)
                         {
                             static uint64_t statB[4] = { 0x8b, 0x448b, 0x418b, 0x458b };
                             static int statBn[4] = { 1, 2, 2, 2 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32)});  //mov eax, [rcx + <offset>]
                         }
-                        case (0):
+                        else if(elem_size(index[0].elemtype) == 8)
                         {
                             static uint64_t statB[4] = { 0x488b, 0x4c8b, 0x498b, 0x4d8b };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                             return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(0, 3, Out), BTreg(1, 3, In), BTimm(2, 32) });  //mov rax, [rcx + <offset>]
                         }
-                        };
                     }
                 }
                 else if (index[1].tag == Arg::IREG && (index[1].flags & AF_ADDRESS))
                 {
                     if (index[2].tag == Arg::IREG)
                     {
-                        switch (index[2].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER8):
+                        if(elem_size(index[2].elemtype) == 1)
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x88, 0x4188, 0x4288, 0x4388, 0x4488, 0x4588, 0x4688, 0x4788 };
@@ -458,7 +435,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax + rbx], cl
                         }
-                        case (AF_LOWER16):
+                        else if(elem_size(index[2].elemtype) == 2)
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x6689, 0x664189, 0x664289, 0x664389, 0x664489, 0x664589, 0x664689, 0x664789 };
@@ -468,7 +445,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax + rbx], cx
                         }
-                        case (AF_LOWER32):
+                        else if(elem_size(index[2].elemtype) == 4)
                         {
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             static uint64_t statB[8] = { 0x89, 0x4189, 0x4289, 0x4389, 0x4489, 0x4589, 0x4689, 0x4789 };
@@ -478,19 +455,16 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax + rbx], ecx
                         }
-                        case (0):
+                        else if(elem_size(index[2].elemtype) == 8)
                         {
                             static uint64_t statB[8] = { 0x4889, 0x4989, 0x4a89, 0x4b89, 0x4c89, 0x4d89, 0x4e89, 0x4f89 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2) | ((index[2].idx < 8) ? 0 : 4);
                             return BiT({ nBkb(2, statB[statn], 2, 0), BTreg(2, 3, In), BTsta(0b10000, 5), BTreg(1, 3, In), BTreg(0, 3, In) });  //mov [rax + rbx], rcx
                         }
-                        };
                     }
                     else if (index[2].tag == Arg::IIMMEDIATE)
                     {
-                        switch (index[2].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER8):
+                        if(elem_size(index[2].elemtype) == 1)
                         {
                             static uint64_t statB[4] = { 0xc604, 0x41c604, 0x42c604, 0x43c604 };
                             static int statBn[4] = { 2, 3, 3, 3 };
@@ -500,7 +474,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTimm(2, 8) });                 //mov byte ptr [rax + rcx], <imm>
                         }
-                        case (AF_LOWER16):
+                        else if(elem_size(index[2].elemtype) == 2)
                         {
                             static uint64_t statB[4] = { 0x66c704, 0x6641c704, 0x6642c704, 0x6643c704 };
                             static int statBn[4] = { 3, 4, 4, 4 };
@@ -510,7 +484,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTimm(2, 16) });                     //mov word ptr [rax + rcx], <imm>
                         }
-                        case (AF_LOWER32):
+                        else if(elem_size(index[2].elemtype) == 4)
                         {
                             static uint64_t statB[4] = { 0xC704, 0x41C704, 0x42C704, 0x43C704 };
                             static int statBn[4] = { 2, 3, 3, 3 };
@@ -520,7 +494,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTimm(2, 32) });                 //mov dword ptr [rax + rcx], <imm>
                         }
-                        case (0):
+                        else if(elem_size(index[2].elemtype) == 8)
                         {
                             static uint64_t statB[4] = { 0x48c704, 0x49c704, 0x4ac704, 0x4bc704 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
@@ -529,16 +503,13 @@ namespace loops
                             else
                                 return BiT({ nBkb(3, statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In), BTimm(2, 32) });                                 //mov qword ptr [rax + rcx], <imm>
                         }
-                        }
                     };
                 }
                 else if (index[1].tag == Arg::IIMMEDIATE && (index[1].flags & AF_ADDRESS))
                 {
                     if (index[2].tag == Arg::IREG)
                     {
-                        switch (index[2].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER8):
+                        if(elem_size(index[2].elemtype) == 1)
                         {
                             static uint64_t statB[4] = { 0x88, 0x4188, 0x4488, 0x4588 };
                             static int statBn[4] = { 1, 2, 2, 2 };
@@ -550,7 +521,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTimm(1, 32) });    //mov [rax + <offset>], cl
                         }
-                        case (AF_LOWER16):
+                        else if(elem_size(index[2].elemtype) == 2)
                         {
                             static uint64_t statB[4] = { 0x6689, 0x664189, 0x664489, 0x664589 };
                             static int statBn[4] = { 2, 3, 3, 3 };
@@ -560,7 +531,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTimm(1, 32) });    //mov [rax + <offset>], cx
                         }
-                        case (AF_LOWER32):
+                        else if(elem_size(index[2].elemtype) == 4)
                         {
                             static uint64_t statB[4] = { 0x89, 0x4189, 0x4489, 0x4589 };
                             static int statBn[4] = { 1, 2, 2, 2 };
@@ -570,7 +541,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statBn[statn], statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTimm(1, 32) });     //mov [rax + <offset>], ecx
                         }
-                        case (0):
+                        else if(elem_size(index[2].elemtype) == 8)
                         {
                             static uint64_t statB[4] = { 0x4889, 0x4989, 0x4c89, 0x4d89 };
                             size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[2].idx < 8) ? 0 : 2);
@@ -579,13 +550,10 @@ namespace loops
                             else
                                 return BiT({ nBkb(2, statB[statn], 2, 0b10), BTreg(2, 3, In), BTreg(0, 3, In), BTimm(1, 32) });                //mov [rax + <offset>], rcx
                         }
-                        }
                     }
                     else if (index[2].tag == Arg::IIMMEDIATE)
                     {
-                        switch (index[2].flags & (AF_LOWER8))
-                        {
-                        case (AF_LOWER8):
+                        if(elem_size(index[2].elemtype) == 1)
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc6 : 0x41c6);
                             int statw = ((index[0].idx < 8) ? 1 : 2);
@@ -594,7 +562,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statw, stat, 5, 0b10000), BTreg(0, 3, In), BTimm(1, 32), BTimm(2, 8) });           //mov word ptr [rax + <offset>], <imm>
                         }
-                        case (AF_LOWER16):
+                        else if(elem_size(index[2].elemtype) == 2)
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0x66c7 : 0x6641c7);
                             int statw = ((index[0].idx < 8) ? 2 : 3);
@@ -603,7 +571,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statw, stat, 5, 0b10000), BTreg(0, 3, In), BTimm(1, 32), BTimm(2, 16) });           //mov word ptr [rax + <offset>], <imm>
                         }
-                        case (AF_LOWER32):
+                        else if(elem_size(index[2].elemtype) == 4)
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0xc7 : 0x41c7);
                             int statw = ((index[0].idx < 8) ? 1 : 2);
@@ -612,7 +580,7 @@ namespace loops
                             else
                                 return BiT({ nBkb(statw, stat, 5, 0b10000), BTreg(0, 3, In), BTimm(1, 32), BTimm(2, 32) });           //mov dword ptr [rax + <offset>], <imm>
                         }
-                        case (0):
+                        else if(elem_size(index[2].elemtype) == 8)
                         {
                             uint64_t stat = ((index[0].idx < 8) ? 0x48c7: 0x49c7);
                             if (index[0].idx == R12)
@@ -620,7 +588,6 @@ namespace loops
                             else
                                 return BiT({ nBkb(2, stat, 5, 0b10000), BTreg(0, 3, In), BTimm(1, 32), BTimm(2, 32) });                //mov qword ptr [rax + <offset>], <imm>
                         }
-                        };
                     }
                 }
             }
@@ -734,7 +701,7 @@ namespace loops
                     else if (index[0].tag == Arg::ISPILLED)
                         return BiT({ BTsta(0x48c1a424, 32), BTspl(0, 32), BTimm(1, 8) });
                 }
-                else if (index[1].tag == Arg::IREG && index[1].idx == RCX && (index[1].flags & AF_LOWER8) == AF_LOWER8)
+                else if (index[1].tag == Arg::IREG && index[1].idx == RCX)
                 {
                     if (index[0].tag == Arg::IREG)
                         return BiT({ nBkb(2, index[0].idx < 8 ? 0x48d3 : 0x49d3, 5, 0b11100), BTreg(0, 3, In | Out), BTreg(1, 0, In) });
@@ -753,7 +720,7 @@ namespace loops
                     else if (index[0].tag == Arg::ISPILLED)
                         return BiT({ BTsta(0x48c1ac24, 32), BTspl(0, 32), BTimm(1, 8) });
                 }
-                else if (index[1].tag == Arg::IREG && index[1].idx == RCX && (index[1].flags & AF_LOWER8) == AF_LOWER8)
+                else if (index[1].tag == Arg::IREG && index[1].idx == RCX)
                 {
                     if (index[0].tag == Arg::IREG)
                         return BiT({ nBkb(2, index[0].idx < 8 ? 0x48d3 : 0x49d3, 5, 0b11101), BTreg(0, 3, In | Out), BTreg(1, 0, In) });
@@ -772,7 +739,7 @@ namespace loops
                     else if (index[0].tag == Arg::ISPILLED)
                         return BiT({ BTsta(0x48c1bc24, 32), BTspl(0, 32), BTimm(1, 8) });
                 }
-                else if (index[1].tag == Arg::IREG && index[1].idx == RCX && (index[1].flags & AF_LOWER8) == AF_LOWER8)
+                else if (index[1].tag == Arg::IREG && index[1].idx == RCX)
                 {
                     if (index[0].tag == Arg::IREG)
                         return BiT({ nBkb(2, index[0].idx < 8 ? 0x48d3 : 0x49d3, 5, 0b11111), BTreg(0, 3, In | Out), BTreg(1, 0, In) });
@@ -1017,6 +984,11 @@ namespace loops
 
     SyntopTranslation i64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
     {
+        //DUBUG: Next step:
+        //1.) {AF_LOWER8, AF_LOWER16, AF_LOWER32} have to be renamed to {AF_ADDRESS8, AF_ADDRESS16, AF_ADDRESS32, AF_ADDRESS64} and AF_ADDRESS have to be bitwise OR of them.
+        //2.) Instruction encoding management, done by AF_ADDRESS flags have to be changed here. It's sophisticated now.
+        //3.) There is good concept: flags have to move from lower level up to higher levels.
+        //4.) One thing to think: Isn't it good idea to create RADDRESS, IADDRESS(register and immediate) existing only on level of native code, like ISPILLED? Then flag with it's width variations will be redundant.
         using namespace SyntopTranslationConstruction;
         scs = true;
         switch (index.opcode)
