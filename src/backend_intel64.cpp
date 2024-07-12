@@ -241,7 +241,7 @@ namespace loops
                 {
                     if (index[1].tag == Arg::IREG)
                     {
-                        if (index[0].flags & AF_ADDRESS)
+                        if ((index[0].flags & AF_ADDRESS) == AF_ADDRESS)
                         {
                             if(elem_size(index[1].elemtype) == 1)
                             {
@@ -301,7 +301,7 @@ namespace loops
                                     return BiT({ nBkb(2, statB[statn], 2, 0b00), BTreg(1, 3, In), BTreg(0, 3, In) }); //mov [rax], rbx
                             }
                         }
-                        else if (index[1].flags & AF_ADDRESS)
+                        else if((index[1].flags & AF_ADDRESS) == AF_ADDRESS)
                         {
                             if(index[0].elemtype == TYPE_U32 || index[0].elemtype == TYPE_FP32)
                             {
@@ -328,7 +328,7 @@ namespace loops
                         return BiT({ BTsta(index[0].idx < 8 ? 0x1222E : 0x1322E, 18), BTreg(0, 3, In), BTsta(0x424, 11), BTspl(1, 32) }); //mov rax, [rsp + offset]
                     else if (index[1].tag == Arg::IIMMEDIATE)
                     {
-                        if (index[0].flags & AF_ADDRESS)
+                        if((index[0].flags & AF_ADDRESS) == AF_ADDRESS)
                         {
                             if(elem_size(index[1].elemtype) == 1)
                             {
@@ -379,9 +379,9 @@ namespace loops
             {
                 if (index[0].tag != Arg::IREG)
                     break;
-                if ((index[0].flags & AF_ADDRESS) == 0)
+                if ((index[0].flags & AF_ADDRESS) != AF_ADDRESS)
                 {
-                    if (index[1].tag != Arg::IREG || (index[1].flags & AF_ADDRESS) == 0 || (index[2].flags & AF_ADDRESS) == 0)
+                    if (index[1].tag != Arg::IREG || (index[1].flags & AF_ADDRESS) != AF_ADDRESS || (index[2].flags & AF_ADDRESS) != AF_ADDRESS)
                         break;
                     if (index[2].tag == Arg::IREG)
                     {
@@ -416,7 +416,7 @@ namespace loops
                         }
                     }
                 }
-                else if (index[1].tag == Arg::IREG && (index[1].flags & AF_ADDRESS))
+                else if (index[1].tag == Arg::IREG && ((index[1].flags & AF_ADDRESS) == AF_ADDRESS))
                 {
                     if (index[2].tag == Arg::IREG)
                     {
@@ -505,7 +505,7 @@ namespace loops
                         }
                     };
                 }
-                else if (index[1].tag == Arg::IIMMEDIATE && (index[1].flags & AF_ADDRESS))
+                else if (index[1].tag == Arg::IIMMEDIATE && ((index[1].flags & AF_ADDRESS) == AF_ADDRESS))
                 {
                     if (index[2].tag == Arg::IREG)
                     {
@@ -985,7 +985,7 @@ namespace loops
     SyntopTranslation i64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
     {
         //DUBUG: Next step:
-        //1.) {AF_LOWER8, AF_LOWER16, AF_LOWER32} have to be renamed to {AF_ADDRESS8, AF_ADDRESS16, AF_ADDRESS32, AF_ADDRESS64} and AF_ADDRESS have to be bitwise OR of them.
+        //1.) {AF_ADDRESS8, AF_ADDRESS16, AF_ADDRESS32} have to be renamed to {AF_ADDRESS8, AF_ADDRESS16, AF_ADDRESS32, AF_ADDRESS64} and AF_ADDRESS have to be bitwise OR of them.
         //2.) Instruction encoding management, done by AF_ADDRESS flags have to be changed here. It's sophisticated now.
         //3.) There is good concept: flags have to move from lower level up to higher levels.
         //4.) One thing to think: Isn't it good idea to create RADDRESS, IADDRESS(register and immediate) existing only on level of native code, like ISPILLED? Then flag with it's width variations will be redundant.
@@ -998,13 +998,13 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER8) });
-                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER8) });
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16) });
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16) });
+                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_ADDRESS8) });
+                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_ADDRESS8) });
+                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_ADDRESS16) });
+                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_ADDRESS16) });
                 case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(1) });
                 case (TYPE_FP32):
-                case (TYPE_U32): return SyT(INTEL64_MOV,   { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS) });
+                case (TYPE_U32): return SyT(INTEL64_MOV,   { SAcop(0, AF_ADDRESS32), SAcop(1, AF_ADDRESS) });
                 case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
@@ -1015,13 +1015,13 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER8), SAcop(2) });
-                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER8), SAcop(2) });
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_LOWER16), SAcop(2) });
+                case (TYPE_I8):  return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_ADDRESS8), SAcop(2) });
+                case (TYPE_U8):  return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_ADDRESS8), SAcop(2) });
+                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1, AF_ADDRESS16), SAcop(2) });
+                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1, AF_ADDRESS16), SAcop(2) });
                 case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(1), SAcop(2) });
                 case (TYPE_FP32):
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_LOWER32), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS32), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
                 case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
@@ -1035,12 +1035,12 @@ namespace loops
                 switch (index[1].elemtype)
                 {
                 case (TYPE_I8):
-                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER8) });
+                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS8) });
                 case (TYPE_I16):
-                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER16) });
+                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS16) });
                 case (TYPE_FP32):
                 case (TYPE_I32): 
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_LOWER32) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS32) });
                 case (TYPE_FP64):
                 case (TYPE_I64): 
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1) });
@@ -1052,12 +1052,12 @@ namespace loops
                 switch (index[2].elemtype)
                 {
                 case (TYPE_I8):
-                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER8) });
+                case (TYPE_U8): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS8) });
                 case (TYPE_I16):
-                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER16) });
+                case (TYPE_U16): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS16) });
                 case (TYPE_FP32):
                 case (TYPE_I32):
-                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_LOWER32) });
+                case (TYPE_U32): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS32) });
                 case (TYPE_FP64):
                 case (TYPE_I64):
                 case (TYPE_U64): return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
@@ -1082,9 +1082,9 @@ namespace loops
         case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
         case (OP_MOD):     
         case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
-        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
-        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
-        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_LOWER8) });
+        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
+        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
+        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
         case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
         case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
         case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
@@ -1610,10 +1610,11 @@ namespace loops
             colprinter->auxdata = argaux;
         }
 
-        static const char* rnames[4][16] = { { "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",  "r9", "r10", "r11" , "r12" , "r13" , "r14" , "r15" },
-            { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d" , "r15d" },
+        static const char* rnames[4][16] = { { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b" },
             { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w",  "r9w", "r10w", "r11w" , "r12w" , "r13w" , "r14w" , "r15w" },
-            { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b" } };
+            { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d", "r15d" },
+            { "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",  "r9", "r10", "r11" , "r12" , "r13" , "r14" , "r15" },
+            };
 
         Syntop* op = func->program + row;
         int aamount = op->args_size;
@@ -1635,14 +1636,20 @@ namespace loops
                 LOOPS_CALL_THROW(loops_printf(printer, "[%d]", targetline));
                 continue;
             }
-            bool address = arg.flags & AF_ADDRESS;
+            bool address = (arg.flags & AF_ADDRESS) == AF_ADDRESS;
             if (address)
                 LOOPS_CALL_THROW(loops_printf(printer, "["));
             switch (arg.tag)
             {
             case Arg::IREG:
-                LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[(arg.flags & AF_LOWER8)/AF_LOWER32][arg.idx]));
+            {
+                int regsize_idx = ((arg.flags & AF_ADDRESS) == AF_ADDRESS8) ? 0 : 
+                                 (((arg.flags & AF_ADDRESS) == AF_ADDRESS16) ? 1 : 
+                                 (((arg.flags & AF_ADDRESS) == AF_ADDRESS32) ? 2 : 
+                                    3));
+                LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]));
                 break;
+            }
             case Arg::IIMMEDIATE:
                 if (arg.value == 0)
                     LOOPS_CALL_THROW(loops_printf(printer, "#0"));

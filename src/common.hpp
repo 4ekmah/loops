@@ -144,12 +144,13 @@ namespace loops
 
     enum ArgFlags
     {
-        AF_ADDRESS = 1,
-        AF_LOWER32 = 2, // 010
-        AF_LOWER16 = 4, // 100
-        AF_LOWER8 = 6,  // 110
-        AF_NOPRINT = 8,
-        AF_PRINTOFFSET = 16,
+        AF_ADDRESS8  = 1,
+        AF_ADDRESS16 = 2,
+        AF_ADDRESS32 = 4,
+        AF_ADDRESS64 = 8, 
+        AF_ADDRESS = 15,
+        AF_NOPRINT = 32,
+        AF_PRINTOFFSET = 64,
     };
 
     inline int invertCondition(int condition)
