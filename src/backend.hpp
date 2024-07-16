@@ -20,14 +20,17 @@ namespace loops
 class Backend;
 struct SyntopTranslation
 {
+    //TODO: Looks like we need here some general transformation rule format, providing ability to change tag, value, elemtype or other. Probably, ability to set transformation function pointer.
     struct ArgTranslation
     {
-        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_ERROROFUSAGE};
+        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_SETELEMTYPE, T_ERROROFUSAGE};
         ArgTranslation(const Arg& a_fixed);
         ArgTranslation(int a_srcArgnum, uint64_t flags = 0);
+        ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags);
         int tag;
         Arg fixed;
         int srcArgnum;
+        int elemtype;
         uint64_t transitFlags;
     };
     int m_tarop;
@@ -79,6 +82,8 @@ namespace SyntopTranslationConstruction
         res.transitFlags = flags;
         return res;
     }
+    //SAcopelt is for SyntopTranslation::ArgTranslation to be copied from source with changing elemtype
+    inline SyntopTranslation::ArgTranslation SAcopelt(int argnum, int elemtype, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, elemtype, flags); }
 }
 
 class Backend

@@ -12,6 +12,7 @@ namespace loops
 {
 SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(UNDEFINED_ARGUMENT_NUMBER), transitFlags(0) {}
 SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_srcArgnum), transitFlags(flags) {}
+SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags) : tag(T_SETELEMTYPE), elemtype(a_elemtype), srcArgnum(a_srcArgnum), transitFlags(flags) {}
 SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
 Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
@@ -29,6 +30,16 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                     throw std::runtime_error("Syntop translator: non-existent argument is requested.");
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
+                resargs.push_back(toAdd);
+                break;
+            }
+            case ArgTranslation::T_SETELEMTYPE:
+            {
+                if(argt.srcArgnum == UNDEFINED_ARGUMENT_NUMBER || argt.srcArgnum >= (int)a_source.size())
+                    throw std::runtime_error("Syntop translator: non-existent argument is requested.");
+                Arg toAdd = a_source.args[argt.srcArgnum];
+                toAdd.flags |= argt.transitFlags;
+                toAdd.elemtype = argt.elemtype;
                 resargs.push_back(toAdd);
                 break;
             }

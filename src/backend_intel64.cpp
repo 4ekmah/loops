@@ -1082,9 +1082,9 @@ namespace loops
         case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
         case (OP_MOD):     
         case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
-        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
-        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
-        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcop(2, AF_ADDRESS8) });
+        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
+        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
+        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
         case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
         case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
@@ -1122,8 +1122,8 @@ namespace loops
                 return SyT(tarcode, { SAcop(0) });
             }
             break;
-        case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcop(0), SAcopspl(1) });
-        case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcop(1) });
+        case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
+        case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
         case (OP_JCC):
             if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE)
             {
@@ -1643,10 +1643,14 @@ namespace loops
             {
             case Arg::IREG:
             {
-                int regsize_idx = ((arg.flags & AF_ADDRESS) == AF_ADDRESS8) ? 0 : 
-                                 (((arg.flags & AF_ADDRESS) == AF_ADDRESS16) ? 1 : 
-                                 (((arg.flags & AF_ADDRESS) == AF_ADDRESS32) ? 2 : 
-                                    3));
+                int regsize_idx = 3;
+                if((op->opcode == INTEL64_MOVSXD || op->opcode == INTEL64_MOVZX || op->opcode == INTEL64_MOVSX) && anum == 0) //DUBUG: probably, it can be regulated by bottom-to-top-flags?
+                    regsize_idx = 3;
+                else if(arg.elemtype >= TYPE_U8 && arg.elemtype <= TYPE_FP64) //DUBUG: should this "if" exist? I think, default elemtype have to be I64 and we have to track this.
+                       regsize_idx = elem_size(arg.elemtype) == 1 ? 0 :
+                                    (elem_size(arg.elemtype) == 2 ? 1 : 
+                                    (elem_size(arg.elemtype) == 4 ? 2 : 
+                                                                    3));
                 LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]));
                 break;
             }
