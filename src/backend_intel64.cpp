@@ -1633,7 +1633,7 @@ namespace loops
                 LOOPS_CALL_THROW(loops_printf(printer, "[%d]", targetline));
                 continue;
             }
-            bool address = arg.tag == (arg.flags & AF_ADDRESS);
+            bool address = (arg.flags & AF_ADDRESS);
             bool address_start = address && (anum == 0 || !(op->args[anum - 1].flags & AF_ADDRESS));
             bool address_end = address && (anum == aamount - 1 || !(op->args[anum + 1].flags & AF_ADDRESS));
             static const char* address_opener_brackets[4] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr ["};
