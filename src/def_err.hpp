@@ -48,7 +48,7 @@ enum
     else                     \
         throw std::runtime_error(msg)
 
-char* get_errstring(int errid);
+const char* get_errstring(int errid);
 #if 0 //__LOOPS_LANGUAGE  == __LOOPS_CPP //DUBUG: uncomment
 class loops_exception : public std::exception
 {

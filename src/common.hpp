@@ -21,7 +21,7 @@ char* loops_strncpy(char* dest, const char* src, std::size_t count);
 typedef struct name_map_elem
 {
     int enum_id;
-    char* string_id;
+    const char* string_id;
     UT_hash_handle hh;
 } name_map_elem;
 

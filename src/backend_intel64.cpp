@@ -1768,9 +1768,9 @@ namespace loops
             {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.
                 Syntfunc tmpfunc;
                 tmpfunc.program.resize(func->program_size);
-                memcpy(tmpfunc.program.data(), func->program, func->program_size * sizeof(Syntop));
+                memcpy((void*)tmpfunc.program.data(), (void*)func->program, func->program_size * sizeof(Syntop));
                 tmpfunc.params.resize(func->params_size);
-                memcpy(tmpfunc.params.data(), func->params, func->params_size * sizeof(Arg));
+                memcpy((void*)tmpfunc.params.data(), (void*)func->params, func->params_size * sizeof(Arg));
                 Assembly2Hex a2hPass(printer->backend);
                 a2hPass.process(*((Syntfunc*)(nullptr)), tmpfunc);
                 const FuncBodyBuf buffer = a2hPass.result_buffer();
@@ -1787,7 +1787,7 @@ namespace loops
             colprinter->auxdata = argaux;
         }
         unsigned char* hexfield = argaux->binary + argaux->pos_n_sizes[row].position;
-        for (size_t pos = 0; pos < argaux->pos_n_sizes[row].size; pos++)
+        for (int pos = 0; pos < argaux->pos_n_sizes[row].size; pos++)
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
         close_printer_cell(printer);
         return LOOPS_ERR_SUCCESS;

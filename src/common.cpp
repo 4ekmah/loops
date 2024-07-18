@@ -109,9 +109,9 @@ void free_name_map(name_map_elem** map_to_free)
   *map_to_free = NULL;
 }
 
-char* get_errstring(int errid)
+const char* get_errstring(int errid)
 {
-    static char* unknown_err = "Loops: Unknown error. Problem in error system.";
+    static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
     name_map_elem* found_name; 
     HASH_FIND_INT(errstrings, &errid, found_name);
     if (found_name == NULL)

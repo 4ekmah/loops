@@ -501,7 +501,7 @@ template<typename _Tp> void store_(const IExpr& base, int64_t offset, int64_t a)
 { storex(base, offset, a, ElemTraits<_Tp>::depth); }
 
 template<typename _Dp> IExpr reinterpret(const IExpr& a)
-{ return IExpr(OP_REINTERPRET, ElemTraits<_Tp>::depth, {a.notype()}); }
+{ return IExpr(OP_REINTERPRET, ElemTraits<_Dp>::depth, {a.notype()}); }
 template<typename _Dp> IExpr reinterpret(const IReg& a) {return reinterpret<_Dp>(IExpr(a));}
 
 // Integer arithmetic and bitwise operations:

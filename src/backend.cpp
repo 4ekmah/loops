@@ -12,7 +12,7 @@ namespace loops
 {
 SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(UNDEFINED_ARGUMENT_NUMBER), transitFlags(0) {}
 SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_srcArgnum), transitFlags(flags) {}
-SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags) : tag(T_SETELEMTYPE), elemtype(a_elemtype), srcArgnum(a_srcArgnum), transitFlags(flags) {}
+SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags) : tag(T_SETELEMTYPE), srcArgnum(a_srcArgnum), elemtype(a_elemtype), transitFlags(flags) {}
 SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
 Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
