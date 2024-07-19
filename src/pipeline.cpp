@@ -315,6 +315,7 @@ namespace loops
                 if (label_map.count(op[0].value) != 0)
                     throw std::runtime_error("Label redefinition");
                 label_map[op[0].value] = current_offset_;
+                a_dest.program.emplace_back(m_backend->lookS2s(op).apply(op, m_backend));
                 break;
             }
             case (OP_DEF):

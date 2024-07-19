@@ -57,6 +57,7 @@ static name_map_elem opstrings_[] =
     {loops::INTEL64_JGE   , "jge"   , {}},
     {loops::INTEL64_CALL  , "call"  , {}},
     {loops::INTEL64_RET   , "ret"   , {}},
+    {loops::INTEL64_LABEL , ""      , {}},
 };
 
 static name_map_elem* opstrings = NULL;
@@ -975,6 +976,7 @@ namespace loops
             }
             break;
         case (INTEL64_RET): return BiT({ BTsta(0xC3, 8) });
+        case (INTEL64_LABEL): return BiT({});
         default:
             break;
         }
@@ -1143,6 +1145,7 @@ namespace loops
                 return SyT(INTEL64_CALL, { SAcop(0) });
             break;
         case (OP_RET):     return SyT(INTEL64_RET, {});
+        case (OP_LABEL):   return SyT(INTEL64_LABEL, { SAcop(0) });
         default:
             break;
         }
@@ -1581,6 +1584,7 @@ namespace loops
         {
             int oppos = 0;
             int opnum = 0;
+            int labelamount = 0;
             argaux = (intel64_opargs_printer_aux*)malloc(sizeof(intel64_opargs_printer_aux));
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
@@ -1599,10 +1603,13 @@ namespace loops
             {
                 int opsize = (int)printer->backend->lookS2b(func->program[opnum]).size();
                 argaux->positions[opnum] = oppos;
-                argaux->pos2opnum_body[opnum] = { oppos, opnum, {} };
+                if(func->program[opnum].opcode == INTEL64_LABEL)
+                {
+                    argaux->pos2opnum_body[labelamount++] = { oppos, opnum, {} };
+                }
                 oppos += opsize;
             }
-            for(opnum = 0; opnum < func->program_size; opnum++)
+            for(opnum = 0; opnum < labelamount; opnum++)
                 HASH_ADD_INT(argaux->pos2opnum, offset, argaux->pos2opnum_body + opnum );
             colprinter->auxdata = argaux;
         }
@@ -1612,7 +1619,7 @@ namespace loops
             { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d", "r15d" },
             { "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",  "r9", "r10", "r11" , "r12" , "r13" , "r14" , "r15" },
             };
-
+        
         Syntop* op = func->program + row;
         int aamount = op->args_size;
         for(int anum = 0; anum < aamount ; anum++)
@@ -1630,7 +1637,12 @@ namespace loops
                 if (found_ofs2opn_pair == NULL)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 int64_t targetline = found_ofs2opn_pair->opnum; //DUBUG: we will need options here - real assemblies use offsets
-                LOOPS_CALL_THROW(loops_printf(printer, "[%d]", targetline));
+                Assert(targetline >= 0);
+                Syntop* labelop = func->program + targetline;
+                Assert(labelop->opcode == INTEL64_LABEL);
+                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
+                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+                LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
                 continue;
             }
             bool address = (arg.flags & AF_ADDRESS);
@@ -1661,6 +1673,12 @@ namespace loops
                 break;
             }
             case Arg::IIMMEDIATE:
+                if(op->opcode == INTEL64_LABEL)
+                {
+                    Assert(op->args_size == 1);
+                    LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    break;
+                }
                 if (arg.value == 0)
                     LOOPS_CALL_THROW(loops_printf(printer, "0h"));
                 else

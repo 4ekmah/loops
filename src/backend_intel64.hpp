@@ -61,7 +61,8 @@ namespace loops
         INTEL64_JG     = 41,
         INTEL64_JGE    = 42,
         INTEL64_CALL   = 43,
-        INTEL64_RET    = 44 
+        INTEL64_LABEL  = 44, 
+        INTEL64_RET    = 45 
     };
 
     class Intel64Backend : public Backend

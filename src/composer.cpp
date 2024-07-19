@@ -129,6 +129,8 @@ BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(ls
 
 void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
+    if(m_compound.size() == 0) 
+        return;
     if (bits == nullptr)
         throw std::runtime_error("Binary translator: null writer pointer.");
     bits->startInstruction();
