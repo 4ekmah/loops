@@ -1000,7 +1000,7 @@ namespace loops
                 default:
                     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                     {
-                        std::set<RegIdx> IORegs = m_backend->getUsedRegisters(op, basketNum, BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT);
+                        std::set<RegIdx> IORegs = m_backend->getUsedRegisters(op, basketNum, AF_INPUT | AF_OUTPUT);
                         std::set<RegIdx> inRegs = m_backend->getInRegisters(op, basketNum);
                         std::set<RegIdx> outRegs = m_backend->getOutRegisters(op, basketNum);
                         for(auto IO : IORegs)  //Register used in one instruction position as Input and Output simultaneously

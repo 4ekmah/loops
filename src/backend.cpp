@@ -138,8 +138,8 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
     std::set<int> result;
     if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
     {
-        int ioflags = flagmask&(BinTranslation::Token::T_OUTPUT | BinTranslation::Token::T_INPUT);
-        if (ioflags == BinTranslation::Token::T_OUTPUT && 
+        int ioflags = flagmask&(AF_OUTPUT | AF_INPUT);
+        if (ioflags == AF_OUTPUT && 
             ((a_op.opcode == OP_DEF && basketNum == RB_INT) || (a_op.opcode == VOP_DEF && basketNum == RB_VEC)))
                 result = std::set<int>({0});
         return result;
@@ -169,12 +169,12 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
 
 std::set<int> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, AF_OUTPUT);
 }
 
 std::set<int> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_INPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, AF_INPUT);
 }
 
 std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask) const
@@ -194,12 +194,12 @@ std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, ui
 
 std::set<RegIdx> Backend::getOutRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegisters(a_op, basketNum, AF_OUTPUT);
 }
 
 std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_INPUT);
+    return getUsedRegisters(a_op, basketNum, AF_INPUT);
 }
 
 BinTranslation BTLookup(const Syntop&, bool&)

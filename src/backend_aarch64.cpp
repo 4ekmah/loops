@@ -2051,11 +2051,11 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (OP_MAX):
         {
             Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
-            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({1,2});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                     return std::set<int>({0});
             }
             break;
@@ -2064,11 +2064,11 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (OP_SIGN):
         {
             Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({1});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                     return std::set<int>({0});
             }
             break;
@@ -2086,15 +2086,15 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             Assert(allRegs);
             if(basketNum == RB_VEC)
                 return std::set<int>({});
-            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                 {
                     std::set<int> res;
                     for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
                     return res;
                 }
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                 {
                     if(a_op.opcode == OP_CALL)
                         return std::set<int>({0});
@@ -2111,11 +2111,11 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
                    (a_op.size() == 5 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG && a_op[4].tag == Arg::IIMMEDIATE));
             if(basketNum == RB_INT)
                 return std::set<int>({});
-            else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            else if (basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({1, 2, 3});
-                else if (BinTranslation::Token::T_OUTPUT & flagmask)
+                else if (AF_OUTPUT & flagmask)
                     return std::set<int>({0});
             }
             break;
@@ -2123,18 +2123,18 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (VOP_ARM_LD2):
         {
             Assert(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
-            if (basketNum == RB_INT && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({2});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                     return std::set<int>({});
             }
-            else if (basketNum == RB_VEC && (~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0)
+            else if (basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                     return std::set<int>({0,1});
             }
             break;
@@ -2142,13 +2142,13 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (OP_MOV):
             //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
             if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
-                 ((~(BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) & flagmask) == 0) )
+                 ((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0) )
             {
                 if(basketNum == RB_VEC)
                     return std::set<int>({});
-                if (BinTranslation::Token::T_INPUT & flagmask)
+                if (AF_INPUT & flagmask)
                     return std::set<int>({});
-                if (BinTranslation::Token::T_OUTPUT & flagmask)
+                if (AF_OUTPUT & flagmask)
                     return std::set<int>({0});
             }
             break;

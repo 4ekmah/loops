@@ -73,7 +73,7 @@ namespace loops
         virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const override final;
         virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
-        virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
+        virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
         virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
         virtual int stackGrowthAlignment(int stackGrowth) const override final;
         virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
@@ -82,6 +82,10 @@ namespace loops
         virtual column_printer get_opname_printer() const override final;
         virtual column_printer get_opargs_printer() const override final;
         virtual column_printer get_hex_printer() const override final;
+
+        //It's assumed here, that Syntop is native, not IR. Return argument flags.
+        //Result array have to be allocated before and have to be of (Syntop::SYNTOP_ARGS_MAX) size.
+        void fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const;
     };
 
 }

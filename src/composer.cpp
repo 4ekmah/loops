@@ -190,8 +190,6 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_STACKOFFSET):
         case (Token::T_SPILLED):
             piece = static_cast<uint64_t>(op.args[det.srcArgnum].value);
-            if(det.fieldOflags & Token::T_INVERT_IMM)
-                piece = ~piece;
             if (det.tag == Token::T_SPILLED)
                 piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
             if (bits->getBackend()->isLittleEndianOperands())

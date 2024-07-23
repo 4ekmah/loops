@@ -54,7 +54,6 @@ namespace loops
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {T_STATIC, T_REG, T_IMMEDIATE, T_ADDRESS, T_OFFSET, T_STACKOFFSET, T_SPILLED, T_OMIT};
-            enum {T_INPUT = 1, T_OUTPUT = 2, T_INVERT_IMM = 4};
             Token(int tag, int fieldsize);
             Token(int tag, uint64_t val, int fieldsize);
             int tag;
@@ -87,7 +86,7 @@ namespace loops
             return res; 
         }
 
-        inline BinTranslation::Token BTreg(int srcArgnum, int width, uint64_t regflag = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT)
+        inline BinTranslation::Token BTreg(int srcArgnum, int width, uint64_t regflag = AF_INPUT | AF_OUTPUT)
         {
             BinTranslation::Token res(BinTranslation::Token::T_REG, width);
             res.fieldOflags = regflag;
@@ -110,14 +109,26 @@ namespace loops
             return res;
         }
 
-        inline BinTranslation::Token BToff(int srcArgnum, int width)
+        inline BinTranslation::Token BToff(int srcArgnum, int width, uint64_t regflag = 0)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OFFSET, width);
+            res.fieldOflags = regflag;
             res.srcArgnum = srcArgnum;
             return res;
         }
 
-        enum {In = BinTranslation::Token::T_INPUT, Out = BinTranslation::Token::T_OUTPUT, IO = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT, InvIm = BinTranslation::Token::T_INVERT_IMM}; //TODO(ch): Use IO in table construction.
+        enum
+        {
+              In = AF_INPUT, 
+              Out = AF_OUTPUT, 
+              IO = AF_INPUT | AF_OUTPUT,
+              Lab = AF_PRINTOFFSET,
+              Addr8  = AF_ADDRESS8,
+              Addr16 = AF_ADDRESS16,
+              Addr32 = AF_ADDRESS32,
+              Addr64 = AF_ADDRESS64,
+              Eff64  = AF_EFFECTIVE64,
+        }; //TODO(ch): Use IO in table construction.
     }
 }
 

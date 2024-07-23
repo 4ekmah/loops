@@ -499,12 +499,10 @@ static int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprin
     default:
         for(int anum = 0; anum < op->args_size - 1; anum++)
         {
-            if(op->args[anum].flags & loops::AF_NOPRINT) //DUBUG: I don't think this option have to exist.
-                continue;
             LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
             LOOPS_CALL_THROW(loops_printf(printer, ", "));
         }
-        if(op->args_size > 0 && (op->args[op->args_size - 1].flags & loops::AF_NOPRINT) == 0)
+        if(op->args_size > 0)
             LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
         break;
     }

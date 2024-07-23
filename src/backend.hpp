@@ -98,12 +98,12 @@ public:
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
     std::set<int> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
     std::set<int> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
-    std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
 

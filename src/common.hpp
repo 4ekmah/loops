@@ -144,13 +144,16 @@ namespace loops
 
     enum ArgFlags
     {
-        AF_ADDRESS8  = 1,
-        AF_ADDRESS16 = 2,
-        AF_ADDRESS32 = 4,
-        AF_ADDRESS64 = 8, 
-        AF_ADDRESS = 15,
-        AF_NOPRINT = 32,
-        AF_PRINTOFFSET = 64,
+        AF_ADDRESS8    = 0b000000001,
+        AF_ADDRESS16   = 0b000000010,
+        AF_ADDRESS32   = 0b000000100,
+        AF_ADDRESS64   = 0b000001000,
+        AF_ADDRESS     = AF_ADDRESS8 | AF_ADDRESS16 | AF_ADDRESS32 | AF_ADDRESS64,
+        AF_INPUT       = 0b000010000,
+        AF_OUTPUT      = 0b000100000,
+        AF_PRINTOFFSET = 0b001000000,
+        AF_EFFECTIVE64 = 0b010000000,
+        // AF_NOPRINT     = 0b100000000, //DUBUG: I don't think this option have to exist.
     };
 
     inline int invertCondition(int condition)
@@ -244,13 +247,11 @@ namespace loops
 
     struct Syntop
     {
-    private:
+    public:
         enum
         {
             SYNTOP_ARGS_MAX = 10
         };
-
-    public:
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         int args_size;
