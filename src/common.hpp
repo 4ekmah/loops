@@ -15,18 +15,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <typeindex>
 #include <memory>
 #include <atomic>
-#include <uthash.h>
 
 char* loops_strncpy(char* dest, const char* src, std::size_t count);
-typedef struct name_map_elem
-{
-    int enum_id;
-    const char* string_id;
-    UT_hash_handle hh;
-} name_map_elem;
-
-void initialize_name_map(name_map_elem** out_map_ptr, name_map_elem* in_map_ptr, int size);
-void free_name_map(name_map_elem** map_to_append);
 
 namespace loops
 {

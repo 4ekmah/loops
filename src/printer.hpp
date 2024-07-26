@@ -16,7 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stdlib.h>
 #include <string.h>
 
-void printer_h_initialize();
+int printer_h_initialize();
 void printer_h_deinitialize();
 
 typedef struct buffer_list

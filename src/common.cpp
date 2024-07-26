@@ -5,6 +5,7 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
+#include "collections.hpp"
 #include "printer.hpp"
 #include "backend_aarch64.hpp"
 #include "backend_intel64.hpp"
@@ -17,27 +18,29 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stack>
 #include <cstring>
 
-name_map_elem errstrings_[] = 
+
+LOOPS_HASHMAP_STATIC(int, loops_cstring) errstrings_[] = 
 {
-/*  |                   enum_id                   |                                    string_id                                   |    */
-    {LOOPS_ERR_SUCCESS                            , "Loops: Success."                                                              , {}} ,
-    {LOOPS_ERR_NULL_POINTER                       , "Loops: Null pointer."                                                         , {}} ,
-    {LOOPS_ERR_POINTER_ARITHMETIC_ERROR           , "Loops: Pointer arithmetic error."                                             , {}} ,
-    {LOOPS_ERR_OUT_OF_MEMORY                      , "Loops: Out of memory."                                                        , {}} ,
-    {LOOPS_ERR_UNKNOWN_FLAG                       , "Loops: Unknown flag."                                                         , {}} ,
-    {LOOPS_ERR_POSITIVE_SIZE_NEEDED               , "Loops: Negative size."                                                        , {}} ,
-    {LOOPS_ERR_UNIMAGINARY_BIG_STRING             , "Loops: Unpredicted very big string."                                          , {}} ,
-    {LOOPS_ERR_UNPRINTABLE_OPERATION              , "Loops: Unprintable operation."                                                , {}} ,
-    {LOOPS_ERR_UNKNOWN_TYPE                       , "Loops: Unknown type."                                                         , {}} ,
-    {LOOPS_ERR_UNKNOWN_CONDITION                  , "Loops: Unknown condition type."                                               , {}} ,
-    {LOOPS_ERR_INCORRECT_OPERATION_FORMAT         , "Loops: Incorrect operation format."                                           , {}} ,
-    {LOOPS_ERR_INCORRECT_ARGUMENT                 , "Loops: Incorrect argument."                                                   , {}} ,
-    {LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                , {}} ,
-    {LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        , {}} ,
-    {LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly.", {}} ,
-    {LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           , {}} ,
+                  /*  |                   enum_id                   |                                    string_id                                   |   */
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_SUCCESS                            , "Loops: Success."                                                              ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_NULL_POINTER                       , "Loops: Null pointer."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POINTER_ARITHMETIC_ERROR           , "Loops: Pointer arithmetic error."                                             ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_OUT_OF_MEMORY                      , "Loops: Out of memory."                                                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_FLAG                       , "Loops: Unknown flag."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POSITIVE_SIZE_NEEDED               , "Loops: Negative size."                                                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNIMAGINARY_BIG_STRING             , "Loops: Unpredicted very big string."                                          ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNPRINTABLE_OPERATION              , "Loops: Unprintable operation."                                                ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_TYPE                       , "Loops: Unknown type."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_CONDITION                  , "Loops: Unknown condition type."                                               ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_OPERATION_FORMAT         , "Loops: Incorrect operation format."                                           ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_ARGUMENT                 , "Loops: Incorrect argument."                                                   ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly."),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_ELEMENT_NOT_FOUND                  , "Loops: Element not found."                                                    ), 
 };
-name_map_elem* errstrings = NULL;
+LOOPS_HASHMAP(int, loops_cstring) errstrings = NULL;
 
 static void loops_initialize();
 //DUBUG: check it works everywhere and add easiest c++ initiliazer.
@@ -60,17 +63,21 @@ static void finalize(void)
 #error Unknown CPU
 #endif
     printer_h_deinitialize();
-    free_name_map(&errstrings);
+    loops_hashmap_destruct(errstrings);
 }
 
 static void loops_initialize()
 {
-    initialize_name_map(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(name_map_elem));
-    printer_h_initialize();
+    int err;
+    const char* init_error_msg = "Loops: Initialization error. Code: %d\n";
+    err = loops_hashmap_construct_static(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(errstrings_[0]));
+    if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+    printer_h_initialize(); if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+
 #if __LOOPS_ARCH == __LOOPS_AARCH64
-    backend_aarch64_h_initialize();
+    err = backend_aarch64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
-    backend_intel64_h_initialize();
+    err = backend_intel64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
 #else
 #error Unknown CPU
 #endif
@@ -88,36 +95,15 @@ char* loops_strncpy(char* dest, const char* src, std::size_t count)
 #endif  
 }
 
-void initialize_name_map(name_map_elem** out_map_ptr, name_map_elem* in_map_ptr, int size)
-{
-    name_map_elem* out_map_ptr_ = *out_map_ptr;
-    int opnum = 0;
-    for(; opnum < size; opnum++)
-        HASH_ADD_INT(out_map_ptr_, enum_id, in_map_ptr + opnum );
-    *out_map_ptr = out_map_ptr_;
-}
-
-void free_name_map(name_map_elem** map_to_free)
-{
-  name_map_elem* map_to_free_ = *map_to_free;
-  name_map_elem* current_name;
-  name_map_elem* tmp;
-  HASH_ITER(hh, map_to_free_, current_name, tmp) 
-  {
-    HASH_DEL(map_to_free_, current_name);
-  }
-  *map_to_free = NULL;
-}
-
 const char* get_errstring(int errid)
 {
     static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
-    name_map_elem* found_name; 
-    HASH_FIND_INT(errstrings, &errid, found_name);
-    if (found_name == NULL)
+    const char* result = NULL; 
+    int err = loops_hashmap_get(errstrings, errid, &result);
+    if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
         return unknown_err;
-    else
-        return found_name->string_id;
+    else 
+        return result;
 }
 
 namespace loops

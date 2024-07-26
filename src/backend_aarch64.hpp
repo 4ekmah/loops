@@ -16,7 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 #include <map>
 
-void backend_aarch64_h_initialize();
+int backend_aarch64_h_initialize();
 void backend_aarch64_h_deinitialize();
 
 namespace loops

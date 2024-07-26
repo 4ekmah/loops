@@ -6,70 +6,72 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "backend_intel64.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "func_impl.hpp"
+#include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
 
-static name_map_elem opstrings_[] = 
+LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
-/*  |       enum_id       |string_id|    */
-    {loops::INTEL64_MOV   , "mov"   , {}},
-    {loops::INTEL64_MOVSX , "movsx" , {}},
-    {loops::INTEL64_MOVSXD, "movsxd", {}},
-    {loops::INTEL64_MOVZX , "movzx" , {}},
-    {loops::INTEL64_ADC   , "adc"   , {}},
-    {loops::INTEL64_ADD   , "add"   , {}},
-    {loops::INTEL64_SUB   , "sub"   , {}},
-    {loops::INTEL64_IMUL  , "imul"  , {}},
-    {loops::INTEL64_IDIV  , "idiv"  , {}},
-    {loops::INTEL64_SHL   , "shl"   , {}},
-    {loops::INTEL64_SHR   , "shr"   , {}},
-    {loops::INTEL64_SAR   , "sar"   , {}},
-    {loops::INTEL64_AND   , "and"   , {}},
-    {loops::INTEL64_OR    , "or"    , {}},
-    {loops::INTEL64_XOR   , "xor"   , {}},
-    {loops::INTEL64_NOT   , "not"   , {}},
-    {loops::INTEL64_NEG   , "neg"   , {}},
-    {loops::INTEL64_CQO   , "cqo"   , {}},
-    {loops::INTEL64_XCHG  , "xchg"  , {}},
-    {loops::INTEL64_CMP   , "cmp"   , {}},
-    {loops::INTEL64_CMOVE , "cmove" , {}},
-    {loops::INTEL64_CMOVNE, "cmovne", {}},
-    {loops::INTEL64_CMOVL , "cmovl" , {}},
-    {loops::INTEL64_CMOVG , "cmovg" , {}},
-    {loops::INTEL64_CMOVLE, "cmovle", {}},
-    {loops::INTEL64_CMOVGE, "cmovge", {}},
-    {loops::INTEL64_CMOVS , "cmovs" , {}},
-    {loops::INTEL64_CMOVNS, "cmovns", {}},
-    {loops::INTEL64_SETE  , "sete"  , {}},
-    {loops::INTEL64_SETNE , "setne" , {}},
-    {loops::INTEL64_SETL  , "setl"  , {}},
-    {loops::INTEL64_SETG  , "setg"  , {}},
-    {loops::INTEL64_SETLE , "setle" , {}},
-    {loops::INTEL64_SETGE , "setge" , {}},
-    {loops::INTEL64_SETS  , "sets"  , {}},
-    {loops::INTEL64_SETNS , "setns" , {}},
-    {loops::INTEL64_JMP   , "jmp"   , {}},
-    {loops::INTEL64_JNE   , "jne"   , {}},
-    {loops::INTEL64_JE    , "je"    , {}},
-    {loops::INTEL64_JL    , "jl"    , {}},
-    {loops::INTEL64_JLE   , "jle"   , {}},
-    {loops::INTEL64_JG    , "jg"    , {}},
-    {loops::INTEL64_JGE   , "jge"   , {}},
-    {loops::INTEL64_CALL  , "call"  , {}},
-    {loops::INTEL64_RET   , "ret"   , {}},
-    {loops::INTEL64_LABEL , ""      , {}},
+                  /*  |       enum_id       |string_id|    */
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOV   , "mov"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSX , "movsx" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSXD, "movsxd"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVZX , "movzx" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADC   , "adc"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADD   , "add"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SUB   , "sub"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_IMUL  , "imul"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_IDIV  , "idiv"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHL   , "shl"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHR   , "shr"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SAR   , "sar"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_AND   , "and"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_OR    , "or"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_XOR   , "xor"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_NOT   , "not"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_NEG   , "neg"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CQO   , "cqo"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_XCHG  , "xchg"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMP   , "cmp"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVE , "cmove" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNE, "cmovne"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVL , "cmovl" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVG , "cmovg" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVLE, "cmovle"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVGE, "cmovge"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVS , "cmovs" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNS, "cmovns"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETE  , "sete"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNE , "setne" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETL  , "setl"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETG  , "setg"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETLE , "setle" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETGE , "setge" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS  , "sets"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS , "setns" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP   , "jmp"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE   , "jne"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JE    , "je"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JL    , "jl"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JLE   , "jle"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JG    , "jg"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JGE   , "jge"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CALL  , "call"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_RET   , "ret"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_LABEL , ""      ),
 };
 
-static name_map_elem* opstrings = NULL;
+static LOOPS_HASHMAP(int, loops_cstring) opstrings = NULL;
 
-void backend_intel64_h_initialize()
+int backend_intel64_h_initialize()
 {
-    initialize_name_map(&opstrings, opstrings_, sizeof(opstrings_) / sizeof(name_map_elem));
+    LOOPS_CALL_THROW(loops_hashmap_construct_static(&opstrings, opstrings_, sizeof(opstrings_) / sizeof(opstrings_[0])));
+    return LOOPS_ERR_SUCCESS;
 }
 
 void backend_intel64_h_deinitialize()
 {
-    free_name_map(&opstrings);
+    loops_hashmap_destruct(opstrings);
 }
 
 namespace loops
@@ -1526,17 +1528,9 @@ namespace loops
         return ret;
     }
 
-    typedef struct offset2opnum_map
-    {
-        int offset;
-        int opnum;
-        UT_hash_handle hh;
-    } offset2opnum_map;
-
     typedef struct intel64_opargs_printer_aux
     {
-        offset2opnum_map* pos2opnum_body;
-        offset2opnum_map* pos2opnum;
+        LOOPS_HASHMAP(int, int) pos2opnum;
         int* positions;
         int pos_size;
     } intel64_opargs_printer_aux;
@@ -1556,39 +1550,39 @@ namespace loops
 
     static int intel64_opargs_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row)
     {
+        int err;
         //DUBUG: Check if all throw logic are correct and everything is freed correctly.
         intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
         {
             int oppos = 0;
             int opnum = 0;
-            int labelamount = 0;
             argaux = (intel64_opargs_printer_aux*)malloc(sizeof(intel64_opargs_printer_aux));
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
             memset(argaux, 0, sizeof(intel64_opargs_printer_aux));
             argaux->pos_size = func->program_size;
-            argaux->positions = (int*)malloc(sizeof(int) * argaux->pos_size); 
-            argaux->pos2opnum_body = (offset2opnum_map*)malloc(sizeof(offset2opnum_map) * argaux->pos_size);
-            if (argaux->positions == NULL || argaux->pos2opnum_body == NULL)
+            err = loops_hashmap_construct(&(argaux->pos2opnum));
+            if(err != LOOPS_ERR_SUCCESS)
             {
-                free(argaux->positions);
-                free(argaux->pos2opnum_body);
                 free(argaux);
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+                LOOPS_THROW(err);
+            }
+            argaux->positions = (int*)malloc(sizeof(int) * argaux->pos_size);
+            if (argaux->positions == NULL)
+            {
+                loops_hashmap_destruct(argaux->pos2opnum);
+                free(argaux);
+                LOOPS_THROW(err);
             }
             for (; opnum < func->program_size; opnum++)
             {
                 int opsize = (int)printer->backend->lookS2b(func->program[opnum]).size();
                 argaux->positions[opnum] = oppos;
                 if(func->program[opnum].opcode == INTEL64_LABEL)
-                {
-                    argaux->pos2opnum_body[labelamount++] = { oppos, opnum, {} };
-                }
+                    loops_hashmap_add(argaux->pos2opnum, oppos, opnum);
                 oppos += opsize;
             }
-            for(opnum = 0; opnum < labelamount; opnum++)
-                HASH_ADD_INT(argaux->pos2opnum, offset, argaux->pos2opnum_body + opnum );
             colprinter->auxdata = argaux;
         }
 
@@ -1609,14 +1603,15 @@ namespace loops
             Arg arg = op->args[anum];
             if (operand_flags[anum] & AF_PRINTOFFSET)
             {
-                offset2opnum_map* found_ofs2opn_pair;
+                int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
                     throw std::runtime_error("Printer: register offsets are not supported.");
                 int offset2find = argaux->positions[row + 1] + (int)arg.value;
-                HASH_FIND_INT(argaux->pos2opnum, &offset2find, found_ofs2opn_pair);
-                if (found_ofs2opn_pair == NULL)
+                err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
+                if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
-                int64_t targetline = found_ofs2opn_pair->opnum;
+                else if(err != LOOPS_ERR_SUCCESS)
+                    LOOPS_THROW(err);
                 Assert(targetline >= 0);
                 Syntop* labelop = func->program + targetline;
                 Assert(labelop->opcode == INTEL64_LABEL);
@@ -1706,14 +1701,7 @@ namespace loops
         if (colprinter->auxdata != NULL)
         {
             intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
-            offset2opnum_map* offset2opnum = argaux->pos2opnum;
-            offset2opnum_map* current_name;
-            offset2opnum_map* tmp;
-            HASH_ITER(hh, offset2opnum, current_name, tmp) 
-            {
-                HASH_DEL(offset2opnum, current_name);
-            }
-            free(argaux->pos2opnum_body);
+            loops_hashmap_destruct(argaux->pos2opnum);
             free(argaux->positions);
             free(argaux);
             colprinter->auxdata = NULL;

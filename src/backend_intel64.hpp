@@ -11,7 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "backend.hpp"
 #include "pipeline.hpp"
 
-void backend_intel64_h_initialize();
+int backend_intel64_h_initialize();
 void backend_intel64_h_deinitialize();
 
 namespace loops
