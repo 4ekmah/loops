@@ -1692,7 +1692,7 @@ namespace loops
             if (anum < aamount - 1 && !(address && !address_end))
                 LOOPS_CALL_THROW(loops_printf(printer, ", "));
         }
-        close_printer_cell(printer);
+        LOOPS_CALL_THROW(close_printer_cell(printer));
         return LOOPS_ERR_SUCCESS;
     }
     
@@ -1776,7 +1776,7 @@ namespace loops
         unsigned char* hexfield = argaux->binary + argaux->pos_n_sizes[row].position;
         for (int pos = 0; pos < argaux->pos_n_sizes[row].size; pos++)
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
-        close_printer_cell(printer);
+        LOOPS_CALL_THROW(close_printer_cell(printer));
         return LOOPS_ERR_SUCCESS;
     }
 

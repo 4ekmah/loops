@@ -8,6 +8,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_PRINTER_HPP__
 
 #include "loops/loops.hpp"
+#include "collections.hpp"
 #include "common.hpp"
 #include <functional>
 #include <ostream>
@@ -18,13 +19,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 int printer_h_initialize();
 void printer_h_deinitialize();
-
-typedef struct buffer_list
-{
-    char* buffer;
-    int buffer_size;
-    struct buffer_list* next;
-} buffer_list;
 
 struct syntfunc2print //TODO: In the end, this struct have to be reunited with Syntfunc
 {
@@ -47,13 +41,20 @@ typedef struct column_printer
     free_column_printer_t free_func;
 } column_printer;
 
+typedef struct printer_buffer
+{
+    char* buffer;
+    int buffer_size;
+} printer_buffer;
+
+LOOPS_LIST_DECLARE(printer_buffer);
+
 typedef struct printer_new
 {
     column_printer* colprinters;
     int colprinters_size;
     int columnflags;
-    buffer_list* buffers_head;
-    buffer_list* buffers_tail;
+    LOOPS_LIST(printer_buffer) buffers;
     char** cells;
     int* cell_sizes;
     int current_cell;
@@ -63,7 +64,7 @@ typedef struct printer_new
 
 int loops_printf(printer_new* printer, const char *__restrict __format, ...); //DUBUG: remove these new_ suffixes.
 int new_print_address(printer_new* printer, int64_t addr);
-void close_printer_cell(printer_new* printer);
+int close_printer_cell(printer_new* printer);
 
 int col_opname_table_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row);
 

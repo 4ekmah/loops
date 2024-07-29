@@ -7,11 +7,15 @@ See https://github.com/4ekmah/loops/LICENSE
 #ifndef __LOOPS_COLLECTIONS_HPP__
 #define __LOOPS_COLLECTIONS_HPP__
 #include <uthash.h>
+#include <utlist.h>
 
 typedef const char* loops_cstring;
+typedef void (*loops_destructor)(void* obj);
 
 typedef int K;
 typedef loops_cstring V;
+
+// ===================================================== HASHMAP =====================================================
 
 #define LOOPS_HASHMAP(K, V) loops_hashmap_ ## K ## _ ## V
 #define LOOPS_HASHMAP_STATIC(K, V) static loops_hashmap_static_ ## K ## _ ## V
@@ -36,6 +40,8 @@ void loops_hashmap_destruct(loops_hashmap_ ## K ## _ ## V to_del);              
 int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val);                                                           \
 int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, bool* res);                                                       \
 int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res);                                     
+
+//TODO[CPP2ANSIC]: loops_hashmap_get have to return pointer, not value.
 
 #define LOOPS_HASHMAP_DEFINE(K, V)                                                                                              \
 int loops_hashmap_construct(loops_hashmap_ ## K ## _ ## V* result)                                                              \
@@ -124,6 +130,87 @@ int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)          
         return LOOPS_ERR_ELEMENT_NOT_FOUND;                                                                                     \
     *res = found->val;                                                                                                          \
     return LOOPS_ERR_SUCCESS;                                                                                                   \
+}
+
+// ===================================================== LIST =====================================================
+
+#define LOOPS_LIST(T) loops_list_ ##T
+
+#define LOOPS_LIST_DECLARE(T)                                                                  \
+typedef struct loops_list_inner_ ## T                                                          \
+{                                                                                              \
+    T val;                                                                                     \
+    struct loops_list_inner_ ## T* next;                                                       \
+} loops_list_inner_ ## T;                                                                      \
+typedef struct loops_list_ ## T ## _                                                           \
+{                                                                                              \
+    loops_list_inner_ ## T* impl;                                                              \
+} loops_list_ ## T ## _;                                                                       \
+typedef struct loops_list_ ## T ## _* loops_list_ ##T;                                         \
+int loops_list_construct(loops_list_ ## T* result);                                            \
+void loops_list_destruct(loops_list_ ## T to_del, loops_destructor element_destructor = NULL); \
+int loops_list_push_back(loops_list_ ## T ll, T val);                                          \
+int loops_list_tail(loops_list_ ## T ll, T* res);                                              \
+int loops_list_head(loops_list_ ## T ll, T* res)
+
+#define LOOPS_LIST_DEFINE(T)                                                                        \
+int loops_list_construct(loops_list_ ## T* result)                                                  \
+{                                                                                                   \
+    *result = (loops_list_ ## T)malloc(sizeof(loops_list_ ## T ## _));                              \
+    if(*result == NULL)                                                                             \
+        return LOOPS_ERR_OUT_OF_MEMORY;                                                             \
+    (*result)->impl = NULL;                                                                         \
+    return LOOPS_ERR_SUCCESS;                                                                       \
+}                                                                                                   \
+void loops_list_destruct(loops_list_ ## T to_del, loops_destructor element_destructor)              \
+{                                                                                                   \
+    if(to_del)                                                                                      \
+    {                                                                                               \
+        if(to_del->impl != NULL)                                                                    \
+        {                                                                                           \
+            loops_list_inner_ ## T* elt;                                                            \
+            loops_list_inner_ ## T* tmp;                                                            \
+            loops_list_inner_ ## T* impl = to_del->impl;                                            \
+            LL_FOREACH_SAFE(impl, elt, tmp)                                                         \
+            {                                                                                       \
+                LL_DELETE(impl, elt);                                                               \
+                if(element_destructor == NULL)                                                      \
+                    element_destructor(&elt->val);                                                  \
+                free(elt);                                                                          \
+            }                                                                                       \
+        }                                                                                           \
+        free(to_del);                                                                               \
+    }                                                                                               \
+}                                                                                                   \
+int loops_list_push_back(loops_list_ ## T ll, T val)                                                \
+{                                                                                                   \
+    loops_list_inner_ ## T* impl = ll->impl;                                                        \
+    loops_list_inner_ ## T* tail = (loops_list_inner_ ## T*)malloc(sizeof(loops_list_inner_ ## T)); \
+    if(tail == NULL)                                                                                \
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);                                                       \
+    tail->next = NULL;                                                                              \
+    tail->val = val;                                                                                \
+    LL_APPEND(impl, tail);                                                                          \
+    ll->impl = impl;                                                                                \
+    return LOOPS_ERR_SUCCESS;                                                                       \
+}                                                                                                   \
+int loops_list_tail(loops_list_ ## T ll, T* res)                                                    \
+{                                                                                                   \
+    loops_list_inner_ ## T* impl = ll->impl;                                                        \
+    while(impl != NULL && impl->next != NULL)                                                       \
+        impl = impl->next;                                                                          \
+    if(impl == NULL)                                                                                \
+        return LOOPS_ERR_NULL_POINTER;                                                              \
+    *res = impl->val;                                                                               \
+    return LOOPS_ERR_SUCCESS;                                                                       \
+}                                                                                                   \
+int loops_list_head(loops_list_ ## T ll, T* res)                                                    \
+{                                                                                                   \
+    loops_list_inner_ ## T* impl = ll->impl;                                                        \
+    if(impl == NULL)                                                                                \
+        return LOOPS_ERR_NULL_POINTER;                                                              \
+    *res = impl->val;                                                                               \
+    return LOOPS_ERR_SUCCESS;                                                                       \
 }
 
 LOOPS_HASHMAP_DECLARE(int, loops_cstring);

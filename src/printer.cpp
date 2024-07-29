@@ -6,12 +6,12 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "backend.hpp"
 #include "printer.hpp"
-#include "collections.hpp"
 #include <stdarg.h>
 #include <cstdio>
 #include <sstream>
 #include <iomanip>
-#include <utlist.h>
+
+LOOPS_LIST_DEFINE(printer_buffer);
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -203,44 +203,33 @@ void printer_h_deinitialize()
     loops_hashmap_destruct(suffixed_opnames);
 }
 
-static int augment_buffer(buffer_list** head, int buffer_size, buffer_list** tail)
+static int augment_buffer(LOOPS_LIST(printer_buffer) head, int buffer_size)
 {
-    if(*head != NULL)
-        buffer_size = (*head)->buffer_size;
-    if (buffer_size <= 0)
-        LOOPS_THROW(LOOPS_ERR_POSITIVE_SIZE_NEEDED);
-    (*tail) = (buffer_list*)malloc(sizeof(buffer_list));
-    if(*tail == NULL) 
+    int err;
+    printer_buffer first;
+    err = loops_list_head(head, &first);
+    if(err == LOOPS_ERR_SUCCESS)
+        buffer_size = first.buffer_size;
+    printer_buffer to_add;
+    to_add.buffer_size = buffer_size;
+    to_add.buffer = (char*)malloc(buffer_size);
+    if(to_add.buffer == NULL) 
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    memset((*tail), 0, sizeof(buffer_list));
-    (*tail)->buffer = (char*)malloc(buffer_size);
-    if((*tail)->buffer == NULL)
+    err = loops_list_push_back(head, to_add);
+    if(err != LOOPS_ERR_SUCCESS)
     {
-        free(*tail);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        free(to_add.buffer);
+        LOOPS_THROW(err);
     }
-    (*tail)->buffer_size = buffer_size;
-    buffer_list* unreferenced_head = *head;
-    LL_APPEND(unreferenced_head, *tail);
-    *head = unreferenced_head;
     return LOOPS_ERR_SUCCESS;
-}
-
-static void free_buffer_list(buffer_list* to_free)
-{
-    buffer_list* elt;
-    buffer_list* tmp;
-    LL_FOREACH_SAFE(to_free, elt, tmp)
-    {
-        LL_DELETE(to_free, elt);
-        free(elt);
-    }    
 }
 
 int loops_printf(printer_new* printer, const char *__restrict __format,...)
 {
-    int chars_left = printer->buffers_tail->buffer_size - printer->current_offset;
-    char* nextcharpos = printer->buffers_tail->buffer + printer->current_offset;
+    printer_buffer buffers_tail;
+    LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
+    int chars_left = buffers_tail.buffer_size - printer->current_offset;
+    char* nextcharpos = buffers_tail.buffer + printer->current_offset;
     va_list var_args;
     va_start(var_args, __format);
     int written = vsnprintf(nextcharpos, chars_left, __format, var_args);
@@ -250,19 +239,20 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
         if(printer->current_cell == 0)
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
-        int current_cell_size = (int)(printer->buffers_tail->buffer + printer->current_offset - current_cell_start);
+        int current_cell_size = (int)(buffers_tail.buffer + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
             LOOPS_THROW(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
-        if(current_cell_size + written >= printer->buffers_tail->buffer_size)
+        if(current_cell_size + written >= buffers_tail.buffer_size)
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
-        buffer_list* newtail;
-        LOOPS_CALL_THROW(augment_buffer(&(printer->buffers_head), 0, &newtail));
+        LOOPS_CALL_THROW(augment_buffer(printer->buffers, 0));
+        printer_buffer newtail;
+        LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &newtail));
         if(current_cell_size > 0)
-            memcpy(newtail->buffer, current_cell_start, current_cell_size);
-        printer->buffers_tail = newtail;
+            memcpy(newtail.buffer, current_cell_start, current_cell_size);
+        buffers_tail.buffer = newtail.buffer;
         printer->current_offset = current_cell_size;
-        chars_left = printer->buffers_tail->buffer_size;
-        nextcharpos = printer->buffers_tail->buffer + printer->current_offset;
+        chars_left = buffers_tail.buffer_size;
+        nextcharpos = buffers_tail.buffer + printer->current_offset;
         va_list var_args2;
         va_start(var_args2, __format);
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
@@ -285,22 +275,24 @@ int new_print_address(printer_new* printer, int64_t addr)
     return LOOPS_ERR_SUCCESS;
 }
 
-void close_printer_cell(printer_new* printer)
+int close_printer_cell(printer_new* printer)
 {
-    char* newcell = printer->buffers_tail->buffer;  
+    printer_buffer buffers_tail;
+    LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
+    char* newcell = buffers_tail.buffer;
     bool newbuffer = printer->current_cell == 0; 
-    printer->buffers_tail->buffer[printer->current_offset] = 0;
+    buffers_tail.buffer[printer->current_offset] = 0;
     if (!newbuffer)
     {
         char* prevcell = printer->cells[printer->current_cell - 1];
-        if (prevcell < printer->buffers_tail->buffer || /*Buffer augmentation happened*/
-            prevcell >= (printer->buffers_tail->buffer + printer->buffers_tail->buffer_size))
+        if (prevcell < buffers_tail.buffer || /*Buffer augmentation happened*/
+            prevcell >= (buffers_tail.buffer + buffers_tail.buffer_size))
             newbuffer = true;
         else
             newcell = prevcell + printer->cell_sizes[printer->current_cell - 1] + 1;
     }
 
-    int len = (newcell >= printer->buffers_tail->buffer + printer->buffers_tail->buffer_size) ? 0 : (int)strlen(newcell);
+    int len = (newcell >= buffers_tail.buffer + buffers_tail.buffer_size) ? 0 : (int)strlen(newcell);
     printer->cell_sizes[printer->current_cell] = len;
     if(len == 0 && !newbuffer)
         newcell--; //Empty strings doesn't use space
@@ -308,20 +300,20 @@ void close_printer_cell(printer_new* printer)
         printer->current_offset++;
     printer->cells[printer->current_cell] = newcell;
     printer->current_cell++;
-
+    return LOOPS_ERR_SUCCESS;
 }
 
 static int col_num_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int row)
 {
     LOOPS_CALL_THROW(loops_printf(printer, "%6d :", row));
-    close_printer_cell(printer);
+    LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
 static int col_delimeter_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int /*row*/)
 {
     LOOPS_CALL_THROW(loops_printf(printer, ";"));
-    close_printer_cell(printer);
+    LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
@@ -410,7 +402,7 @@ static int col_ir_opname_printer(printer_new* printer, column_printer* /*colprin
     }
     else
         LOOPS_CALL_THROW(loops_printf(printer, "%s", found_name));
-    close_printer_cell(printer);
+    LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
@@ -495,26 +487,36 @@ static int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprin
             LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
         break;
     }
-    close_printer_cell(printer);
+    LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
 int create_ir_printer(int columnflags, printer_new** res)
 {
+    int err;
     if(res == NULL) 
         LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
         LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
 
     *res = (printer_new*)malloc(sizeof(printer_new));
-    if(*res == NULL) 
+    if(*res == NULL)
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+    if(*res == NULL)
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     memset(*res, 0, sizeof(printer_new));
+    err = loops_list_construct(&((*res)->buffers));
+    if(err != LOOPS_ERR_SUCCESS)
+    {
+        free(*res);
+        LOOPS_THROW(err);
+    }
     (*res)->colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
     (*res)->colprinters = (column_printer*)malloc((*res)->colprinters_size * sizeof(column_printer));
     if((*res)->colprinters == NULL)
     {
+        loops_list_destruct((*res)->buffers);
         free(*res);
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
@@ -548,12 +550,13 @@ int col_opname_table_printer(printer_new* printer, column_printer* colprinter, s
         LOOPS_CALL_THROW(loops_printf(printer, "%s", found_name));
     else
         LOOPS_THROW(LOOPS_ERR_UNPRINTABLE_OPERATION);
-    close_printer_cell(printer);
+    LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
 int create_assembly_printer(int columnflags, loops::Backend* backend, printer_new** res)
 {
+    int err; 
     if(res == NULL) 
         LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
@@ -563,12 +566,19 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, printer_ne
     if(*res == NULL) 
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     memset(*res, 0, sizeof(printer_new));
+    err = loops_list_construct(&((*res)->buffers));
+    if(err != LOOPS_ERR_SUCCESS)
+    {
+        free(*res);
+        LOOPS_THROW(err);
+    }
     (*res)->colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
     (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
     (*res)->colprinters = (column_printer*)malloc((*res)->colprinters_size * sizeof(column_printer));
     if((*res)->colprinters == NULL)
     {
+        loops_list_destruct((*res)->buffers);
         free(*res);
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
@@ -610,6 +620,15 @@ void free_printer(printer_new* tofree)
     free(tofree);
 }
 
+static void printer_buffer_destruct(void* pb_)
+{
+    if(pb_ != NULL)
+    {
+        printer_buffer* pb = (printer_buffer*)pb_;
+        free(pb->buffer);
+    }
+};
+
 //DUBUG: It's needed to check all this code with c89 compiler before push.
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
 static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
@@ -622,7 +641,7 @@ static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int out
     int row;
     int col;
 
-    LOOPS_CALL_THROW(augment_buffer(&(printer->buffers_head), MAX_LINE_SIZE * rows, &(printer->buffers_tail)));
+    LOOPS_CALL_THROW(augment_buffer(printer->buffers, MAX_LINE_SIZE * rows));
 
     printer->cells = NULL; 
     printer->cell_sizes = NULL; 
@@ -747,7 +766,7 @@ do {                                                                            
     else
         err = LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION;
 print_syntfunc_end:
-    free_buffer_list(printer->buffers_head);
+    loops_list_destruct(printer->buffers, printer_buffer_destruct);
     free(max_widthes);
     free(printtasks);
     free(printtasksbuf);
