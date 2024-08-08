@@ -20,12 +20,16 @@ See https://github.com/4ekmah/loops/LICENSE
 int printer_h_initialize();
 void printer_h_deinitialize();
 
+typedef loops::Syntop loops_Syntop; //TODO[CPP2ANSIC]: Delete, Syntop will be out of loops namespace.
+typedef loops::Arg loops_Arg;       //TODO[CPP2ANSIC]: Delete, Arg will be out of loops namespace.
+LOOPS_SPAN_DECLARE(loops_Syntop);
+LOOPS_SPAN_DECLARE(loops_Arg);
+LOOPS_LIST_DECLARE(loops_span_char);
+
 struct syntfunc2print //TODO: In the end, this struct have to be reunited with Syntfunc
 {
-    loops::Syntop* program;  //DUBUG: this ridiculous (pointer, length) pairs have to be replaced with C-written implementation of vector.
-    int program_size;
-    loops::Arg* params;
-    int params_size;
+    LOOPS_SPAN(loops_Syntop) program;
+    LOOPS_SPAN(loops_Arg) params;
     char* name;
 };
 
@@ -41,23 +45,16 @@ typedef struct column_printer
     free_column_printer_t free_func;
 } column_printer;
 
-typedef struct printer_buffer
-{
-    char* buffer;
-    int buffer_size;
-} printer_buffer;
-
-LOOPS_LIST_DECLARE(printer_buffer);
+LOOPS_SPAN_DECLARE(column_printer);
 
 typedef struct printer_new
 {
-    column_printer* colprinters;
-    int colprinters_size;
+    LOOPS_SPAN(column_printer) colprinters;
+    LOOPS_LIST(loops_span_char) buffers;
     int columnflags;
-    LOOPS_LIST(printer_buffer) buffers;
-    char** cells;
-    int* cell_sizes;
-    int current_cell;
+    char** cells;     //TODO[CPP2ANSIC]: This 3 fields have to be loops_vector(struct{char* cell_data, int cell_size}), when this container will be created.
+    int* cell_sizes;  //
+    int current_cell; //
     int current_offset;
     loops::Backend* backend;
 } printer_new;

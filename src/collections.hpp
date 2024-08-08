@@ -213,7 +213,65 @@ int loops_list_head(loops_list_ ## T ll, T* res)                                
     return LOOPS_ERR_SUCCESS;                                                                       \
 }
 
+// ====================================================== SPAN ======================================================
+
+#define LOOPS_SPAN(T) loops_span_ ##T
+
+#define LOOPS_SPAN_DECLARE(T)                                          \
+typedef struct loops_span_ ## T ## _                                   \
+{                                                                      \
+    T* data;                                                           \
+    int size;                                                          \
+    bool managed;                                                      \
+} loops_span_inner_ ## T ## _;                                         \
+typedef struct loops_span_ ## T ## _* loops_span_ ## T;                \
+int loops_span_construct(loops_span_ ## T* result, T* data, int size); \
+int loops_span_construct_alloc(loops_span_ ## T* result, int size);    \
+void loops_span_destruct(loops_span_ ## T to_del);
+
+#define LOOPS_SPAN_DEFINE(T)                                             \
+int loops_span_construct(loops_span_ ## T* result, T* data, int size)    \
+{                                                                        \
+    (*result) = (loops_span_ ## T)malloc(sizeof(loops_span_ ## T ##_));  \
+    if(*result == NULL)                                                  \
+        return LOOPS_ERR_OUT_OF_MEMORY;                                  \
+    (*result)->data = data;                                              \
+    (*result)->size = size;                                              \
+    (*result)->managed = false;                                          \
+    return LOOPS_ERR_SUCCESS;                                            \
+}                                                                        \
+int loops_span_construct_alloc(loops_span_ ## T* result, int size)       \
+{                                                                        \
+    if(size <= 0)                                                        \
+        return LOOPS_ERR_POSITIVE_SIZE_NEEDED;                           \
+    (*result) = (loops_span_ ## T)malloc(sizeof(loops_span_ ## T ## _)); \
+    if(*result == NULL)                                                  \
+        return LOOPS_ERR_OUT_OF_MEMORY;                                  \
+    (*result)->data = (T*)malloc(sizeof(T) * size);                      \
+    if((*result)->data == NULL)                                          \
+    {                                                                    \
+        free(*result);                                                   \
+        *result = NULL;                                                  \
+        return LOOPS_ERR_OUT_OF_MEMORY;                                  \
+    }                                                                    \
+    (*result)->size = size;                                              \
+    (*result)->managed = true;                                           \
+    return LOOPS_ERR_SUCCESS;                                            \
+}                                                                        \
+void loops_span_destruct(loops_span_ ## T to_del)                        \
+{                                                                        \
+    if(to_del)                                                           \
+    {                                                                    \
+        if(to_del->managed)                                              \
+            free(to_del->data);                                          \
+        free(to_del);                                                    \
+    }                                                                    \
+}
+
 LOOPS_HASHMAP_DECLARE(int, loops_cstring);
 LOOPS_HASHMAP_DECLARE(int, int);
+LOOPS_SPAN_DECLARE(int);
+LOOPS_SPAN_DECLARE(char);
+LOOPS_SPAN_DECLARE(uint8_t);
 
 #endif//__LOOPS_COLLECTIONS_HPP__

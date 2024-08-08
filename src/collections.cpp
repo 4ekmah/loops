@@ -9,5 +9,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 LOOPS_HASHMAP_DEFINE(int, loops_cstring)
 LOOPS_HASHMAP_DEFINE(int, int);
-
-// void loops_hashmap_erase(loops_hashmap_K_V lm, K key);
+LOOPS_SPAN_DEFINE(int);
+LOOPS_SPAN_DEFINE(char);
+LOOPS_SPAN_DEFINE(uint8_t);

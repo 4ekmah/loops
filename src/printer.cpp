@@ -11,7 +11,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <sstream>
 #include <iomanip>
 
-LOOPS_LIST_DEFINE(printer_buffer);
+LOOPS_LIST_DEFINE(loops_span_char);
+LOOPS_SPAN_DEFINE(loops_Syntop);
+LOOPS_SPAN_DEFINE(loops_Arg);
+LOOPS_SPAN_DEFINE(column_printer);
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -203,22 +206,19 @@ void printer_h_deinitialize()
     loops_hashmap_destruct(suffixed_opnames);
 }
 
-static int augment_buffer(LOOPS_LIST(printer_buffer) head, int buffer_size)
+static int augment_buffer(LOOPS_LIST(loops_span_char) head, int buffer_size)
 {
     int err;
-    printer_buffer first;
+    loops_span_char first;
     err = loops_list_head(head, &first);
     if(err == LOOPS_ERR_SUCCESS)
-        buffer_size = first.buffer_size;
-    printer_buffer to_add;
-    to_add.buffer_size = buffer_size;
-    to_add.buffer = (char*)malloc(buffer_size);
-    if(to_add.buffer == NULL) 
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        buffer_size = first->size;
+    loops_span_char to_add;
+    LOOPS_CALL_THROW(loops_span_construct_alloc(&to_add, buffer_size));
     err = loops_list_push_back(head, to_add);
     if(err != LOOPS_ERR_SUCCESS)
     {
-        free(to_add.buffer);
+        loops_span_destruct(to_add);
         LOOPS_THROW(err);
     }
     return LOOPS_ERR_SUCCESS;
@@ -226,10 +226,12 @@ static int augment_buffer(LOOPS_LIST(printer_buffer) head, int buffer_size)
 
 int loops_printf(printer_new* printer, const char *__restrict __format,...)
 {
-    printer_buffer buffers_tail;
+    LOOPS_SPAN(char) buffers_tail;
     LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
-    int chars_left = buffers_tail.buffer_size - printer->current_offset;
-    char* nextcharpos = buffers_tail.buffer + printer->current_offset;
+    if(buffers_tail->size == 0 || buffers_tail->data == NULL)
+        LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
+    int chars_left = buffers_tail->size - printer->current_offset;
+    char* nextcharpos = buffers_tail->data + printer->current_offset;
     va_list var_args;
     va_start(var_args, __format);
     int written = vsnprintf(nextcharpos, chars_left, __format, var_args);
@@ -239,20 +241,20 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
         if(printer->current_cell == 0)
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
-        int current_cell_size = (int)(buffers_tail.buffer + printer->current_offset - current_cell_start);
+        int current_cell_size = (int)(buffers_tail->data + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
             LOOPS_THROW(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
-        if(current_cell_size + written >= buffers_tail.buffer_size)
+        if(current_cell_size + written >= buffers_tail->size)
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         LOOPS_CALL_THROW(augment_buffer(printer->buffers, 0));
-        printer_buffer newtail;
+        LOOPS_SPAN(char) newtail;
         LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &newtail));
         if(current_cell_size > 0)
-            memcpy(newtail.buffer, current_cell_start, current_cell_size);
-        buffers_tail.buffer = newtail.buffer;
+            memcpy(newtail->data, current_cell_start, current_cell_size);
+        buffers_tail = newtail;
         printer->current_offset = current_cell_size;
-        chars_left = buffers_tail.buffer_size;
-        nextcharpos = buffers_tail.buffer + printer->current_offset;
+        chars_left = buffers_tail->size;
+        nextcharpos = buffers_tail->data + printer->current_offset;
         va_list var_args2;
         va_start(var_args2, __format);
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
@@ -277,22 +279,24 @@ int new_print_address(printer_new* printer, int64_t addr)
 
 int close_printer_cell(printer_new* printer)
 {
-    printer_buffer buffers_tail;
+    LOOPS_SPAN(char) buffers_tail;
     LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
-    char* newcell = buffers_tail.buffer;
+    int buffers_tail_size = buffers_tail->size;
+    char* buffers_tail_data = buffers_tail->data;
+    char* newcell = buffers_tail_data;
     bool newbuffer = printer->current_cell == 0; 
-    buffers_tail.buffer[printer->current_offset] = 0;
+    buffers_tail_data[printer->current_offset] = 0;
     if (!newbuffer)
     {
         char* prevcell = printer->cells[printer->current_cell - 1];
-        if (prevcell < buffers_tail.buffer || /*Buffer augmentation happened*/
-            prevcell >= (buffers_tail.buffer + buffers_tail.buffer_size))
+        if (prevcell < buffers_tail_data || /*Buffer augmentation happened*/
+            prevcell >= (buffers_tail_data + buffers_tail_size))
             newbuffer = true;
         else
             newcell = prevcell + printer->cell_sizes[printer->current_cell - 1] + 1;
     }
 
-    int len = (newcell >= buffers_tail.buffer + buffers_tail.buffer_size) ? 0 : (int)strlen(newcell);
+    int len = (newcell >= buffers_tail_data + buffers_tail_size) ? 0 : (int)strlen(newcell);
     printer->cell_sizes[printer->current_cell] = len;
     if(len == 0 && !newbuffer)
         newcell--; //Empty strings doesn't use space
@@ -321,7 +325,8 @@ static int col_ir_opname_printer(printer_new* printer, column_printer* /*colprin
 {
     int err;
     loops_cstring found_name = NULL;
-    loops::Syntop* op = func->program + row;
+    loops::Syntop* op = func->program->data;
+    op += row;
     err = loops_hashmap_get(opstrings, op->opcode, &found_name);
     if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
     {
@@ -425,7 +430,8 @@ static int basic_arg_printer(printer_new* printer, loops::Arg* arg)
 
 static int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
 {
-    loops::Syntop* op = func->program + row;
+    loops::Syntop* op = func->program->data;
+    op += row;
     switch(op->opcode)
     {
     case loops::OP_LABEL:
@@ -511,17 +517,18 @@ int create_ir_printer(int columnflags, printer_new** res)
         free(*res);
         LOOPS_THROW(err);
     }
-    (*res)->colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    (*res)->colprinters = (column_printer*)malloc((*res)->colprinters_size * sizeof(column_printer));
-    if((*res)->colprinters == NULL)
+    int colprinters_size = 0; 
+    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
+    err = loops_span_construct_alloc(&((*res)->colprinters), colprinters_size);
+    if(err != LOOPS_ERR_SUCCESS)
     {
         loops_list_destruct((*res)->buffers);
         free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        LOOPS_THROW(err);
     }
-    memset((*res)->colprinters, 0, (*res)->colprinters_size * sizeof(column_printer));
-    column_printer* curcolprinter = (*res)->colprinters; 
+    column_printer* curcolprinter = (*res)->colprinters->data;
+    memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
     if(columnflags & loops::Func::PC_OPNUM)
     {
         curcolprinter->func = &col_num_printer;
@@ -542,7 +549,8 @@ int col_opname_table_printer(printer_new* printer, column_printer* colprinter, s
 {
     int err;
     loops_cstring found_name = NULL;
-    loops::Syntop* op = func->program + row;
+    loops::Syntop* op = func->program->data;
+    op += row;
     err = loops_hashmap_get((LOOPS_HASHMAP(int, loops_cstring))colprinter->auxdata, op->opcode, &found_name);
     if(err != LOOPS_ERR_ELEMENT_NOT_FOUND && err != LOOPS_ERR_SUCCESS )
         LOOPS_THROW(err);
@@ -572,18 +580,19 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, printer_ne
         free(*res);
         LOOPS_THROW(err);
     }
-    (*res)->colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    (*res)->colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
-    (*res)->colprinters = (column_printer*)malloc((*res)->colprinters_size * sizeof(column_printer));
-    if((*res)->colprinters == NULL)
+    int colprinters_size = 0;
+    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
+    err = loops_span_construct_alloc(&((*res)->colprinters), colprinters_size);
+    if(err != LOOPS_ERR_SUCCESS)
     {
         loops_list_destruct((*res)->buffers);
         free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        LOOPS_THROW(err);
     }
-    memset((*res)->colprinters, 0, (*res)->colprinters_size * sizeof(column_printer));
-    column_printer* curcolprinter = (*res)->colprinters; 
+    column_printer* curcolprinter = (*res)->colprinters->data;
+    memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
     if(columnflags & loops::Func::PC_OPNUM)
     {
         curcolprinter->func = &col_num_printer;
@@ -613,31 +622,30 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, printer_ne
 void free_printer(printer_new* tofree)
 {
     int prnum = 0;
-    for (; prnum < tofree->colprinters_size; prnum++)
-        if (tofree->colprinters[prnum].free_func != NULL)
-            tofree->colprinters[prnum].free_func(tofree->colprinters + prnum);
-    free(tofree->colprinters);
+    for (; prnum < tofree->colprinters->size; prnum++)
+        if (tofree->colprinters->data[prnum].free_func != NULL)
+            tofree->colprinters->data[prnum].free_func(tofree->colprinters->data + prnum);
+    loops_span_destruct(tofree->colprinters);
     free(tofree);
 }
 
-static void printer_buffer_destruct(void* pb_)
+static void printer_buffer_destruct(void* pb)
 {
-    if(pb_ != NULL)
-    {
-        printer_buffer* pb = (printer_buffer*)pb_;
-        free(pb->buffer);
-    }
-};
+    loops_span_destruct((LOOPS_SPAN(char))pb);
+}
 
 //DUBUG: It's needed to check all this code with c89 compiler before push.
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
 static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
 {
+    int params_size = func->params->size;
+    loops::Arg* params = func->params->data;
+
     int err = 0;
     int cells = 0;
     static int MAX_LINE_SIZE = 82; //taken from statistics
-    int cols = printer->colprinters_size;
-    int rows = func->program_size;
+    int cols = printer->colprinters->size;
+    int rows = func->program->size;
     int row;
     int col;
 
@@ -668,7 +676,7 @@ static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int out
     {
         for (col = 0; col < cols; col++)
         {
-            err = printer->colprinters[col].func(printer, printer->colprinters + col, func, row);
+            err = printer->colprinters->data[col].func(printer, printer->colprinters->data + col, func, row);
             if (err != 0)
             {
                 fout = stderr;
@@ -695,10 +703,10 @@ static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int out
         int parnum;
         int cell;
         fprintf(fout, "%s(", func->name);
-        for (parnum = 0; parnum < func->params_size - 1; parnum++)
-            fprintf(fout, "i%d, ", (func->params + parnum)->idx);
-        if (func->params_size)
-            fprintf(fout, "i%d", (func->params + func->params_size - 1)->idx);
+        for (parnum = 0; parnum < params_size - 1; parnum++)
+            fprintf(fout, "i%d, ", (params + parnum)->idx);
+        if (params_size)
+            fprintf(fout, "i%d", (params + params_size - 1)->idx);
         fprintf(fout, ")\n");
         for(col = 0, cell = 0; cell < cells; cell++)
         {
@@ -716,10 +724,10 @@ static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int out
         int bufferleft = (int)strlen(func->name) + 6;
         int parnum;
         int cell;
-        for (parnum = 0; parnum < func->params_size; parnum++)
+        for (parnum = 0; parnum < params_size; parnum++)
         {
-            assert((func->params + parnum)->idx < 100);
-            bufferleft += ((func->params + parnum)->idx > 10 ? 2 : 1) + 3;
+            assert((params + parnum)->idx < 100);
+            bufferleft += ((params + parnum)->idx > 10 ? 2 : 1) + 3;
         }
         {
             int lensize = 2;
@@ -746,10 +754,10 @@ do {                                                                            
 
         //Write header:
         PRINT_SYNTFUNC_SPRINT("%s(", func->name);
-        for (parnum = 0; parnum < func->params_size - 1; parnum++)
-            PRINT_SYNTFUNC_SPRINT("i%d, ", (func->params + parnum)->idx);
-        if (func->params_size)
-            PRINT_SYNTFUNC_SPRINT("i%d", (func->params + func->params_size - 1)->idx);
+        for (parnum = 0; parnum < params_size - 1; parnum++)
+            PRINT_SYNTFUNC_SPRINT("i%d, ", (params + parnum)->idx);
+        if (params_size)
+            PRINT_SYNTFUNC_SPRINT("i%d", (params + params_size - 1)->idx);
         PRINT_SYNTFUNC_SPRINT(")\n");
         //Write instructions:
         for (col = 0, cell = 0; cell < cells; cell++)

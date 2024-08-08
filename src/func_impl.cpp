@@ -70,12 +70,16 @@ void FuncImpl::printIR(std::ostream& out, int columns, const std::string& uptoPa
     Assert(create_ir_printer(columns, &_printer) == 0);
     syntfunc2print s2p;
     s2p.name = (char*)(l_pipeline.get_data().name.c_str());
-    s2p.params = (Arg*)l_pipeline.get_data().params.data();
-    s2p.params_size = (int)l_pipeline.get_data().params.size();
-    s2p.program = (Syntop*)l_pipeline.get_data().program.data();
-    s2p.program_size = (int)l_pipeline.get_data().program.size();
+    int err = loops_span_construct(&(s2p.program), (Syntop*)l_pipeline.get_data().program.data(), (int)l_pipeline.get_data().program.size());
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    err = loops_span_construct(&(s2p.params), (Arg*)l_pipeline.get_data().params.data(), (int)l_pipeline.get_data().params.size());
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
     char* printed_str;
-    Assert(sprint_syntfunc(_printer, &printed_str, &s2p) == 0);
+    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
     free_printer(_printer);
     out << printed_str;
     free(printed_str);
@@ -89,12 +93,16 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
     Assert(create_assembly_printer(columns, m_context->getBackend(), &_printer) == 0);
     syntfunc2print s2p;
     s2p.name = (char*)(l_pipeline.get_data().name.c_str());
-    s2p.params = (Arg*)l_pipeline.get_data().params.data();
-    s2p.params_size = (int)l_pipeline.get_data().params.size();
-    s2p.program = (Syntop*)l_pipeline.get_data().program.data();
-    s2p.program_size = (int)l_pipeline.get_data().program.size();
+    int err = loops_span_construct(&(s2p.program), (Syntop*)l_pipeline.get_data().program.data(), (int)l_pipeline.get_data().program.size());
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    err = loops_span_construct(&(s2p.params), (Arg*)l_pipeline.get_data().params.data(), (int)l_pipeline.get_data().params.size());
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
     char* printed_str;
-    Assert(sprint_syntfunc(_printer, &printed_str, &s2p) == 0);
+    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
     free_printer(_printer);
     out << printed_str;
     free(printed_str);
