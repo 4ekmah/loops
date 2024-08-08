@@ -7,7 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_COMMON_HPP__
 
 #include "loops/loops.hpp"
-#include "def_err.hpp"
+#include "runtime.hpp"
 #include <functional>
 #include <set>
 #include <stack>

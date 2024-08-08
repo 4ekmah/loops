@@ -5,7 +5,6 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "collections.hpp"
-#include "def_err.hpp"
 
 LOOPS_HASHMAP_DEFINE(int, loops_cstring)
 LOOPS_HASHMAP_DEFINE(int, int);

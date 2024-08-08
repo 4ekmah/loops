@@ -224,7 +224,7 @@ static int augment_buffer(LOOPS_LIST(loops_span_char) head, int buffer_size)
     return LOOPS_ERR_SUCCESS;
 }
 
-int loops_printf(printer_new* printer, const char *__restrict __format,...)
+int loops_printf(program_printer* printer, const char *__restrict __format,...)
 {
     LOOPS_SPAN(char) buffers_tail;
     LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
@@ -267,7 +267,7 @@ int loops_printf(printer_new* printer, const char *__restrict __format,...)
     return LOOPS_ERR_SUCCESS;    
 }
 
-int new_print_address(printer_new* printer, int64_t addr)
+int new_print_address(program_printer* printer, int64_t addr)
 {
     static char hexsymb[] = "0123456789ABCDEF";
     char* bytes = (char*)(&addr);
@@ -277,7 +277,7 @@ int new_print_address(printer_new* printer, int64_t addr)
     return LOOPS_ERR_SUCCESS;
 }
 
-int close_printer_cell(printer_new* printer)
+int close_printer_cell(program_printer* printer)
 {
     LOOPS_SPAN(char) buffers_tail;
     LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
@@ -307,21 +307,21 @@ int close_printer_cell(printer_new* printer)
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_num_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int row)
+static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int row)
 {
     LOOPS_CALL_THROW(loops_printf(printer, "%6d :", row));
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_delimeter_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int /*row*/)
+static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int /*row*/)
 {
     LOOPS_CALL_THROW(loops_printf(printer, ";"));
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_ir_opname_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
 {
     int err;
     loops_cstring found_name = NULL;
@@ -411,7 +411,7 @@ static int col_ir_opname_printer(printer_new* printer, column_printer* /*colprin
     return LOOPS_ERR_SUCCESS;
 }
 
-static int basic_arg_printer(printer_new* printer, loops::Arg* arg)
+static int basic_arg_printer(program_printer* printer, loops::Arg* arg)
 {
     switch (arg->tag)
     {
@@ -428,7 +428,7 @@ static int basic_arg_printer(printer_new* printer, loops::Arg* arg)
     };
 }
 
-static int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
 {
     loops::Syntop* op = func->program->data;
     op += row;
@@ -497,7 +497,7 @@ static int col_ir_opargs_printer(printer_new* printer, column_printer* /*colprin
     return LOOPS_ERR_SUCCESS;
 }
 
-int create_ir_printer(int columnflags, printer_new** res)
+int create_ir_printer(int columnflags, program_printer** res)
 {
     int err;
     if(res == NULL) 
@@ -505,12 +505,12 @@ int create_ir_printer(int columnflags, printer_new** res)
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
         LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
 
-    *res = (printer_new*)malloc(sizeof(printer_new));
+    *res = (program_printer*)malloc(sizeof(program_printer));
     if(*res == NULL)
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     if(*res == NULL)
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    memset(*res, 0, sizeof(printer_new));
+    memset(*res, 0, sizeof(program_printer));
     err = loops_list_construct(&((*res)->buffers));
     if(err != LOOPS_ERR_SUCCESS)
     {
@@ -545,7 +545,7 @@ int create_ir_printer(int columnflags, printer_new** res)
     return LOOPS_ERR_SUCCESS;
 }
 
-int col_opname_table_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row)
+int col_opname_table_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
 {
     int err;
     loops_cstring found_name = NULL;
@@ -562,7 +562,7 @@ int col_opname_table_printer(printer_new* printer, column_printer* colprinter, s
     return LOOPS_ERR_SUCCESS;
 }
 
-int create_assembly_printer(int columnflags, loops::Backend* backend, printer_new** res)
+int create_assembly_printer(int columnflags, loops::Backend* backend, program_printer** res)
 {
     int err; 
     if(res == NULL) 
@@ -570,10 +570,10 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, printer_ne
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
         LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
 
-    *res = (printer_new*)malloc(sizeof(printer_new));
+    *res = (program_printer*)malloc(sizeof(program_printer));
     if(*res == NULL) 
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    memset(*res, 0, sizeof(printer_new));
+    memset(*res, 0, sizeof(program_printer));
     err = loops_list_construct(&((*res)->buffers));
     if(err != LOOPS_ERR_SUCCESS)
     {
@@ -619,7 +619,7 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, printer_ne
     return LOOPS_ERR_SUCCESS;
 }
 
-void free_printer(printer_new* tofree)
+void free_printer(program_printer* tofree)
 {
     int prnum = 0;
     for (; prnum < tofree->colprinters->size; prnum++)
@@ -636,7 +636,7 @@ static void printer_buffer_destruct(void* pb)
 
 //DUBUG: It's needed to check all this code with c89 compiler before push.
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
-static int print_syntfunc(printer_new* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
+static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
 {
     int params_size = func->params->size;
     loops::Arg* params = func->params->data;
@@ -783,12 +783,12 @@ print_syntfunc_end:
     return err;
 }
 
-int fprint_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func)
+int fprint_syntfunc(program_printer* printer, FILE* out, syntfunc2print* func)
 {
     return print_syntfunc(printer, out, NULL, PRINT_TO_FILE, func);
 }
 
-int sprint_syntfunc(printer_new* printer, char** out, syntfunc2print* func)
+int sprint_syntfunc(program_printer* printer, char** out, syntfunc2print* func)
 {
     return print_syntfunc(printer, NULL, out, PRINT_TO_STRING, func);
 }

@@ -34,8 +34,8 @@ struct syntfunc2print //TODO: In the end, this struct have to be reunited with S
 };
 
 struct column_printer;
-struct printer_new;
-typedef int (*print_column_t)(struct printer_new* printer, struct column_printer* colprinter, syntfunc2print* func, int row);
+struct program_printer;
+typedef int (*print_column_t)(struct program_printer* printer, struct column_printer* colprinter, syntfunc2print* func, int row);
 typedef void (*free_column_printer_t)(struct column_printer* colprinter);
 
 typedef struct column_printer
@@ -47,7 +47,7 @@ typedef struct column_printer
 
 LOOPS_SPAN_DECLARE(column_printer);
 
-typedef struct printer_new
+typedef struct program_printer
 {
     LOOPS_SPAN(column_printer) colprinters;
     LOOPS_LIST(loops_span_char) buffers;
@@ -57,20 +57,20 @@ typedef struct printer_new
     int current_cell; //
     int current_offset;
     loops::Backend* backend;
-} printer_new;
+} program_printer;
 
-int loops_printf(printer_new* printer, const char *__restrict __format, ...); //DUBUG: remove these new_ suffixes.
-int new_print_address(printer_new* printer, int64_t addr);
-int close_printer_cell(printer_new* printer);
+int loops_printf(program_printer* printer, const char *__restrict __format, ...);
+int new_print_address(program_printer* printer, int64_t addr);
+int close_printer_cell(program_printer* printer);
 
-int col_opname_table_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row);
+int col_opname_table_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row);
 
-int create_ir_printer(int columnflags, printer_new** res);
-int create_assembly_printer(int columnflags, loops::Backend* backend, printer_new** res);
-void free_printer(printer_new* tofree);
-int fprint_syntfunc(printer_new* printer, FILE* out, syntfunc2print* func);
+int create_ir_printer(int columnflags, program_printer** res);
+int create_assembly_printer(int columnflags, loops::Backend* backend, program_printer** res);
+void free_printer(program_printer* tofree);
+int fprint_syntfunc(program_printer* printer, FILE* out, syntfunc2print* func);
 /*
 * Allocate with malloc enough data for out string. Allocated out have to be free by user.
 */
-int sprint_syntfunc(printer_new* printer, char** out, syntfunc2print* func);
+int sprint_syntfunc(program_printer* printer, char** out, syntfunc2print* func);
 #endif//__LOOPS_PRINTER_HPP__

@@ -1534,25 +1534,11 @@ namespace loops
         LOOPS_SPAN(int) positions;
     } intel64_opargs_printer_aux;
 
-    void Intel64Backend::fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const
-    {
-        memset(result, 0, sizeof(uint64_t) * Syntop::SYNTOP_ARGS_MAX);
-        const BinTranslation& s2b = lookS2b(*a_op);
-        for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
-        {
-            if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
-                continue;   //Drop all statics
-            int srcNum = s2b.m_compound[bpiecenum].srcArgnum;
-            result[srcNum] = result[srcNum] | s2b.m_compound[bpiecenum].fieldOflags;
-        }
-    }
-
-    static int intel64_opargs_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int intel64_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
     {
         int program_size = func->program->size;
         loops::Syntop* program = func->program->data;
         int err;
-        //DUBUG: Check if all throw logic are correct and everything is freed correctly.
         intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
         {
@@ -1595,7 +1581,7 @@ namespace loops
         Syntop* op = program + row;
         
         uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
-        ((Intel64Backend*)(printer->backend))->fill_native_operand_flags(op, operand_flags);
+        printer->backend->fill_native_operand_flags(op, operand_flags);
         int aamount = op->args_size;
 
         for(int anum = 0; anum < aamount ; anum++)
@@ -1605,7 +1591,7 @@ namespace loops
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
-                    throw std::runtime_error("Printer: register offsets are not supported.");
+                    LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = argaux->positions->data[row + 1] + (int)arg.value;
                 err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
                 if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
@@ -1729,7 +1715,7 @@ namespace loops
         LOOPS_SPAN(uint8_t) binary;
     } intel64_hex_printer_aux;
 
-    static int intel64_hex_printer(printer_new* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int intel64_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
     {
         int err;
         int program_size = func->program->size;

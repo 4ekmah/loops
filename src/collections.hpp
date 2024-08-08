@@ -6,11 +6,10 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #ifndef __LOOPS_COLLECTIONS_HPP__
 #define __LOOPS_COLLECTIONS_HPP__
+#include "runtime.hpp"
 #include <uthash.h>
 #include <utlist.h>
-
 typedef const char* loops_cstring;
-typedef void (*loops_destructor)(void* obj);
 
 typedef int K;
 typedef loops_cstring V;

@@ -202,6 +202,19 @@ std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) cons
     return getUsedRegisters(a_op, basketNum, AF_INPUT);
 }
 
+void Backend::fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const
+{
+    memset(result, 0, sizeof(uint64_t) * Syntop::SYNTOP_ARGS_MAX);
+    const BinTranslation& s2b = lookS2b(*a_op);
+    for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
+    {
+        if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
+            continue;   //Drop all statics
+        int srcNum = s2b.m_compound[bpiecenum].srcArgnum;
+        result[srcNum] = result[srcNum] | s2b.m_compound[bpiecenum].fieldOflags;
+    }
+}
+
 BinTranslation BTLookup(const Syntop&, bool&)
 {
     throw std::runtime_error("Binary translation table is not implemented.");
