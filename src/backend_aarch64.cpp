@@ -117,6 +117,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::AARCH64_B_LS  , "b.ls"  ), 
     LOOPS_HASHMAP_ELEM(loops::AARCH64_BLR   , "blr"   ), 
     LOOPS_HASHMAP_ELEM(loops::AARCH64_RET   , "ret"   ), 
+    LOOPS_HASHMAP_ELEM(loops::AARCH64_LABEL , ""      ),
 };
 
 
@@ -1187,6 +1188,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         if(index.size() == 1 && index[0].tag == Arg::IREG)
             return BiT({ BTsta(0b1101011000111111000000, 22), BTreg(0, 5, In), BTsta(0b00000, 5) });
         break;
+    case (AARCH64_LABEL): return BiT({});
     case (AARCH64_RET): return BiT({ BTsta(0x3597C0, 22), BTreg(0, 5, In), BTsta(0x0,5) });
     default:
         break;
@@ -1325,11 +1327,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             switch(index[1].elemtype)
             {
             case (TYPE_U8): case (TYPE_I8):
-                return SyT(AARCH64_STRB, { SAcop(1, AF_LOWER32), SAcop(0, AF_ADDRESS), SAimm(0) });
+                return SyT(AARCH64_STRB, { SAcop(1, AF_ADDRESS32), SAcop(0, AF_ADDRESS), SAimm(0) });
             case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
-                return SyT(AARCH64_STRH, { SAcop(1, AF_LOWER32), SAcop(0, AF_ADDRESS), SAimm(0) });
+                return SyT(AARCH64_STRH, { SAcop(1, AF_ADDRESS32), SAcop(0, AF_ADDRESS), SAimm(0) });
             case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
-                return SyT(AARCH64_STR, { SAimm(0, AF_NOPRINT), SAcop(1, AF_LOWER32), SAcop(0, AF_ADDRESS), SAimm(0) });
+                return SyT(AARCH64_STR, { SAimm(0, AF_NOPRINT), SAcop(1, AF_ADDRESS32), SAcop(0, AF_ADDRESS), SAimm(0) });
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_STR, { SAimm(1, AF_NOPRINT), SAcop(1), SAcop(0, AF_ADDRESS), SAimm(0) });
             };
@@ -1339,11 +1341,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             switch(index[2].elemtype)
             {
             case (TYPE_U8): case (TYPE_I8):
-                return SyT(AARCH64_STRB, { SAcop(2, AF_LOWER32), SAcop(0), SAcop(1) });
+                return SyT(AARCH64_STRB, { SAcop(2, AF_ADDRESS32), SAcop(0), SAcop(1) });
             case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
-                return SyT(AARCH64_STRH, { SAcop(2, AF_LOWER32), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 1) : SAcop(1) });
+                return SyT(AARCH64_STRH, { SAcop(2, AF_ADDRESS32), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 1) : SAcop(1) });
             case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
-                return SyT(AARCH64_STR, { SAimm(0), SAcop(2, AF_LOWER32), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 2) : SAcop(1) });
+                return SyT(AARCH64_STR, { SAimm(0), SAcop(2, AF_ADDRESS32), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 2) : SAcop(1) });
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
                 return SyT(AARCH64_STR, { SAimm(1), SAcop(2), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 3) : SAcop(1) });
             };
@@ -1908,6 +1910,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
              return SyT(AARCH64_BLR, { SAcop(0, AF_ADDRESS) });
         break;
     case (OP_JMP):      return SyT(AARCH64_B,   { SAcop(0, AF_PRINTOFFSET) });
+    case (OP_LABEL):    return SyT(AARCH64_LABEL, { SAcop(0) });
     case (OP_RET):      return SyT(AARCH64_RET, { SAreg(LR) });
     default:
         break;
@@ -1952,8 +1955,6 @@ private:
 
 Aarch64Backend::Aarch64Backend()
 {
-    m_opname_printer.func = &col_opname_table_printer;
-    m_opname_printer.nametable = opstrings;
     m_s2blookup = a64BTLookup;
     m_s2slookup = a64STLookup;
     m_vectorRegisterBits = 128;
@@ -2223,70 +2224,239 @@ Arg Aarch64Backend::getSParg() const
 
 column_printer Aarch64Backend::get_opname_printer() const
 {
-    column_printer ret = { &col_opname_table_printer, opstrings , 0 };
+    column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ opstrings , /*free_func = */ NULL };
     return ret;
 }
 
-Printer::ColPrinter Aarch64Backend::colHexPrinter(const Syntfunc& toP) const
+typedef struct aarch64_opargs_printer_aux
 {
-    Assembly2Hex a2hPass(this);
-    Syntfunc dummyFunc;
-    a2hPass.process(dummyFunc, toP);
-    const FuncBodyBuf buffer = a2hPass.result_buffer();
+    LOOPS_HASHMAP(int, int) pos2opnum;
+    LOOPS_SPAN(int) positions;
+} aarch64_opargs_printer_aux;
 
-    return [buffer](::std::ostream& out, const Syntop& /*toPrint*/, int rowNum, Backend* )
-    {
-        uint8_t* hexfield = &((*buffer)[0]) + sizeof(uint32_t)*rowNum;
-        for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
-            out << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)*(hexfield+pos)<<" ";
-    };
-}
-
-Printer::ArgPrinter Aarch64Backend::argPrinter(const Syntfunc& /*toP*/) const
+static int aarch64_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
 {
-    return [](::std::ostream& out, const Syntop& toPrint, int rowNum, int argNum)
+    int program_size = func->program->size;
+    loops::Syntop* program = func->program->data;
+    int err;
+    aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
+    if (argaux == NULL)
     {
-        Arg arg = toPrint[argNum];
+        int oppos = 0;
+        int opnum = 0;
+        argaux = (aarch64_opargs_printer_aux*)malloc(sizeof(aarch64_opargs_printer_aux));
+        if (argaux == NULL)
+            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        memset(argaux, 0, sizeof(aarch64_opargs_printer_aux));
+        err = loops_hashmap_construct(&(argaux->pos2opnum));
+        if(err != LOOPS_ERR_SUCCESS)
+        {
+            free(argaux);
+            LOOPS_THROW(err);
+        }
+        err = loops_span_construct_alloc(&(argaux->positions), program_size);
+        if(err != LOOPS_ERR_SUCCESS) 
+        {
+            loops_hashmap_destruct(argaux->pos2opnum);
+            free(argaux);
+            LOOPS_THROW(err);
+        }
+        for (; opnum < program_size; opnum++)
+        {
+            int opcode = program[opnum].opcode;
+            int opsize = (opcode == AARCH64_LABEL ? 0 : 4);
+            argaux->positions->data[opnum] = oppos;
+            if(opcode == AARCH64_LABEL)
+                loops_hashmap_add(argaux->pos2opnum, oppos, opnum);
+            oppos += opsize;
+        }
+        colprinter->auxdata = argaux;
+    }
+    
+    Syntop* op = program + row;
+    uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];                //DUBUG: Will be needed! Use.
+    printer->backend->fill_native_operand_flags(op, operand_flags);
+    int aamount = op->args_size;
+    int last_printable = -1;
+
+    for(int anum = 0; anum < aamount ; anum++)
+        if ((op->args[anum].flags & AF_NOPRINT) == 0)
+            last_printable = anum;
+
+    for(int anum = 0; anum < aamount ; anum++)
+    {
+        Arg arg = op->args[anum];
+        if (arg.flags & AF_NOPRINT)
+            continue;
         if (arg.flags & AF_PRINTOFFSET)
         {
+            int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Printer: register offsets are not supported.");
-            int64_t targetline = rowNum + arg.value;
-            out << "["<< targetline<< "]";
-            return;
+                LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+            int offset2find = argaux->positions->data[row + 1] + 4 * (int)arg.value - 4;
+            err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
+            if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+            else if(err != LOOPS_ERR_SUCCESS)
+                LOOPS_THROW(err);
+            Assert(targetline >= 0);
+            Syntop* labelop = program + targetline;
+            Assert(labelop->opcode == AARCH64_LABEL);
+            Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
+            Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+            LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
+            continue;
         }
-        bool w32 = arg.flags & AF_LOWER32;
-        bool address = arg.flags & AF_ADDRESS;
+        bool w32 = (arg.flags & AF_ADDRESS) == AF_ADDRESS32;
+        bool address = (arg.flags & AF_ADDRESS) == AF_ADDRESS;
         if (address)
-            out<<"[";
+            LOOPS_CALL_THROW(loops_printf(printer, "["));
         switch (arg.tag)
         {
             case Arg::IREG:
                 if(arg.idx == (int)Syntfunc::RETREG)
-                    out << "xR";
+                    LOOPS_CALL_THROW(loops_printf(printer, "xR"));
                 else if(arg.idx == 31)
-                    out << "sp";
+                    LOOPS_CALL_THROW(loops_printf(printer, "sp"));
                 else
-                    out << (w32 ? "w" : "x") << arg.idx;
+                    LOOPS_CALL_THROW(loops_printf(printer, "%s%d", (w32 ? "w" : "x"), arg.idx));
                 break;
             case Arg::VREG:
             {
-                static std::string Vsuffixes[9] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
-                out << "v" << arg.idx << "." << Vsuffixes[elem_size(arg.elemtype)];
+                static const char* Vsuffixes[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
+                LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
                 break;
             }
             case Arg::IIMMEDIATE:
+                if(op->opcode == AARCH64_LABEL)
+                {
+                    Assert(op->args_size == 1);
+                    LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    break;
+                }
                 if(arg.value == 0)
-                    out << "#0";
+                    LOOPS_CALL_THROW(loops_printf(printer, "#0"));
                 else
-                    out << "#0x"<< std::right <<std::hex << std::setfill('0') << std::setw(2)<<arg.value;
+                {
+                    uint32_t upper32 = ((uint64_t)arg.value) >> 32;
+                    uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                    if (upper32 > 0)
+                        LOOPS_CALL_THROW(loops_printf(printer, "#0x%x%08x", upper32, lower32));
+                    else
+                        LOOPS_CALL_THROW(loops_printf(printer, "#0x%02x", lower32));
+                }
                 break;
             default:
-                throw std::runtime_error("Undefined argument type.");
+                throw std::runtime_error("Undefined argument type."); //DUBUG: wat?
         };
         if (address)
-            out<<"]";
-    };
+            LOOPS_CALL_THROW(loops_printf(printer, "]"));
+        if (anum < last_printable)
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+    }
+    LOOPS_CALL_THROW(close_printer_cell(printer));
+    return LOOPS_ERR_SUCCESS;
+}
+
+static void free_aarch64_opargs_printer(column_printer* colprinter)
+{
+    if (colprinter->auxdata != NULL)
+    {
+        aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
+        loops_hashmap_destruct(argaux->pos2opnum);
+        loops_span_destruct(argaux->positions);
+        free(argaux);
+        colprinter->auxdata = NULL;
+    }
+}
+
+column_printer Aarch64Backend::get_opargs_printer() const
+{
+    column_printer ret = { /*func = */ &aarch64_opargs_printer, /*auxdata = */ NULL, /*free_func = */ &free_aarch64_opargs_printer };
+    return ret;
+}
+
+typedef struct aarch64_hex_printer_aux
+{
+    LOOPS_SPAN(int) positions;
+    LOOPS_SPAN(uint8_t) binary;
+} aarch64_hex_printer_aux;
+
+static int aarch64_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+{
+    int err;
+    int program_size = func->program->size;
+    loops::Syntop* program = func->program->data;
+    int params_size = func->params->size;
+    loops::Arg* params = func->params->data;
+
+    aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)colprinter->auxdata;
+    if (argaux == NULL)
+    {
+        int oppos = 0;
+        int opnum = 0;
+        argaux = (aarch64_hex_printer_aux*)malloc(sizeof(aarch64_hex_printer_aux));
+        if (argaux == NULL)
+            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+        memset(argaux, 0, sizeof(aarch64_hex_printer_aux));
+        err = loops_span_construct_alloc(&(argaux->positions), program_size);
+        if (err != LOOPS_ERR_SUCCESS)
+        {
+            free(argaux);
+            LOOPS_THROW(err);
+        }
+        for (; opnum < program_size; opnum++)
+        {
+            int opsize = (program[opnum].opcode == AARCH64_LABEL ? 0 : 4);
+            argaux->positions->data[opnum] = oppos;
+            oppos += opsize;
+        }
+        {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.
+            Syntfunc tmpfunc;
+            tmpfunc.program.resize(program_size);
+            memcpy((void*)tmpfunc.program.data(), (void*)program, program_size * sizeof(Syntop));
+            tmpfunc.params.resize(params_size);
+            memcpy((void*)tmpfunc.params.data(), (void*)params, params_size * sizeof(Arg));
+            Assembly2Hex a2hPass(printer->backend);
+            a2hPass.process(*((Syntfunc*)(nullptr)), tmpfunc);
+            const FuncBodyBuf buffer = a2hPass.result_buffer();
+            err = loops_span_construct_alloc(&(argaux->binary), (int)buffer->size());
+            if (err != LOOPS_ERR_SUCCESS)
+            {
+                loops_span_destruct(argaux->positions);
+                free(argaux);
+                LOOPS_THROW(err);
+            }
+            memcpy(argaux->binary->data, buffer->data(), argaux->binary->size);
+        }
+        colprinter->auxdata = argaux;
+    }
+    if(program[row].opcode != AARCH64_LABEL)
+    {
+        unsigned char* hexfield = argaux->binary->data + argaux->positions->data[row];
+        for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
+            LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
+    }
+    LOOPS_CALL_THROW(close_printer_cell(printer));
+    return LOOPS_ERR_SUCCESS;
+}
+
+static void free_aarch64_hex_printer(column_printer* colprinter)
+{
+    if (colprinter->auxdata != NULL)
+    {
+        aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)colprinter->auxdata;
+        loops_span_destruct(argaux->positions);
+        loops_span_destruct(argaux->binary);
+        free(argaux);
+        colprinter->auxdata = NULL;
+    }
+}
+
+column_printer Aarch64Backend::get_hex_printer() const
+{
+    column_printer ret = { /*func = */ &aarch64_hex_printer, /*auxdata = */ NULL, /*free_func = */ &free_aarch64_hex_printer };
+    return ret;
 }
 
 void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)

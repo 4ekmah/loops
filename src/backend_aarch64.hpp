@@ -120,7 +120,8 @@ enum {
     AARCH64_B_HI   = 95,
     AARCH64_B_GE   = 96,
     AARCH64_BLR    = 97,
-    AARCH64_RET    = 98
+    AARCH64_LABEL  = 98,
+    AARCH64_RET    = 99
 };
 
 class Aarch64Backend : public Backend
@@ -137,9 +138,8 @@ public:
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
     virtual Arg getSParg() const override final;
     virtual column_printer get_opname_printer() const override final;
-    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
-    virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
-};
+    virtual column_printer get_opargs_printer() const override final;
+    virtual column_printer get_hex_printer() const override final;};
 
 }
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64

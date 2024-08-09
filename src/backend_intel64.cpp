@@ -1758,7 +1758,7 @@ namespace loops
             if (err != LOOPS_ERR_SUCCESS)
             {
                 free(argaux);
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+                LOOPS_THROW(err);
             }
             for (; opnum < program_size; opnum++)
             {
@@ -1780,7 +1780,7 @@ namespace loops
                 {
                     loops_span_destruct(argaux->pos_n_sizes);
                     free(argaux);
-                    LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
+                    LOOPS_THROW(err);
                 }
                 memcpy(argaux->binary->data, buffer->data(), argaux->binary->size);
             }
