@@ -1641,6 +1641,7 @@ namespace loops
                     LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
                     break;
                 }
+#if __LOOPS_OS == __LOOPS_WINDOWS
                 if (arg.value == 0)
                     LOOPS_CALL_THROW(loops_printf(printer, "0h"));
                 else
@@ -1652,6 +1653,21 @@ namespace loops
                     else
                         LOOPS_CALL_THROW(loops_printf(printer, "0%02xh", lower32));
                 }
+#elif __LOOPS_OS == __LOOPS_LINUX
+                if (arg.value == 0)
+                    LOOPS_CALL_THROW(loops_printf(printer, "0"));
+                else
+                {
+                    uint32_t upper32 = ((uint64_t)arg.value) >> 32;
+                    uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                    if (upper32 > 0)
+                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%x%08x", upper32, lower32));
+                    else
+                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%02x", lower32));
+                }
+#else 
+#error Unknown OS.
+#endif
                 break;
             case Arg::ISPILLED:
             {
@@ -1662,7 +1678,13 @@ namespace loops
                 if (arg.value == 0)
                     LOOPS_CALL_THROW(loops_printf(printer, "%srsp]", address_opener_brackets[opener_idx]));
                 else
+#if __LOOPS_OS == __LOOPS_WINDOWS
                     LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0%02xh]", address_opener_brackets[opener_idx], arg.value * 8));
+#elif __LOOPS_OS == __LOOPS_LINUX
+                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0x0%02x]", address_opener_brackets[opener_idx], arg.value * 8));
+#else 
+#error Unknown OS.
+#endif
                 break;
             }
             default:
@@ -1707,7 +1729,7 @@ namespace loops
     } pos_size_pair;
 
     LOOPS_SPAN_DECLARE(pos_size_pair);
-    LOOPS_SPAN_DEFINE(pos_size_pair);
+    LOOPS_SPAN_DEFINE(pos_size_pair)
 
     typedef struct intel64_hex_printer_aux
     {

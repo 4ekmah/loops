@@ -47,7 +47,7 @@ static void loops_initialize();
 #if defined(_MSC_VER) && defined(_WIN64)
     #pragma section(".CRT$XCT",read)
     __declspec(allocate(".CRT$XCT")) void (*loops_initialize_)(void) = loops_initialize;
-#elif defined(_MSC_VER) && defined(_WIN64)
+#elif defined(_MSC_VER) && !defined(_WIN64)
     #error Win32 is not supported.
 #else
     static void loops_initialize_(void) __attribute__((constructor));

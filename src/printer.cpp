@@ -11,10 +11,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <sstream>
 #include <iomanip>
 
-LOOPS_LIST_DEFINE(loops_span_char);
-LOOPS_SPAN_DEFINE(loops_Syntop);
-LOOPS_SPAN_DEFINE(loops_Arg);
-LOOPS_SPAN_DEFINE(column_printer);
+LOOPS_LIST_DEFINE(loops_span_char)
+LOOPS_SPAN_DEFINE(loops_Syntop)
+LOOPS_SPAN_DEFINE(loops_Arg)
+LOOPS_SPAN_DEFINE(column_printer)
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -132,7 +132,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) type_suffixes_[] =
 };
 
 LOOPS_HASHMAP_DECLARE(int, suffixed_opname);
-LOOPS_HASHMAP_DEFINE(int, suffixed_opname);
+LOOPS_HASHMAP_DEFINE(int, suffixed_opname)
 LOOPS_HASHMAP_STATIC(int, suffixed_opname) suffixed_opnames_[] = 
 {
 /*  |         enum_id        |pieces_size|                pieces                    |          */
@@ -368,7 +368,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
             {
                 one_name_one_suffix* onam_osuf= found_suffixed_name.pieces + i;
                 char dummy[] = "";
-                const char* suffixstr = dummy; 
+                found_name = dummy;
                 if(onam_osuf->suffix_type != SUFFIX_VOID)
                 {
                     int argnum = onam_osuf->argnum;
@@ -399,7 +399,6 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
                     default: 
                         LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
                     }
-                    suffixstr = found_name; 
                 }
                 LOOPS_CALL_THROW(loops_printf(printer, "%s%s", onam_osuf->prefix, found_name));
             }

@@ -38,7 +38,7 @@ int loops_hashmap_construct_static(loops_hashmap_ ## K ## _ ## V* result, loops_
 void loops_hashmap_destruct(loops_hashmap_ ## K ## _ ## V to_del);                                                               \
 int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val);                                                           \
 int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, bool* res);                                                       \
-int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res);                                     
+int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)                                     
 
 //TODO[CPP2ANSIC]: loops_hashmap_get have to return pointer, not value.
 
@@ -226,7 +226,7 @@ typedef struct loops_span_ ## T ## _                                   \
 typedef struct loops_span_ ## T ## _* loops_span_ ## T;                \
 int loops_span_construct(loops_span_ ## T* result, T* data, int size); \
 int loops_span_construct_alloc(loops_span_ ## T* result, int size);    \
-void loops_span_destruct(loops_span_ ## T to_del);
+void loops_span_destruct(loops_span_ ## T to_del)
 
 #define LOOPS_SPAN_DEFINE(T)                                             \
 int loops_span_construct(loops_span_ ## T* result, T* data, int size)    \
