@@ -957,13 +957,13 @@ namespace loops
             }
             break;
         }
-        case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BToff(0, 32, Lab) });
-        case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BToff(0, 32, Lab) });
-        case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BToff(0, 32, Lab) });
-        case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BToff(0, 32, Lab) });
-        case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BToff(0, 32, Lab) });
-        case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BToff(0, 32, Lab) });
-        case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BToff(0, 32, Lab) });
+        case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
+        case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BTimm(0, 32, Lab) });
         case (INTEL64_CALL):
             if (index.size() == 1)
             {

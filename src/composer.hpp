@@ -53,7 +53,7 @@ namespace loops
         struct Token
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
-            enum {T_STATIC, T_REG, T_IMMEDIATE, T_ADDRESS, T_OFFSET, T_STACKOFFSET, T_SPILLED, T_OMIT};
+            enum {T_STATIC, T_REG, T_IMMEDIATE, T_SPILLED, T_OMIT};
             Token(int tag, int fieldsize);
             Token(int tag, uint64_t val, int fieldsize);
             int tag;
@@ -109,14 +109,6 @@ namespace loops
             return res;
         }
 
-        inline BinTranslation::Token BToff(int srcArgnum, int width, uint64_t regflag = 0)
-        {
-            BinTranslation::Token res(BinTranslation::Token::T_OFFSET, width);
-            res.fieldOflags = regflag;
-            res.srcArgnum = srcArgnum;
-            return res;
-        }
-
         enum
         {
               In = AF_INPUT, 
@@ -127,7 +119,9 @@ namespace loops
               Addr16 = AF_ADDRESS16,
               Addr32 = AF_ADDRESS32,
               Addr64 = AF_ADDRESS64,
+              Addr   = AF_ADDRESS,  //DUBUG: Check if needed!
               Eff64  = AF_EFFECTIVE64,
+              NoPr   = AF_NOPRINT,
         }; //TODO(ch): Use IO in table construction.
     }
 }
