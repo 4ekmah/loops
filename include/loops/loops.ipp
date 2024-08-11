@@ -209,6 +209,7 @@ Expr::Expr(int64_t a_leaf): pointee(new __loops_ExprStr_)
     pointee->opcode = EXPR_LEAF;
     pointee->is_vector = false;
     pointee->leaf = Arg(a_leaf);
+    pointee->type = TYPE_I64; //DUBUG: check if this correction didn't break something on Intel!
 }
 
 Expr::~Expr() { if(pointee) { if(--(pointee->refcounter) == 0) delete pointee; } }

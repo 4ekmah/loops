@@ -279,9 +279,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;
     case (AARCH64_LDRSW):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(0b10111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b10111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0, 5, Out | Eff64) });
         else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b1011100110, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b1011100110, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, Out | Eff64) });
         break;
     case (AARCH64_LDRH):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
@@ -291,9 +291,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;
     case (AARCH64_LDRSH):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(0b01111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b01111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0, 5, Out | Eff64) });
         else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b0111100110, 10), BTimm(2,12), BTreg(1,5,In | Addr), BTreg(0,5,Out) });
+            return BiT({ BTsta(0b0111100110, 10), BTimm(2,12), BTreg(1,5,In | Addr), BTreg(0,5,Out | Eff64) });
         break;
     case (AARCH64_LDRB):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
@@ -303,18 +303,17 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;
     case (AARCH64_LDRSB):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(0b00111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0,5,Out) });
+            return BiT({ BTsta(0b00111000101, 11), BTreg(2,5,In), BTsta(0b011010, 6), BTreg(1,5,In | Addr), BTreg(0,5,Out | Eff64) });
         else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b0011100110, 10), BTimm(2,12), BTreg(1,5,In | Addr), BTreg(0,5,Out) });
+            return BiT({ BTsta(0b0011100110, 10), BTimm(2,12), BTreg(1,5,In | Addr), BTreg(0,5,Out | Eff64) });
         break;
     case (AARCH64_STR):
         if(index.size() == 4)
         {
-            bool addr32 = (index[1].elemtype == TYPE_FP32) || (index[1].elemtype == TYPE_U32) || (index[1].elemtype == TYPE_I32);
             if (index[3].tag == Arg::IREG)
-                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0b111000001, 9), BTreg(3, 5, In), BTsta(0b011010, 6), BTreg(2, 5, In | Addr), BTreg(1, 5, In | ( addr32 ? Addr32 : 0) ) });
+                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0b111000001, 9), BTreg(3, 5, In), BTsta(0b011010, 6), BTreg(2, 5, In | Addr), BTreg(1, 5, In) });
             else if (index[3].tag == Arg::IIMMEDIATE)
-                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0xE4, 8), BTimm(3, 12), BTreg(2, 5, In | Addr), BTreg(1, 5, In | ( addr32 ? Addr32 : 0)) });
+                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0xE4, 8), BTimm(3, 12), BTreg(2, 5, In | Addr), BTreg(1, 5, In) });
         }
         else if(index.size() == 3)
         {
@@ -329,15 +328,15 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         break;
     case (AARCH64_STRH):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(0b01111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In | Addr32) });
+            return BiT({ BTsta(0b01111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
         else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b0111100100, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, In | Addr32) });
+            return BiT({ BTsta(0b0111100100, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
         break;
     case (AARCH64_STRB):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(0b00111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In | Addr32) });
+            return BiT({ BTsta(0b00111000001, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
         else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b0011100100, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, In | Addr32) });
+            return BiT({ BTsta(0b0011100100, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
         break;
     case (AARCH64_MOV):
         if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
@@ -1876,7 +1875,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2) 
         {
             if(index[0].tag == Arg::IREG) 
-                return SyT(AARCH64_LDR, { SAimm(1), SAcop(0), SAreg(SP), SAcop(1) });
+                return SyT(AARCH64_LDR, { SAimm(1), SAcopelt(0, TYPE_I64), SAreg(SP), SAcop(1) });
             else if(index[0].tag == Arg::VREG) 
                 return SyT(AARCH64_LDR, { SAcop(0), SAreg(SP), SAcopsar(1,1) });
         }
@@ -1885,7 +1884,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2) 
         {
             if(index[1].tag == Arg::IREG) 
-                return SyT(AARCH64_STR, { SAimm(1), SAcop(1), SAreg(SP), SAcop(0) });
+                return SyT(AARCH64_STR, { SAimm(1), SAcopelt(1, TYPE_I64), SAreg(SP), SAcop(0) });
             else if(index[1].tag == Arg::VREG) 
                 return SyT(AARCH64_STR, { SAcop(1), SAreg(SP), SAcopsar(0,1) });
         }
@@ -2309,11 +2308,9 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             continue;
         }
         //DUBUG: 
-        // 1.) w32 flag have to be eliminated and replaced with reaction on elemtype.
-        // 2.) All "additional" immediates have to be replaced, AF_NOPRINT haven't to exists, there have to be correspondance of printed arguments 
+        // 1.) All "additional" immediates have to be replaced, AF_NOPRINT haven't to exists, there have to be correspondance of printed arguments 
         // and Syntop arglist. Options can be transmitted via flags of arguments.
-        // 3.) Make everything compilable in debian's assembler.
-        bool w32 = (operand_flags[anum] & AF_ADDRESS) == AF_ADDRESS32;   
+        // 2.) Make everything compilable in debian's assembler.
         bool address = (operand_flags[anum] & AF_ADDRESS) == AF_ADDRESS;
         if (address)
             LOOPS_CALL_THROW(loops_printf(printer, "["));
@@ -2325,7 +2322,14 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                 else if(arg.idx == 31)
                     LOOPS_CALL_THROW(loops_printf(printer, "sp"));
                 else
+                {
+                    bool w32 = false;
+                    if((operand_flags[anum] & AF_EFFECTIVE64) == 0)
+                    w32 = (arg.elemtype == TYPE_FP32) || (arg.elemtype == TYPE_U32) || (arg.elemtype == TYPE_I32)  ||
+                          (arg.elemtype == TYPE_FP16) || (arg.elemtype == TYPE_U16) || (arg.elemtype == TYPE_I16)  ||
+                                                         (arg.elemtype == TYPE_U8)  || (arg.elemtype == TYPE_I8);
                     LOOPS_CALL_THROW(loops_printf(printer, "%s%d", (w32 ? "w" : "x"), arg.idx));
+                }
                 break;
             case Arg::VREG:
             {
