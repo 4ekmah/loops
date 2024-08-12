@@ -47,7 +47,15 @@ namespace loops
 // This #0x05 must fixed. For such a thing we need more complex out modifiers, than a flags. In this case it's
 // T_OUTMULTIPLIER(8).
 // Same for [base,offset] pairs.
-//TODO(ch): BinTranslation collection is static data. This collection must be created at compile time. Currently, even if we will create this collection as global object, it will be initialized at runtime with unnecessary computational losts.
+//TODO(ch): BinTranslation collection is static data. This collection must be created at compile time.
+//Currently, even if we will create this collection as global object, it will be initialized at runtime with unnecessary computational losts.
+//
+//There is similar comment for Sytnop translation: we need more flexible set of transformations up to custom functions or lambdas, which process input arguments to 
+//bitset. Currently works some simple workaround: BTomm(T_OMIT) can switch off argument(mostly immediates) from argument audit in binary composition, but provide some flags
+//on requests are coming from previous stages, simultaneously this argument is processed by usual code inside of BiT selector(e.g a64BTLookup for aarch64) and transformed
+//to one or more constants, accordingly to encoding and provided to BiT as BTsta. So, both sides of argument interface works. There is simple idea to add some BTrpl, which
+//will combine properties of BTsta and BTomm and will replace argument with it hardcoded in changed form version. The most flexible solution is kind of processing lambdas.
+
     struct BinTranslation
     {
         struct Token
@@ -79,10 +87,11 @@ namespace loops
 
         inline BinTranslation::Token BTsta(uint64_t field, int width) {return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, width); }
 
-        inline BinTranslation::Token BTomm(int srcArgnum)
+        inline BinTranslation::Token BTomm(int srcArgnum, uint64_t flags = 0)
         {
             BinTranslation::Token res(BinTranslation::Token::T_OMIT, 0);
             res.srcArgnum = srcArgnum;
+            res.fieldOflags = flags;
             return res; 
         }
 
@@ -119,8 +128,8 @@ namespace loops
               Addr16 = AF_ADDRESS16,
               Addr32 = AF_ADDRESS32,
               Addr64 = AF_ADDRESS64,
-              Addr   = AF_ADDRESS,  //DUBUG: Check if needed!
               Eff64  = AF_EFFECTIVE64,
+              Cond   = AF_CONDITION,
         }; //TODO(ch): Use IO in table construction.
     }
 }
