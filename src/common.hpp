@@ -143,7 +143,6 @@ namespace loops
         AF_OUTPUT      = 0b000100000,
         AF_PRINTOFFSET = 0b001000000,
         AF_EFFECTIVE64 = 0b010000000,
-        AF_NOPRINT     = 0b100000000, //DUBUG: I don't think this option have to exist.
     };
 
     inline int invertCondition(int condition)

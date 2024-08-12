@@ -108,12 +108,17 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
     bool neg = tar_op.args[argnum].value < 0;
     uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
     for(const BinTranslation::Token& det : instemp.m_compound)
-        if (det.tag != BinTranslation::Token::T_STATIC && det.srcArgnum == argnum)
+        if(det.srcArgnum == argnum)
         {
-            Assert(det.tag != BinTranslation::Token::T_REG);
-            int bitwneeded = msb64(val2BeFit);
-            bitwneeded += neg ? 1 : 0;
-            return (bitwneeded < det.width);
+            if(det.tag == BinTranslation::Token::T_OMIT)
+                return true; //Encoder checked everything on his side.
+            if(det.tag != BinTranslation::Token::T_STATIC)
+            {
+                Assert(det.tag != BinTranslation::Token::T_REG);
+                int bitwneeded = msb64(val2BeFit);
+                bitwneeded += neg ? 1 : 0;
+                return (bitwneeded < det.width);
+            }
         }
     throw std::runtime_error("Binary translator: non-existent argument is requested.");
 }

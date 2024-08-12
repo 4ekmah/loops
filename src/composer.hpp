@@ -121,7 +121,6 @@ namespace loops
               Addr64 = AF_ADDRESS64,
               Addr   = AF_ADDRESS,  //DUBUG: Check if needed!
               Eff64  = AF_EFFECTIVE64,
-              NoPr   = AF_NOPRINT,
         }; //TODO(ch): Use IO in table construction.
     }
 }

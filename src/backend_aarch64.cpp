@@ -259,21 +259,29 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     switch (index.opcode)
     {
     case (AARCH64_LDR):
-        if (index.size() == 4)
+        if(index.size() == 3)
         {
-            if (index[3].tag == Arg::IREG)
-                return BiT({ BTsta(1, 1), BTimm(0, 1, NoPr), BTsta(0b111000011, 9), BTreg(3, 5, In),BTsta(0b011010, 6), BTreg(2, 5, In | Addr), BTreg(1, 5, Out) });
-            else if (index[3].tag == Arg::IIMMEDIATE)
-                return BiT({ BTsta(0x1, 1), BTimm(0, 1, NoPr), BTsta(0xE5, 8), BTimm(3, 12), BTreg(2, 5, In | Addr), BTreg(1, 5, Out) });
-        }
-        else if (index.size() == 3)
-        {
-            if (index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+            if (index[0].tag == Arg::VREG)
             {
+                if(index[1].tag != Arg::IREG)
+                    break;
                 if (index[2].tag == Arg::IREG)
                     return BiT({ BTsta(0b00111100111, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, Out) });
                 if (index[2].tag == Arg::IIMMEDIATE)
                     return BiT({ BTsta(0b0011110111, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, Out) });
+            }
+            else if(index[0].tag == Arg::IREG)
+            {
+                if (index[2].tag == Arg::IREG)
+                {
+                    uint64_t stat = elem_size(index[0].elemtype) <= 4 ? 0b10111000011 : 0b11111000011;
+                    return BiT({ BTsta(stat, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, Out) });
+                }
+                else if (index[2].tag == Arg::IIMMEDIATE)
+                {
+                    uint64_t stat = elem_size(index[0].elemtype) <= 4 ? 0b1011100101 : 0b1111100101;
+                    return BiT({ BTsta(stat, 10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, Out) });
+                }
             }
         }
         break;
@@ -308,21 +316,29 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b0011100110, 10), BTimm(2,12), BTreg(1,5,In | Addr), BTreg(0,5,Out | Eff64) });
         break;
     case (AARCH64_STR):
-        if(index.size() == 4)
+        if(index.size() == 3)
         {
-            if (index[3].tag == Arg::IREG)
-                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0b111000001, 9), BTreg(3, 5, In), BTsta(0b011010, 6), BTreg(2, 5, In | Addr), BTreg(1, 5, In) });
-            else if (index[3].tag == Arg::IIMMEDIATE)
-                return BiT({ BTsta(0x1,  1), BTimm(0, 1, NoPr), BTsta(0xE4, 8), BTimm(3, 12), BTreg(2, 5, In | Addr), BTreg(1, 5, In) });
-        }
-        else if(index.size() == 3)
-        {
-            if (index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+            if (index[0].tag == Arg::VREG)
             {
+                if(index[1].tag != Arg::IREG)
+                    break;
                 if(index[2].tag == Arg::IREG)
                     return BiT({ BTsta(0b00111100101, 11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
                 else if(index[2].tag == Arg::IIMMEDIATE)
                     return BiT({ BTsta(0b0011110110, 10), BTimm(2, 12), BTreg(1, 5, In | Addr ), BTreg(0, 5, In) });
+            }
+            else if(index[0].tag == Arg::IREG)
+            {
+                if (index[2].tag == Arg::IREG)
+                {
+                    uint64_t stat = elem_size(index[0].elemtype) <= 4 ? 0b10111000001 : 0b11111000001;
+                    return BiT({ BTsta(stat,  11), BTreg(2, 5, In), BTsta(0b011010, 6), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
+                }
+                else if (index[2].tag == Arg::IIMMEDIATE)
+                {
+                    uint64_t stat = elem_size(index[0].elemtype) <= 4 ? 0b1011100100 : 0b1111100100;
+                    return BiT({ BTsta(stat,  10), BTimm(2, 12), BTreg(1, 5, In | Addr), BTreg(0, 5, In) });
+                }
             }
         }
         break;
@@ -353,7 +369,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_MOVK):
         if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
            index[2].value >= 1 && index[2].value <= 3)
-            return BiT({ BTsta(0b111100101, 9), BTimm(2, 2, NoPr), BTimm(1, 16), BTreg(0, 5, IO) });
+            return BiT({ BTsta(0b111100101, 9), BTimm(2, 2), BTimm(1, 16), BTreg(0, 5, IO) });
         break;
     case (AARCH64_ADD):
         if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
@@ -396,8 +412,12 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_LSL):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
             return BiT({ BTsta(0b10011010110, 11), BTreg(2, 5, In), BTsta(0b001000, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
-        else if (index.size() == 4 && index[2].tag == Arg::IIMMEDIATE)
-            return BiT({ BTsta(0b1101001101, 10), BTimm(2, 6), BTimm(3, 6, NoPr), BTreg(1, 5, In), BTreg(0, 5, Out) });
+        else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
+        {
+            int64_t shift = index[2].value;
+            if(shift >= 0 && shift < 64)
+                return BiT({ BTsta(0b1101001101, 10), BTsta((64-shift) % 64, 6), BTsta(63 - shift, 6), BTreg(1, 5, In), BTreg(0, 5, Out), BTomm(2) });
+        }
         break;
     case (AARCH64_LSR):
         if (index.size() == 3 && index[2].tag == Arg::IREG)
@@ -1289,13 +1309,12 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 return SyT(AARCH64_LDRH, { SAcop(0), SAcop(1), SAimm(0) });
             case (TYPE_I16):
                 return SyT(AARCH64_LDRSH, { SAcop(0), SAcop(1), SAimm(0) });
-            case (TYPE_U32):
-            case (TYPE_FP32):
-                return SyT(AARCH64_LDR, { SAimm(0), SAcop(0), SAcop(1), SAimm(0) });
             case (TYPE_I32):
                 return SyT(AARCH64_LDRSW, { SAcop(0), SAcop(1), SAimm(0) });
+            case (TYPE_U32):
+            case (TYPE_FP32):
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
-                return SyT(AARCH64_LDR, { SAimm(1), SAcop(0), SAcop(1), SAimm(0) });
+                return SyT(AARCH64_LDR, { SAcop(0), SAcop(1), SAimm(0) });
             };
         }
         else if (index.size() == 3)
@@ -1311,13 +1330,11 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 return SyT(AARCH64_LDRH, { SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 1) : SAcop(2) });
             case (TYPE_I16):
                 return SyT(AARCH64_LDRSH, { SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 1) : SAcop(2) });
-            case (TYPE_U32):
-            case (TYPE_FP32):
-                return SyT(AARCH64_LDR, { SAimm(0), SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 2) : SAcop(2) });
             case (TYPE_I32):
                 return SyT(AARCH64_LDRSW, { SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 2) : SAcop(2) });
+            case (TYPE_U32): case (TYPE_FP32):
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
-                return SyT(AARCH64_LDR, { SAimm(1), SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, 3) : SAcop(2) });
+                return SyT(AARCH64_LDR, { SAcop(0), SAcop(1), index[2].tag == Arg::IIMMEDIATE ? SAcopsar(2, elem_size(index[0].elemtype) <= 4 ? 2 : 3) : SAcop(2) });
             };
         }
         break;
@@ -1331,9 +1348,8 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
                 return SyT(AARCH64_STRH, { SAcop(1), SAcop(0), SAimm(0) });
             case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
-                return SyT(AARCH64_STR, { SAimm(0), SAcop(1), SAcop(0), SAimm(0) });
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
-                return SyT(AARCH64_STR, { SAimm(1), SAcop(1), SAcop(0), SAimm(0) });
+                return SyT(AARCH64_STR, { SAcop(1), SAcop(0), SAimm(0) });
             };
         }
         else if (index.size() == 3)
@@ -1345,9 +1361,8 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             case (TYPE_U16): case (TYPE_I16): case (TYPE_FP16):
                 return SyT(AARCH64_STRH, { SAcop(2), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 1) : SAcop(1) });
             case (TYPE_U32): case (TYPE_I32): case (TYPE_FP32):
-                return SyT(AARCH64_STR, { SAimm(0), SAcop(2), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 2) : SAcop(1) });
             case (TYPE_U64): case (TYPE_I64): case (TYPE_FP64):
-                return SyT(AARCH64_STR, { SAimm(1), SAcop(2), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, 3) : SAcop(1) });
+                return SyT(AARCH64_STR, { SAcop(2), SAcop(0), index[1].tag == Arg::IIMMEDIATE ? SAcopsar(1, elem_size(index[2].elemtype) <= 4 ? 2 : 3) : SAcop(1) });
             };
         }
         break;
@@ -1434,7 +1449,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             int64_t shift = index[2].value;
             if(shift < 0 || shift > 63)
                 break;
-            return SyT(AARCH64_LSL, { SAcop(0), SAcop(1), SAimm((64-shift) % 64 ), SAimm(63 - shift) });
+            return SyT(AARCH64_LSL, { SAcop(0), SAcop(1), SAcop(2) });
         }
         else if(index[2].tag == Arg::IREG)
             return SyT(AARCH64_LSL, { SAcop(0), SAcop(1), SAcop(2) });
@@ -1454,7 +1469,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index[2].tag == Arg::IIMMEDIATE)
         {
             uint64_t N_immr_imms;
-            if (processLogicalImmediate(index[2].value, 64, N_immr_imms))
+            if (processLogicalImmediate(index[2].value, 64, N_immr_imms)) //DUBUG: Move this complicated processing down to BinaryTranslation lookup.
             {
                 uint64_t N = (N_immr_imms & 0x1000)>>12;
                 uint64_t immr = (N_immr_imms & 0xfc0)>>6;
@@ -1475,7 +1490,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         break;
     case (OP_IVERSON):
         if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[1].value))) });
+            return SyT(AARCH64_CSET, { SAcop(0), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[1].value))) }); //DUBUG: Move this complicated processing down to BinaryTranslation lookup.
         break;
     case (OP_ARM_CINC): return SyT(AARCH64_CINC,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[2].value))) });
     case (OP_ARM_CNEG): return SyT(AARCH64_CNEG,{ SAcop(0), SAcop(1), SAimm(invertAarch64IC(IC_IR2Aarch64((int)index[2].value))) });
@@ -1619,7 +1634,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             if(index[2].tag == Arg::IIMMEDIATE)
             {
                 uint64_t immh, immb;
-                if(!encodeImmShift(index[2].value, index[0].elemtype, immh, immb))
+                if(!encodeImmShift(index[2].value, index[0].elemtype, immh, immb)) //DUBUG: Move this complicated processing down to BinaryTranslation lookup.
                     break;
                 return SyT(AARCH64_SHL, { SAcop(0), SAcop(1), SAimm(immh), SAimm(immb) });
             }
@@ -1875,7 +1890,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2) 
         {
             if(index[0].tag == Arg::IREG) 
-                return SyT(AARCH64_LDR, { SAimm(1), SAcopelt(0, TYPE_I64), SAreg(SP), SAcop(1) });
+                return SyT(AARCH64_LDR, { SAcopelt(0, TYPE_I64), SAreg(SP), SAcop(1) });
             else if(index[0].tag == Arg::VREG) 
                 return SyT(AARCH64_LDR, { SAcop(0), SAreg(SP), SAcopsar(1,1) });
         }
@@ -1884,7 +1899,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         if(index.size() == 2) 
         {
             if(index[1].tag == Arg::IREG) 
-                return SyT(AARCH64_STR, { SAimm(1), SAcopelt(1, TYPE_I64), SAreg(SP), SAcop(0) });
+                return SyT(AARCH64_STR, { SAcopelt(1, TYPE_I64), SAreg(SP), SAcop(0) });
             else if(index[1].tag == Arg::VREG) 
                 return SyT(AARCH64_STR, { SAcop(1), SAreg(SP), SAcopsar(0,1) });
         }
@@ -2277,17 +2292,17 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
     uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
     printer->backend->fill_native_operand_flags(op, operand_flags);
     int aamount = op->args_size;
-    int last_printable = -1;
-
-    for(int anum = 0; anum < aamount ; anum++)
-        if ((operand_flags[anum] & AF_NOPRINT) == 0)
-            last_printable = anum;
 
     for(int anum = 0; anum < aamount ; anum++)
     {
         Arg arg = op->args[anum];
-        if (operand_flags[anum] & AF_NOPRINT)
+        //Exceptions block:
+        if(op->opcode == AARCH64_MOVK && anum == 2)
+        {
+            Assert(arg.tag == Arg::IIMMEDIATE);
+            LOOPS_CALL_THROW(loops_printf(printer, "lsl #%d", (int)(arg.value << 4)));
             continue;
+        }
         if (operand_flags[anum] & AF_PRINTOFFSET)
         {
             int targetline;
@@ -2308,8 +2323,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             continue;
         }
         //DUBUG: 
-        // 1.) All "additional" immediates have to be replaced, AF_NOPRINT haven't to exists, there have to be correspondance of printed arguments 
-        // and Syntop arglist. Options can be transmitted via flags of arguments.
+        // 1.) There have to be correspondance of printed arguments and Syntop arglist. Options can be transmitted via flags of arguments.
         // 2.) Make everything compilable in debian's assembler.
         bool address = (operand_flags[anum] & AF_ADDRESS) == AF_ADDRESS;
         if (address)
@@ -2361,7 +2375,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
         };
         if (address)
             LOOPS_CALL_THROW(loops_printf(printer, "]"));
-        if (anum < last_printable)
+        if (anum < aamount - 1)
             LOOPS_CALL_THROW(loops_printf(printer, ", "));
     }
     LOOPS_CALL_THROW(close_printer_cell(printer));
