@@ -319,12 +319,12 @@ TEST(aarch64, instruction_set_test)
         newiopNoret(OP_STORE, { x0, x0, iregtyped<uint8_t>(x0) });
         newiopNoret(OP_STORE, { x0, x0, iregtyped<int8_t>(x0) });
 
-        newiopNoret(OP_ARM_STP, {  x0, argIImm(  0),  x0,  x0 });
-        newiopNoret(OP_ARM_STP, { x15, argIImm(  0),  x0,  x0 });
-        newiopNoret(OP_ARM_STP, {  x0, argIImm( 63),  x0,  x0 });
-        newiopNoret(OP_ARM_STP, {  x0, argIImm(-64),  x0,  x0 });
-        newiopNoret(OP_ARM_STP, {  x0, argIImm(  0), x15,  x0 });
-        newiopNoret(OP_ARM_STP, {  x0, argIImm(  0),  x0, x15 });
+        newiopNoret(OP_ARM_STP, {  x0, argIImm(      0),  x0,  x0 });
+        newiopNoret(OP_ARM_STP, { x15, argIImm(      0),  x0,  x0 });
+        newiopNoret(OP_ARM_STP, {  x0, argIImm( 63 * 8),  x0,  x0 });
+        newiopNoret(OP_ARM_STP, {  x0, argIImm(-64 * 8),  x0,  x0 });
+        newiopNoret(OP_ARM_STP, {  x0, argIImm(      0), x15,  x0 });
+        newiopNoret(OP_ARM_STP, {  x0, argIImm(      0),  x0, x15 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(x0), x0 });
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(x0), x0, argIImm(256)});
@@ -401,8 +401,8 @@ TEST(aarch64, instruction_set_test)
         newiopNoret(OP_ARM_LDP, { x0, x7,  x15, argIImm(  0) });
         newiopNoret(OP_ARM_LDP, { x7, x0,  x15, argIImm(  0) });
         newiopNoret(OP_ARM_LDP, { x7, x15,  x0, argIImm(  0) });
-        newiopNoret(OP_ARM_LDP, { x0, x7,  x15, argIImm( 63) });
-        newiopNoret(OP_ARM_LDP, { x0, x7,  x15, argIImm(-64) });
+        newiopNoret(OP_ARM_LDP, { x0, x7,  x15, argIImm( 63 * 8) });
+        newiopNoret(OP_ARM_LDP, { x0, x7,  x15, argIImm(-64 * 8) });
 
         newiopNoret(OP_SELECT, { x0, OP_EQ, x0, x0 });
         newiopNoret(OP_SELECT, { x0, OP_NE, x0, x0 });
