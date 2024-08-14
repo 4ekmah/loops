@@ -39,6 +39,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) errstrings_[] =
     LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly."),
     LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           ),
     LOOPS_HASHMAP_ELEM(LOOPS_ERR_ELEMENT_NOT_FOUND                  , "Loops: Element not found."                                                    ), 
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_LANE_INDEX               , "Loops: Negative or to big lane index."                                        ), 
 };
 LOOPS_HASHMAP(int, loops_cstring) errstrings = NULL;
 

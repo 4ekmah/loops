@@ -130,6 +130,9 @@ namespace loops
               Addr64 = AF_ADDRESS64,
               Eff64  = AF_EFFECTIVE64,
               Cond   = AF_CONDITION,
+              Unsgn  = AF_UNSIGNED,
+              LanInd  = AF_LANEINDEX,
+              NoTp   = AF_NOTYPE, 
         }; //TODO(ch): Use IO in table construction.
     }
 }

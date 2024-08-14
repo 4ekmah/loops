@@ -134,16 +134,20 @@ namespace loops
 
     enum ArgFlags
     {
-        AF_ADDRESS8    = 0b000000001,
-        AF_ADDRESS16   = 0b000000010,
-        AF_ADDRESS32   = 0b000000100,
-        AF_ADDRESS64   = 0b000001000,
+        AF_ADDRESS8    = 0b0000000000001,
+        AF_ADDRESS16   = 0b0000000000010,
+        AF_ADDRESS32   = 0b0000000000100,
+        AF_ADDRESS64   = 0b0000000001000,
         AF_ADDRESS     = AF_ADDRESS8 | AF_ADDRESS16 | AF_ADDRESS32 | AF_ADDRESS64,
-        AF_INPUT       = 0b000010000,
-        AF_OUTPUT      = 0b000100000,
-        AF_PRINTOFFSET = 0b001000000,
-        AF_EFFECTIVE64 = 0b010000000,
-        AF_CONDITION   = 0b100000000,
+        AF_INPUT       = 0b0000000010000,
+        AF_OUTPUT      = 0b0000000100000,
+        AF_PRINTOFFSET = 0b0000001000000,
+        AF_EFFECTIVE64 = 0b0000010000000,
+        AF_CONDITION   = 0b0000100000000,
+        AF_UNSIGNED    = 0b0001000000000,
+        AF_LANEINDEX   = 0b0010000000000, //DUBUG: Check if needed.
+        AF_RANGE       = 0b0100000000000, //DUBUG: Check if needed.
+        AF_NOTYPE      = 0b100000000000, //This flag is used to show, that operation doesn't distinuish type of elements of vector argument //DUBUG: Check if needed.
     };
 
     inline int invertCondition(int condition)

@@ -339,9 +339,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 if(index[1].tag != Arg::IREG)
                     break;
                 if (index[2].tag == Arg::IREG)
-                    return BiT({ BTsta(0b00111100111, 11), BTreg(2, 5, In | Addr64), BTsta(0b011010, 6), BTreg(1, 5, In | Addr64), BTreg(0, 5, Out) });
+                    return BiT({ BTsta(0b00111100111, 11), BTreg(2, 5, In | Addr64), BTsta(0b011010, 6), BTreg(1, 5, In | Addr64), BTreg(0, 5, Out|NoTp) });
                 if (index[2].tag == Arg::IIMMEDIATE && ((index[2].value & 0b1111) == 0)) // index[2] is aligned on 16
-                    return BiT({ BTsta(0b0011110111, 10), BTomm(2, Addr64), BTsta(index[2].value >> 4, 12), BTreg(1, 5, In | Addr64), BTreg(0, 5, Out) });
+                    return BiT({ BTsta(0b0011110111, 10), BTomm(2, Addr64), BTsta(index[2].value >> 4, 12), BTreg(1, 5, In | Addr64), BTreg(0, 5, Out|NoTp) });
             }
             else if(index[0].tag == Arg::IREG)
             {
@@ -410,9 +410,9 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
                 if(index[1].tag != Arg::IREG)
                     break;
                 if(index[2].tag == Arg::IREG)
-                    return BiT({ BTsta(0b00111100101, 11), BTreg(2, 5, In | Addr64), BTsta(0b011010, 6), BTreg(1, 5, In | Addr64), BTreg(0, 5, In) });
+                    return BiT({ BTsta(0b00111100101, 11), BTreg(2, 5, In | Addr64), BTsta(0b011010, 6), BTreg(1, 5, In | Addr64), BTreg(0, 5, In | NoTp) });
                 else if(index[2].tag == Arg::IIMMEDIATE && ((index[2].value & 0b1111) == 0)) // index[2] is aligned on 16
-                    return BiT({ BTsta(0b0011110110, 10), BTomm(2, Addr64), BTsta(index[2].value >> 4, 12), BTreg(1, 5, In | Addr64 ), BTreg(0, 5, In) });
+                    return BiT({ BTsta(0b0011110110, 10), BTomm(2, Addr64), BTsta(index[2].value >> 4, 12), BTreg(1, 5, In | Addr64 ), BTreg(0, 5, In | NoTp) });
             }
             else if(index[0].tag == Arg::IREG)
             {
@@ -541,7 +541,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             {
                 uint64_t N_immr_imms;
                 if(processLogicalImmediate(index[2].value, 64, N_immr_imms))
-                    return BiT({ BTsta(0b100100100, 9), BTomm(2), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out),  });
+                    return BiT({ BTsta(0b100100100, 9), BTomm(2, Unsgn), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out),  });
             }
             else if(index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
                 return BiT({ BTsta(0b01001110001, 11), BTreg(2, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -556,7 +556,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             {
                 uint64_t N_immr_imms;
                 if(processLogicalImmediate(index[2].value, 64, N_immr_imms))
-                    return BiT({ BTsta(0b101100100, 9), BTomm(2), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out)});
+                    return BiT({ BTsta(0b101100100, 9), BTomm(2, Unsgn), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out)});
             }
             else if(index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
                 return BiT({ BTsta(0b01001110101, 11), BTreg(2, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -571,7 +571,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             {
                 uint64_t N_immr_imms;
                 if(processLogicalImmediate(index[2].value, 64, N_immr_imms))
-                    return BiT({ BTsta(0b110100100, 9), BTomm(2), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out)});
+                    return BiT({ BTsta(0b110100100, 9), BTomm(2, Unsgn), BTsta(N_immr_imms, 13), BTreg(1, 5, In), BTreg(0, 5, Out)});
             }
             else if(index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
                 return BiT({ BTsta(0b01101110001, 11), BTreg(2, 5, In), BTsta(0b000111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -800,19 +800,56 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         }
         break;
     case (AARCH64_MOVI):
-        if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE)
+        if (index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE)
         {
+            uint64_t higher3, lower5;
+            {
+                uint64_t bitfield = static_cast<uint64_t>(index[1].value);
+                if(elem_size(index[0].elemtype) == 8)
+                {
+                    bool correct = true;
+                    uint64_t bitfieldnew = 0;
+                    uint8_t* bytes = (uint8_t*)(&bitfield);
+                    for(int i = 0; i < 8; i++)
+                        if(bytes[i] != 0 && bytes[i] != 0xff)
+                        {
+                            correct = false;
+                            break;
+                        }
+                        else
+                            bitfieldnew = bitfieldnew | ((bytes[i] & 1) << i);
+                    if(!correct) break;
+                    bitfield = bitfieldnew;
+                }
+                else if(index[1].value < 0)
+                {
+                    if(index[0].elemtype == TYPE_I8)
+                    {
+                        if((~(bitfield & 0xFFFFFFFFFFFFFF00)) == 0)
+                            bitfield &= 0xFF;
+                        else
+                            break;
+                    }
+                }
+                int bitNeed = msb64(bitfield);
+                if (bitNeed >= 8)
+                    break;
+                higher3 = (bitfield & 0b11100000) >> 5;
+                lower5  = bitfield & 0b00011111;
+            }
             size_t elSize = elem_size(index[0].elemtype);
             int64_t mainstat = elSize == 8 ? 0b0110111100000 : 0b0100111100000;
             int64_t cmodstat = (elSize == 1 || elSize == 8) ? 0b1110 : (elSize == 2 ? 0b1000 : /*(elSize == 4 ?*/ 0b0000 /*: ...)*/);
-            return BiT({ BTsta(mainstat, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
+            return BiT({ BTsta(mainstat, 13), BTomm(1, Unsgn), BTsta(higher3, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTsta(lower5, 5), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_MVNI):
-        if (index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE && (index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32))
+        if (index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && (index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32))
         {
-            int64_t cmodstat = index[0].elemtype == TYPE_I16 ? 0b1000 : 0b0000;
-            return BiT({ BTsta(0b0110111100000, 13), BTimm(2, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTimm(1, 5), BTreg(0, 5, Out) });
+            uint64_t higher3 = (index[1].value & 0b11100000) >> 5;
+            uint64_t lower5  = index[1].value & 0b00011111;
+            uint64_t cmodstat = index[0].elemtype == TYPE_I16 ? 0b1000 : 0b0000;
+            return BiT({ BTsta(0b0110111100000, 13), BTomm(1), BTsta(higher3, 3), BTsta(cmodstat, 4), BTsta(0b01, 2), BTsta(lower5, 5), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_CMHI):
@@ -1229,7 +1266,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             Assert(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
             static const int sizStatSiz[] = {1, 2, 3, 4};
-            return BiT({ BTsta(0b01001110000, 11), BTimm(2, 5-sizStatSiz[sizIdx]), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0b000001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
+            return BiT({ BTsta(0b01001110000, 11), BTimm(2, 5-sizStatSiz[sizIdx], LanInd), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0b000001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
     case (AARCH64_UMOV):
@@ -1412,45 +1449,16 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     case (OP_MOV):
         if(index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE)
         {
-            uint64_t bitfield = static_cast<uint64_t>(index[1].value);
-            int tarOpcode = AARCH64_MOVI;
-            if(elem_size(index[0].elemtype) == 8)
+            if((index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32) && index[1].value < 0)
             {
-                bool correct = true;
-                uint64_t bitfieldnew = 0;
-                uint8_t* bytes = (uint8_t*)(&bitfield);
-                for(int i = 0; i < 8; i++)
-                    if(bytes[i] != 0 && bytes[i] != 0xff)
-                    {
-                        correct = false;
-                        break;
-                    }
-                    else
-                        bitfieldnew = bitfieldnew | ((bytes[i] & 1) << i);
-                if(!correct) break;
-                bitfield = bitfieldnew;
+                uint64_t bitfield = ~(static_cast<uint64_t>(index[1].value));
+                int bitNeed = msb64(bitfield);
+                if (bitNeed >= 8)
+                    break;
+                return SyT(AARCH64_MVNI, { SAcop(0), SAimm(bitfield) });
             }
-            else if(index[1].value < 0)
-            {
-                if(index[0].elemtype == TYPE_I8)
-                {
-                    if((~(bitfield & 0xFFFFFFFFFFFF0000)) == 0)
-                        bitfield &= 0xFF;
-                    else
-                        break;
-                }
-                else if(index[0].elemtype == TYPE_I16 || index[0].elemtype == TYPE_I32)
-                {
-                    bitfield = ~bitfield;
-                    tarOpcode = AARCH64_MVNI;
-                }
-            }
-            int bitNeed = msb64(bitfield);
-            if (bitNeed >= 8)
-                break;
-            int64_t higher3 = (bitfield & 0b11100000) >> 5;
-            int64_t lower5  = bitfield & 0b00011111;
-            return SyT(tarOpcode, { SAcop(0), SAimm(lower5), SAimm(higher3) });
+            else
+                return SyT(AARCH64_MOVI, { SAcop(0), SAcop(1) });
         }
         else if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0)
         {
@@ -2329,11 +2337,12 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             continue;
         }
         //DUBUG: 
-        // 1.) Make everything compilable in debian's assembler.
+        // 1.) Make everything compilable in debian's assembler.(currently works up to 652)
         uint64_t argflags = operand_flags[anum];
         bool address = (argflags & AF_ADDRESS);
         bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
         bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
+        bool indexed_vreg = false;
         if (address_start)
             LOOPS_CALL_THROW(loops_printf(printer, "["));
         switch (arg.tag)
@@ -2355,8 +2364,25 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                 break;
             case Arg::VREG:
             {
-                static const char* Vsuffixes[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
-                LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                if(argflags & AF_NOTYPE) 
+                {
+                    LOOPS_CALL_THROW(loops_printf(printer, "q%d", arg.idx));
+                }
+                else
+                {
+                    indexed_vreg = anum < aamount - 1 && (operand_flags[anum + 1] & AF_LANEINDEX);
+                    Assert(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
+                    if(indexed_vreg)
+                    {
+                        static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
+                        LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                    }
+                    else
+                    {
+                        static const char* Vsuffixes[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
+                        LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                    }
+                }
                 break;
             }
             case Arg::IIMMEDIATE:
@@ -2367,6 +2393,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                 }
                 else if(argflags & AF_CONDITION)
                 {
+                    Assert(argflags == AF_CONDITION);
                     static const char* conds[] = {"ne", "eq", "ge", "le", "ls", "gt", "hi", "lt", "mi", "pl"};
                     int cond_ind = -1;
                     switch (arg.value)
@@ -2388,16 +2415,37 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                         LOOPS_THROW(LOOPS_ERR_UNKNOWN_CONDITION);
                     LOOPS_CALL_THROW(loops_printf(printer, conds[cond_ind]));
                 }
+                else if(argflags & AF_LANEINDEX)
+                {
+                    Assert(argflags == AF_LANEINDEX && anum > 0 && op->args[anum-1].tag == Arg::VREG);
+                    if(arg.value < 0 || arg.value >= printer->backend->vlanes(op->args[anum-1].elemtype))
+                        LOOPS_THROW(LOOPS_ERR_INCORRECT_LANE_INDEX);
+                    LOOPS_CALL_THROW(loops_printf(printer, "[%d]", arg.value));
+                }
                 else if(arg.value == 0)
                     LOOPS_CALL_THROW(loops_printf(printer, "#0"));
                 else
                 {
-                    uint32_t upper32 = ((uint64_t)arg.value) >> 32;
-                    uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
-                    if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "#0x%x%08x", upper32, lower32));
+                    bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
+                    uint32_t upper32;
+                    uint32_t lower32;
+                    if(negative)
+                    {
+                        uint64_t ival = ~((uint64_t)arg.value);
+                        uint64_t lower32_ = (ival & 0xffffffff) + 1;
+                        upper32 = (ival >> 32) + (lower32_ & 0x100000000 ? 1 : 0);
+                        lower32 &= lower32_ & 0xffffffff;
+                    }
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "#0x%02x", lower32));
+                    {
+                        upper32 = ((uint64_t)arg.value) >> 32;
+                        lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                    }
+
+                    if (upper32 > 0)
+                        LOOPS_CALL_THROW(loops_printf(printer, "#%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
+                    else
+                        LOOPS_CALL_THROW(loops_printf(printer, "#%s0x%02x", (negative ? "-": ""), lower32));
                 }
                 break;
             default:
@@ -2405,13 +2453,12 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
         };
         if (address_end)
             LOOPS_CALL_THROW(loops_printf(printer, "]"));
-        if (anum < aamount - 1)
+        if (anum < aamount - 1 && !indexed_vreg)
             LOOPS_CALL_THROW(loops_printf(printer, ", "));
     }
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
-
 static void free_aarch64_opargs_printer(column_printer* colprinter)
 {
     if (colprinter->auxdata != NULL)

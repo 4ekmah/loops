@@ -51,6 +51,7 @@ enum
     LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION,
     LOOPS_ERR_INTERNAL_INCORRECT_OFFSET,
     LOOPS_ERR_ELEMENT_NOT_FOUND,
+    LOOPS_ERR_INCORRECT_LANE_INDEX,
 };
 
  //TODO[CPP2ANSIC]: All "Assert" entries have to be replaced with C-version of assert, returning exception via return code.
