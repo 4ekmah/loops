@@ -1815,7 +1815,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 return SyT(AARCH64_DUP, { SAcop(0), SAcop(1), SAcop(2)});
         }
         else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
-            return SyT(AARCH64_DUP, { SAcop(0), SAcop(1) });
+            return SyT(AARCH64_DUP, { SAcop(0), SAcopelt(1, index[0].elemtype) });
         break;
     case (VOP_CAST_LOW):
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
@@ -2337,7 +2337,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             continue;
         }
         //DUBUG: 
-        // 1.) Make everything compilable in debian's assembler.(currently works up to 652)
+        // 1.) Make everything compilable in debian's assembler.(currently works up to 680)
         uint64_t argflags = operand_flags[anum];
         bool address = (argflags & AF_ADDRESS);
         bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));

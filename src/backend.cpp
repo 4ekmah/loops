@@ -81,7 +81,7 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
 {
     int res = 0;
     for(;res< (int)m_argsList.size(); ++res)
-        if(m_argsList[res].tag == ArgTranslation::T_FROMSOURCE && m_argsList[res].srcArgnum == a_srcnum)
+        if((m_argsList[res].tag == ArgTranslation::T_FROMSOURCE || m_argsList[res].tag == ArgTranslation::T_SETELEMTYPE) && m_argsList[res].srcArgnum == a_srcnum)
             break;
     if (res == (int)m_argsList.size())
         res = ARG_NOT_USED;
@@ -161,7 +161,7 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
             continue;   //Drop all statics
         const SyntopTranslation::ArgTranslation& ar = s2s.m_argsList[s2b.m_compound[bpiecenum].srcArgnum];
-        if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE)
+        if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE || ar.tag == SyntopTranslation::ArgTranslation::T_SETELEMTYPE )
         {
             if (ar.srcArgnum == SyntopTranslation::ARG_NOT_USED || ar.srcArgnum >= a_op.size())
                 throw std::runtime_error("Binary translator: non-existent argument is requested.");
