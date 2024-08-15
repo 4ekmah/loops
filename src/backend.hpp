@@ -56,9 +56,17 @@ namespace SyntopTranslationConstruction
         resArg.flags = flags;
         return SyntopTranslation::ArgTranslation(resArg);
     }
+    //SAreg is for SyntopTranslation::ArgTranslation fixed reigster
+    inline SyntopTranslation::ArgTranslation SAvreg(RegIdx idx, int elemtype, uint64_t flags = 0)
+    {
+        Arg resArg = argReg(RB_VEC, idx);
+        resArg.elemtype = elemtype;
+        resArg.flags = flags;
+        return SyntopTranslation::ArgTranslation(resArg);
+    }
     //SAimm is for SyntopTranslation::ArgTranslation fixed value
     inline SyntopTranslation::ArgTranslation SAimm(int64_t val, uint64_t flags = 0)
-{
+    {
         Arg resArg = argIImm(val);
         resArg.flags = flags;
         return SyntopTranslation::ArgTranslation(resArg);

@@ -799,6 +799,21 @@ TEST(aarch64, instruction_set_test)
         newiopNoret(VOP_FMA, { v31_2f, v31_2f,  v0_2f, v0_2f });
         newiopNoret(VOP_FMA, { v0_2f , v0_2f ,  v31_2f, v0_2f });
         newiopNoret(VOP_FMA, { v0_2f , v0_2f ,  v0_2f, v31_2f });
+        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v31_8f, v31_8f, v0_8f, v0_8f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v31_8f, v0_8f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v15_8f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(7)});
+        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v31_4f, v31_4f, v0_4f, v0_4f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v31_4f, v0_4f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v31_4f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(3)});
+        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v31_2f, v31_2f, v0_2f, v0_2f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v31_2f, v0_2f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v31_2f, argIImm(0)});
+        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(1)});
 
         newiopNoret(VOP_TRUNC, { v0_8s , v0_8f  });
         newiopNoret(VOP_TRUNC, { v31_8s, v0_8f  });
@@ -1328,24 +1343,6 @@ TEST(aarch64, instruction_set_test)
         newiopNoret(VOP_ARM_EXT, { v0_2s, v31_2s, v0_2s, argIImm(0)});
         newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v31_2s, argIImm(0)});
         newiopNoret(VOP_ARM_EXT, { v0_2s, v0_2s, v0_2s, argIImm(1)});
-
-        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v31_8f, v31_8f, v0_8f, v0_8f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v31_8f, v0_8f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v15_8f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_8f, v0_8f, v0_8f, v0_8f, argIImm(7)});
-
-        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v31_4f, v31_4f, v0_4f, v0_4f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v31_4f, v0_4f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v31_4f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_4f, v0_4f, v0_4f, v0_4f, argIImm(3)});
-
-        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v31_2f, v31_2f, v0_2f, v0_2f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v31_2f, v0_2f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v31_2f, argIImm(0)});
-        newiopNoret(VOP_FMA, { v0_2f, v0_2f, v0_2f, v0_2f, argIImm(1)});
 
         newiopNoret(VOP_GETLANE, { x0,  v0_16u, argIImm(0)});
         newiopNoret(VOP_GETLANE, { x15, v0_16u, argIImm(0)});
