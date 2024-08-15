@@ -633,7 +633,6 @@ static void printer_buffer_destruct(void* pb)
     loops_span_destruct((LOOPS_SPAN(char))pb);
 }
 
-//DUBUG: It's needed to check all this code with c89 compiler before push.
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
 static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
 {

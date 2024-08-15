@@ -27,7 +27,7 @@ typedef const char* loops_cstring;
     } loops_hashmap_static_ ## K ## _ ## V;                                                                                      \
     typedef struct loops_hashmap_ ## K ## _ ## V ## _                                                                            \
     {                                                                                                                            \
-        bool _static;                                                                                                            \
+        int _static;                                                                                                             \
         loops_hashmap_static_ ## K ## _ ## V* impl;                                                                              \
     } loops_hashmap_ ## K ## _ ## V ## _;                                                                                        \
     typedef struct loops_hashmap_ ## K ## _ ## V ## _* loops_hashmap_ ## K ## _ ## V;                                            \
@@ -35,7 +35,7 @@ int loops_hashmap_construct(loops_hashmap_ ## K ## _ ## V* result);             
 int loops_hashmap_construct_static(loops_hashmap_ ## K ## _ ## V* result, loops_hashmap_static_ ## K ## _ ## V* input, int size);\
 void loops_hashmap_destruct(loops_hashmap_ ## K ## _ ## V to_del);                                                               \
 int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val);                                                           \
-int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, bool* res);                                                       \
+int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, int* res);                                                        \
 int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)                                     
 
 //TODO[CPP2ANSIC]: loops_hashmap_get have to return pointer, not value.
@@ -46,7 +46,7 @@ int loops_hashmap_construct(loops_hashmap_ ## K ## _ ## V* result)              
     *result = (loops_hashmap_ ## K ## _ ## V)malloc(sizeof(loops_hashmap_ ## K ## _ ## V ## _));                                \
     if(*result == NULL)                                                                                                         \
         return LOOPS_ERR_OUT_OF_MEMORY;                                                                                         \
-    (*result)->_static = false;                                                                                                 \
+    (*result)->_static = 0;                                                                                                     \
     (*result)->impl = NULL;                                                                                                     \
     return LOOPS_ERR_SUCCESS;                                                                                                   \
 }                                                                                                                               \
@@ -56,7 +56,7 @@ int loops_hashmap_construct_static(loops_hashmap_ ## K ## _ ## V* result, loops_
     *result = (loops_hashmap_ ## K ## _ ## V)malloc(sizeof(loops_hashmap_ ## K ## _ ## V ## _));                                \
     if(*result == NULL)                                                                                                         \
         return LOOPS_ERR_OUT_OF_MEMORY;                                                                                         \
-    (*result)->_static = true;                                                                                                  \
+    (*result)->_static = 1;                                                                                                     \
     (*result)->impl = NULL;                                                                                                     \
     loops_hashmap_static_ ## K ## _ ## V* utcontainer = (*result)->impl;                                                        \
     for(elnum = 0; elnum < size; elnum++)                                                                                       \
@@ -99,14 +99,14 @@ int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val)           
         lm->impl = utcontainer;                                                                                                 \
     return LOOPS_ERR_SUCCESS;                                                                                                   \
 }                                                                                                                               \
-int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, bool* res)                                                       \
+int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, int* res)                                                        \
 {                                                                                                                               \
     if(lm == NULL)                                                                                                              \
         return LOOPS_ERR_NULL_POINTER;                                                                                          \
     loops_hashmap_static_ ## K ## _ ## V* impl = lm->impl;                                                                      \
-    if(impl == nullptr)                                                                                                         \
+    if(impl == NULL)                                                                                                            \
     {                                                                                                                           \
-        *res = false;                                                                                                           \
+        *res = 0;                                                                                                               \
         return LOOPS_ERR_SUCCESS;                                                                                               \
     }                                                                                                                           \
     loops_hashmap_static_ ## K ## _ ## V* found;                                                                                \
@@ -119,7 +119,7 @@ int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)          
     if(lm == NULL)                                                                                                              \
         return LOOPS_ERR_NULL_POINTER;                                                                                          \
     loops_hashmap_static_ ## K ## _ ## V* impl = lm->impl;                                                                      \
-    if(impl == nullptr)                                                                                                         \
+    if(impl == NULL)                                                                                                            \
         return LOOPS_ERR_ELEMENT_NOT_FOUND;                                                                                     \
     loops_hashmap_static_ ## K ## _ ## V* found;                                                                                \
     HASH_FIND(hh, impl, &key, sizeof(K), found);                                                                                \
@@ -219,8 +219,8 @@ typedef struct loops_span_ ## T ## _                                   \
 {                                                                      \
     T* data;                                                           \
     int size;                                                          \
-    bool managed;                                                      \
-} loops_span_inner_ ## T ## _;                                         \
+    int managed;                                                       \
+} loops_span_ ## T ## _;                                               \
 typedef struct loops_span_ ## T ## _* loops_span_ ## T;                \
 int loops_span_construct(loops_span_ ## T* result, T* data, int size); \
 int loops_span_construct_alloc(loops_span_ ## T* result, int size);    \
@@ -234,7 +234,7 @@ int loops_span_construct(loops_span_ ## T* result, T* data, int size)    \
         return LOOPS_ERR_OUT_OF_MEMORY;                                  \
     (*result)->data = data;                                              \
     (*result)->size = size;                                              \
-    (*result)->managed = false;                                          \
+    (*result)->managed = 0;                                              \
     return LOOPS_ERR_SUCCESS;                                            \
 }                                                                        \
 int loops_span_construct_alloc(loops_span_ ## T* result, int size)       \
@@ -252,7 +252,7 @@ int loops_span_construct_alloc(loops_span_ ## T* result, int size)       \
         return LOOPS_ERR_OUT_OF_MEMORY;                                  \
     }                                                                    \
     (*result)->size = size;                                              \
-    (*result)->managed = true;                                           \
+    (*result)->managed = 1;                                              \
     return LOOPS_ERR_SUCCESS;                                            \
 }                                                                        \
 void loops_span_destruct(loops_span_ ## T to_del)                        \
