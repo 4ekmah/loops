@@ -79,7 +79,7 @@ private:
     int errid;
 public:
     loops_exception(int a_errid) : std::exception(), errid(a_errid) {}
-    virtual const char* what() { return get_errstring(errid); };
+    virtual const char* what() const noexcept override { return get_errstring(errid); };
 };
 #define LOOPS_THROW(x) throw loops_exception(x)
 #else

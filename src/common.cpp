@@ -44,7 +44,6 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) errstrings_[] =
 LOOPS_HASHMAP(int, loops_cstring) errstrings = NULL;
 
 static void loops_initialize();
-//DUBUG: check it works everywhere and add easiest c++ initiliazer.
 #if defined(_MSC_VER) && defined(_WIN64)
     #pragma section(".CRT$XCT",read)
     __declspec(allocate(".CRT$XCT")) void (*loops_initialize_)(void) = loops_initialize;

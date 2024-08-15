@@ -614,21 +614,21 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
     case (AARCH64_CSET):
         if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
         {
-            uint64_t invcond = invertAarch64IC(index[1].value);
+            uint64_t invcond = invertAarch64IC((int)index[1].value);
             return BiT({ BTsta(0b1001101010011111, 16), BTomm(1, Cond), BTsta(invcond,4), BTsta(0b0111111, 7), BTreg(0,5,Out) });
         }
         break;
     case (AARCH64_CINC):
         if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
         {
-            uint64_t invcond = invertAarch64IC(index[2].value);
+            uint64_t invcond = invertAarch64IC((int)index[2].value);
             return BiT({ BTsta(0b10011010100, 11), BTreg(1,5,In), BTomm(2, Cond), BTsta(invcond,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
         }
         break;
     case (AARCH64_CNEG):
         if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
         {
-            uint64_t invcond = invertAarch64IC(index[2].value);
+            uint64_t invcond = invertAarch64IC((int)index[2].value);
             return BiT({ BTsta(0b11011010100, 11), BTreg(1,5,In), BTomm(2, Cond), BTsta(invcond,4), BTsta(0b01, 2), BTreg(1,5,In), BTreg(0,5,Out) });
         }
         break;
@@ -2338,7 +2338,13 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             Assert(labelop->opcode == AARCH64_LABEL);
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+#if __LOOPS_OS == __LOOPS_MAC
+            LOOPS_CALL_THROW(loops_printf(printer, "Loops_label_%d", (int)(labelop->args[0].value))); //Clang have some label naming convention.
+#elif __LOOPS_OS == __LOOPS_LINUX
             LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
+#else
+#error Unknown OS
+#endif
             continue;
         }
         uint64_t argflags = operand_flags[anum];
@@ -2409,7 +2415,13 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                 if(op->opcode == AARCH64_LABEL)
                 {
                     Assert(op->args_size == 1);
+#if __LOOPS_OS == __LOOPS_MAC
+                    LOOPS_CALL_THROW(loops_printf(printer, "Loops_label_%d:", arg.value)); //Clang have some label naming convention.
+#elif __LOOPS_OS == __LOOPS_LINUX
                     LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+#else
+#error Unknown OS
+#endif
                 }
                 else if(argflags & AF_CONDITION)
                 {
@@ -2454,7 +2466,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
                         uint64_t ival = ~((uint64_t)arg.value);
                         uint64_t lower32_ = (ival & 0xffffffff) + 1;
                         upper32 = (ival >> 32) + (lower32_ & 0x100000000 ? 1 : 0);
-                        lower32 &= lower32_ & 0xffffffff;
+                        lower32 = lower32_ & 0xffffffff;
                     }
                     else
                     {
@@ -2541,7 +2553,8 @@ static int aarch64_hex_printer(program_printer* printer, column_printer* colprin
             tmpfunc.params.resize(params_size);
             memcpy((void*)tmpfunc.params.data(), (void*)params, params_size * sizeof(Arg));
             Assembly2Hex a2hPass(printer->backend);
-            a2hPass.process(*((Syntfunc*)(nullptr)), tmpfunc);
+            Syntfunc dummy;
+            a2hPass.process(dummy, tmpfunc);
             const FuncBodyBuf buffer = a2hPass.result_buffer();
             err = loops_span_construct_alloc(&(argaux->binary), (int)buffer->size());
             if (err != LOOPS_ERR_SUCCESS)

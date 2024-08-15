@@ -11,9 +11,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <utlist.h>
 typedef const char* loops_cstring;
 
-typedef int K;
-typedef loops_cstring V;
-
+// TODO[CPP2ANSIC]: pure C, even newest standarts don't have function overriding, so 'class methods' cannot have same names.
 // ===================================================== HASHMAP =====================================================
 
 #define LOOPS_HASHMAP(K, V) loops_hashmap_ ## K ## _ ## V
