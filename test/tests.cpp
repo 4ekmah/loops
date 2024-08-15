@@ -319,7 +319,7 @@ bool check_listing_at_pass(loops::Func func, std::string& errmessage,
     else
     {
         errprefix = std::string("    Check of intermediate representation at pass ") + passname + "is failed: ";
-        func.printIR(curstream, passname);
+        func.printIR(curstream, loops::Func::PC_OPNUM | loops::Func::PC_OP, passname);
     }
     curtext = curstream.str();
     if(std::filesystem::exists(filename))

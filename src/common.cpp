@@ -5,6 +5,8 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
+#include "collections.hpp"
+#include "printer.hpp"
 #include "backend_aarch64.hpp"
 #include "backend_intel64.hpp"
 #include "backend.hpp"
@@ -15,6 +17,94 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <map>
 #include <stack>
 #include <cstring>
+
+
+LOOPS_HASHMAP_STATIC(int, loops_cstring) errstrings_[] = 
+{
+                  /*  |                   enum_id                   |                                    string_id                                   |   */
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_SUCCESS                            , "Loops: Success."                                                              ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_NULL_POINTER                       , "Loops: Null pointer."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POINTER_ARITHMETIC_ERROR           , "Loops: Pointer arithmetic error."                                             ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_OUT_OF_MEMORY                      , "Loops: Out of memory."                                                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_FLAG                       , "Loops: Unknown flag."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POSITIVE_SIZE_NEEDED               , "Loops: Negative size."                                                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNIMAGINARY_BIG_STRING             , "Loops: Unpredicted very big string."                                          ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNPRINTABLE_OPERATION              , "Loops: Unprintable operation."                                                ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_TYPE                       , "Loops: Unknown type."                                                         ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_CONDITION                  , "Loops: Unknown condition type."                                               ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_OPERATION_FORMAT         , "Loops: Incorrect operation format."                                           ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_ARGUMENT                 , "Loops: Incorrect argument."                                                   ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly."),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           ),
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_ELEMENT_NOT_FOUND                  , "Loops: Element not found."                                                    ), 
+    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_LANE_INDEX               , "Loops: Negative or to big lane index."                                        ), 
+};
+LOOPS_HASHMAP(int, loops_cstring) errstrings = NULL;
+
+static void loops_initialize();
+#if defined(_MSC_VER) && defined(_WIN64)
+    #pragma section(".CRT$XCT",read)
+    __declspec(allocate(".CRT$XCT")) void (*loops_initialize_)(void) = loops_initialize;
+#elif defined(_MSC_VER) && !defined(_WIN64)
+    #error Win32 is not supported.
+#else
+    static void loops_initialize_(void) __attribute__((constructor));
+    static void loops_initialize_(void) { loops_initialize(); }
+#endif
+static void finalize(void)
+{
+#if __LOOPS_ARCH == __LOOPS_AARCH64
+    backend_aarch64_h_deinitialize();
+#elif __LOOPS_ARCH == __LOOPS_INTEL64
+    backend_intel64_h_deinitialize();
+#else
+#error Unknown CPU
+#endif
+    printer_h_deinitialize();
+    loops_hashmap_destruct(errstrings);
+}
+
+static void loops_initialize()
+{
+    int err;
+    const char* init_error_msg = "Loops: Initialization error. Code: %d\n";
+    err = loops_hashmap_construct_static(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(errstrings_[0]));
+    if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+    printer_h_initialize(); if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+
+#if __LOOPS_ARCH == __LOOPS_AARCH64
+    err = backend_aarch64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+#elif __LOOPS_ARCH == __LOOPS_INTEL64
+    err = backend_intel64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+#else
+#error Unknown CPU
+#endif
+
+    atexit(finalize);
+}
+
+char* loops_strncpy(char* dest, const char* src, std::size_t count)
+{
+#if _MSC_VER
+    strncpy_s(dest, count, src, _TRUNCATE);
+    return dest;
+#else
+    return strncpy(dest, src, count);
+#endif  
+}
+
+const char* get_errstring(int errid)
+{
+    static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
+    const char* result = NULL; 
+    int err = loops_hashmap_get(errstrings, errid, &result);
+    if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+        return unknown_err;
+    else 
+        return result;
+}
 
 namespace loops
 {
@@ -265,9 +355,9 @@ namespace loops
     int Func::signature() const { return static_cast<FuncImpl*>(impl)->signature(); }
 
     void* Func::ptr() { return static_cast<FuncImpl*>(impl)->ptr(); }
-    void Func::printIR(std::ostream& out, const std::string& passname) const
+    void Func::printIR(std::ostream& out, int columns, const std::string& passname) const
     {
-        static_cast<FuncImpl*>(impl)->printIR(out, passname);
+        static_cast<FuncImpl*>(impl)->printIR(out, columns, passname);
     }
     void Func::printAssembly(std::ostream& out, int columns) const
     {
@@ -735,5 +825,4 @@ namespace loops
         impl = nullptr;
         return ret;
     }
-
 }

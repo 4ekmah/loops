@@ -62,113 +62,115 @@ enum {
     OP_ROUND            =  24,
     OP_FLOOR            =  25,
     OP_CEIL             =  26,
+    OP_REINTERPRET      =  27,
 
     //For service usage only
-    OP_SPILL            =  27, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
-    OP_UNSPILL          =  28, //OP_UNSPILL <reg>, <stack_pos>
-    OP_GT               =  29,
-    OP_UGT              =  30,
-    OP_GE               =  31,
-    OP_LT               =  32,
-    OP_LE               =  33,
-    OP_ULE              =  34,
-    OP_NE               =  35,
-    OP_EQ               =  36,
-    OP_S                =  37,
-    OP_NS               =  38,
+    OP_SPILL            =  28, //OP_SPILL <stack_pos>, <reg> - stack_pos is positive distance from SP, measured in 8byte-long units
+    OP_UNSPILL          =  29, //OP_UNSPILL <reg>, <stack_pos>
+    OP_GT               =  30,
+    OP_UGT              =  31,
+    OP_GE               =  32,
+    OP_LT               =  33,
+    OP_LE               =  34,
+    OP_ULE              =  35,
+    OP_NE               =  36,
+    OP_EQ               =  37,
+    OP_S                =  38,
+    OP_NS               =  39,
     
-    OP_LOGICAL_AND      =  39,
-    OP_LOGICAL_OR       =  40,
-    OP_LOGICAL_NOT      =  41,
+    OP_LOGICAL_AND      =  40,
+    OP_LOGICAL_OR       =  41,
+    OP_LOGICAL_NOT      =  42,
     
-    OP_JMP              =  42, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
-    OP_JCC              =  43, //OP_JCC <cmpcode>, <target_label>
-    OP_RET              =  44,
-    OP_CALL             =  45, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
-    OP_CALL_NORET       =  46, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
-    OP_LABEL            =  47,
+    OP_JMP              =  43, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
+    OP_JCC              =  44, //OP_JCC <cmpcode>, <target_label>
+    OP_RET              =  45,
+    OP_CALL             =  46, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
+    OP_CALL_NORET       =  47, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
+    OP_LABEL            =  48,
     
-    OP_STEM_CSTART      =  48,
+    OP_STEM_CSTART      =  49,
     
-    OP_IF_CSTART        =  49,
-    OP_ELIF_CSTART      =  50, //OP_ELIF_CSTART <elselabel>, <outlabel>
-    OP_IF_CEND          =  51, //OP_IF_CEND
-    OP_ELSE             =  52, //OP_ELSE <elselabel>, <outlabel>
-    OP_ENDIF            =  53, //OP_ENDIF <outlabel>
+    OP_IF_CSTART        =  50,
+    OP_ELIF_CSTART      =  51, //OP_ELIF_CSTART <elselabel>, <outlabel>
+    OP_IF_CEND          =  52, //OP_IF_CEND
+    OP_ELSE             =  53, //OP_ELSE <elselabel>, <outlabel>
+    OP_ENDIF            =  54, //OP_ENDIF <outlabel>
 
-    OP_WHILE_CSTART     =  54, //OP_WHILE_CSTART <continuelabel>
-    OP_WHILE_CEND       =  55, //OP_WHILE_CEND
-    OP_ENDWHILE         =  56, //OP_ENDWHILE <continuelabel>, <breaklabel>
-    OP_BREAK            =  57,
-    OP_CONTINUE         =  58,
-    VOP_LOAD            =  59,
-    VOP_STORE           =  60,
-    VOP_ADD             =  61,
-    VOP_SUB             =  62,
-    VOP_MUL             =  63,
-    VOP_DIV             =  64,
+    OP_WHILE_CSTART     =  55, //OP_WHILE_CSTART <continuelabel>
+    OP_WHILE_CEND       =  56, //OP_WHILE_CEND
+    OP_ENDWHILE         =  57, //OP_ENDWHILE <continuelabel>, <breaklabel>
+    OP_BREAK            =  58,
+    OP_CONTINUE         =  59,
+
+    VOP_LOAD            =  60,
+    VOP_STORE           =  61,
+    VOP_ADD             =  62,
+    VOP_SUB             =  63,
+    VOP_MUL             =  64,
+    VOP_DIV             =  65,
 //    VOP_MOD,
-    VOP_FMA             =  65,
-    VOP_SAL             =  66,
-    VOP_SHL             =  67,
-    VOP_SAR             =  68,
-    VOP_SHR             =  69,
-    VOP_AND             =  70,
-    VOP_OR              =  71,
-    VOP_XOR             =  72,
-    VOP_NOT             =  73,
-    VOP_NEG             =  74,
+    VOP_FMA             =  66,
+    VOP_SAL             =  67,
+    VOP_SHL             =  68,
+    VOP_SAR             =  69,
+    VOP_SHR             =  70,
+    VOP_AND             =  71,
+    VOP_OR              =  72,
+    VOP_XOR             =  73,
+    VOP_NOT             =  74,
+    VOP_NEG             =  75,
 
-    VOP_MIN             =  75,
-    VOP_MAX             =  76,
+    VOP_MIN             =  76,
+    VOP_MAX             =  77,
 
-    VOP_GT              =  77,
-    VOP_GE              =  78,
-    VOP_LT              =  79,
-    VOP_LE              =  80,
-    VOP_NE              =  81,
-    VOP_EQ              =  82,
+    VOP_GT              =  78,
+    VOP_GE              =  79,
+    VOP_LT              =  80,
+    VOP_LE              =  81,
+    VOP_NE              =  82,
+    VOP_EQ              =  83,
 
-    VOP_SELECT          =  83,
+    VOP_SELECT          =  84,
     
-    VOP_ALL             =  84,
-    VOP_ANY             =  85,
-    VOP_TRUNC           =  86,
-    VOP_FLOOR           =  87,
-    VOP_CAST            =  88,
-    VOP_REINTERPRET     =  89,
-    VOP_BROADCAST       =  90,
-    VOP_CAST_LOW        =  91,
-    VOP_CAST_HIGH       =  92,
-    VOP_SHRINK          =  93, // VOP_SHRINK <target_with_halfsize_elements>, <source_packed_low_half>, <source_packed_high_half>
-    VOP_POPCOUNT        =  94,
-    VOP_REDUCE_MAX      =  95,
-    VOP_REDUCE_MIN      =  96,
-    VOP_REDUCE_SUM      =  97,
-    VOP_REDUCE_WSUM     =  98,
+    VOP_ALL             =  85,
+    VOP_ANY             =  86,
+    VOP_TRUNC           =  87,
+    VOP_FLOOR           =  88,
+    VOP_CAST            =  89,
+    VOP_REINTERPRET     =  90,
+    VOP_BROADCAST       =  91,
+    VOP_CAST_LOW        =  92,
+    VOP_CAST_HIGH       =  93,
+    VOP_SHRINK          =  94, // VOP_SHRINK <target_with_halfsize_elements>, <source_packed_low_half>, <source_packed_high_half>
+    VOP_POPCOUNT        =  95,
+    VOP_REDUCE_MAX      =  96,
+    VOP_REDUCE_MIN      =  97,
+    VOP_REDUCE_SUM      =  98,
+    VOP_REDUCE_WSUM     =  99,
 
 //Intel-only operations:
-    OP_X86_ADC          =  99, //Add with carry flag.
-    OP_X86_CQO          = 100,
+    OP_X86_ADC          = 100, //Add with carry flag.
+    OP_X86_CQO          = 101,
 //Aarch64-only operations:
-    OP_ARM_CINC         = 101, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG         = 102,
-    OP_ARM_MOVK         = 103, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP          = 104,
-    OP_ARM_STP          = 105,
-    VOP_ARM_LD1         = 106,
-    VOP_ARM_ST1         = 107,
-    VOP_ARM_LD2         = 108,
-    VOP_ARM_EXT         = 109,
-    VOP_ARM_SHRINK_LOW  = 110, //Note: don't use these two directly, use VOP_SHRINK instead.
-    VOP_ARM_SHRINK_HIGH = 111,
-    VOP_GETLANE         = 112,
-    VOP_SETLANE         = 113,
+    OP_ARM_CINC         = 102, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG         = 103,
+    OP_ARM_MOVK         = 104, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP          = 105,
+    OP_ARM_STP          = 106,
+    VOP_ARM_LD1         = 107,
+    VOP_ARM_ST1         = 108,
+    VOP_ARM_LD2         = 109,
+    VOP_ARM_EXT         = 110,
+    VOP_ARM_SHRINK_LOW  = 111, //Note: don't use these two directly, use VOP_SHRINK instead.
+    VOP_ARM_SHRINK_HIGH = 112,
+    VOP_GETLANE         = 113,
+    VOP_SETLANE         = 114,
 
-    OP_DEF              = 114,
-    VOP_DEF             = 115,
+    OP_DEF              = 115,
+    VOP_DEF             = 116,
 
-    OP_NOINIT           = 116,
+    OP_NOINIT           = 117,
 };
 
 enum
@@ -353,8 +355,9 @@ public:
     
     //If passname is empty, this function will print IR on stage just before IR to
     //assembly translation. This stage have different names on different platforms.
-    void printIR(std::ostream& out, const std::string& passname = "") const;
     enum { PC_OPNUM = 1 , PC_OP = 2, PC_HEX = 4 };
+    /*allowed colums for IR: PC_OPNUM, PC_OP */
+    void printIR(std::ostream& out, int columns = PC_OPNUM | PC_OP, const std::string& passname = "") const;
     void printAssembly(std::ostream& out, int columns = PC_OPNUM | PC_OP | PC_HEX) const;
 
 protected:
@@ -486,6 +489,8 @@ template<typename _Tp> void store_(const IExpr& base, int64_t offset, const IExp
 template<typename _Tp> void store_(const IExpr& base, const IExpr& offset, int64_t a);
 template<typename _Tp> void store_(const IExpr& base, int64_t offset, int64_t a);
 
+template<typename _Dp> IExpr reinterpret(const IExpr& a);
+template<typename _Dp> IExpr reinterpret(const IReg& a);
 
 // Integer arithmetic and bitwise operations:
 static inline IExpr operator + (const IExpr& a, const IExpr& b);

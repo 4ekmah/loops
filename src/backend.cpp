@@ -12,6 +12,7 @@ namespace loops
 {
 SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(UNDEFINED_ARGUMENT_NUMBER), transitFlags(0) {}
 SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_srcArgnum), transitFlags(flags) {}
+SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags) : tag(T_SETELEMTYPE), srcArgnum(a_srcArgnum), elemtype(a_elemtype), transitFlags(flags) {}
 SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
 
 Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
@@ -29,6 +30,16 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                     throw std::runtime_error("Syntop translator: non-existent argument is requested.");
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
+                resargs.push_back(toAdd);
+                break;
+            }
+            case ArgTranslation::T_SETELEMTYPE:
+            {
+                if(argt.srcArgnum == UNDEFINED_ARGUMENT_NUMBER || argt.srcArgnum >= (int)a_source.size())
+                    throw std::runtime_error("Syntop translator: non-existent argument is requested.");
+                Arg toAdd = a_source.args[argt.srcArgnum];
+                toAdd.flags |= argt.transitFlags;
+                toAdd.elemtype = argt.elemtype;
                 resargs.push_back(toAdd);
                 break;
             }
@@ -70,7 +81,7 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
 {
     int res = 0;
     for(;res< (int)m_argsList.size(); ++res)
-        if(m_argsList[res].tag == ArgTranslation::T_FROMSOURCE && m_argsList[res].srcArgnum == a_srcnum)
+        if((m_argsList[res].tag == ArgTranslation::T_FROMSOURCE || m_argsList[res].tag == ArgTranslation::T_SETELEMTYPE) && m_argsList[res].srcArgnum == a_srcnum)
             break;
     if (res == (int)m_argsList.size())
         res = ARG_NOT_USED;
@@ -97,12 +108,17 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
     bool neg = tar_op.args[argnum].value < 0;
     uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
     for(const BinTranslation::Token& det : instemp.m_compound)
-        if (det.tag != BinTranslation::Token::T_STATIC && det.srcArgnum == argnum)
+        if(det.srcArgnum == argnum)
         {
-            Assert(det.tag != BinTranslation::Token::T_REG);
-            int bitwneeded = msb64(val2BeFit);
-            bitwneeded += neg ? 1 : 0;
-            return (bitwneeded < det.width);
+            if(det.tag == BinTranslation::Token::T_OMIT)
+                return true; //Encoder checked everything on his side.
+            if(det.tag != BinTranslation::Token::T_STATIC)
+            {
+                Assert(det.tag != BinTranslation::Token::T_REG);
+                int bitwneeded = msb64(val2BeFit);
+                bitwneeded += neg ? 1 : 0;
+                return (bitwneeded < det.width);
+            }
         }
     throw std::runtime_error("Binary translator: non-existent argument is requested.");
 }
@@ -127,8 +143,8 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
     std::set<int> result;
     if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
     {
-        int ioflags = flagmask&(BinTranslation::Token::T_OUTPUT | BinTranslation::Token::T_INPUT);
-        if (ioflags == BinTranslation::Token::T_OUTPUT && 
+        int ioflags = flagmask&(AF_OUTPUT | AF_INPUT);
+        if (ioflags == AF_OUTPUT && 
             ((a_op.opcode == OP_DEF && basketNum == RB_INT) || (a_op.opcode == VOP_DEF && basketNum == RB_VEC)))
                 result = std::set<int>({0});
         return result;
@@ -145,7 +161,7 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
             continue;   //Drop all statics
         const SyntopTranslation::ArgTranslation& ar = s2s.m_argsList[s2b.m_compound[bpiecenum].srcArgnum];
-        if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE)
+        if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE || ar.tag == SyntopTranslation::ArgTranslation::T_SETELEMTYPE )
         {
             if (ar.srcArgnum == SyntopTranslation::ARG_NOT_USED || ar.srcArgnum >= a_op.size())
                 throw std::runtime_error("Binary translator: non-existent argument is requested.");
@@ -158,12 +174,12 @@ std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int baske
 
 std::set<int> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, AF_OUTPUT);
 }
 
 std::set<int> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegistersIdxs(a_op, basketNum, BinTranslation::Token::T_INPUT);
+    return getUsedRegistersIdxs(a_op, basketNum, AF_INPUT);
 }
 
 std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask) const
@@ -183,12 +199,25 @@ std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, ui
 
 std::set<RegIdx> Backend::getOutRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_OUTPUT);
+    return getUsedRegisters(a_op, basketNum, AF_OUTPUT);
 }
 
 std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) const
 {
-    return getUsedRegisters(a_op, basketNum, BinTranslation::Token::T_INPUT);
+    return getUsedRegisters(a_op, basketNum, AF_INPUT);
+}
+
+void Backend::fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const
+{
+    memset(result, 0, sizeof(uint64_t) * Syntop::SYNTOP_ARGS_MAX);
+    const BinTranslation& s2b = lookS2b(*a_op);
+    for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
+    {
+        if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
+            continue;   //Drop all statics
+        int srcNum = s2b.m_compound[bpiecenum].srcArgnum;
+        result[srcNum] = result[srcNum] | s2b.m_compound[bpiecenum].fieldOflags;
+    }
 }
 
 BinTranslation BTLookup(const Syntop&, bool&)

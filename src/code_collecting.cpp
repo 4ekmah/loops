@@ -240,6 +240,14 @@ namespace loops
                 res.elemtype = expr.type();
             break;
         }
+        case (OP_REINTERPRET):
+        {
+            Assert(!expr.is_vector() && expr.children().size() == 1);
+            res = unpack_expr(expr.children()[0], flags & UR_NONEWIDX, &outbuf);
+            res.tag = Arg::IREG;
+            res.elemtype = expr.type();
+            break;
+        }
         case (VOP_REINTERPRET):
         {
             Assert(expr.is_vector() && expr.children().size() == 1);

@@ -20,14 +20,17 @@ namespace loops
 class Backend;
 struct SyntopTranslation
 {
+    //TODO: Looks like we need here some general transformation rule format, providing ability to change tag, value, elemtype or other. Probably, ability to set transformation function pointer.
     struct ArgTranslation
     {
-        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_ERROROFUSAGE};
+        enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_SETELEMTYPE, T_ERROROFUSAGE};
         ArgTranslation(const Arg& a_fixed);
         ArgTranslation(int a_srcArgnum, uint64_t flags = 0);
+        ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags);
         int tag;
         Arg fixed;
         int srcArgnum;
+        int elemtype;
         uint64_t transitFlags;
     };
     int m_tarop;
@@ -53,9 +56,17 @@ namespace SyntopTranslationConstruction
         resArg.flags = flags;
         return SyntopTranslation::ArgTranslation(resArg);
     }
+    //SAreg is for SyntopTranslation::ArgTranslation fixed reigster
+    inline SyntopTranslation::ArgTranslation SAvreg(RegIdx idx, int elemtype, uint64_t flags = 0)
+    {
+        Arg resArg = argReg(RB_VEC, idx);
+        resArg.elemtype = elemtype;
+        resArg.flags = flags;
+        return SyntopTranslation::ArgTranslation(resArg);
+    }
     //SAimm is for SyntopTranslation::ArgTranslation fixed value
     inline SyntopTranslation::ArgTranslation SAimm(int64_t val, uint64_t flags = 0)
-{
+    {
         Arg resArg = argIImm(val);
         resArg.flags = flags;
         return SyntopTranslation::ArgTranslation(resArg);
@@ -79,6 +90,8 @@ namespace SyntopTranslationConstruction
         res.transitFlags = flags;
         return res;
     }
+    //SAcopelt is for SyntopTranslation::ArgTranslation to be copied from source with changing elemtype
+    inline SyntopTranslation::ArgTranslation SAcopelt(int argnum, int elemtype, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, elemtype, flags); }
 }
 
 class Backend
@@ -93,14 +106,18 @@ public:
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
     std::set<int> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
     std::set<int> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
-    std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const;
+    std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
+
+    //It's assumed here, that Syntop is native, not IR. Return argument flags.
+    //Result array have to be allocated before and have to be of (Syntop::SYNTOP_ARGS_MAX) size.
+    void fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const;
 
     //Prologue and epilogue support
     /*
@@ -113,19 +130,12 @@ public:
     virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
-//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, FP) }));
-//    a_dest.program.push_back(Syntop(OP_SPILL, { argIImm(spAddAligned), argReg(RB_INT, LR) }));
-//    a_dest.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, FP), argReg(RB_INT, SP)}));
-//
-//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, FP),   argIImm(18) }));
-//                a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, LR),   argIImm(19) }));
-//}
 
     virtual Arg getSParg() const = 0;
 
-    virtual std::unordered_map<int, std::string> getOpStrings() const = 0;
-    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const = 0; //TODO(ch): I want to believe, that at some moment this function will become indpendent of toP. It's okay for current backend, but there is no confidence for intel or even vector expansions.
-    virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const = 0;
+    virtual column_printer get_opname_printer() const = 0;
+    virtual column_printer get_opargs_printer() const = 0;
+    virtual column_printer get_hex_printer() const = 0;
     
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}

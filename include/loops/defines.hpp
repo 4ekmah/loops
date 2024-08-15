@@ -14,6 +14,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_LINUX   2
 #define __LOOPS_MAC     3
 
+#define __LOOPS_C       1
+#define __LOOPS_CPP     2
+
 #if defined(__linux__)
     #define __LOOPS_OS   __LOOPS_LINUX
 #elif defined(__APPLE__)
@@ -43,5 +46,12 @@ See https://github.com/4ekmah/loops/LICENSE
 #else
     #error Unknown compiler
 #endif
+
+#if defined(__cplusplus)
+#define __LOOPS_LANGUAGE  __LOOPS_CPP
+#else
+#define __LOOPS_LANGUAGE  __LOOPS_C
+#endif
+
 
 #endif //__LOOPSDEFS_HPP__

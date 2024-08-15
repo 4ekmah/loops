@@ -11,6 +11,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "backend.hpp"
 #include "pipeline.hpp"
 
+int backend_intel64_h_initialize();
+void backend_intel64_h_deinitialize();
+
 namespace loops
 {
     enum {
@@ -58,7 +61,8 @@ namespace loops
         INTEL64_JG     = 41,
         INTEL64_JGE    = 42,
         INTEL64_CALL   = 43,
-        INTEL64_RET    = 44 
+        INTEL64_LABEL  = 44, 
+        INTEL64_RET    = 45 
     };
 
     class Intel64Backend : public Backend
@@ -69,15 +73,15 @@ namespace loops
         virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const override final;
         virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
-        virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
+        virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
         virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
         virtual int stackGrowthAlignment(int stackGrowth) const override final;
         virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
         virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
         virtual Arg getSParg() const override final;
-        virtual std::unordered_map<int, std::string> getOpStrings() const override final;
-        virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
-        virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
+        virtual column_printer get_opname_printer() const override final;
+        virtual column_printer get_opargs_printer() const override final;
+        virtual column_printer get_hex_printer() const override final;
     };
 
 }

@@ -16,6 +16,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 #include <map>
 
+int backend_aarch64_h_initialize();
+void backend_aarch64_h_deinitialize();
+
 namespace loops
 {
 enum {
@@ -117,7 +120,8 @@ enum {
     AARCH64_B_HI   = 95,
     AARCH64_B_GE   = 96,
     AARCH64_BLR    = 97,
-    AARCH64_RET    = 98
+    AARCH64_LABEL  = 98,
+    AARCH64_RET    = 99
 };
 
 class Aarch64Backend : public Backend
@@ -127,16 +131,15 @@ public:
     virtual ~Aarch64Backend() override;
     virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
-    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = BinTranslation::Token::T_INPUT | BinTranslation::Token::T_OUTPUT) const override final;
+    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
     virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
     virtual int stackGrowthAlignment(int stackGrowth) const override final;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
     virtual Arg getSParg() const override final;
-    virtual std::unordered_map<int, std::string> getOpStrings() const override final;
-    virtual Printer::ColPrinter colHexPrinter(const Syntfunc& toP) const override final;
-    virtual Printer::ArgPrinter argPrinter(const Syntfunc& toP) const override final;
-};
+    virtual column_printer get_opname_printer() const override final;
+    virtual column_printer get_opargs_printer() const override final;
+    virtual column_printer get_hex_printer() const override final;};
 
 }
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64

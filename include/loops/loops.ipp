@@ -209,6 +209,7 @@ Expr::Expr(int64_t a_leaf): pointee(new __loops_ExprStr_)
     pointee->opcode = EXPR_LEAF;
     pointee->is_vector = false;
     pointee->leaf = Arg(a_leaf);
+    pointee->type = TYPE_I64;
 }
 
 Expr::~Expr() { if(pointee) { if(--(pointee->refcounter) == 0) delete pointee; } }
@@ -423,11 +424,23 @@ void newiopNoret(int opcode, ::std::initializer_list<Expr> args);
 ///////////////////////////// integer operations ///////////////////////
 // Load with zero/sign extension:
 static inline IExpr loadx(const IExpr& base, int depth)
-{ return IExpr(OP_LOAD, depth, {base.notype()}); }
+{
+    IExpr justloaded = IExpr(OP_LOAD, depth, {base.notype()});
+    //Currently it's assumed, that all scalar registers are of type i64, even if it is loaded from lesser memory. 
+    return IExpr(OP_REINTERPRET, TYPE_I64, {justloaded.notype()});
+}
 static inline IExpr loadx(const IExpr& base, const IExpr& offset, int depth)
-{ return IExpr(OP_LOAD, depth, {base.notype(), offset.notype()}); }
+{
+    IExpr justloaded = IExpr(OP_LOAD, depth, {base.notype(), offset.notype()});
+    //Currently it's assumed, that all scalar registers are of type i64, even if it is loaded from lesser memory. 
+    return IExpr(OP_REINTERPRET, TYPE_I64, {justloaded.notype()});
+}
 static inline IExpr loadx(const IExpr& base, int64_t offset, int depth)
-{ return IExpr(OP_LOAD, depth, {base.notype(), Expr(offset)}); }
+{
+    IExpr justloaded = IExpr(OP_LOAD, depth, {base.notype(), Expr(offset)});
+    //Currently it's assumed, that all scalar registers are of type i64, even if it is loaded from lesser memory. 
+    return IExpr(OP_REINTERPRET, TYPE_I64, {justloaded.notype()});
+}
 
 template<typename _Tp> IExpr load_(const IExpr& base)
 { return loadx(base, ElemTraits<_Tp>::depth); }
@@ -439,9 +452,8 @@ template<typename _Tp> IExpr load_(const IExpr& base, int64_t offset)
 // store part of register
 static inline void storex(const IExpr& base, const IExpr& r, int depth)
 {
-    Expr r_(r.notype());
-    r_.type() = depth;
-    newiopNoret(OP_STORE, {base.notype(), r_});
+    IExpr typified(OP_REINTERPRET, depth, {r.notype()});
+    newiopNoret(OP_STORE, {base.notype(), typified.notype()});
 }
 static inline void storex(const IExpr& base, int64_t a, int depth)
 {
@@ -451,9 +463,8 @@ static inline void storex(const IExpr& base, int64_t a, int depth)
 }
 static inline void storex(const IExpr& base, const IExpr& offset, const IExpr& r, int depth)
 {
-    Expr r_(r.notype());
-    r_.type() = depth;
-    newiopNoret(OP_STORE, {base.notype(), offset.notype(), r_});
+    IExpr typified(OP_REINTERPRET, depth, {r.notype()});
+    newiopNoret(OP_STORE, {base.notype(), offset.notype(), typified.notype()});
 }
 static inline void storex(const IExpr& base, int64_t offset, const IExpr& r, int depth)
 {
@@ -489,6 +500,10 @@ template<typename _Tp> void store_(const IExpr& base, const IExpr& offset, int64
 { storex(base, offset, a, ElemTraits<_Tp>::depth); }
 template<typename _Tp> void store_(const IExpr& base, int64_t offset, int64_t a)
 { storex(base, offset, a, ElemTraits<_Tp>::depth); }
+
+template<typename _Dp> IExpr reinterpret(const IExpr& a)
+{ return IExpr(OP_REINTERPRET, ElemTraits<_Dp>::depth, {a.notype()}); }
+template<typename _Dp> IExpr reinterpret(const IReg& a) {return reinterpret<_Dp>(IExpr(a));}
 
 // Integer arithmetic and bitwise operations:
 static inline IExpr operator + (const IExpr& a, const IExpr& b)

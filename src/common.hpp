@@ -7,6 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_COMMON_HPP__
 
 #include "loops/loops.hpp"
+#include "runtime.hpp"
 #include <functional>
 #include <set>
 #include <stack>
@@ -15,20 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <memory>
 #include <atomic>
 
-#define LOOPS_ASSERT_LINE_(x) #x
-#define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
-
-#undef Assert
-#define Assert(expr) \
-    if (expr)        \
-        ;            \
-    else             \
-        throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
-#define AssertMsg(expr, msg) \
-    if (expr)                \
-        ;                    \
-    else                     \
-        throw std::runtime_error(msg)
+char* loops_strncpy(char* dest, const char* src, std::size_t count);
 
 namespace loops
 {
@@ -146,12 +134,22 @@ namespace loops
 
     enum ArgFlags
     {
-        AF_ADDRESS = 1,
-        AF_LOWER32 = 2, // 010
-        AF_LOWER16 = 4, // 100
-        AF_LOWER8 = 6,  // 110
-        AF_NOPRINT = 8,
-        AF_PRINTOFFSET = 16,
+        AF_ADDRESS8    = 0b000000000000001,
+        AF_ADDRESS16   = 0b000000000000010,
+        AF_ADDRESS32   = 0b000000000000100,
+        AF_ADDRESS64   = 0b000000000001000,
+        AF_ADDRESS     = AF_ADDRESS8 | AF_ADDRESS16 | AF_ADDRESS32 | AF_ADDRESS64,
+        AF_INPUT       = 0b000000000010000,
+        AF_OUTPUT      = 0b000000000100000,
+        AF_PRINTOFFSET = 0b000000001000000,
+        AF_EFFECTIVE64 = 0b000000010000000,
+        AF_CONDITION   = 0b000000100000000,
+        AF_UNSIGNED    = 0b000001000000000,
+        AF_LANEINDEX   = 0b000010000000000,
+        AF_VREGRANGE   = 0b000100000000000, //VReg is part of range of VRegs.
+        AF_NOTYPE      = 0b001000000000000, //This flag is used to show, that operation doesn't distinuish type of elements of vector argument
+        AF_HALFLANES   = 0b010000000000000, //Use only first half of VReg's lanes
+        AF_REDUCED     = 0b100000000000000, //SIMD register have only first valueable element after reduce operation
     };
 
     inline int invertCondition(int condition)
@@ -245,13 +243,11 @@ namespace loops
 
     struct Syntop
     {
-    private:
+    public:
         enum
         {
             SYNTOP_ARGS_MAX = 10
         };
-
-    public:
         int opcode;
         Arg args[SYNTOP_ARGS_MAX];
         int args_size;

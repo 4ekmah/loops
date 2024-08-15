@@ -105,7 +105,7 @@ BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
    , fieldOflags(0)
    , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
-    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_ADDRESS && tag != T_OFFSET && tag != T_STACKOFFSET && tag != T_SPILLED && tag != T_OMIT)
+    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_SPILLED && tag != T_OMIT)
         throw std::runtime_error("Binary translator: wrong token constructor.");
     if(tag == T_OMIT && fieldsize != 0) 
         throw std::runtime_error("Binary translator: omit immediate must not have field width.");
@@ -129,6 +129,8 @@ BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(ls
 
 void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
+    if(m_compound.size() == 0) 
+        return;
     if (bits == nullptr)
         throw std::runtime_error("Binary translator: null writer pointer.");
     bits->startInstruction();
@@ -150,9 +152,6 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_IMMEDIATE):
-        case (Token::T_ADDRESS):
-        case (Token::T_OFFSET):
-        case (Token::T_STACKOFFSET):
             if (op.args[det.srcArgnum].tag != Arg::IIMMEDIATE)
                 throw std::runtime_error("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
@@ -179,17 +178,9 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         case (Token::T_REG):
             piece = op.args[det.srcArgnum].idx;
             break;
-        case (Token::T_ADDRESS):
-        {
-            //                canvas->m_addresses.push_back(bits->bitaddress()); //TODO(ch): Place adresses postions somewhere! I think, into FuncImpl.
-        }
         case (Token::T_IMMEDIATE):
-        case (Token::T_OFFSET):
-        case (Token::T_STACKOFFSET):
         case (Token::T_SPILLED):
             piece = static_cast<uint64_t>(op.args[det.srcArgnum].value);
-            if(det.fieldOflags & Token::T_INVERT_IMM)
-                piece = ~piece;
             if (det.tag == Token::T_SPILLED)
                 piece *= 8; //TODO(ch): It's intel-specific(well, actually ISPILLED is also intel specific.) 
             if (bits->getBackend()->isLittleEndianOperands())
