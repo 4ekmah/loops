@@ -9,6 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "printer.hpp"
 #include "backend_aarch64.hpp"
 #include "backend_intel64.hpp"
+#include "backend_riscV.hpp"
 #include "backend.hpp"
 #include "reg_allocator.hpp"
 #include "common.hpp"
@@ -59,6 +60,8 @@ static void finalize(void)
     backend_aarch64_h_deinitialize();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
     backend_intel64_h_deinitialize();
+#elif __LOOPS_ARCH == __LOOPS_RISCV
+    backend_riscv_h_deinitialize();
 #else
 #error Unknown CPU
 #endif
@@ -78,6 +81,8 @@ static void loops_initialize()
     err = backend_aarch64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
     err = backend_intel64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
+#elif __LOOPS_ARCH == __LOOPS_RISCV
+    err = backend_riscv_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
 #else
 #error Unknown CPU
 #endif
@@ -736,6 +741,8 @@ namespace loops
         std::shared_ptr<Aarch64Backend> backend = std::make_shared<Aarch64Backend>();
 #elif __LOOPS_ARCH == __LOOPS_INTEL64
         std::shared_ptr<Intel64Backend> backend = std::make_shared<Intel64Backend>();
+#elif __LOOPS_ARCH == __LOOPS_RISCV
+        std::shared_ptr<RiscVBackend> backend = std::make_shared<RiscVBackend>();
 #endif
         m_backend = std::static_pointer_cast<Backend>(backend);
     }

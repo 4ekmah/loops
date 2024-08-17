@@ -39,6 +39,8 @@ static inline std::string ARCHname()
     return "Intel64";
 #elif __LOOPS_ARCH == __LOOPS_AARCH64
     return "Aarch64";
+#elif __LOOPS_ARCH == __LOOPS_RISCV
+    return "RiscV";
 #else
 #error Unknown CPU
 #endif
