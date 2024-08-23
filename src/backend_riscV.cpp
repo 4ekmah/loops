@@ -13,6 +13,9 @@ See https://github.com/4ekmah/loops/LICENSE
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ADD, "add"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_RET, "ret"   ),
+
     LOOPS_HASHMAP_ELEM(loops::INTEL64_MOV   , "mov"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSX , "movsx" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSXD, "movsxd"),
@@ -76,7 +79,7 @@ void backend_riscv_h_deinitialize()
 
 namespace loops
 {
-    enum Intel64Reg
+    enum RiscVReg
     {
         RAX =  0,
         RCX =  1,
@@ -93,7 +96,40 @@ namespace loops
         R12 = 12,
         R13 = 13,
         R14 = 14,
-        R15 = 15
+        R15 = 15,
+
+        ZERO =  0,
+        RA   =  1,
+        SP   =  2,
+        GP   =  3,
+        TP   =  4,
+        LR   =  5,
+        T1   =  6,
+        T2   =  7,
+        FP   =  8,
+        S1   =  9,
+        A0   = 10,
+        A1   = 11,
+        A2   = 12,
+        A3   = 13,
+        A4   = 14,
+        A5   = 15,
+        A6   = 16,
+        A7   = 17,
+        S2   = 18,
+        S3   = 19,
+        S4   = 20,
+        S5   = 21,
+        S6   = 22,
+        S7   = 23,
+        S8   = 24,
+        S9   = 25,
+        S10  = 26,
+        S11  = 27,
+        T3   = 28,
+        T4   = 29,
+        T5   = 30,
+        T6   = 31,
     }; 
 
     static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits)
@@ -110,6 +146,26 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {
+            
+
+        case (RISCV_ADD):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG) //DUBUG: that's fake encoding
+                return BiT({ BTsta(0, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
+            break;
+        case (RISCV_RET): return BiT({ BTsta(0b0000000000000001000000001100111, 32) });
+
+        
+ 
+
+
+
+
+
+
+
+
+
+
         case (INTEL64_MOVSX):
             if ((index.size() != 2 && index.size() != 3) || index[0].tag != Arg::IREG || index[1].tag != Arg::IREG)
                 break;
@@ -992,6 +1048,14 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {
+        case (OP_ADD):     return SyT(RISCV_ADD,  { SAcop(0), SAcop(1), SAcop(2) }); //DUBUG: immediate-conataining have to be converted to ADDI(except addition zero, there is special register for it)
+        case (OP_RET):     return SyT(RISCV_RET, {});
+
+
+
+
+
+
         case(OP_LOAD):
             if (index.size() == 2)
             {
@@ -1042,7 +1106,6 @@ namespace loops
             break;
         case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
         case (OP_X86_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
-        case (OP_ADD):     return SyT(INTEL64_ADD,  { SAcop(0), SAcop(2) });
         case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
         case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
         case (OP_MOD):     
@@ -1110,7 +1173,6 @@ namespace loops
             if(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED))
                 return SyT(INTEL64_CALL, { SAcop(0) });
             break;
-        case (OP_RET):     return SyT(INTEL64_RET, {});
         case (OP_LABEL):   return SyT(INTEL64_LABEL, { SAcop(0) });
         default:
             break;
@@ -1158,26 +1220,26 @@ namespace loops
         m_s2blookup = i64BTLookup;
         m_s2slookup = i64STLookup;
         m_vectorRegisterBits = 256; // AVX2???
-        m_isLittleEndianInstructions = false;
-        m_isLittleEndianOperands = true;
+        m_isLittleEndianInstructions = true;
+        m_isLittleEndianOperands = false;
         m_isMonowidthInstruction = false;
         m_offsetShift = 0;
         m_callerStackIncrement = 1;
         m_postInstructionOffset = true;
         m_registersAmount = 40;
-        m_name = "Intel64";
+        m_name = "Risc-V";
         m_beforeRegAllocPasses.push_back(Intel64BRASnippets::make(this));
         m_afterRegAllocPasses.push_back(Intel64ARASnippets::make(this));
-#if __LOOPS_OS == __LOOPS_WINDOWS
-        m_parameterRegisters[RB_INT] = { RCX, RDX, R8, R9 };
-        m_returnRegisters[RB_INT] = { RAX };
-        m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, RSI, RDI, R12, R13, R14, R15 };
-#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-        m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX, R8, R9 };
-        m_returnRegisters[RB_INT] = { RAX, RDX };
-        m_callerSavedRegisters[RB_INT] = { R10, R11 };
-        m_calleeSavedRegisters[RB_INT] = { RBX, R12, R13, R14, R15 };
+#if __LOOPS_OS == __LOOPS_LINUX
+        m_parameterRegisters[RB_INT] = { A0, A1, A2, A3, A4, A5, A6, A7 };
+        m_returnRegisters[RB_INT] = { A0, A1 };
+        m_callerSavedRegisters[RB_INT] = { T1, T2, T3, T4, T5, T6 };
+        m_calleeSavedRegisters[RB_INT] = { S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11 };
+
+        // m_parameterRegisters[RB_INT] = { RDI, RSI, RDX, RCX, R8, R9 };
+        // m_returnRegisters[RB_INT] = { RDI };
+        // m_callerSavedRegisters[RB_INT] = { R10, R11 };
+        // m_calleeSavedRegisters[RB_INT] = { RBX, R12, R13, R14, R15 };
 #else
 #error Unknown OS
 #endif
@@ -1187,7 +1249,7 @@ namespace loops
     {}
 
     std::set<int> RiscVBackend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
-    {
+    { //DUBUG: Looks like this function have't to be used for risc-v
         switch (a_op.opcode)
         {
         case(OP_MOV):
@@ -1200,7 +1262,7 @@ namespace loops
         case(OP_OR):
         case(OP_XOR):
         case(OP_X86_ADC):
-        case(OP_ADD):
+        // case(OP_ADD):
         case(OP_SUB):
         case(OP_SHL):
         case(OP_SHR):
@@ -1260,7 +1322,7 @@ namespace loops
         switch (a_op.opcode)
         {
         case OP_X86_ADC:
-        case OP_ADD:
+        // case OP_ADD: //DUBUG: delete!
         case OP_MUL:
         case OP_AND:
         case OP_OR:
@@ -1344,7 +1406,7 @@ namespace loops
         switch (a_op.opcode)
         {
             case (OP_X86_ADC):
-            case (OP_ADD):
+            // case (OP_ADD): //DUBUG: delete!
             case (OP_SUB):
             case (OP_MUL):
             case (OP_MOD):
@@ -1519,7 +1581,7 @@ namespace loops
 
     Arg RiscVBackend::getSParg() const
     {
-        return argReg(RB_INT, RSP);
+        return argReg(RB_INT, SP);
     }
 
     column_printer RiscVBackend::get_opname_printer() const
@@ -1572,10 +1634,11 @@ namespace loops
             colprinter->auxdata = argaux;
         }
 
-        static const char* rnames[4][16] = { { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b" },
-            { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w",  "r9w", "r10w", "r11w" , "r12w" , "r13w" , "r14w" , "r15w" },
-            { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d", "r15d" },
-            { "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",  "r9", "r10", "r11" , "r12" , "r13" , "r14" , "r15" },
+        //DUBUG: Printer have to be rewrited fully. This names corrections are emergency workaround.
+        static const char* rnames[4][32] = { { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+            { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w",  "r9w", "r10w", "r11w" , "r12w" , "r13w" , "r14w" , "r15w", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+            { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d", "r15d", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+            { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" },
             };
 
         Syntop* op = program + row;
@@ -1856,7 +1919,7 @@ namespace loops
             case OP_OR:
             case OP_XOR:
             case OP_X86_ADC:
-            case OP_ADD:
+            // case OP_ADD:
             case OP_MUL:
             {
                 Syntop op_ = op;
@@ -2060,14 +2123,10 @@ namespace loops
             case OP_CALL_NORET:
             {
 
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                std::vector<int> parameterRegisters = { RCX, RDX, R8, R9 };
-                std::vector<int> returnRegisters = { RAX };
-                std::vector<int> callerSavedRegisters = { R10, R11 };
-#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-                std::vector<int> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
-                std::vector<int> returnRegisters = { RAX, RDX };
-                std::vector<int> callerSavedRegisters = { R10, R11 };
+#if __LOOPS_OS == __LOOPS_LINUX
+                std::vector<int> parameterRegisters = { A0, A1, A2, A3, A4, A5, A6, A7 };
+                std::vector<int> returnRegisters = { A0, A1 };
+                std::vector<int> callerSavedRegisters = { T1, T2, T3, T4, T5, T6 };
 #else
 #error Unknown OS
 #endif

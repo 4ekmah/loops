@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "testregress/test_math.hpp"
 #include "testregress/test_aarch64.hpp"
 #include "testregress/test_intel64.hpp"
+#include "testregress/test_riscV.hpp"
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv)
