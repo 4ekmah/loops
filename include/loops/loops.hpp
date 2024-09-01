@@ -83,7 +83,7 @@ enum {
     OP_LOGICAL_NOT      =  42,
     
     OP_JMP              =  43, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
-    OP_JCC              =  44, //OP_JCC <cmpcode>, <target_label>
+    OP_JCC              =  44, //OP_JCC <cmpcode>, <target_label> | In Risc-V on latest stages it can look like OP_JCC <cmpcode>, <reg1>, <reg2>, <target_label> //DUBUG: IR printer have to be adopted!
     OP_RET              =  45,
     OP_CALL             =  46, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
     OP_CALL_NORET       =  47, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)

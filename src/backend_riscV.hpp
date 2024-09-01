@@ -17,8 +17,24 @@ void backend_riscv_h_deinitialize();
 namespace loops
 {
     enum {
-        RISCV_ADD      =  0,
-        RISCV_RET      =  1,
+        RISCV_LW       =  0,
+        RISCV_SW       =  1,
+        RISCV_MV       =  2,
+        RISCV_ADD      =  3,
+        RISCV_ADDI     =  4,
+        RISCV_MUL      =  5,
+        RISCV_DIV      =  6,
+        RISCV_REM      =  7,
+        RISCV_BEQ      =  8,
+        RISCV_BNE      =  9,
+        RISCV_BLT      = 10,
+        RISCV_BGE      = 11,
+        RISCV_BLTU     = 12,
+        RISCV_BGEU     = 13,
+        RISCV_J        = 14,
+        RISCV_LABEL    = 15,
+        RISCV_RET      = 16,
+
         INTEL64_MOV    =  0+100,
         INTEL64_MOVSX  =  1+100,
         INTEL64_MOVSXD =  2+100,
@@ -72,7 +88,6 @@ namespace loops
     public:
         RiscVBackend();
         virtual ~RiscVBackend() override;
-        virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const override final;
         virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
         virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;

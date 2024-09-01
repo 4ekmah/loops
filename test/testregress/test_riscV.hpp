@@ -68,7 +68,7 @@ using namespace loops;
 //     }
 // }
 
-TEST(riscv, instruction_set_test)
+TEST(riscV, instruction_set_test)
 {
     Context ctx;
     USE_CONTEXT_(ctx);
@@ -79,10 +79,40 @@ TEST(riscv, instruction_set_test)
         DEFINE_ASSEMBLY_REG(zero, 0);
         DEFINE_ASSEMBLY_REG(t6, 31);
 
+        newiopNoret(OP_MOV, { zero, zero});
+        newiopNoret(OP_MOV, { t6  , zero});
+        newiopNoret(OP_MOV, { zero, t6  });
+        newiopNoret(OP_MOV, { zero, immtyped<int64_t>(0    , _f)});
+        newiopNoret(OP_MOV, { t6  , immtyped<int64_t>(0    , _f)});
+        newiopNoret(OP_MOV, { zero, immtyped<int64_t>(1    , _f)});
+        newiopNoret(OP_MOV, { t6  , immtyped<int64_t>(1    , _f)});
+        newiopNoret(OP_MOV, { zero, immtyped<int64_t>(2047 , _f)});
+        newiopNoret(OP_MOV, { zero, immtyped<int64_t>(-2048, _f)});
+
         newiopNoret(OP_ADD, { zero, zero, zero });
         newiopNoret(OP_ADD, {   t6, zero, zero });
         newiopNoret(OP_ADD, { zero,   t6, zero });
         newiopNoret(OP_ADD, { zero, zero,   t6 });
+        newiopNoret(OP_ADD, { zero, zero, immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_ADD, { t6  , zero, immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_ADD, { zero, t6  , immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_ADD, { zero, zero, immtyped<int64_t>(2047 , _f) });
+        newiopNoret(OP_ADD, { zero, zero, immtyped<int64_t>(-2048, _f) });
+
+        newiopNoret(OP_MUL, { zero, zero, zero });
+        newiopNoret(OP_MUL, { t6  , zero, zero });
+        newiopNoret(OP_MUL, { zero, t6  , zero });
+        newiopNoret(OP_MUL, { zero, zero, t6   });
+
+        newiopNoret(OP_DIV, { zero, zero, zero });
+        newiopNoret(OP_DIV, { t6  , zero, zero });
+        newiopNoret(OP_DIV, { zero, t6  , zero });
+        newiopNoret(OP_DIV, { zero, zero, t6   });
+
+        newiopNoret(OP_MOD, { zero, zero, zero });
+        newiopNoret(OP_MOD, { t6  , zero, zero });
+        newiopNoret(OP_MOD, { zero, t6  , zero });
+        newiopNoret(OP_MOD, { zero, zero, t6   });
 
         // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
 

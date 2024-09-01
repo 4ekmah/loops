@@ -13,8 +13,24 @@ See https://github.com/4ekmah/loops/LICENSE
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ADD, "add"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_RET, "ret"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LW   , "lw"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SW   , "sw"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_MV   , "mv"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ADD  , "add"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ADDI , "addi" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_MUL  , "mul"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_REM  , "rem"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BEQ  , "beq"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BNE  , "bne"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BLT  , "blt"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BGE  , "bge"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BLTU , "bltu" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_BGEU , "bgeu" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_J    , "j"    ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LABEL, ""     ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_RET  , "ret"  ),
+
 
     LOOPS_HASHMAP_ELEM(loops::INTEL64_MOV   , "mov"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSX , "movsx" ),
@@ -137,7 +153,7 @@ namespace loops
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
     }
-
+//DUBUG: There is certain list of formats for RISC-V instructions. It's better to directly implement these formats and than use them per instruction. Code will become much shorter.
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
         //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
@@ -146,12 +162,130 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {
-            
-
+        case (RISCV_LW):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0b010, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            break;
+        case (RISCV_SW):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+            {//DUBUG: need to check size of immediate!
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                return BiT({ BTomm(1), BTsta(high7, 7), BTreg(0, 5, In), BTreg(2, 5, In), BTsta(low5, 5), BTsta(0b0100011, 7)}); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_MV):
+            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
+                return BiT({ BTsta(0, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) }); //DUBUG: write instruction set test.
+            break;
         case (RISCV_ADD):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG) //DUBUG: that's fake encoding
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
                 return BiT({ BTsta(0, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
             break;
+        case (RISCV_ADDI):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            break;
+        case (RISCV_MUL):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+            break;
+        case (RISCV_DIV):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b100, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+            break;
+        case (RISCV_REM):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b110, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+            break;
+
+// imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
+        case (RISCV_BEQ):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_BNE):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b001, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_BLT):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b100, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_BGE):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b101, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_BLTU):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b110, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_BGEU):
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 1) == 0)
+            {
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                uint64_t highest_bit = (high7 >> 6) & 0b1;
+                low5 = (low5 & 0b11110) | highest_bit;
+                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b111, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+            }
+            break;
+        case (RISCV_J):
+            if (index.size() == 1 && index[0].tag == Arg::IIMMEDIATE && (index[0].tag & 1) == 0) //DUBUG: need to check size of immediate!
+            {
+                //imm[20|10:1|11|19:12]
+                uint64_t imm = index[1].value & 0b11111111111111111111;
+                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 20; 
+                imm = sign_bit                                | 
+                      ((imm & 0b000000000011111111110) << 8 ) | 
+                      ((imm & 0b000000000100000000000) >> 3 ) | 
+                      ((imm & 0b011111111000000000000) >> 12);
+                return BiT({ BTomm(0), BTsta(imm, 20), BTsta(0b000001101111, 12) });
+            }
+            break;
+        case (RISCV_LABEL): return BiT({});
         case (RISCV_RET): return BiT({ BTsta(0b0000000000000001000000001100111, 32) });
 
         
@@ -1048,68 +1182,157 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {
-        case (OP_ADD):     return SyT(RISCV_ADD,  { SAcop(0), SAcop(1), SAcop(2) }); //DUBUG: immediate-conataining have to be converted to ADDI(except addition zero, there is special register for it)
-        case (OP_RET):     return SyT(RISCV_RET, {});
-
-
-
-
-
-
         case(OP_LOAD):
             if (index.size() == 2)
             {
                 switch (index[0].elemtype)
                 {
-                case (TYPE_I8):
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1) });
-                case (TYPE_U8):
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1) });
-                case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(1) });
-                case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
-                case (TYPE_FP32): case (TYPE_FP64):
-                    return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
+                // case (TYPE_I8):
+                // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1) });
+                // case (TYPE_U8):
+                // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1) });
+                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(1), SAimm(0) });
+                // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
+                // case (TYPE_FP32): case (TYPE_FP64):
+                //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
                 default: break;
                 }
             }
-            else if (index.size() == 3)
+            else if (index.size() == 3 && index[2].tag == Arg::IIMMEDIATE)
             {
                 switch (index[0].elemtype)
                 {
-                case (TYPE_I8):
-                case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1), SAcop(2) });
-                case (TYPE_U8):
-                case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1), SAcop(2) });
-                case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(1), SAcop(2) });
-                case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
-                case (TYPE_FP32): case (TYPE_FP64):
-                    return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+                // case (TYPE_I8):
+                // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1), SAcop(2) });
+                // case (TYPE_U8):
+                // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1), SAcop(2) });
+                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(1), SAcop(2) });
+                // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
+                // case (TYPE_FP32): case (TYPE_FP64):
+                //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
                 default: break;
                 }
             }
-            break;
+            break;    
         case (OP_STORE):
-            if (index.size() == 2)
-                return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1) });
-            else if (index.size() == 3)
-                return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
+            if (index.size() == 2 && index[1].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
+                return SyT(RISCV_SW, { SAcop(1), SAimm(0), SAcop(0) });
+            else if (index.size() == 3 && index[2].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
+                return SyT(RISCV_SW, { SAcop(1), SAcop(2), SAcop(0) });
             break;
-        case (OP_MOV):
-            if(index.size() == 2)
+        case (OP_ADD):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
             {
-                //TODO(ch): This trick (mov ax, 0 -> xor ax, ax) must be done in different place and, obviously not in architecture-dependent code.
-                if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0) 
-                    return SyT(INTEL64_XOR,  { SAcop(0), SAcop(0) });
-                else
-                    return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
+                if(index[2].tag == Arg::IREG)
+                    return SyT(RISCV_ADD,  { SAcop(0), SAcop(1), SAcop(2) });
+                else if(index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAcop(2) });
             }
             break;
+        case (OP_MOV):
+            if(index.size() == 2 && index[0].tag == Arg::IREG)
+            {
+                if(index[1].tag == Arg::IREG)
+                    return SyT(RISCV_MV,  { SAcop(0), SAcop(1) });
+                else if(index[1].tag == Arg::IIMMEDIATE)
+                {
+                    if(index[1].value == 0)
+                        return SyT(RISCV_MV,  { SAcop(0), SAreg(ZERO) });
+                    else
+                        return SyT(RISCV_ADDI,  { SAcop(0), SAreg(ZERO), SAcop(1)});
+                }
+            }
+            break;
+        case (OP_MUL): return SyT(RISCV_MUL,  { SAcop(0), SAcop(1), SAcop(2) });
+        case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
+        case (OP_MOD): return SyT(RISCV_REM,  { SAcop(0), SAcop(1), SAcop(2) });
+        case (OP_JCC):
+            if(index.size() == 4 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE)
+            {
+                switch (index[0].value)
+                {
+                case (OP_EQ):  return SyT(RISCV_BEQ,  { SAcop(1), SAcop(2), SAcop(3) });
+                case (OP_NE):  return SyT(RISCV_BNE,  { SAcop(1), SAcop(2), SAcop(3) });
+                case (OP_LT):  return SyT(RISCV_BLT,  { SAcop(1), SAcop(2), SAcop(3) });
+                case (OP_GT):  return SyT(RISCV_BLT,  { SAcop(2), SAcop(1), SAcop(3) });
+                case (OP_GE):  return SyT(RISCV_BGE,  { SAcop(1), SAcop(2), SAcop(3) });
+                case (OP_LE):  return SyT(RISCV_BGE,  { SAcop(2), SAcop(1), SAcop(3) });
+                case (OP_UGT): return SyT(RISCV_BLTU, { SAcop(2), SAcop(1), SAcop(3) });
+                case (OP_ULE): return SyT(RISCV_BGEU, { SAcop(2), SAcop(1), SAcop(3) });
+                default:
+                    break;
+                };
+            }
+            break;
+        case (OP_JMP):     return SyT(RISCV_J, { SAcop(0) });
+        case (OP_LABEL):   return SyT(RISCV_LABEL, { SAcop(0) });
+        case (OP_RET):     return SyT(RISCV_RET, {});
+
+
+//      load.i32  i2, i7      //more loads to god of loads! And signed too!
+//      cmp i0, i1      
+//      cmp i0, 0
+//      jmp_ge 2/*lt,gt, ..etc*/
+//      jmp 0 
+//      store.i32 i13, i6     //more stores to god of stores!
+
+
+
+
+        // case(OP_LOAD):
+        //     if (index.size() == 2)
+        //     {
+        //         switch (index[0].elemtype)
+        //         {
+        //         case (TYPE_I8):
+        //         case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1) });
+        //         case (TYPE_U8):
+        //         case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1) });
+        //         case (TYPE_I32): return SyT(INTEL64_MOVSXD,{ SAcop(0), SAcop(1) });
+        //         case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
+        //         case (TYPE_FP32): case (TYPE_FP64):
+        //             return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
+        //         default: break;
+        //         }
+        //     }
+        //     else if (index.size() == 3)
+        //     {
+        //         switch (index[0].elemtype)
+        //         {
+        //         case (TYPE_I8):
+        //         case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1), SAcop(2) });
+        //         case (TYPE_U8):
+        //         case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1), SAcop(2) });
+        //         case (TYPE_I32): return SyT(INTEL64_MOVSXD, { SAcop(0), SAcop(1), SAcop(2) });
+        //         case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
+        //         case (TYPE_FP32): case (TYPE_FP64):
+        //             return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+        //         default: break;
+        //         }
+        //     }
+        //     break;
+        // case (OP_STORE):
+        //     if (index.size() == 2)
+        //         return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1) });
+        //     else if (index.size() == 3)
+        //         return SyT(INTEL64_MOV, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
+        //     break;
+        // case (OP_MOV):
+        //     if(index.size() == 2)
+        //     {
+        //         //TODO(ch): This trick (mov ax, 0 -> xor ax, ax) must be done in different place and, obviously not in architecture-dependent code.
+        //         if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0) 
+        //             return SyT(INTEL64_XOR,  { SAcop(0), SAcop(0) });
+        //         else
+        //             return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
+        //     }
+        //     break;
         case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
         case (OP_X86_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
         case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
-        case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
-        case (OP_MOD):     
-        case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
+        // case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
+        // case (OP_MOD):     
+        // case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
         case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
@@ -1152,28 +1375,28 @@ namespace loops
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
-        case (OP_JCC):
-            if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE)
-            {
-                switch (index[0].value)
-                {
-                case (OP_NE):  return SyT(INTEL64_JNE, { SAcop(1) });
-                case (OP_EQ):  return SyT(INTEL64_JE,  { SAcop(1) });
-                case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1) });
-                case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1) });
-                case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1) });
-                case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1) });
-                default:
-                    break;
-                };
-            }
-            break;
-        case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0) });
+        // case (OP_JCC):
+        //     if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IIMMEDIATE)
+        //     {
+        //         switch (index[0].value)
+        //         {
+        //         case (OP_NE):  return SyT(INTEL64_JNE, { SAcop(1) });
+        //         case (OP_EQ):  return SyT(INTEL64_JE,  { SAcop(1) });
+        //         case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1) });
+        //         case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1) });
+        //         case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1) });
+        //         case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1) });
+        //         default:
+        //             break;
+        //         };
+        //     }
+        //     break;
+        // case (OP_JMP):     return SyT(INTEL64_JMP, { SAcop(0) });
         case (OP_CALL_NORET):
             if(index.size() == 1 && (index[0].tag == Arg::IREG || index[0].tag == Arg::ISPILLED))
                 return SyT(INTEL64_CALL, { SAcop(0) });
             break;
-        case (OP_LABEL):   return SyT(INTEL64_LABEL, { SAcop(0) });
+        // case (OP_LABEL):   return SyT(INTEL64_LABEL, { SAcop(0) });
         default:
             break;
         }
@@ -1247,75 +1470,6 @@ namespace loops
 
     RiscVBackend::~RiscVBackend()
     {}
-
-    std::set<int> RiscVBackend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
-    { //DUBUG: Looks like this function have't to be used for risc-v
-        switch (a_op.opcode)
-        {
-        case(OP_MOV):
-            if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
-                && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
-                return std::set<int>({});
-            else 
-                return (toFilter.size() < 2) ? toFilter : std::set<int>({ 1 });
-        case(OP_AND):
-        case(OP_OR):
-        case(OP_XOR):
-        case(OP_X86_ADC):
-        // case(OP_ADD):
-        case(OP_SUB):
-        case(OP_SHL):
-        case(OP_SHR):
-        case(OP_SAR):
-        {
-            Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
-            std::set<int> res = toFilter;
-            res.erase(1);
-            res = (res.size() < 2) ? res : std::set<int>({ 0 });
-            if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && (res.count(0) || res.count(1)))
-            {
-                res.insert(0);
-                res.insert(1);
-            }
-            return res;
-        }
-        case(OP_DIV):
-        case(OP_MOD):
-        case(OP_MUL):
-            return (toFilter.count(2)) ? std::set<int>({ 2 }) : std::set<int>({ });
-        case(OP_NEG):
-        case(OP_NOT):
-        {
-            Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-            if (toFilter.size() == 2 && a_op[0].idx != a_op[1].idx) //{0,1}
-                return std::set<int>({ 1 });
-            else 
-                return toFilter;
-        }
-        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<int>({ 0 });
-        case(OP_LOAD):
-        case(OP_STORE): return std::set<int>();
-            break;
-        case(OP_SELECT):
-            Assert(a_op.size() == 4);
-            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<int>({2}) : std::set<int>({});
-            break;
-        case(OP_IVERSON):
-            Assert(a_op.size() == 2);
-            return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
-            break;
-        case(OP_ABS):
-            Assert(a_op.size() == 2);
-            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<int>({ 1 }) : std::set<int>({});
-            break;
-        case(OP_CALL):
-        case(OP_CALL_NORET):
-            return std::set<int>({});
-        default:
-            break;
-        }
-        return Backend::filterStackPlaceable(a_op, toFilter);
-    }
 
     int RiscVBackend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
     {
@@ -1408,9 +1562,9 @@ namespace loops
             case (OP_X86_ADC):
             // case (OP_ADD): //DUBUG: delete!
             case (OP_SUB):
-            case (OP_MUL):
-            case (OP_MOD):
-            case (OP_DIV):
+            // case (OP_MUL):
+            // case (OP_MOD):
+            // case (OP_DIV):
             case (OP_AND):
             case (OP_OR):
             case (OP_XOR):
@@ -1469,17 +1623,17 @@ namespace loops
                 }
                 break;
             }
-            case (OP_MOV):
-                //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
-                if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
-                     (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0) )
-                {
-                    actualRegs = makeBitmask64({ 0 });
-                    inRegs = makeBitmask64({});
-                    outRegs = makeBitmask64({ 0 });
-                    bypass = false;
-                }
-                break;
+            // case (OP_MOV):
+            //     //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
+            //     if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
+            //          (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0) )
+            //     {
+            //         actualRegs = makeBitmask64({ 0 });
+            //         inRegs = makeBitmask64({});
+            //         outRegs = makeBitmask64({ 0 });
+            //         bypass = false;
+            //     }
+            //     break;
             case (OP_CALL):
             case (OP_CALL_NORET):
             {
@@ -1590,26 +1744,26 @@ namespace loops
         return ret;
     }
 
-    typedef struct intel64_opargs_printer_aux
+    typedef struct riscV_opargs_printer_aux
     {
         LOOPS_HASHMAP(int, int) pos2opnum;
         LOOPS_SPAN(int) positions;
-    } intel64_opargs_printer_aux;
+    } riscV_opargs_printer_aux;
 
-    static int intel64_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int riscV_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
     {
         int program_size = func->program->size;
         loops::Syntop* program = func->program->data;
         int err;
-        intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
+        riscV_opargs_printer_aux* argaux = (riscV_opargs_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = (intel64_opargs_printer_aux*)malloc(sizeof(intel64_opargs_printer_aux));
+            argaux = (riscV_opargs_printer_aux*)malloc(sizeof(riscV_opargs_printer_aux));
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            memset(argaux, 0, sizeof(intel64_opargs_printer_aux));
+            memset(argaux, 0, sizeof(riscV_opargs_printer_aux));
             err = loops_hashmap_construct(&(argaux->pos2opnum));
             if(err != LOOPS_ERR_SUCCESS)
             {
@@ -1625,24 +1779,17 @@ namespace loops
             }
             for (; opnum < program_size; opnum++)
             {
-                int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
+                int opcode = program[opnum].opcode;
+                int opsize = (opcode == RISCV_LABEL ? 0 : 4);
                 argaux->positions->data[opnum] = oppos;
-                if(program[opnum].opcode == INTEL64_LABEL)
+                if(opcode == RISCV_LABEL)
                     loops_hashmap_add(argaux->pos2opnum, oppos, opnum);
                 oppos += opsize;
             }
             colprinter->auxdata = argaux;
         }
-
-        //DUBUG: Printer have to be rewrited fully. This names corrections are emergency workaround.
-        static const char* rnames[4][32] = { { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
-            { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w",  "r9w", "r10w", "r11w" , "r12w" , "r13w" , "r14w" , "r15w", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
-            { "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d",  "r9d", "r10d", "r11d" , "r12d" , "r13d" , "r14d", "r15d", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
-            { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" },
-            };
-
-        Syntop* op = program + row;
         
+        Syntop* op = program + row;
         uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
         printer->backend->fill_native_operand_flags(op, operand_flags);
         int aamount = op->args_size;
@@ -1650,12 +1797,13 @@ namespace loops
         for(int anum = 0; anum < aamount ; anum++)
         {
             Arg arg = op->args[anum];
+            //Exceptions block:
             if (operand_flags[anum] & AF_PRINTOFFSET)
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-                int offset2find = argaux->positions->data[row + 1] + (int)arg.value;
+                int offset2find = argaux->positions->data[row + 1] + 4 * (int)arg.value - 4;
                 err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
                 if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
@@ -1663,9 +1811,9 @@ namespace loops
                     LOOPS_THROW(err);
                 Assert(targetline >= 0);
                 Syntop* labelop = program + targetline;
-                Assert(labelop->opcode == INTEL64_LABEL);
-                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
-                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+                Assert(labelop->opcode == RISCV_LABEL);
+                Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1);
+                Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
                 LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
                 continue;
             }
@@ -1673,105 +1821,127 @@ namespace loops
             bool address = (argflags & AF_ADDRESS);
             bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
             bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
-            static const char* address_opener_brackets[4] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr ["};
-            if (address_start)
-            {
-                int opener_idx = argflags & AF_ADDRESS8  ? 0 : (
-                                 argflags & AF_ADDRESS16 ? 1 : (
-                                 argflags & AF_ADDRESS32 ? 2 : 
-                               /*argflags & AF_ADDRESS64*/ 3 ));
-                LOOPS_CALL_THROW(loops_printf(printer, "%s", address_opener_brackets[opener_idx]));
-            }
+            bool vrange = (argflags & AF_VREGRANGE);
+            bool vrange_start = vrange && (anum == 0 || !(operand_flags[anum - 1] & AF_VREGRANGE));
+            bool vrange_end = vrange && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_VREGRANGE));
+            bool indexed_vreg = false;
+            Assert(!(address && vrange));
+            if (vrange_start)
+                LOOPS_CALL_THROW(loops_printf(printer, "{"));
+            else if (address_start)
+                LOOPS_CALL_THROW(loops_printf(printer, "["));
             switch (arg.tag)
             {
-            case Arg::IREG:
-            {
-                int regsize_idx = 3;
-                if(argflags & AF_EFFECTIVE64)
-                    regsize_idx = 3;
-                else if(arg.elemtype >= TYPE_U8 && arg.elemtype <= TYPE_FP64)
-                    regsize_idx = elem_size(arg.elemtype) == 1 ? 0 :
-                                    (elem_size(arg.elemtype) == 2 ? 1 : 
-                                    (elem_size(arg.elemtype) == 4 ? 2 : 
-                                  /*(elem_size(arg.elemtype) == 8*/ 3));
-                LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]));
-                break;
-            }
-            case Arg::IIMMEDIATE:
-                if(op->opcode == INTEL64_LABEL)
+                case Arg::IREG:
                 {
-                    Assert(op->args_size == 1);
-                    LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    static const char* rnames[32] = { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" };
+                    LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[arg.idx]));
+                    // if(arg.idx == (int)Syntfunc::RETREG)
+                    //     LOOPS_CALL_THROW(loops_printf(printer, "xR"));
+                    // else if(arg.idx == 31)
+                    //     LOOPS_CALL_THROW(loops_printf(printer, "sp"));
+                    // else
+                    // {
+                    //     bool w32 = false;
+                    //     if((argflags & AF_EFFECTIVE64) == 0)
+                    //     w32 = (arg.elemtype == TYPE_FP32) || (arg.elemtype == TYPE_U32) || (arg.elemtype == TYPE_I32)  ||
+                    //         (arg.elemtype == TYPE_FP16) || (arg.elemtype == TYPE_U16) || (arg.elemtype == TYPE_I16)  ||
+                    //                                         (arg.elemtype == TYPE_U8)  || (arg.elemtype == TYPE_I8);
+                    //     LOOPS_CALL_THROW(loops_printf(printer, "%s%d", (w32 ? "w" : "x"), arg.idx));
+                    // }
                     break;
                 }
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "0h"));
-                else
+                case Arg::VREG:
                 {
-                    uint32_t upper32 = ((uint64_t)arg.value) >> 32;
-                    uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
-                    if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "0%x%08xh", upper32, lower32));
+                    if(argflags & AF_NOTYPE) 
+                    {
+                        LOOPS_CALL_THROW(loops_printf(printer, "q%d", arg.idx));
+                    }
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "0%02xh", lower32));
+                    {
+                        indexed_vreg = anum < aamount - 1 && (operand_flags[anum + 1] & AF_LANEINDEX);
+                        Assert(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
+                        if(indexed_vreg)
+                        {
+                            static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
+                            LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                        }
+                        else
+                        {
+                            static const char* Vsuffixes_full[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
+                            static const char* Vsuffixes_half[] = {"", "8b", "4h", "", "2s", "", "", "", "1d" };
+                            static const char* Vsuffixes_reduced[] = {"", "b", "h", "", "s", "", "", "", "d" };
+                            const char** Vsuffixes = Vsuffixes_full;
+                            if(argflags & AF_HALFLANES)
+                                Vsuffixes = Vsuffixes_half;
+                            if(argflags & AF_REDUCED)
+                            {
+                                Vsuffixes = Vsuffixes_reduced;
+                                LOOPS_CALL_THROW(loops_printf(printer, "%s%d", Vsuffixes[elem_size(arg.elemtype)], arg.idx));
+                            }
+                            else
+                                LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                        }
+                    }
+                    break;
                 }
-#elif __LOOPS_OS == __LOOPS_LINUX
-                if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "0"));
-                else
-                {
-                    uint32_t upper32 = ((uint64_t)arg.value) >> 32;
-                    uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
-                    if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%x%08x", upper32, lower32));
+                case Arg::IIMMEDIATE:
+                    if(op->opcode == RISCV_LABEL)
+                    {
+                        LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    }
+                    else if(argflags & AF_LANEINDEX)
+                    {
+                        Assert(argflags == AF_LANEINDEX && anum > 0 && op->args[anum-1].tag == Arg::VREG);
+                        if(arg.value < 0 || arg.value >= printer->backend->vlanes(op->args[anum-1].elemtype))
+                            LOOPS_THROW(LOOPS_ERR_INCORRECT_LANE_INDEX);
+                        LOOPS_CALL_THROW(loops_printf(printer, "[%d]", arg.value));
+                    }
+                    else if(arg.value == 0)
+                        LOOPS_CALL_THROW(loops_printf(printer, "0"));
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%02x", lower32));
-                }
-#else 
-#error Unknown OS.
-#endif
-                break;
-            case Arg::ISPILLED:
-            {
-                int opener_idx = 3;
-                if (op->opcode == INTEL64_SETNE || op->opcode == INTEL64_SETE || op->opcode == INTEL64_SETGE || op->opcode == INTEL64_SETLE ||
-                    op->opcode == INTEL64_SETG  || op->opcode == INTEL64_SETL || op->opcode == INTEL64_SETS  || op->opcode == INTEL64_SETNS) 
-                    opener_idx = 0;
-                if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp]", address_opener_brackets[opener_idx]));
-                else
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0%02xh]", address_opener_brackets[opener_idx], arg.value * 8));
-#elif __LOOPS_OS == __LOOPS_LINUX
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0x0%02x]", address_opener_brackets[opener_idx], arg.value * 8));
-#else 
-#error Unknown OS.
-#endif
-                break;
-            }
-            default:
-                LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    {
+                        bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
+                        uint32_t upper32;
+                        uint32_t lower32;
+                        if(negative)
+                        {
+                            uint64_t ival = ~((uint64_t)arg.value);
+                            uint64_t lower32_ = (ival & 0xffffffff) + 1;
+                            upper32 = (ival >> 32) + (lower32_ & 0x100000000 ? 1 : 0);
+                            lower32 = lower32_ & 0xffffffff;
+                        }
+                        else
+                        {
+                            upper32 = ((uint64_t)arg.value) >> 32;
+                            lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                        }
+
+                        if (upper32 > 0)
+                            LOOPS_CALL_THROW(loops_printf(printer, "%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
+                        else
+                            LOOPS_CALL_THROW(loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32));
+                    }
+                    break;
+                default:
+                    LOOPS_THROW(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
             };
-            if(address)
-            {
-                if (address_end)
-                    LOOPS_CALL_THROW(loops_printf(printer, "]"));
-                else
-                    LOOPS_CALL_THROW(loops_printf(printer, " + "));
-            }
-            if (anum < aamount - 1 && !(address && !address_end))
+            if (vrange_end)
+                LOOPS_CALL_THROW(loops_printf(printer, "}"));
+            else if (address_end)
+                LOOPS_CALL_THROW(loops_printf(printer, "]"));
+            if (anum < aamount - 1 && !indexed_vreg)
                 LOOPS_CALL_THROW(loops_printf(printer, ", "));
         }
         LOOPS_CALL_THROW(close_printer_cell(printer));
         return LOOPS_ERR_SUCCESS;
     }
-    
-    static void free_intel64_oparg_printer(column_printer* colprinter)
+
+    static void free_riscv_opargs_printer(column_printer* colprinter)
     {
         if (colprinter->auxdata != NULL)
         {
-            intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
+            riscV_opargs_printer_aux* argaux = (riscV_opargs_printer_aux*)colprinter->auxdata;
             loops_hashmap_destruct(argaux->pos2opnum);
             loops_span_destruct(argaux->positions);
             free(argaux);
@@ -1781,26 +1951,17 @@ namespace loops
 
     column_printer RiscVBackend::get_opargs_printer() const
     {
-        column_printer ret = { /*func = */ &intel64_opargs_printer, /*auxdata = */ NULL, /*free_func = */ &free_intel64_oparg_printer };
+        column_printer ret = { /*func = */ &riscV_opargs_printer, /*auxdata = */ NULL, /*free_func = */ &free_riscv_opargs_printer };
         return ret;
     }
 
-    typedef struct pos_size_pair
+    typedef struct riscV_hex_printer_aux
     {
-        int position;
-        int size;
-    } pos_size_pair;
-
-    LOOPS_SPAN_DECLARE(pos_size_pair);
-    LOOPS_SPAN_DEFINE(pos_size_pair)
-
-    typedef struct intel64_hex_printer_aux
-    {
-        LOOPS_SPAN(pos_size_pair) pos_n_sizes;
+        LOOPS_SPAN(int) positions;
         LOOPS_SPAN(uint8_t) binary;
-    } intel64_hex_printer_aux;
+    } riscV_hex_printer_aux;
 
-    static int intel64_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int riscV_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
     {
         int err;
         int program_size = func->program->size;
@@ -1808,16 +1969,16 @@ namespace loops
         int params_size = func->params->size;
         loops::Arg* params = func->params->data;
 
-        intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
+        riscV_hex_printer_aux* argaux = (riscV_hex_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = (intel64_hex_printer_aux*)malloc(sizeof(intel64_hex_printer_aux));
+            argaux = (riscV_hex_printer_aux*)malloc(sizeof(riscV_hex_printer_aux));
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            memset(argaux, 0, sizeof(intel64_hex_printer_aux));
-            err = loops_span_construct_alloc(&(argaux->pos_n_sizes), program_size); 
+            memset(argaux, 0, sizeof(riscV_hex_printer_aux));
+            err = loops_span_construct_alloc(&(argaux->positions), program_size);
             if (err != LOOPS_ERR_SUCCESS)
             {
                 free(argaux);
@@ -1825,8 +1986,8 @@ namespace loops
             }
             for (; opnum < program_size; opnum++)
             {
-                int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
-                argaux->pos_n_sizes->data[opnum] = {/*position = */oppos, /*size = */opsize};
+                int opsize = (program[opnum].opcode == RISCV_LABEL ? 0 : 4);
+                argaux->positions->data[opnum] = oppos;
                 oppos += opsize;
             }
             {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.
@@ -1836,12 +1997,13 @@ namespace loops
                 tmpfunc.params.resize(params_size);
                 memcpy((void*)tmpfunc.params.data(), (void*)params, params_size * sizeof(Arg));
                 Assembly2Hex a2hPass(printer->backend);
-                a2hPass.process(*((Syntfunc*)(nullptr)), tmpfunc);
+                Syntfunc dummy;
+                a2hPass.process(dummy, tmpfunc);
                 const FuncBodyBuf buffer = a2hPass.result_buffer();
                 err = loops_span_construct_alloc(&(argaux->binary), (int)buffer->size());
                 if (err != LOOPS_ERR_SUCCESS)
                 {
-                    loops_span_destruct(argaux->pos_n_sizes);
+                    loops_span_destruct(argaux->positions);
                     free(argaux);
                     LOOPS_THROW(err);
                 }
@@ -1849,19 +2011,22 @@ namespace loops
             }
             colprinter->auxdata = argaux;
         }
-        unsigned char* hexfield = argaux->binary->data + argaux->pos_n_sizes->data[row].position;
-        for (int pos = 0; pos < argaux->pos_n_sizes->data[row].size; pos++)
-            LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
+        if(program[row].opcode != RISCV_LABEL)
+        {
+            unsigned char* hexfield = argaux->binary->data + argaux->positions->data[row];
+            for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
+                LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
+        }
         LOOPS_CALL_THROW(close_printer_cell(printer));
         return LOOPS_ERR_SUCCESS;
     }
 
-    static void free_intel64_hex_printer(column_printer* colprinter)
+    static void free_riscV_hex_printer(column_printer* colprinter)
     {
         if (colprinter->auxdata != NULL)
         {
-            intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
-            loops_span_destruct(argaux->pos_n_sizes);
+            riscV_hex_printer_aux* argaux = (riscV_hex_printer_aux*)colprinter->auxdata;
+            loops_span_destruct(argaux->positions);
             loops_span_destruct(argaux->binary);
             free(argaux);
             colprinter->auxdata = NULL;
@@ -1870,7 +2035,7 @@ namespace loops
 
     column_printer RiscVBackend::get_hex_printer() const
     {
-        column_printer ret = { /*func = */ &intel64_hex_printer, /*auxdata = */ NULL, /*free_func = */ &free_intel64_hex_printer };
+        column_printer ret = { /*func = */ &riscV_hex_printer, /*auxdata = */ NULL, /*free_func = */ &free_riscV_hex_printer };
         return ret;
     }
 
@@ -1920,7 +2085,7 @@ namespace loops
             case OP_XOR:
             case OP_X86_ADC:
             // case OP_ADD:
-            case OP_MUL:
+            // case OP_MUL:
             {
                 Syntop op_ = op;
                 Assert(op_.size() == 3 && regOrSpi(op_[0]));
@@ -2006,49 +2171,49 @@ namespace loops
                 }
                 break;
             }
-            case OP_DIV:
-            case OP_MOD:
-            {
-                Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
-                bool unspillRax = false;;
-                if (op[0].idx != RAX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    unspillRax = true;
-                }
-                bool unspillRdx = false;
-                if (op[0].idx != RDX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    unspillRdx = true;
-                }
-                Arg effectiveDivider = op[2];
-                if (op[2].tag == Arg::IREG && op[2].idx == RAX)
-                {
-                    if (!unspillRax)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    effectiveDivider = argSpilled(RB_INT, 0);
-                }
-                else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
-                {
-                    if (!unspillRdx)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    effectiveDivider = argSpilled(RB_INT, 1);
-                }
-                if (op[1].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
-                a_dest.program.push_back(Syntop(OP_X86_CQO, {}));
-                a_dest.program.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
-                if(op.opcode == OP_DIV && op[0].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
-                if (op.opcode == OP_MOD && op[0].idx != RDX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
-                if (unspillRax)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
-                if (unspillRdx)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
-                break;
-            }
+            // case OP_DIV:
+            // case OP_MOD:
+            // {
+            //     Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
+            //     bool unspillRax = false;;
+            //     if (op[0].idx != RAX)
+            //     {
+            //         a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
+            //         unspillRax = true;
+            //     }
+            //     bool unspillRdx = false;
+            //     if (op[0].idx != RDX)
+            //     {
+            //         a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
+            //         unspillRdx = true;
+            //     }
+            //     Arg effectiveDivider = op[2];
+            //     if (op[2].tag == Arg::IREG && op[2].idx == RAX)
+            //     {
+            //         if (!unspillRax)
+            //             a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
+            //         effectiveDivider = argSpilled(RB_INT, 0);
+            //     }
+            //     else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
+            //     {
+            //         if (!unspillRdx)
+            //             a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
+            //         effectiveDivider = argSpilled(RB_INT, 1);
+            //     }
+            //     if (op[1].idx != RAX)
+            //         a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
+            //     a_dest.program.push_back(Syntop(OP_X86_CQO, {}));
+            //     a_dest.program.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
+            //     if(op.opcode == OP_DIV && op[0].idx != RAX)
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
+            //     if (op.opcode == OP_MOD && op[0].idx != RDX)
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
+            //     if (unspillRax)
+            //         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
+            //     if (unspillRdx)
+            //         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
+            //     break;
+            // }
             case OP_NOT:
             case OP_NEG:
             {
