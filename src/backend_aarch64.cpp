@@ -1376,41 +1376,41 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
     case (AARCH64_B): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x5, 6), BTomm(0, Lab), BTsta(index.args[0] >> 2, 26) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x5, 6), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 26) });
         break;
     //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
     case (AARCH64_B_NE):
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_NE, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_NE, 5) });
         break;
     case (AARCH64_B_EQ): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_EQ, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_EQ, 5) });
         break;
     case (AARCH64_B_LT): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LT, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_LT, 5) });
         break;
     case (AARCH64_B_LE): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LE, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_LE, 5) });
         break;
     case (AARCH64_B_LS): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LS, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_LS, 5) });
         break;
     case (AARCH64_B_GT): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_GT, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_GT, 5) });
         break;
     case (AARCH64_B_HI): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_HI, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_HI, 5) });
         break;
     case (AARCH64_B_GE): 
-        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
-            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_GE, 5) });
+        if(index.args_size == 1 && index.args[0].tag == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0].value >> 2, 19), BTsta(AARCH64_IC_GE, 5) });
         break;
     case (AARCH64_BLR):
         if(index.size() == 1 && index[0].tag == Arg::IREG)
@@ -2110,6 +2110,9 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
     //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
     switch (a_op.opcode)
     {
+        case (OP_JCC):
+        case (OP_JMP):
+            return std::set<int>();
         case (OP_MIN):
         case (OP_MAX):
         {
