@@ -1375,16 +1375,43 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
             return BiT({ BTsta(0b0100111000100000010110, 22), BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
-    case (AARCH64_B): return BiT({ BTsta(0x5, 6), BTimm(0, 26, Lab) });
-        //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
-    case (AARCH64_B_NE): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_NE, 5) });
-    case (AARCH64_B_EQ): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_EQ, 5) });
-    case (AARCH64_B_LT): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_LT, 5) });
-    case (AARCH64_B_LE): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_LE, 5) });
-    case (AARCH64_B_LS): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_LS, 5) });
-    case (AARCH64_B_GT): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_GT, 5) });
-    case (AARCH64_B_HI): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_HI, 5) });
-    case (AARCH64_B_GE): return BiT({ BTsta(0x54,8), BTimm(0, 19, Lab), BTsta(AARCH64_IC_GE, 5) });
+    case (AARCH64_B): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x5, 6), BTomm(0, Lab), BTsta(index.args[0] >> 2, 26) });
+        break;
+    //TODO(ch): there is no B_LT, B_LE, B_GT, B_GE instructions in ARM processors, it's prespecialized versions of B.cond. We must make switchers much more flexible and functional to support real B.cond. Specialization is: fixed condition.
+    case (AARCH64_B_NE):
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_NE, 5) });
+        break;
+    case (AARCH64_B_EQ): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_EQ, 5) });
+        break;
+    case (AARCH64_B_LT): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LT, 5) });
+        break;
+    case (AARCH64_B_LE): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LE, 5) });
+        break;
+    case (AARCH64_B_LS): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_LS, 5) });
+        break;
+    case (AARCH64_B_GT): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_GT, 5) });
+        break;
+    case (AARCH64_B_HI): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_HI, 5) });
+        break;
+    case (AARCH64_B_GE): 
+        if(index.args_size == 1 && index.args[0] == Arg::IIMMEDIATE && (index.args[0].value & 0b11) == 0)
+            return BiT({ BTsta(0x54, 8), BTomm(0, Lab), BTsta(index.args[0] >> 2, 19), BTsta(AARCH64_IC_GE, 5) });
+        break;
     case (AARCH64_BLR):
         if(index.size() == 1 && index[0].tag == Arg::IREG)
             return BiT({ BTsta(0b1101011000111111000000, 22), BTreg(0, 5, In), BTsta(0b00000, 5) });
@@ -1996,7 +2023,6 @@ Aarch64Backend::Aarch64Backend()
     m_isLittleEndianOperands = false;
     m_isMonowidthInstruction = true;
     m_instructionWidth = 4;
-    m_offsetShift = 2;
     m_callerStackIncrement = 2;
     m_postInstructionOffset = false;
     m_registersAmount = 7;
@@ -2327,7 +2353,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
                 LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-            int offset2find = argaux->positions->data[row + 1] + 4 * (int)arg.value - 4;
+            int offset2find = argaux->positions->data[row + 1] + (int)arg.value - 4;
             err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
             if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                 LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);

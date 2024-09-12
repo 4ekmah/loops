@@ -171,7 +171,7 @@ namespace loops
             {//DUBUG: need to check size of immediate!
                 uint64_t low5 = index[1].value & 0x1F;
                 uint64_t high7 = index[1].value >> 5;
-                return BiT({ BTomm(1), BTsta(high7, 7), BTreg(0, 5, In), BTreg(2, 5, In), BTsta(low5, 5), BTsta(0b0100011, 7)}); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(1), BTsta(high7, 7), BTreg(0, 5, In), BTreg(2, 5, In), BTsta(0b010, 3), BTsta(low5, 5), BTsta(0b0100011, 7)}); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_MV):
@@ -184,105 +184,112 @@ namespace loops
             break;
         case (RISCV_ADDI):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
-                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) });
             break;
         case (RISCV_MUL):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
             break;
         case (RISCV_DIV):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b100, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b100, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
             break;
         case (RISCV_REM):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b110, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) }); //DUBUG: write instruction set test.
+                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b110, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
             break;
 
 // imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
         case (RISCV_BEQ):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_BNE):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b001, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b001, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_BLT):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b100, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b100, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_BGE):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b101, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b101, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_BLTU):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b110, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b110, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_BGEU):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 1) == 0)
             {
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 6; 
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
+                uint64_t offset = (uint64_t)index[2].value;
+                uint64_t sign_bit = (offset >> 63) << 6; 
+                uint64_t low5 = offset & 0x1F;
+                uint64_t high7 = offset >> 5;
                 uint64_t highest_bit = (high7 >> 6) & 0b1;
                 low5 = (low5 & 0b11110) | highest_bit;
                 high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b111, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
+                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b111, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
             }
             break;
         case (RISCV_J):
             if (index.size() == 1 && index[0].tag == Arg::IIMMEDIATE && (index[0].tag & 1) == 0) //DUBUG: need to check size of immediate!
             {
+                uint64_t offset = (uint64_t)index[0].value;
                 //imm[20|10:1|11|19:12]
-                uint64_t imm = index[1].value & 0b11111111111111111111;
-                uint64_t sign_bit = (((uint64_t)(index[1].value)) >> 63) << 20; 
+                uint64_t imm = offset & 0b11111111111111111111;
+                uint64_t sign_bit = (offset >> 63) << 19; 
                 imm = sign_bit                                | 
                       ((imm & 0b000000000011111111110) << 8 ) | 
                       ((imm & 0b000000000100000000000) >> 3 ) | 
                       ((imm & 0b011111111000000000000) >> 12);
-                return BiT({ BTomm(0), BTsta(imm, 20), BTsta(0b000001101111, 12) });
+                return BiT({ BTomm(0, Lab), BTsta(imm, 20), BTsta(0b000001101111, 12) });
             }
             break;
         case (RISCV_LABEL): return BiT({});
@@ -1276,7 +1283,9 @@ namespace loops
 //      jmp 0 
 //      store.i32 i13, i6     //more stores to god of stores!
 
+// #define DUBUG_STILL_INTEL
 
+#ifdef DUBUG_STILL_INTEL
 
 
         // case(OP_LOAD):
@@ -1342,7 +1351,7 @@ namespace loops
         case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
         case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
         case (OP_X86_CQO): return SyT(INTEL64_CQO,  {});
-        case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
+        // case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
         case (OP_SELECT): 
             if (index.size() == 4)
             {
@@ -1397,6 +1406,8 @@ namespace loops
                 return SyT(INTEL64_CALL, { SAcop(0) });
             break;
         // case (OP_LABEL):   return SyT(INTEL64_LABEL, { SAcop(0) });
+#endif
+
         default:
             break;
         }
@@ -1404,21 +1415,21 @@ namespace loops
         return SyntopTranslation();
     }
 
-    class Intel64BRASnippets : public CompilerPass
+    class RiscVBRASnippets : public CompilerPass
     {
     public:
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
-        virtual ~Intel64BRASnippets() override {}
+        virtual ~RiscVBRASnippets() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual std::string pass_id() const override final { return "CP_INTEL64_BRA_SNIPPETS"; }
+        virtual std::string pass_id() const override final { return "CP_RISCV_BRA_SNIPPETS"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
-            std::shared_ptr<Intel64BRASnippets> res;
-            res.reset(new Intel64BRASnippets(a_backend));
+            std::shared_ptr<RiscVBRASnippets> res;
+            res.reset(new RiscVBRASnippets(a_backend));
             return std::static_pointer_cast<CompilerPass>(res);
         } 
     private: 
-        Intel64BRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
+        RiscVBRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
     };
 
     class Intel64ARASnippets : public CompilerPass
@@ -1446,12 +1457,11 @@ namespace loops
         m_isLittleEndianInstructions = true;
         m_isLittleEndianOperands = false;
         m_isMonowidthInstruction = false;
-        m_offsetShift = 0;
         m_callerStackIncrement = 1;
-        m_postInstructionOffset = true;
+        m_postInstructionOffset = false;
         m_registersAmount = 40;
         m_name = "Risc-V";
-        m_beforeRegAllocPasses.push_back(Intel64BRASnippets::make(this));
+        m_beforeRegAllocPasses.push_back(RiscVBRASnippets::make(this));
         m_afterRegAllocPasses.push_back(Intel64ARASnippets::make(this));
 #if __LOOPS_OS == __LOOPS_LINUX
         m_parameterRegisters[RB_INT] = { A0, A1, A2, A3, A4, A5, A6, A7 };
@@ -1519,10 +1529,10 @@ namespace loops
         if(basketNum == RB_INT)
             switch (a_op.opcode)
             {
-            case (OP_DIV):
-            case (OP_MOD):
-                return 2;
-                break;
+            // case (OP_DIV):
+            // case (OP_MOD):
+            //     return 2;
+            //     break;
             case (OP_SHL):
             case (OP_SHR):
             case (OP_SAR):
@@ -1803,7 +1813,7 @@ namespace loops
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-                int offset2find = argaux->positions->data[row + 1] + 4 * (int)arg.value - 4;
+                int offset2find = argaux->positions->data[row + 1] + (int)arg.value - 4;
                 err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
                 if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
@@ -2039,16 +2049,36 @@ namespace loops
         return ret;
     }
 
-    void Intel64BRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    void RiscVBRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         a_dest.name = a_source.name;
         a_dest.params = a_source.params;
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.reserve(2 * a_source.program.size());
-        for (const Syntop& op : a_source.program)
-            switch (op.opcode)
+        for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
+        {
+            const Syntop& op = a_source.program[opnum];
+            switch (op.opcode) //DUBUG: do the same for stores, they also doesn't have better double pointer mode.
             {
+            case OP_LOAD:
+                if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
+                {
+                    RegIdx newId = a_dest.provideIdx(RB_INT);
+                    a_dest.program.push_back(Syntop(OP_ADD,  { argReg(RB_INT, newId), op.args[1], op.args[2] }));
+                    a_dest.program.push_back(Syntop(OP_LOAD, { op.args[0], argReg(RB_INT, newId)}));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
+            case OP_CMP:
+                {
+                    Assert(opnum + 1 < (int)a_source.program.size() && a_source.program[opnum + 1].opcode == OP_JCC);
+                    const Syntop& jccop = a_source.program[opnum + 1];
+                    a_dest.program.push_back(Syntop(OP_JCC, { jccop.args[0], op.args[0], op.args[1], jccop.args[1]}));
+                    break;
+                }
+            case OP_JCC: break; //it have to be handled in cmp option.
             case OP_IVERSON:
                 //Unfortunately, Intel's setcc works only with 8-bit wide reigsters, like al or r8b, so register must be preliminarily zeroed.
                 Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && (op[0].tag == Arg::IREG || op[0].tag == Arg::ISPILLED) &&
@@ -2060,6 +2090,7 @@ namespace loops
                 a_dest.program.push_back(op);
                 break;
             }
+        }
     }
 
     void Intel64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
