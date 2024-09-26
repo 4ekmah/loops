@@ -148,163 +148,174 @@ namespace loops
         T6   = 31,
     }; 
 
-    static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits)
+    static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits) //DUBUG:toDel!
     {
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
     }
-//DUBUG: There is certain list of formats for RISC-V instructions. It's better to directly implement these formats and than use them per instruction. Code will become much shorter.
-    BinTranslation i64BTLookup(const Syntop& index, bool& scs)
-    {
-        //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
-        //fixed sizes(in most cases = 32). For space economy, it's better to implement different cases.
-        using namespace BinTranslationConstruction;
-        scs = true;
-        switch (index.opcode)
-        {
-        case (RISCV_LW):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
-                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0b010, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            break;
-        case (RISCV_SW):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
-            {//DUBUG: need to check size of immediate!
-                uint64_t low5 = index[1].value & 0x1F;
-                uint64_t high7 = index[1].value >> 5;
-                return BiT({ BTomm(1), BTsta(high7, 7), BTreg(0, 5, In), BTreg(2, 5, In), BTsta(0b010, 3), BTsta(low5, 5), BTsta(0b0100011, 7)}); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_MV):
-            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
-                return BiT({ BTsta(0, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) }); //DUBUG: write instruction set test.
-            break;
-        case (RISCV_ADD):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(0, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
-            break;
-        case (RISCV_ADDI):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
-                return BiT({ BTimm(2, 12), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0010011, 7) });
-            break;
-        case (RISCV_MUL):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
-            break;
-        case (RISCV_DIV):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b100, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
-            break;
-        case (RISCV_REM):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return BiT({ BTsta(1, 7), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b110, 3), BTreg(0, 5, Out), BTsta(0b0110011, 7) });
-            break;
 
-// imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
-        case (RISCV_BEQ):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_BNE):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b001, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_BLT):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b100, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_BGE):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b101, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_BLTU):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 0b1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b110, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_BGEU):
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].tag & 1) == 0)
-            {
-                uint64_t offset = (uint64_t)index[2].value;
-                uint64_t sign_bit = (offset >> 63) << 6; 
-                uint64_t low5 = offset & 0x1F;
-                uint64_t high7 = offset >> 5;
-                uint64_t highest_bit = (high7 >> 6) & 0b1;
-                low5 = (low5 & 0b11110) | highest_bit;
-                high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-                return BiT({ BTomm(2, Lab), BTsta(high7, 7), BTreg(1, 5, In), BTreg(0, 5, In), BTsta(0b111, 3), BTsta(low5, 5),BTsta(0b1100011, 7) }); //DUBUG: immediate is signed, write correct tests.
-            }
-            break;
-        case (RISCV_J):
-            if (index.size() == 1 && index[0].tag == Arg::IIMMEDIATE && (index[0].tag & 1) == 0) //DUBUG: need to check size of immediate!
+//DUBUG: There have to be recreated common mechanics of setting default values/register idxs for *type functions.
+
+    enum {ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED = 4 };
+    //R-type:
+    //|immediate   |register|register|static|immediate  |static|
+    //|imm[12|10:5]|rs2     |rs1     |funct3|imm[4:1|11]|opcode|
+    //|7 bits      |5 bits  |5 bits  |3 bits|5 bits     |7 bit |
+    static inline BinTranslation btype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        scs = true;
+        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].value & 0b1) == 0 && signed_fits(index[2].value, 13))
+        {
+            uint64_t offset = (uint64_t)index[2].value;
+            uint64_t sign_bit = (offset >> 63) << 6; 
+            uint64_t low5 = offset & 0x1F;
+            uint64_t high7 = offset >> 5;
+            uint64_t highest_bit = (high7 >> 6) & 0b1;
+            low5 = (low5 & 0b11110) | highest_bit;
+            high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+            return BiT({ BTomm(2, flags2), BTsta(high7, 7), BTreg(1, 5, flags1), BTreg(0, 5, flags0), BTsta(funct3, 3), BTsta(low5, 5), BTsta(opcode, 7) });
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+    //J-type:
+    //|immediate            |register|static|
+    //|imm[20|10:1|11|19:12]|rd      |opcode|
+    //|20 bits              |5 bits  |7 bit |
+    static inline BinTranslation jtype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t /*fixed1*/)
+    {
+        using namespace BinTranslationConstruction;
+        Assert((opcode & ~(uint64_t(0b1111111))) == 0);
+        scs = true;
+        if((fixed & ARG0_FIXED) && (fixed & ARG1_FIXED) == 0) 
+        {
+            Assert(fixed0 >= ZERO && fixed0 <= T6);
+            if (index.size() == 1 && index[0].tag == Arg::IIMMEDIATE && (index[0].value & 0b1) == 0 && signed_fits(index[0].value, 21))
             {
                 uint64_t offset = (uint64_t)index[0].value;
                 //imm[20|10:1|11|19:12]
                 uint64_t imm = offset & 0b11111111111111111111;
                 uint64_t sign_bit = (offset >> 63) << 19; 
                 imm = sign_bit                                | 
-                      ((imm & 0b000000000011111111110) << 8 ) | 
-                      ((imm & 0b000000000100000000000) >> 3 ) | 
-                      ((imm & 0b011111111000000000000) >> 12);
-                return BiT({ BTomm(0, Lab), BTsta(imm, 20), BTsta(0b000001101111, 12) });
+                        ((imm & 0b000000000011111111110) << 8 ) | 
+                        ((imm & 0b000000000100000000000) >> 3 ) | 
+                        ((imm & 0b011111111000000000000) >> 12);
+                return BiT({ BTomm(0, flags1), BTsta(imm, 20), BTsta(fixed0, 5), BTsta(opcode, 7) });
             }
-            break;
+        }
+        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0) 
+        {
+            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && (index[1].value & 0b1) == 0 && signed_fits(index[1].value, 21))
+            {
+                uint64_t offset = (uint64_t)index[1].value;
+                //imm[20|10:1|11|19:12]
+                uint64_t imm = offset & 0b11111111111111111111;
+                uint64_t sign_bit = (offset >> 63) << 19; 
+                imm = sign_bit                                | 
+                        ((imm & 0b000000000011111111110) << 8 ) | 
+                        ((imm & 0b000000000100000000000) >> 3 ) | 
+                        ((imm & 0b011111111000000000000) >> 12);
+                return BiT({ BTomm(1, flags1), BTsta(imm, 20), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+            }
+        }
+
+        scs = false;
+        return BinTranslation();
+    }    
+
+    //R-type:
+    //|static|register|register|static|register|static|
+    //|funct7|rs2     |rs1     |funct3|rd      |opcode|
+    //|7 bits|5 bits  |5 bits  |3 bits|5 bits  |7 bit |
+    static inline BinTranslation rtype(const Syntop& index, bool& scs, uint64_t funct7, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(((funct7 & ~(uint64_t(0b1111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        scs = true;
+        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+            return BiT({ BTsta(funct7, 7), BTreg(2, 5, flags2), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+        scs = false;
+        return BinTranslation();
+    }
+
+    //I-type:
+    //|immediate|register|static|register|static|
+    //|imm[11:0]|rs1     |funct3|rd      |opcode|
+    //|12 bits  |5 bits  |3 bits|5 bits  |7 bit |
+    static inline BinTranslation itype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    //, bool fixed_rd = false, uint64_t rd_idx = 0, bool fixed_rs1 = false, uint64_t rs1_idx = 0, bool fixed_imm = false, uint64_t imm_val = 0)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        scs = true; //ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED
+        if((fixed & ARG0_FIXED) && (fixed & ARG1_FIXED) && (fixed & ARG2_FIXED))
+        {
+            Assert(signed_fits(fixed2, 12) && (fixed0 >= ZERO && fixed0 <= T6) && (fixed1 >= ZERO && fixed1 <= T6));
+            if (index.size() == 0)
+                return BiT({ BTsta(fixed2, 12), BTsta(fixed1, 5), BTsta(funct3, 3), BTsta(fixed0, 5), BTsta(opcode, 7) });
+        }
+        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0 && (fixed & ARG2_FIXED))
+        {
+            Assert(signed_fits(fixed2, 12));
+            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
+                return BiT({ BTsta(fixed2, 12), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+        }
+        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0 && (fixed & ARG2_FIXED) == 0)
+        {
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && signed_fits(index[2].value, 12))
+                return BiT({ BTimm(2, 12, flags2), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+    //S-type:
+    //|immediate|register|register|static|immediate|static|
+    //|imm[11:5]|rs2     |rs1     |funct3|imm[4:0] |opcode|
+    //|7 bits   |5 bits  |5 bits  |3 bits|5 bits   |7 bit |
+    static inline BinTranslation stype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        scs = true;
+        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits(index[1].value, 12))
+        {
+            uint64_t low5 = index[1].value & 0x1F;
+            uint64_t high7 = index[1].value >> 5;
+            return BiT({ BTomm(1, flags1), BTsta(high7, 7), BTreg(0, 5, flags0), BTreg(2, 5, flags2), BTsta(funct3, 3), BTsta(low5, 5), BTsta(opcode, 7)}); //DUBUG: immediate is signed, write correct tests.
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+//DUBUG: There is certain list of formats for RISC-V instructions. It's better to directly implement these formats and than use them per instruction. Code will become much shorter.
+    BinTranslation i64BTLookup(const Syntop& index, bool& scs)
+    {
+        // imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
+        using namespace BinTranslationConstruction;
+        scs = true;
+        switch (index.opcode)
+        {//                                                                    | flags0| flags1| flags2|               fixed                 |fixed0|fixed1|fixed2|
+        case (RISCV_LW): return itype(index, scs, 0b010, 0b0000011,                 Out,     In,      0,                                    0,     0,     0,     0); //DUBUG: immediate is signed, write correct tests.
+        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In,      0,     In,                                    0,     0,     0,     0); //DUBUG: immediate is signed, write correct tests.
+        case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
+        case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
+        case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                                    0,     0,     0,     0);
+        case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
+        case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
+        case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
+        case (RISCV_BEQ):  return btype(index, scs, 0b000, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_BNE):  return btype(index, scs, 0b001, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLT):  return btype(index, scs, 0b100, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGE):  return btype(index, scs, 0b101, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLTU): return btype(index, scs, 0b110, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGEU): return btype(index, scs, 0b111, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
+        case (RISCV_J):    return jtype(index, scs, 0b1101111,                        0,    Lab,                                   ARG0_FIXED,     0,     0);
         case (RISCV_LABEL): return BiT({});
-        case (RISCV_RET): return BiT({ BTsta(0b0000000000000001000000001100111, 32) });
-
-        
- 
-
-
-
-
-
-
-
-
+        case (RISCV_RET):  return itype(index, scs, 0b000, 0b1100111,                 0,      0,      0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
 
 
         case (INTEL64_MOVSX):

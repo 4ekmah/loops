@@ -241,6 +241,11 @@ namespace loops
         return res;
     }
 
+    inline bool signed_fits(uint64_t val, int fieldsize)
+    {
+        return msb64((val >> 63)? ~val : val) < fieldsize - 1;
+    }
+
     struct Syntop
     {
     public:
