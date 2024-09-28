@@ -154,28 +154,74 @@ namespace loops
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
     }
 
-//DUBUG: There have to be recreated common mechanics of setting default values/register idxs for *type functions.
+//DUBUG: There is a lot of repeatitive code in risc-v formats handlers. Do something.
 
     enum {ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED = 4 };
     //R-type:
     //|immediate   |register|register|static|immediate  |static|
     //|imm[12|10:5]|rs2     |rs1     |funct3|imm[4:1|11]|opcode|
     //|7 bits      |5 bits  |5 bits  |3 bits|5 bits     |7 bit |
-    static inline BinTranslation btype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    static inline BinTranslation btype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
         Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
-        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && (index[2].value & 0b1) == 0 && signed_fits(index[2].value, 13))
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        if(fixed & ARG0_FIXED)
         {
-            uint64_t offset = (uint64_t)index[2].value;
-            uint64_t sign_bit = (offset >> 63) << 6; 
-            uint64_t low5 = offset & 0x1F;
-            uint64_t high7 = offset >> 5;
-            uint64_t highest_bit = (high7 >> 6) & 0b1;
-            low5 = (low5 & 0b11110) | highest_bit;
-            high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
-            return BiT({ BTomm(2, flags2), BTsta(high7, 7), BTreg(1, 5, flags1), BTreg(0, 5, flags0), BTsta(funct3, 3), BTsta(low5, 5), BTsta(opcode, 7) });
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            Assert((fixed1 >= ZERO && fixed1 <= T6));
+            effargidxs[1] = -1;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG2_FIXED)
+        {
+            effargidxs[2] = -1;
+            effargnum--;
+        }
+
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(7);
+            uint64_t value2 = (fixed & ARG2_FIXED) ? fixed2 : (uint64_t)index.args[effargidxs[2]].value;
+            if((value2 & 0b1) == 0 && signed_fits(value2, 13))
+            {
+                uint64_t low5;
+                uint64_t high7;
+                {
+                    uint64_t sign_bit = (value2 >> 63) << 6; 
+                    low5 = value2 & 0x1F;
+                    high7 = value2 >> 5;
+                    uint64_t highest_bit = (high7 >> 6) & 0b1;
+                    low5 = (low5 & 0b11110) | highest_bit;
+                    high7 = (high7 & 0b0111111) | sign_bit; ////imm[12|10:5] rs2 rs1 000 imm[4:1|11] 1100011 BEQ
+                }
+                if((fixed & ARG2_FIXED) == 0) 
+                    tokens.push_back(BTomm(effargidxs[2], flags2));
+                tokens.push_back(BTsta(high7, 7)); 
+                if(fixed & ARG1_FIXED)
+                    tokens.push_back(BTsta(fixed1, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                tokens.push_back(BTsta(funct3, 3)); 
+                tokens.push_back(BTsta(low5, 5));
+                tokens.push_back(BTsta(opcode, 7));
+                return BinTranslation(tokens);
+            }
         }
         scs = false;
         return BinTranslation();
@@ -185,43 +231,52 @@ namespace loops
     //|immediate            |register|static|
     //|imm[20|10:1|11|19:12]|rd      |opcode|
     //|20 bits              |5 bits  |7 bit |
-    static inline BinTranslation jtype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t /*fixed1*/)
+    static inline BinTranslation jtype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t fixed1)
     {
         using namespace BinTranslationConstruction;
         Assert((opcode & ~(uint64_t(0b1111111))) == 0);
         scs = true;
-        if((fixed & ARG0_FIXED) && (fixed & ARG1_FIXED) == 0) 
+        int effargidxs[2] = {0,1};
+        int effargnum = 2;
+        if(fixed & ARG0_FIXED)
         {
-            Assert(fixed0 >= ZERO && fixed0 <= T6);
-            if (index.size() == 1 && index[0].tag == Arg::IIMMEDIATE && (index[0].value & 0b1) == 0 && signed_fits(index[0].value, 21))
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            effargidxs[1] = -1;
+            effargnum--;
+        }
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(4);
+            uint64_t value1 = (fixed & ARG1_FIXED) ? fixed1 : (uint64_t)index.args[effargidxs[1]].value;
+            if((value1 & 0b1) == 0 && signed_fits(value1, 21))
             {
-                uint64_t offset = (uint64_t)index[0].value;
-                //imm[20|10:1|11|19:12]
-                uint64_t imm = offset & 0b11111111111111111111;
-                uint64_t sign_bit = (offset >> 63) << 19; 
-                imm = sign_bit                                | 
-                        ((imm & 0b000000000011111111110) << 8 ) | 
-                        ((imm & 0b000000000100000000000) >> 3 ) | 
-                        ((imm & 0b011111111000000000000) >> 12);
-                return BiT({ BTomm(0, flags1), BTsta(imm, 20), BTsta(fixed0, 5), BTsta(opcode, 7) });
+                {
+                    //imm[20|10:1|11|19:12]
+                    uint64_t imm = value1 & 0b11111111111111111111;
+                    uint64_t sign_bit = (value1 >> 63) << 19; 
+                    imm = sign_bit                                | 
+                            ((imm & 0b000000000011111111110) << 8 ) | 
+                            ((imm & 0b000000000100000000000) >> 3 ) | 
+                            ((imm & 0b011111111000000000000) >> 12);
+                    if((fixed & ARG1_FIXED) == 0)
+                        tokens.push_back(BTomm(effargidxs[1], flags1));
+                    tokens.push_back(BTsta(imm, 20));
+                }
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                tokens.push_back(BTsta(opcode, 7));
+                return BinTranslation(tokens);
             }
         }
-        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0) 
-        {
-            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && (index[1].value & 0b1) == 0 && signed_fits(index[1].value, 21))
-            {
-                uint64_t offset = (uint64_t)index[1].value;
-                //imm[20|10:1|11|19:12]
-                uint64_t imm = offset & 0b11111111111111111111;
-                uint64_t sign_bit = (offset >> 63) << 19; 
-                imm = sign_bit                                | 
-                        ((imm & 0b000000000011111111110) << 8 ) | 
-                        ((imm & 0b000000000100000000000) >> 3 ) | 
-                        ((imm & 0b011111111000000000000) >> 12);
-                return BiT({ BTomm(1, flags1), BTsta(imm, 20), BTreg(0, 5, flags0), BTsta(opcode, 7) });
-            }
-        }
-
         scs = false;
         return BinTranslation();
     }    
@@ -230,13 +285,55 @@ namespace loops
     //|static|register|register|static|register|static|
     //|funct7|rs2     |rs1     |funct3|rd      |opcode|
     //|7 bits|5 bits  |5 bits  |3 bits|5 bits  |7 bit |
-    static inline BinTranslation rtype(const Syntop& index, bool& scs, uint64_t funct7, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    static inline BinTranslation rtype(const Syntop& index, bool& scs, uint64_t funct7, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
         Assert(((funct7 & ~(uint64_t(0b1111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
-        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-            return BiT({ BTsta(funct7, 7), BTreg(2, 5, flags2), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        if(fixed & ARG0_FIXED)
+        {
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            Assert((fixed1 >= ZERO && fixed1 <= T6));
+            effargidxs[1] = -1;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG2_FIXED)
+        {
+            Assert((fixed2 >= ZERO && fixed2 <= T6));
+            effargidxs[2] = -1;
+            effargnum--;
+        }
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(6);
+            tokens.push_back(BTsta(funct7, 7)); 
+            if(fixed & ARG2_FIXED)
+                tokens.push_back(BTsta(fixed2, 5));
+            else
+                tokens.push_back(BTreg(effargidxs[2], 5, flags2));
+            if(fixed & ARG1_FIXED)
+                tokens.push_back(BTsta(fixed1, 5));
+            else
+                tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+            tokens.push_back(BTsta(funct3, 3)); 
+            if(fixed & ARG0_FIXED)
+                tokens.push_back(BTsta(fixed0, 5));
+            else
+                tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+            tokens.push_back(BTsta(opcode, 7));
+            return BinTranslation(tokens);
+        }
         scs = false;
         return BinTranslation();
     }
@@ -246,27 +343,56 @@ namespace loops
     //|imm[11:0]|rs1     |funct3|rd      |opcode|
     //|12 bits  |5 bits  |3 bits|5 bits  |7 bit |
     static inline BinTranslation itype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
-    //, bool fixed_rd = false, uint64_t rd_idx = 0, bool fixed_rs1 = false, uint64_t rs1_idx = 0, bool fixed_imm = false, uint64_t imm_val = 0)
     {
         using namespace BinTranslationConstruction;
         Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
-        scs = true; //ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED
-        if((fixed & ARG0_FIXED) && (fixed & ARG1_FIXED) && (fixed & ARG2_FIXED))
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        if(fixed & ARG0_FIXED)
         {
-            Assert(signed_fits(fixed2, 12) && (fixed0 >= ZERO && fixed0 <= T6) && (fixed1 >= ZERO && fixed1 <= T6));
-            if (index.size() == 0)
-                return BiT({ BTsta(fixed2, 12), BTsta(fixed1, 5), BTsta(funct3, 3), BTsta(fixed0, 5), BTsta(opcode, 7) });
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargidxs[2]--;
+            effargnum--;
         }
-        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0 && (fixed & ARG2_FIXED))
+        if(fixed & ARG1_FIXED)
+        {
+            Assert((fixed1 >= ZERO && fixed1 <= T6));
+            effargidxs[1] = -1;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG2_FIXED)
         {
             Assert(signed_fits(fixed2, 12));
-            if (index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
-                return BiT({ BTsta(fixed2, 12), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+            effargidxs[2] = -1;
+            effargnum--;
         }
-        else if((fixed & ARG0_FIXED) == 0 && (fixed & ARG1_FIXED) == 0 && (fixed & ARG2_FIXED) == 0)
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
         {
-            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && signed_fits(index[2].value, 12))
-                return BiT({ BTimm(2, 12, flags2), BTreg(1, 5, flags1), BTsta(funct3, 3), BTreg(0, 5, flags0), BTsta(opcode, 7) });
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(5);
+            if((fixed & ARG2_FIXED) || signed_fits((uint64_t)index.args[effargidxs[2]].value, 12))
+            {
+                if(fixed & ARG2_FIXED)
+                    tokens.push_back(BTsta(fixed2, 12));
+                else
+                    tokens.push_back(BTimm(effargidxs[2], 12, flags2));
+                if(fixed & ARG1_FIXED)
+                    tokens.push_back(BTsta(fixed1, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+                tokens.push_back(BTsta(funct3, 3)); 
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                tokens.push_back(BTsta(opcode, 7));
+                return BinTranslation(tokens);
+
+            }
         }
         scs = false;
         return BinTranslation();
@@ -276,22 +402,63 @@ namespace loops
     //|immediate|register|register|static|immediate|static|
     //|imm[11:5]|rs2     |rs1     |funct3|imm[4:0] |opcode|
     //|7 bits   |5 bits  |5 bits  |3 bits|5 bits   |7 bit |
-    static inline BinTranslation stype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t /*fixed*/, uint64_t /*fixed0*/, uint64_t /*fixed1*/, uint64_t /*fixed2*/)
+    static inline BinTranslation stype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
         Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
-        if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits(index[1].value, 12))
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        if(fixed & ARG0_FIXED)
         {
-            uint64_t low5 = index[1].value & 0x1F;
-            uint64_t high7 = index[1].value >> 5;
-            return BiT({ BTomm(1, flags1), BTsta(high7, 7), BTreg(0, 5, flags0), BTreg(2, 5, flags2), BTsta(funct3, 3), BTsta(low5, 5), BTsta(opcode, 7)}); //DUBUG: immediate is signed, write correct tests.
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            Assert(signed_fits(fixed1, 12));
+            effargidxs[1] = -1;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG2_FIXED)
+        {
+            Assert((fixed2 >= ZERO && fixed2 <= T6));
+            effargidxs[2] = -1;
+            effargnum--;
+        }
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(7);
+            if((fixed & ARG1_FIXED) || signed_fits((uint64_t)index.args[effargidxs[1]].value, 12))
+            {
+                uint64_t low5 = index[1].value & 0x1F;
+                uint64_t high7 = index[1].value >> 5;
+                if((fixed & ARG1_FIXED) == 0) 
+                    tokens.push_back(BTomm(effargidxs[1], flags1));
+                tokens.push_back(BTsta(high7, 7));
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                if(fixed & ARG2_FIXED)
+                    tokens.push_back(BTsta(fixed2, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[2], 5, flags2));
+                tokens.push_back(BTsta(funct3, 3)); 
+                tokens.push_back(BTsta(low5, 5));
+                tokens.push_back(BTsta(opcode, 7));
+                return BinTranslation(tokens);
+            }
         }
         scs = false;
         return BinTranslation();
     }
 
-//DUBUG: There is certain list of formats for RISC-V instructions. It's better to directly implement these formats and than use them per instruction. Code will become much shorter.
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
         // imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
@@ -299,8 +466,8 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {//                                                                    | flags0| flags1| flags2|               fixed                 |fixed0|fixed1|fixed2|
-        case (RISCV_LW): return itype(index, scs, 0b010, 0b0000011,                 Out,     In,      0,                                    0,     0,     0,     0); //DUBUG: immediate is signed, write correct tests.
-        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In,      0,     In,                                    0,     0,     0,     0); //DUBUG: immediate is signed, write correct tests.
+        case (RISCV_LW): return itype(index, scs, 0b010, 0b0000011,                 Out,     In,      0,                                    0,     0,     0,     0);
+        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In,      0,     In,                                    0,     0,     0,     0);
         case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
         case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
         case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                                    0,     0,     0,     0);
@@ -1236,7 +1403,7 @@ namespace loops
             if (index.size() == 2 && index[1].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
                 return SyT(RISCV_SW, { SAcop(1), SAimm(0), SAcop(0) });
             else if (index.size() == 3 && index[2].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
-                return SyT(RISCV_SW, { SAcop(1), SAcop(2), SAcop(0) });
+                return SyT(RISCV_SW, { SAcop(2), SAcop(1), SAcop(0) });
             break;
         case (OP_ADD):
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)

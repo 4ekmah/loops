@@ -127,6 +127,13 @@ BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(ls
     m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
 }
 
+BinTranslation::BinTranslation(const std::vector<Token>& lst) : m_compound(lst), m_bytewidth(0)
+{
+    for (const Token& det:m_compound)
+        m_bytewidth += det.width;
+    m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
+}
+
 void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
     if(m_compound.size() == 0) 
