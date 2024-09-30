@@ -465,24 +465,27 @@ namespace loops
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
-        {//                                                                    | flags0| flags1| flags2|               fixed                 |fixed0|fixed1|fixed2|
-        case (RISCV_LW): return itype(index, scs, 0b010, 0b0000011,                 Out,     In,      0,                                    0,     0,     0,     0);
-        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In,      0,     In,                                    0,     0,     0,     0);
-        case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
-        case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
-        case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,      0,                                    0,     0,     0,     0);
-        case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
-        case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
-        case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,     In,                                    0,     0,     0,     0);
-        case (RISCV_BEQ):  return btype(index, scs, 0b000, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_BNE):  return btype(index, scs, 0b001, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_BLT):  return btype(index, scs, 0b100, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_BGE):  return btype(index, scs, 0b101, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_BLTU): return btype(index, scs, 0b110, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_BGEU): return btype(index, scs, 0b111, 0b1100011,                In,     In,    Lab,                                    0,     0,     0,     0);
-        case (RISCV_J):    return jtype(index, scs, 0b1101111,                        0,    Lab,                                   ARG0_FIXED,     0,     0);
+        {//                                                                    | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
+        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In, Addr64, Addr64|In,                                    0,     0,     0,     0);
+        case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
+        case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_BEQ):  return btype(index, scs, 0b000, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BNE):  return btype(index, scs, 0b001, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLT):  return btype(index, scs, 0b100, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGE):  return btype(index, scs, 0b101, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLTU): return btype(index, scs, 0b110, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGEU): return btype(index, scs, 0b111, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_J):    return jtype(index, scs, 0b1101111,                        0,    Lab,                                    ARG0_FIXED,     0,     0);
         case (RISCV_LABEL): return BiT({});
-        case (RISCV_RET):  return itype(index, scs, 0b000, 0b1100111,                 0,      0,      0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
+        case (RISCV_RET):  return itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
+        case (RISCV_LW): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b010, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
 
 
         case (INTEL64_MOVSX):
@@ -1376,7 +1379,7 @@ namespace loops
                 // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1) });
                 // case (TYPE_U8):
                 // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1) });
-                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(1), SAimm(0) });
+                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAimm(0), SAcop(1) });
                 // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
                 // case (TYPE_FP32): case (TYPE_FP64):
                 //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
@@ -1391,7 +1394,7 @@ namespace loops
                 // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1), SAcop(2) });
                 // case (TYPE_U8):
                 // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1), SAcop(2) });
-                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(1), SAcop(2) });
+                case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(2), SAcop(1) });
                 // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
                 // case (TYPE_FP32): case (TYPE_FP64):
                 //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
@@ -2007,23 +2010,29 @@ namespace loops
             }
             uint64_t argflags = operand_flags[anum];
             bool address = (argflags & AF_ADDRESS);
-            bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
-            bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
-            bool vrange = (argflags & AF_VREGRANGE);
-            bool vrange_start = vrange && (anum == 0 || !(operand_flags[anum - 1] & AF_VREGRANGE));
-            bool vrange_end = vrange && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_VREGRANGE));
-            bool indexed_vreg = false;
-            Assert(!(address && vrange));
-            if (vrange_start)
-                LOOPS_CALL_THROW(loops_printf(printer, "{"));
-            else if (address_start)
-                LOOPS_CALL_THROW(loops_printf(printer, "["));
+            bool inhibit_comma = false;
+            // // bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
+            // // bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
+            // // bool vrange = (argflags & AF_VREGRANGE);
+            // // bool vrange_start = vrange && (anum == 0 || !(operand_flags[anum - 1] & AF_VREGRANGE));
+            // // bool vrange_end = vrange && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_VREGRANGE));
+            // bool indexed_vreg = false;
+            // Assert(!(address && vrange));
+            // if (vrange_start)
+            //     LOOPS_CALL_THROW(loops_printf(printer, "{"));
+            // else if (address_start)
+            //     LOOPS_CALL_THROW(loops_printf(printer, "["));
             switch (arg.tag)
             {
                 case Arg::IREG:
                 {
+                    if(address)
+                        LOOPS_CALL_THROW(loops_printf(printer, "("));
                     static const char* rnames[32] = { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" };
                     LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[arg.idx]));
+                    if(address)
+                        LOOPS_CALL_THROW(loops_printf(printer, ")"));
+
                     // if(arg.idx == (int)Syntfunc::RETREG)
                     //     LOOPS_CALL_THROW(loops_printf(printer, "xR"));
                     // else if(arg.idx == 31)
@@ -2039,40 +2048,40 @@ namespace loops
                     // }
                     break;
                 }
-                case Arg::VREG:
-                {
-                    if(argflags & AF_NOTYPE) 
-                    {
-                        LOOPS_CALL_THROW(loops_printf(printer, "q%d", arg.idx));
-                    }
-                    else
-                    {
-                        indexed_vreg = anum < aamount - 1 && (operand_flags[anum + 1] & AF_LANEINDEX);
-                        Assert(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
-                        if(indexed_vreg)
-                        {
-                            static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
-                            LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
-                        }
-                        else
-                        {
-                            static const char* Vsuffixes_full[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
-                            static const char* Vsuffixes_half[] = {"", "8b", "4h", "", "2s", "", "", "", "1d" };
-                            static const char* Vsuffixes_reduced[] = {"", "b", "h", "", "s", "", "", "", "d" };
-                            const char** Vsuffixes = Vsuffixes_full;
-                            if(argflags & AF_HALFLANES)
-                                Vsuffixes = Vsuffixes_half;
-                            if(argflags & AF_REDUCED)
-                            {
-                                Vsuffixes = Vsuffixes_reduced;
-                                LOOPS_CALL_THROW(loops_printf(printer, "%s%d", Vsuffixes[elem_size(arg.elemtype)], arg.idx));
-                            }
-                            else
-                                LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
-                        }
-                    }
-                    break;
-                }
+                // case Arg::VREG:
+                // {
+                //     if(argflags & AF_NOTYPE) 
+                //     {
+                //         LOOPS_CALL_THROW(loops_printf(printer, "q%d", arg.idx));
+                //     }
+                //     else
+                //     {
+                //         indexed_vreg = anum < aamount - 1 && (operand_flags[anum + 1] & AF_LANEINDEX);
+                //         Assert(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
+                //         if(indexed_vreg)
+                //         {
+                //             static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
+                //             LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                //         }
+                //         else
+                //         {
+                //             static const char* Vsuffixes_full[] = {"", "16b", "8h", "", "4s", "", "", "", "2d" };
+                //             static const char* Vsuffixes_half[] = {"", "8b", "4h", "", "2s", "", "", "", "1d" };
+                //             static const char* Vsuffixes_reduced[] = {"", "b", "h", "", "s", "", "", "", "d" };
+                //             const char** Vsuffixes = Vsuffixes_full;
+                //             if(argflags & AF_HALFLANES)
+                //                 Vsuffixes = Vsuffixes_half;
+                //             if(argflags & AF_REDUCED)
+                //             {
+                //                 Vsuffixes = Vsuffixes_reduced;
+                //                 LOOPS_CALL_THROW(loops_printf(printer, "%s%d", Vsuffixes[elem_size(arg.elemtype)], arg.idx));
+                //             }
+                //             else
+                //                 LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                //         }
+                //     }
+                //     break;
+                // }
                 case Arg::IIMMEDIATE:
                     if(op->opcode == RISCV_LABEL)
                     {
@@ -2085,40 +2094,44 @@ namespace loops
                             LOOPS_THROW(LOOPS_ERR_INCORRECT_LANE_INDEX);
                         LOOPS_CALL_THROW(loops_printf(printer, "[%d]", arg.value));
                     }
-                    else if(arg.value == 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "0"));
                     else
                     {
-                        bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
-                        uint32_t upper32;
-                        uint32_t lower32;
-                        if(negative)
-                        {
-                            uint64_t ival = ~((uint64_t)arg.value);
-                            uint64_t lower32_ = (ival & 0xffffffff) + 1;
-                            upper32 = (ival >> 32) + (lower32_ & 0x100000000 ? 1 : 0);
-                            lower32 = lower32_ & 0xffffffff;
-                        }
+                        if(arg.value == 0)
+                            LOOPS_CALL_THROW(loops_printf(printer, "0"));
                         else
                         {
-                            upper32 = ((uint64_t)arg.value) >> 32;
-                            lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                            bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
+                            uint32_t upper32;
+                            uint32_t lower32;
+                            if(negative)
+                            {
+                                uint64_t ival = ~((uint64_t)arg.value);
+                                uint64_t lower32_ = (ival & 0xffffffff) + 1;
+                                upper32 = (ival >> 32) + (lower32_ & 0x100000000 ? 1 : 0);
+                                lower32 = lower32_ & 0xffffffff;
+                            }
+                            else
+                            {
+                                upper32 = ((uint64_t)arg.value) >> 32;
+                                lower32 = ((uint64_t)arg.value) & 0xffffffff;
+                            }
+                            if (upper32 > 0)
+                                LOOPS_CALL_THROW(loops_printf(printer, "%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
+                            else
+                                LOOPS_CALL_THROW(loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32));
                         }
-
-                        if (upper32 > 0)
-                            LOOPS_CALL_THROW(loops_printf(printer, "%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
-                        else
-                            LOOPS_CALL_THROW(loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32));
+                        if(address)
+                            inhibit_comma = true;
                     }
                     break;
                 default:
                     LOOPS_THROW(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
             };
-            if (vrange_end)
-                LOOPS_CALL_THROW(loops_printf(printer, "}"));
-            else if (address_end)
-                LOOPS_CALL_THROW(loops_printf(printer, "]"));
-            if (anum < aamount - 1 && !indexed_vreg)
+            // if (vrange_end)
+            //     LOOPS_CALL_THROW(loops_printf(printer, "}"));
+            // else if (address_end)
+            //     LOOPS_CALL_THROW(loops_printf(printer, "]"));
+            if (anum < aamount - 1 && !inhibit_comma)
                 LOOPS_CALL_THROW(loops_printf(printer, ", "));
         }
         LOOPS_CALL_THROW(close_printer_cell(printer));

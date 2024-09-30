@@ -114,7 +114,6 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_MOD, { zero, t6  , zero });
         newiopNoret(OP_MOD, { zero, zero, t6   });
 
-        // DUBUG: make this compilable by normal gcc assembler[fix printer], check HEXes.
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(t6)  , zero });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), t6   });
