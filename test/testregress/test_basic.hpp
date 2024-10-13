@@ -118,6 +118,45 @@ TEST(basic, min_max_scalar)
     test_min_max_scalar(func);
 }
 
+Func make_ten_args_to_sum(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
+    STARTFUNC_(fname, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+    {
+        IReg res = a0 * 1;
+        res += a1 * 2;
+        res += a2 * 3;
+        res += a3 * 4;
+        res += a4 * 5;
+        res += a5 * 6;
+        res += a6 * 7;
+        res += a7 * 8;
+        res += a8 * 3;
+        res += a9 * 2;
+        RETURN_(res);
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_ten_args_to_sum(Func func)
+{
+    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
+    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(func.ptr());
+    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
+    ASSERT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+}
+
+TEST(basic, ten_args_to_sum) //There we are testing stack parameter passing.
+{
+    Context ctx;
+    loops::Func func = make_ten_args_to_sum(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_ten_args_to_sum(func);
+}
+
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #undef min // Windows.h implements min and max as macro.
 #undef max //
@@ -670,6 +709,7 @@ TEST(basic, compile_all)
     Context ctx;
     loops::Func a_plus_b_func = make_a_plus_b(ctx, "a_plus_b");
     loops::Func min_max_scalar_func = make_min_max_scalar(ctx, "min_max_scalar");
+    loops::Func ten_args_to_sum_func = make_ten_args_to_sum(ctx, "min_max_scalar");
     loops::Func min_max_select_func = make_min_max_select(ctx, "min_max_select");
     loops::Func triangle_types_func = make_triangle_types(ctx, "triangle_types");
     loops::Func nonnegative_odd_func = make_nonnegative_odd(ctx, "nonnegative_odd");
@@ -680,6 +720,7 @@ TEST(basic, compile_all)
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
+    test_ten_args_to_sum(ten_args_to_sum_func);
     test_min_max_select(min_max_select_func);
     test_triangle_types(triangle_types_func);
     test_nonnegative_odd(nonnegative_odd_func);

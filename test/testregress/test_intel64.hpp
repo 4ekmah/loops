@@ -18,7 +18,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 using namespace loops;
 
-TEST(intel64, arithm_arrs)
+TEST(intel64, arithm_arrs) //DUBUG: delete this, we have now basic ten_args_to_sum
 {
     Context ctx;
     USE_CONTEXT_(ctx);

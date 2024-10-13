@@ -1920,7 +1920,7 @@ namespace loops
     }
 
     void RiscVBackend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
-    {//DUBUG: Check it works with big-amount-of-arguments test.
+    {
         size_t regPassed[RB_AMOUNT];
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
