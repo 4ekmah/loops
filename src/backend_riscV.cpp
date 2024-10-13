@@ -14,9 +14,12 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
 {
                   /*  |       enum_id       |string_id|    */
     LOOPS_HASHMAP_ELEM(loops::RISCV_LW   , "lw"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LD   , "ld"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SW   , "sw"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SD   , "sd"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_MV   , "mv"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_ADD  , "add"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SUB  , "sub"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_ADDI , "addi" ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_MUL  , "mul"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
@@ -466,9 +469,11 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {//                                                                    | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
-        case (RISCV_SW): return stype(index, scs, 0b010, 0b0100011,                  In, Addr64, Addr64|In,                                    0,     0,     0,     0);
+        case (RISCV_SW):   return stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
+        case (RISCV_SD):   return stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
         case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
         case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SUB):  return rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
         case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
@@ -485,6 +490,10 @@ namespace loops
         case (RISCV_LW): 
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b010, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_LD): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b011, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
             break;
 
 
@@ -1375,14 +1384,13 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                // case (TYPE_I8):
-                // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1) });
+                // case (TYPE_I8):  //DUBUG: support these cases!
                 // case (TYPE_U8):
-                // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1) });
+                // case (TYPE_I16):
+                // case (TYPE_U16): case (TYPE_FP16):
                 case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAimm(0), SAcop(1) });
-                // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
-                // case (TYPE_FP32): case (TYPE_FP64):
-                //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS) });
+                // case (TYPE_U32): case (TYPE_FP32):
+                case (TYPE_FP64): case (TYPE_I64): case (TYPE_U64): return SyT(RISCV_LD,{ SAcop(0), SAimm(0), SAcop(1) });
                 default: break;
                 }
             }
@@ -1390,23 +1398,44 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                // case (TYPE_I8):
-                // case (TYPE_I16): return SyT(INTEL64_MOVSX, { SAcop(0), SAcop(1), SAcop(2) });
+                // case (TYPE_I8):      //DUBUG: support these cases!
+                // case (TYPE_I16):
                 // case (TYPE_U8):
-                // case (TYPE_U16): return SyT(INTEL64_MOVZX, { SAcop(0), SAcop(1), SAcop(2) });
+                // case (TYPE_U16):
                 case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(2), SAcop(1) });
-                // case (TYPE_U32): case (TYPE_I64): case (TYPE_U64):
-                // case (TYPE_FP32): case (TYPE_FP64):
-                //     return SyT(INTEL64_MOV, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+                // case (TYPE_U32): case (TYPE_FP32):
+                case (TYPE_FP64): case (TYPE_I64): case (TYPE_U64): return SyT(RISCV_LD,{ SAcop(0), SAcop(2), SAcop(1) });
                 default: break;
                 }
             }
             break;    
         case (OP_STORE):
-            if (index.size() == 2 && index[1].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
-                return SyT(RISCV_SW, { SAcop(1), SAimm(0), SAcop(0) });
-            else if (index.size() == 3 && index[2].elemtype == TYPE_I32/*DUBUG:delete this constraint*/)
-                return SyT(RISCV_SW, { SAcop(2), SAcop(1), SAcop(0) });
+            if (index.size() == 2)
+            {
+                switch (index[1].elemtype)
+                {
+                    // case (TYPE_I8): case (TYPE_U8):                       //DUBUG: support these cases!
+                    // case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                    case (TYPE_I32): case (TYPE_U32): case (TYPE_FP32):
+                        return SyT(RISCV_SW, { SAcop(1), SAimm(0), SAcop(0) });
+                    case (TYPE_I64): case (TYPE_U64): case (TYPE_FP64):
+                        return SyT(RISCV_SD, { SAcop(1), SAimm(0), SAcop(0) });
+                    default: break;
+                }
+            }
+            else if (index.size() == 3 && index[1].tag == Arg::IIMMEDIATE)
+            {
+                switch (index[2].elemtype)
+                {
+                    // case (TYPE_I8): case (TYPE_U8):                       //DUBUG: support these cases!
+                    // case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                    case (TYPE_I32): case (TYPE_U32): case (TYPE_FP32):
+                        return SyT(RISCV_SW, { SAcop(2), SAcop(1), SAcop(0) });
+                    case (TYPE_I64): case (TYPE_U64): case (TYPE_FP64):
+                        return SyT(RISCV_SD, { SAcop(2), SAcop(1), SAcop(0) });
+                    default: break;
+                }
+            }
             break;
         case (OP_ADD):
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG)
@@ -1415,6 +1444,15 @@ namespace loops
                     return SyT(RISCV_ADD,  { SAcop(0), SAcop(1), SAcop(2) });
                 else if(index[2].tag == Arg::IIMMEDIATE)
                     return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (OP_SUB):
+            if(index.args_size == 3 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IREG)
+            {
+                if(index[2].tag == Arg::IREG)
+                    return SyT(RISCV_SUB,  { SAcop(0), SAcop(1), SAcop(2) });
+                else if(index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAimm(-index.args[2].value) }); //DUBUG: I'm not sure it will be handled by ImmediteFit or, even worse, i'm not sure invalid values will be caught by ImmediateFit, check it twice.
             }
             break;
         case (OP_MOV):
@@ -1434,6 +1472,14 @@ namespace loops
         case (OP_MUL): return SyT(RISCV_MUL,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_MOD): return SyT(RISCV_REM,  { SAcop(0), SAcop(1), SAcop(2) });
+        case (OP_UNSPILL):
+            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_LD, { SAcopelt(0, TYPE_I64), SAcopsar(1, -3), SAreg(SP) });
+            break;
+        case (OP_SPILL):
+            if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IREG) 
+                return SyT(RISCV_SD, { SAcopelt(1, TYPE_I64), SAcopsar(0,-3), SAreg(SP) });
+            break;        
         case (OP_JCC):
             if(index.size() == 4 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE)
             {
@@ -1519,7 +1565,7 @@ namespace loops
         //     break;
         case (OP_XCHG):    return SyT(INTEL64_XCHG, { SAcop(0), SAcop(1) });   //TODO(ch): It's very recommended to don't use this instruction (xchg reg, mem variation). See "Instruction tables" by Agner fog.
         case (OP_X86_ADC):     return SyT(INTEL64_ADC,  { SAcop(0), SAcop(2) });
-        case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
+        // case (OP_SUB):     return SyT(INTEL64_SUB,  { SAcop(0), SAcop(2) });
         // case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
         // case (OP_MOD):     
         // case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
@@ -1667,7 +1713,6 @@ namespace loops
         switch (a_op.opcode)
         {
         case OP_X86_ADC:
-        // case OP_ADD: //DUBUG: delete!
         case OP_MUL:
         case OP_AND:
         case OP_OR:
@@ -1682,7 +1727,6 @@ namespace loops
             break;
         }
         case OP_NEG:
-        case OP_SUB:
         case OP_SHL:
         case OP_SHR:
         case OP_SAR:
@@ -1752,7 +1796,7 @@ namespace loops
         {
             case (OP_X86_ADC):
             // case (OP_ADD): //DUBUG: delete!
-            case (OP_SUB):
+            // case (OP_SUB):
             // case (OP_MUL):
             // case (OP_MOD):
             // case (OP_DIV):
@@ -1876,18 +1920,10 @@ namespace loops
     }
 
     void RiscVBackend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
-    {
-    #if __LOOPS_OS == __LOOPS_WINDOWS
-        int sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
-    #elif __LOOPS_OS == __LOOPS_LINUX
-        size_t sp2parShift = 1; //+1 is because of return address kept in stack 
-    #else
-        #error Unknown OS.
-    #endif        
-
-        int regPassed[RB_AMOUNT];
+    {//DUBUG: Check it works with big-amount-of-arguments test.
+        size_t regPassed[RB_AMOUNT];
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-            regPassed[basketNum] = (int)(regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size());
+            regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
         int currOffset = 0;
         int xBasket[RB_AMOUNT] = {1,1};
         xBasket[RB_VEC] = getVectorRegisterBits() / 64;
@@ -1902,26 +1938,26 @@ namespace loops
             }
             if(currOffset%xBasket[basketNum])
                 currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
-            parLayout[basketNum][arg.idx] = currOffset + sp2parShift;
+            parLayout[basketNum][arg.idx] = currOffset;
             currOffset+=xBasket[basketNum];
-        }
+        }        
     }
 
     int RiscVBackend::stackGrowthAlignment(int stackGrowth) const
     {
-        return (stackGrowth ? stackGrowth + ((stackGrowth % 2) ? 0 : 1) : stackGrowth);  //Accordingly to Agner Fog, at start of function RSP % 16 = 8, but must be aligned to 16 for inner calls.
+        return stackGrowth ? stackGrowth + (stackGrowth % 2) : stackGrowth;        //TODO(ch): Align to 16 or 32 if SIMD's are used.
     }
 
-    void RiscVBackend::writeCallerPrologue(Syntfunc& prog, int stackGrowth) const
-    {
-        prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-1), argReg(RB_INT, RBP) }));
-        prog.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, RBP), argReg(RB_INT, RSP) }));
-        prog.program.push_back(Syntop(OP_ADD,   { argReg(RB_INT, RBP), argReg(RB_INT, RBP), argIImm((stackGrowth-1) * 8) }));
+    void RiscVBackend::writeCallerPrologue(Syntfunc& /*prog*/, int /*stackGrowth*/) const
+    {//DUBUG: implement normally. Should be closer to ARM's
+        // prog.program.push_back(Syntop(OP_SPILL, { argIImm(stackGrowth-1), argReg(RB_INT, RBP) }));
+        // prog.program.push_back(Syntop(OP_MOV,   { argReg(RB_INT, RBP), argReg(RB_INT, RSP) }));
+        // prog.program.push_back(Syntop(OP_ADD,   { argReg(RB_INT, RBP), argReg(RB_INT, RBP), argIImm((stackGrowth-1) * 8) }));
     }
 
-    void RiscVBackend::writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const
-    {
-        prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RBP), argIImm(stackGrowth-1) }));
+    void RiscVBackend::writeCallerEpilogue(Syntfunc& /*prog*/, int /*stackGrowth*/) const
+    {//DUBUG: implement normally. Should be closer to ARM's
+        // prog.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RBP), argIImm(stackGrowth-1) }));
     }
 
     Arg RiscVBackend::getSParg() const
@@ -2250,7 +2286,7 @@ namespace loops
         for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
         {
             const Syntop& op = a_source.program[opnum];
-            switch (op.opcode) //DUBUG: do the same for stores, they also doesn't have better double pointer mode.
+            switch (op.opcode)
             {
             case OP_LOAD:
                 if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
@@ -2258,6 +2294,16 @@ namespace loops
                     RegIdx newId = a_dest.provideIdx(RB_INT);
                     a_dest.program.push_back(Syntop(OP_ADD,  { argReg(RB_INT, newId), op.args[1], op.args[2] }));
                     a_dest.program.push_back(Syntop(OP_LOAD, { op.args[0], argReg(RB_INT, newId)}));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
+            case OP_STORE:
+                if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
+                {
+                    RegIdx newId = a_dest.provideIdx(RB_INT);
+                    a_dest.program.push_back(Syntop(OP_ADD,  { argReg(RB_INT, newId), op.args[0], op.args[1] }));
+                    a_dest.program.push_back(Syntop(OP_LOAD, { argReg(RB_INT, newId), op.args[2] }));
                 }
                 else
                     a_dest.program.push_back(op);
@@ -2324,25 +2370,25 @@ namespace loops
                 a_dest.program.push_back(op_);
                 break;
             }
-            case OP_SUB:
-            {
-                Assert(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
-                if (regOrSpi(op[1]) && regOrSpiEq(op[0], op[1]))
-                {
-                    a_dest.program.push_back(op);
-                }
-                else if (!regOrSpi(op[2]) || !regOrSpiEq(op[0], op[2]))
-                {
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                    a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[2] }));
-                } 
-                else //op[0] == op[2] != op[0]
-                {
-                    a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[1] }));
-                    a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                }
-                break;
-            }
+            // case OP_SUB:
+            // {
+            //     Assert(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
+            //     if (regOrSpi(op[1]) && regOrSpiEq(op[0], op[1]))
+            //     {
+            //         a_dest.program.push_back(op);
+            //     }
+            //     else if (!regOrSpi(op[2]) || !regOrSpiEq(op[0], op[2]))
+            //     {
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+            //         a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[2] }));
+            //     } 
+            //     else //op[0] == op[2] != op[0]
+            //     {
+            //         a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[0], op[1] }));
+            //         a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
+            //     }
+            //     break;
+            // }
             case OP_SHL:
             case OP_SHR:
             case OP_SAR:

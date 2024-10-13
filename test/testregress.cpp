@@ -18,7 +18,7 @@ int main(int argc, char** argv)
     unzip_listings();
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::GTEST_FLAG(filter) = "riscV.instruction_set_test:basic.a_plus_b"; //DUBUG: return original line.
+    ::testing::GTEST_FLAG(filter) = "riscV.instruction_set_test:basic.a_plus_b:basic.min_max_scalar"; //DUBUG: return original line.
     int res = RUN_ALL_TESTS();
     refresh_zip_listings();
 

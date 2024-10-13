@@ -99,6 +99,16 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_ADD, { zero, zero, immtyped<int64_t>(2047 , _f) });
         newiopNoret(OP_ADD, { zero, zero, immtyped<int64_t>(-2048, _f) });
 
+        newiopNoret(OP_SUB, { zero, zero, zero });
+        newiopNoret(OP_SUB, {   t6, zero, zero });
+        newiopNoret(OP_SUB, { zero,   t6, zero });
+        newiopNoret(OP_SUB, { zero, zero,   t6 });
+        newiopNoret(OP_SUB, { zero, zero, immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_SUB, { t6  , zero, immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_SUB, { zero, t6  , immtyped<int64_t>(0    , _f) });
+        newiopNoret(OP_SUB, { zero, zero, immtyped<int64_t>(2048 , _f) });
+        newiopNoret(OP_SUB, { zero, zero, immtyped<int64_t>(-2047, _f) });
+
         newiopNoret(OP_MUL, { zero, zero, zero });
         newiopNoret(OP_MUL, { t6  , zero, zero });
         newiopNoret(OP_MUL, { zero, t6  , zero });
@@ -117,22 +127,41 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(t6)  , zero });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), t6   });
-
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(t6)  , zero });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), t6   });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero, argIImm(0    ) });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(t6  ), zero, argIImm(0    ) });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero),   t6, argIImm(0    ) });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero, argIImm(2047 ) });
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(zero), zero, argIImm(-2048) });
 
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero), zero });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(t6)  , zero });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero), t6   });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero), zero, argIImm(0    ) });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(t6  ), zero, argIImm(0    ) });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero),   t6, argIImm(0    ) });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero), zero, argIImm(2047 ) });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(zero), zero, argIImm(-2048) });
+
         newiopNoret(OP_STORE, { zero, iregtyped<int32_t>(zero) });
         newiopNoret(OP_STORE, { t6  , iregtyped<int32_t>(zero) });
         newiopNoret(OP_STORE, { zero, iregtyped<int32_t>(t6  ) });
-
         newiopNoret(OP_STORE, { zero, argIImm(0    ), iregtyped<int32_t>(zero)});
         newiopNoret(OP_STORE, { t6  , argIImm(0    ), iregtyped<int32_t>(zero)});
         newiopNoret(OP_STORE, { zero, argIImm(0    ), iregtyped<int32_t>(t6  )});
         newiopNoret(OP_STORE, { zero, argIImm(2047 ), iregtyped<int32_t>(zero)});
         newiopNoret(OP_STORE, { zero, argIImm(-2048), iregtyped<int32_t>(zero)});
+
+        newiopNoret(OP_STORE, { zero, iregtyped<int64_t>(zero) });
+        newiopNoret(OP_STORE, { t6  , iregtyped<int64_t>(zero) });
+        newiopNoret(OP_STORE, { zero, iregtyped<int64_t>(t6  ) });
+        newiopNoret(OP_STORE, { zero, argIImm(0    ), iregtyped<int64_t>(zero)});
+        newiopNoret(OP_STORE, { t6  , argIImm(0    ), iregtyped<int64_t>(zero)});
+        newiopNoret(OP_STORE, { zero, argIImm(0    ), iregtyped<int64_t>(t6  )});
+        newiopNoret(OP_STORE, { zero, argIImm(2047 ), iregtyped<int64_t>(zero)});
+        newiopNoret(OP_STORE, { zero, argIImm(-2048), iregtyped<int64_t>(zero)});
 
         // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
 
