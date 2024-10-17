@@ -17,26 +17,33 @@ void backend_riscv_h_deinitialize();
 namespace loops
 {
     enum {
-        RISCV_LW       =  0,
-        RISCV_LD       =  1,
-        RISCV_SW       =  2,
-        RISCV_SD       =  3,
-        RISCV_MV       =  4,
-        RISCV_ADD      =  5,
-        RISCV_SUB      =  6,
-        RISCV_ADDI     =  7,
-        RISCV_MUL      =  8,
-        RISCV_DIV      =  9,
-        RISCV_REM      = 10,
-        RISCV_BEQ      = 11,
-        RISCV_BNE      = 12,
-        RISCV_BLT      = 13,
-        RISCV_BGE      = 14,
-        RISCV_BLTU     = 15,
-        RISCV_BGEU     = 16,
-        RISCV_J        = 17,
-        RISCV_LABEL    = 18,
-        RISCV_RET      = 19,
+        RISCV_LB       =  0,
+        RISCV_LBU      =  1,
+        RISCV_LH       =  2,
+        RISCV_LHU      =  3,
+        RISCV_LW       =  4, 
+        RISCV_LWU      =  5,
+        RISCV_LD       =  6, 
+        RISCV_SB       =  7, 
+        RISCV_SH       =  8, 
+        RISCV_SW       =  9, 
+        RISCV_SD       = 10, 
+        RISCV_MV       = 11, 
+        RISCV_ADD      = 12,
+        RISCV_SUB      = 13,
+        RISCV_ADDI     = 14,
+        RISCV_MUL      = 15,
+        RISCV_DIV      = 16,
+        RISCV_REM      = 17,
+        RISCV_BEQ      = 18,
+        RISCV_BNE      = 19,
+        RISCV_BLT      = 20,
+        RISCV_BGE      = 21,
+        RISCV_BLTU     = 22,
+        RISCV_BGEU     = 23,
+        RISCV_J        = 24,
+        RISCV_LABEL    = 25,
+        RISCV_RET      = 26,
 
         INTEL64_MOV    =  0+100,
         INTEL64_MOVSX  =  1+100,
@@ -103,7 +110,6 @@ namespace loops
         virtual column_printer get_opargs_printer() const override final;
         virtual column_printer get_hex_printer() const override final;
     };
-
 }
 
 #endif // __LOOPS_ARCH == __LOOPS_RISCV

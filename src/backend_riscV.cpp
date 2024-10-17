@@ -13,8 +13,15 @@ See https://github.com/4ekmah/loops/LICENSE
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LW   , "lw"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LB   , "lb"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LBU  , "lbu"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LH   , "lh"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LHU  , "lhu"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LW   , "lw"   ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LWU  , "lwu"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_LD   , "ld"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SB   , "sb"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SH   , "sh"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SW   , "sw"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SD   , "sd"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_MV   , "mv"   ),
@@ -469,6 +476,8 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {//                                                                    | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
+        case (RISCV_SB):   return stype(index, scs, 0b000, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 8?
+        case (RISCV_SH):   return stype(index, scs, 0b001, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 16?
         case (RISCV_SW):   return stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
         case (RISCV_SD):   return stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
         case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
@@ -487,9 +496,29 @@ namespace loops
         case (RISCV_J):    return jtype(index, scs, 0b1101111,                        0,    Lab,                                    ARG0_FIXED,     0,     0);
         case (RISCV_LABEL): return BiT({});
         case (RISCV_RET):  return itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
+        case (RISCV_LB): //DUBUG:Addr64 is everywhere in loads. Are you sure it haven't to be addr8, addr16, addr32? 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b000, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_LBU): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b100, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_LH): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b001, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_LHU): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b101, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
         case (RISCV_LW): 
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b010, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_LWU): 
+            if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
+                return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b110, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
             break;
         case (RISCV_LD): 
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
@@ -1384,12 +1413,12 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                // case (TYPE_I8):  //DUBUG: support these cases!
-                // case (TYPE_U8):
-                // case (TYPE_I16):
-                // case (TYPE_U16): case (TYPE_FP16):
+                case (TYPE_I8):  return SyT(RISCV_LB ,{ SAcop(0), SAimm(0), SAcop(1) });
+                case (TYPE_U8):  return SyT(RISCV_LBU,{ SAcop(0), SAimm(0), SAcop(1) });
+                case (TYPE_I16): return SyT(RISCV_LH ,{ SAcop(0), SAimm(0), SAcop(1) });
+                case (TYPE_U16): case (TYPE_FP16): return SyT(RISCV_LHU,{ SAcop(0), SAimm(0), SAcop(1) });
                 case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAimm(0), SAcop(1) });
-                // case (TYPE_U32): case (TYPE_FP32):
+                case (TYPE_U32): case (TYPE_FP32): return SyT(RISCV_LWU,{ SAcop(0), SAimm(0), SAcop(1) });
                 case (TYPE_FP64): case (TYPE_I64): case (TYPE_U64): return SyT(RISCV_LD,{ SAcop(0), SAimm(0), SAcop(1) });
                 default: break;
                 }
@@ -1398,12 +1427,12 @@ namespace loops
             {
                 switch (index[0].elemtype)
                 {
-                // case (TYPE_I8):      //DUBUG: support these cases!
-                // case (TYPE_I16):
-                // case (TYPE_U8):
-                // case (TYPE_U16):
+                case (TYPE_I8):  return SyT(RISCV_LB ,{ SAcop(0), SAcop(2), SAcop(1) });
+                case (TYPE_U8):  return SyT(RISCV_LBU,{ SAcop(0), SAcop(2), SAcop(1) });
+                case (TYPE_I16): return SyT(RISCV_LH ,{ SAcop(0), SAcop(2), SAcop(1) });
+                case (TYPE_U16): case (TYPE_FP16): return SyT(RISCV_LHU,{ SAcop(0), SAcop(2), SAcop(1) });
                 case (TYPE_I32): return SyT(RISCV_LW,{ SAcop(0), SAcop(2), SAcop(1) });
-                // case (TYPE_U32): case (TYPE_FP32):
+                case (TYPE_U32): case (TYPE_FP32): return SyT(RISCV_LWU,{ SAcop(0), SAcop(2), SAcop(1) });
                 case (TYPE_FP64): case (TYPE_I64): case (TYPE_U64): return SyT(RISCV_LD,{ SAcop(0), SAcop(2), SAcop(1) });
                 default: break;
                 }
@@ -1414,8 +1443,10 @@ namespace loops
             {
                 switch (index[1].elemtype)
                 {
-                    // case (TYPE_I8): case (TYPE_U8):                       //DUBUG: support these cases!
-                    // case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                    case (TYPE_I8): case (TYPE_U8):
+                        return SyT(RISCV_SB, { SAcop(1), SAimm(0), SAcop(0) });
+                    case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                        return SyT(RISCV_SH, { SAcop(1), SAimm(0), SAcop(0) });
                     case (TYPE_I32): case (TYPE_U32): case (TYPE_FP32):
                         return SyT(RISCV_SW, { SAcop(1), SAimm(0), SAcop(0) });
                     case (TYPE_I64): case (TYPE_U64): case (TYPE_FP64):
@@ -1427,8 +1458,10 @@ namespace loops
             {
                 switch (index[2].elemtype)
                 {
-                    // case (TYPE_I8): case (TYPE_U8):                       //DUBUG: support these cases!
-                    // case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                    case (TYPE_I8): case (TYPE_U8):
+                        return SyT(RISCV_SB, { SAcop(2), SAcop(1), SAcop(0) });
+                    case (TYPE_I16): case (TYPE_U16): case (TYPE_FP16):
+                        return SyT(RISCV_SH, { SAcop(2), SAcop(1), SAcop(0) });
                     case (TYPE_I32): case (TYPE_U32): case (TYPE_FP32):
                         return SyT(RISCV_SW, { SAcop(2), SAcop(1), SAcop(0) });
                     case (TYPE_I64): case (TYPE_U64): case (TYPE_FP64):
