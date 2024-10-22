@@ -1827,6 +1827,17 @@ namespace loops
         uint64_t outRegs = 0;
         switch (a_op.opcode)
         {
+            case (OP_JCC):
+                Assert(a_op.size() == 4 && a_op[0].tag == Arg::IIMMEDIATE && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG && a_op[3].tag == Arg::IIMMEDIATE);
+                if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+                {
+                    if (AF_INPUT & flagmask)
+                        return std::set<int>({1,2});
+                    if (AF_OUTPUT & flagmask)
+                        return std::set<int>({});
+                } else if(basketNum == RB_VEC)
+                    return std::set<int>({});
+                break;
             case (OP_X86_ADC):
             // case (OP_ADD): //DUBUG: delete!
             // case (OP_SUB):
