@@ -59,6 +59,10 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_SUB, { zero, zero, immtyped<int64_t>(2048 , _f) });
         newiopNoret(OP_SUB, { zero, zero, immtyped<int64_t>(-2047, _f) });
 
+        newiopNoret(OP_NEG, { zero, zero });
+        newiopNoret(OP_NEG, { t6,   zero });
+        newiopNoret(OP_NEG, { zero, t6   });
+
         newiopNoret(OP_MUL, { zero, zero, zero });
         newiopNoret(OP_MUL, { t6  , zero, zero });
         newiopNoret(OP_MUL, { zero, t6  , zero });
@@ -173,9 +177,25 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_STORE, { zero, argIImm(2047 ), iregtyped<int64_t>(zero)});
         newiopNoret(OP_STORE, { zero, argIImm(-2048), iregtyped<int64_t>(zero)});
 
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_LT), zero, zero});
+        newiopNoret(OP_IVERSON, { t6  , argIImm(OP_LT), zero, zero});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_LT), t6  , zero});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_LT), zero, t6  });
+
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_UGT), zero, zero});
+        newiopNoret(OP_IVERSON, { t6  , argIImm(OP_UGT), zero, zero});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_UGT), t6  , zero});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_UGT), zero, t6  });
+
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_EQ), zero, argIImm(0)});
+        newiopNoret(OP_IVERSON, { t6  , argIImm(OP_EQ), zero, argIImm(0)});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_EQ), t6  , argIImm(0)});
+
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_NE), zero, argIImm(0)});
+        newiopNoret(OP_IVERSON, { t6  , argIImm(OP_NE), zero, argIImm(0)});
+        newiopNoret(OP_IVERSON, { zero, argIImm(OP_NE), t6  , argIImm(0)});
+
         // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
-
-
 
 
         // Expr spilled32(argSpilled(RB_INT, 32));

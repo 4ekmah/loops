@@ -9,7 +9,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
-
+//DUBUG: There is a lot of situtuations, when instructions with zero immediates create extra instruction, where
+//zero register is moved to temporary register and temporary used in original due to immediate implantation.
+//TYhe to heal this is to add cases with zero value immediate to S2s condition and handle it specifically.
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
@@ -31,6 +33,11 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::RISCV_MUL  , "mul"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_REM  , "rem"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_NEG  , "neg"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SLT  , "slt"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SLTU , "sltu" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SEQZ , "seqz" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SNEZ , "snez" ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_BEQ  , "beq"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_BNE  , "bne"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_BLT  , "blt"  ),
@@ -483,10 +490,15 @@ namespace loops
         case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
         case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_SUB):  return rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_NEG):  return rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,      0,        In,                           ARG1_FIXED,     0,     0,     0);
         case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
         case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SLT):  return rtype(index, scs, 0b0000000, 0b010, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SLTU): return rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SEQZ): return itype(index, scs, 0b011, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     1);
+        case (RISCV_SNEZ): return rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                           ARG1_FIXED,     0,     0,     0);
         case (RISCV_BEQ):  return btype(index, scs, 0b000, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
         case (RISCV_BNE):  return btype(index, scs, 0b001, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
         case (RISCV_BLT):  return btype(index, scs, 0b100, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
@@ -524,6 +536,8 @@ namespace loops
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b011, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
             break;
+
+
 
 
         case (INTEL64_MOVSX):
@@ -1505,6 +1519,37 @@ namespace loops
         case (OP_MUL): return SyT(RISCV_MUL,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_MOD): return SyT(RISCV_REM,  { SAcop(0), SAcop(1), SAcop(2) });
+        case (OP_NEG): return SyT(RISCV_NEG,  { SAcop(0), SAcop(1) });
+        case (OP_IVERSON): 
+            if (index.args_size == 4 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::IREG)
+            {
+                switch (index.args[1].value)
+                {//TODO(ch): Sometimes it's possible to handle immediate on second positions with SLTI and SLTIU.
+                case OP_LT:
+                    if(index.args[3].tag == Arg::IREG)
+                        return SyT(RISCV_SLT,  { SAcop(0), SAcop(2), SAcop(3) });
+                    break;
+                case OP_GT:
+                    if(index.args[3].tag == Arg::IREG)
+                        return SyT(RISCV_SLT,  { SAcop(0), SAcop(3), SAcop(2) });
+                    break;
+                case OP_UGT:
+                    if(index.args[3].tag == Arg::IREG)
+                        return SyT(RISCV_SLTU,  { SAcop(0), SAcop(3), SAcop(2) });
+                    break;
+                case OP_EQ:
+                    if(index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)
+                        return SyT(RISCV_SEQZ,  { SAcop(0), SAcop(2) });
+                    break;
+                case OP_NE:
+                    if(index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)
+                        return SyT(RISCV_SNEZ,  { SAcop(0), SAcop(2) });
+                    break;
+                default:
+                    break;
+                }
+            }
+            break;
         case (OP_UNSPILL):
             if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
                 return SyT(RISCV_LD, { SAcopelt(0, TYPE_I64), SAcopsar(1, -3), SAreg(SP) });
@@ -1609,7 +1654,7 @@ namespace loops
         case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
         case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
         case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
-        case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
+        // case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
         case (OP_X86_CQO): return SyT(INTEL64_CQO,  {});
         // case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
         case (OP_SELECT): 
@@ -1627,21 +1672,21 @@ namespace loops
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
             break;
-        case (OP_IVERSON): 
-            if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
-            {
-                int tarcode = index[1].value == OP_NE ? INTEL64_SETNE : (
-                              index[1].value == OP_EQ ? INTEL64_SETE : (
-                              index[1].value == OP_GE ? INTEL64_SETGE : (
-                              index[1].value == OP_LE ? INTEL64_SETLE : (
-                              index[1].value == OP_GT ? INTEL64_SETG : (
-                              index[1].value == OP_LT ? INTEL64_SETL : (
-                              index[1].value == OP_S  ? INTEL64_SETS : (
-                              index[1].value == OP_NS ? INTEL64_SETNS : -1)))))));
-                Assert(tarcode != -1);
-                return SyT(tarcode, { SAcopelt(0, TYPE_U8) });
-            }
-            break;
+        // case (OP_IVERSON): 
+        //     if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
+        //     {
+        //         int tarcode = index[1].value == OP_NE ? INTEL64_SETNE : (
+        //                       index[1].value == OP_EQ ? INTEL64_SETE : (
+        //                       index[1].value == OP_GE ? INTEL64_SETGE : (
+        //                       index[1].value == OP_LE ? INTEL64_SETLE : (
+        //                       index[1].value == OP_GT ? INTEL64_SETG : (
+        //                       index[1].value == OP_LT ? INTEL64_SETL : (
+        //                       index[1].value == OP_S  ? INTEL64_SETS : (
+        //                       index[1].value == OP_NS ? INTEL64_SETNS : -1)))))));
+        //         Assert(tarcode != -1);
+        //         return SyT(tarcode, { SAcopelt(0, TYPE_U8) });
+        //     }
+        //     break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
         // case (OP_JCC):
@@ -1875,7 +1920,7 @@ namespace loops
                 }
                 break;
             }
-            case (OP_NEG):
+            // case (OP_NEG):
             case (OP_NOT):
             case (OP_ABS):
             case (OP_SIGN):
@@ -1892,11 +1937,11 @@ namespace loops
             }
             case (OP_IVERSON):
             {
-                Assert(a_op.size() == 2);
+                Assert(a_op.size() == 4);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
-                    actualRegs = makeBitmask64({ 0 });
-                    inRegs = makeBitmask64({ 0 });     //Note: This is lie, appended because Iverson bracket on intel work only with preliminarly zeroing of output. 
+                    actualRegs = makeBitmask64({ 0, 2, 3 });
+                    inRegs = makeBitmask64({ 2, 3 });
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
                 }
@@ -2353,20 +2398,50 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case OP_CMP:
+                Assert(opnum + 1 < (int)a_source.program.size());
+                switch(a_source.program[opnum + 1].opcode)
                 {
-                    Assert(opnum + 1 < (int)a_source.program.size() && a_source.program[opnum + 1].opcode == OP_JCC);
-                    const Syntop& jccop = a_source.program[opnum + 1];
-                    a_dest.program.push_back(Syntop(OP_JCC, { jccop.args[0], op.args[0], op.args[1], jccop.args[1]}));
-                    break;
+                    case OP_JCC:
+                    {
+                        const Syntop& jccop = a_source.program[opnum + 1];
+                        a_dest.program.push_back(Syntop(OP_JCC, { jccop.args[0], op.args[0], op.args[1], jccop.args[1]}));
+                        break;
+                    }
+                    case OP_IVERSON:
+                    {
+                        const Syntop& ivop = a_source.program[opnum + 1];
+                        Assert(ivop.args_size == 2 && ivop.args[0].tag == Arg::IREG && ivop.args[1].tag == Arg::IIMMEDIATE);
+                        switch(ivop.args[1].value)
+                        {
+                            case OP_LT:
+                            case OP_GT:
+                            case OP_UGT:
+                               a_dest.program.push_back(Syntop(OP_IVERSON, { ivop.args[0], ivop.args[1], op.args[0], op.args[1]}));
+                               break;
+                            case OP_LE:
+                            case OP_ULE:
+                            case OP_GE:
+                                a_dest.program.push_back(Syntop(OP_IVERSON, { ivop.args[0], (ivop.args[1].value == OP_LE ? OP_GT :
+                                                                                            ivop.args[1].value == OP_ULE ? OP_UGT :
+                                                                                          /*ivop.args[1].value == OP_GE ?*/OP_LT), op.args[0], op.args[1]}));
+                                a_dest.program.push_back(Syntop(OP_NEG, { ivop.args[0], ivop.args[0]}));
+                                a_dest.program.push_back(Syntop(OP_ADD, { ivop.args[0], ivop.args[0], argIImm(1)}));
+                                break;
+                            case OP_EQ:
+                            case OP_NE:
+                                a_dest.program.push_back(Syntop(OP_SUB, { ivop.args[0], op.args[0], op.args[1]}));
+                                a_dest.program.push_back(Syntop(OP_IVERSON, { ivop.args[0], ivop.args[1], ivop.args[0], argIImm(0)}));
+                                break;
+                            default:
+                                throw std::runtime_error("Unsupported condition type.");
+                        }
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Unknown CMP postoperation.");
                 }
-            case OP_JCC: break; //it have to be handled in cmp option.
-            case OP_IVERSON:
-                //Unfortunately, Intel's setcc works only with 8-bit wide reigsters, like al or r8b, so register must be preliminarily zeroed.
-                Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && (op[0].tag == Arg::IREG || op[0].tag == Arg::ISPILLED) &&
-                       a_dest.program.size() && a_dest.program.back().opcode == OP_CMP);
-                a_dest.program.insert(a_dest.program.end() - 1, Syntop(OP_MOV, { op[0], Arg(0) }));
-                a_dest.program.push_back(op);
                 break;
+            case OP_JCC: case OP_IVERSON: break; //it have to be handled in cmp option.
             default:
                 a_dest.program.push_back(op);
                 break;
@@ -2527,7 +2602,7 @@ namespace loops
             //     break;
             // }
             case OP_NOT:
-            case OP_NEG:
+            // case OP_NEG:
             {
                 Syntop op_ = op;
                 Assert(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));

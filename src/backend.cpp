@@ -93,6 +93,9 @@ Backend::~Backend()
 
 bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
 {
+    if(a_op.opcode == OP_IVERSON && argnum == 1) //DUBUG:handle this hardcore workaround. 
+        return true;
+
     bool found;
     SyntopTranslation s2s = m_s2slookup(this, a_op, found);
     if (!found)

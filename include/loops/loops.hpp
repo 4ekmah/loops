@@ -53,7 +53,7 @@ enum {
     OP_NEG              =  16,
     OP_CMP              =  17,
     OP_SELECT           =  18, //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
-    OP_IVERSON          =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise
+    OP_IVERSON          =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise | In Risc-V on latest stages it can look like OP_IVERSON <dest>, <condition>, <arg1>, <arg2>
     OP_MIN              =  20,
     OP_MAX              =  21,
     OP_ABS              =  22,
