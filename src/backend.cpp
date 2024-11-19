@@ -93,7 +93,7 @@ Backend::~Backend()
 
 bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
 {
-    if(a_op.opcode == OP_IVERSON && argnum == 1) //DUBUG:handle this hardcore workaround. 
+    if((a_op.opcode == OP_IVERSON || a_op.opcode == OP_SELECT) && argnum == 1) //DUBUG:handle this hardcore workaround. 
         return true;
 
     bool found;

@@ -9,6 +9,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
+
+//DUBUG RIGHT NOW: Make tests recompilable faster!
+
 //DUBUG: There is a lot of situtuations, when instructions with zero immediates create extra instruction, where
 //zero register is moved to temporary register and temporary used in original due to immediate implantation.
 //TYhe to heal this is to add cases with zero value immediate to S2s condition and handle it specifically.
@@ -34,6 +37,12 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_REM  , "rem"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_NEG  , "neg"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_XOR  , "xor"  ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_XORI , "xori" ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_OR   , "or"   ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ORI  , "ori"  ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_AND  , "and"  ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ANDI , "andi" ), 
     LOOPS_HASHMAP_ELEM(loops::RISCV_SLT  , "slt"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SLTU , "sltu" ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SEQZ , "seqz" ),
@@ -495,6 +504,12 @@ namespace loops
         case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_XOR):  return rtype(index, scs, 0b0000000, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_XORI): return itype(index, scs, 0b100, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_OR):   return rtype(index, scs, 0b0000000, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_ORI):  return itype(index, scs, 0b110, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_AND):  return rtype(index, scs, 0b0000000, 0b111, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_ANDI): return itype(index, scs, 0b111, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
         case (RISCV_SLT):  return rtype(index, scs, 0b0000000, 0b010, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_SLTU): return rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_SEQZ): return itype(index, scs, 0b011, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     1);
@@ -1494,12 +1509,17 @@ namespace loops
             }
             break;
         case (OP_SUB):
-            if(index.args_size == 3 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IREG)
+            if(index.args_size == 3 && index.args[0].tag == Arg::IREG)
             {
-                if(index[2].tag == Arg::IREG)
-                    return SyT(RISCV_SUB,  { SAcop(0), SAcop(1), SAcop(2) });
-                else if(index[2].tag == Arg::IIMMEDIATE)
-                    return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAimm(-index.args[2].value) }); //DUBUG: I'm not sure it will be handled by ImmediteFit or, even worse, i'm not sure invalid values will be caught by ImmediateFit, check it twice.
+                if(index.args[1].tag == Arg::IREG)
+                {
+                    if(index[2].tag == Arg::IREG )
+                        return SyT(RISCV_SUB,  { SAcop(0), SAcop(1), SAcop(2) });
+                    else if(index[2].tag == Arg::IIMMEDIATE)
+                        return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAimm(-index.args[2].value) }); //DUBUG: I'm not sure it will be handled by ImmediteFit or, even worse, i'm not sure invalid values will be caught by ImmediateFit, check it twice.
+                }
+                else if(index.args[1].tag == Arg::IIMMEDIATE && index.args[1].value == 0 && index.args[2].tag == Arg::IREG) //DUBUG: reproduce this case everywhere it's possible or create some general approach.
+                    return SyT(RISCV_SUB,  { SAcop(0), SAreg(0), SAcop(2) });
             }
             break;
         case (OP_MOV):
@@ -1520,6 +1540,39 @@ namespace loops
         case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_MOD): return SyT(RISCV_REM,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_NEG): return SyT(RISCV_NEG,  { SAcop(0), SAcop(1) });
+        case (OP_XOR): 
+            if(index.size() == 3 && index[0].tag == Arg::IREG)
+            {
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_XOR,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_XORI,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_XORI,  { SAcop(0), SAcop(2), SAcop(1) });
+            }
+            break;
+        case (OP_OR):
+            if(index.size() == 3 && index[0].tag == Arg::IREG)
+            {
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_OR,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_ORI,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_ORI,  { SAcop(0), SAcop(2), SAcop(1) });
+            }
+            break;
+        case (OP_AND):
+            if(index.size() == 3 && index[0].tag == Arg::IREG)
+            {
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_AND,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_ANDI,  { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+                    return SyT(RISCV_ANDI,  { SAcop(0), SAcop(2), SAcop(1) });
+            }
+            break;
         case (OP_IVERSON): 
             if (index.args_size == 4 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::IREG)
             {
@@ -1650,28 +1703,28 @@ namespace loops
         case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
-        case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
-        case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
-        case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
+        // case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
+        // case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
+        // case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
         case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
         // case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
         case (OP_X86_CQO): return SyT(INTEL64_CQO,  {});
         // case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
-        case (OP_SELECT): 
-            if (index.size() == 4)
-            {
-                int tarcode = index[1].value == OP_NE ? INTEL64_CMOVNE : (
-                              index[1].value == OP_EQ ? INTEL64_CMOVE : (
-                              index[1].value == OP_GE ? INTEL64_CMOVGE : (
-                              index[1].value == OP_LE ? INTEL64_CMOVLE : (
-                              index[1].value == OP_GT ? INTEL64_CMOVG : (
-                              index[1].value == OP_LT ? INTEL64_CMOVL : (
-                              index[1].value == OP_S  ? INTEL64_CMOVS : (
-                              index[1].value == OP_NS ? INTEL64_CMOVNS : -1)))))));
-                Assert(tarcode != -1);
-                return SyT(tarcode, { SAcop(0), SAcop(2) });
-            }
-            break;
+        // case (OP_SELECT): 
+        //     if (index.size() == 4)
+        //     {
+        //         int tarcode = index[1].value == OP_NE ? INTEL64_CMOVNE : (
+        //                       index[1].value == OP_EQ ? INTEL64_CMOVE : (
+        //                       index[1].value == OP_GE ? INTEL64_CMOVGE : (
+        //                       index[1].value == OP_LE ? INTEL64_CMOVLE : (
+        //                       index[1].value == OP_GT ? INTEL64_CMOVG : (
+        //                       index[1].value == OP_LT ? INTEL64_CMOVL : (
+        //                       index[1].value == OP_S  ? INTEL64_CMOVS : (
+        //                       index[1].value == OP_NS ? INTEL64_CMOVNS : -1)))))));
+        //         Assert(tarcode != -1);
+        //         return SyT(tarcode, { SAcop(0), SAcop(2) });
+        //     }
+        //     break;
         // case (OP_IVERSON): 
         //     if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
         //     {
@@ -1720,22 +1773,39 @@ namespace loops
         return SyntopTranslation();
     }
 
-    class RiscVBRASnippets : public CompilerPass
+    class RiscVBRASnippets1 : public CompilerPass
     {
     public:
         virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
-        virtual ~RiscVBRASnippets() override {}
+        virtual ~RiscVBRASnippets1() override {}
         virtual bool is_inplace() const override final { return false; }
-        virtual std::string pass_id() const override final { return "CP_RISCV_BRA_SNIPPETS"; }
+        virtual std::string pass_id() const override final { return "CP_RISCV_BRA_SNIPPETS1"; }
         static CompilerPassPtr make(const Backend* a_backend)
         {
-            std::shared_ptr<RiscVBRASnippets> res;
-            res.reset(new RiscVBRASnippets(a_backend));
+            std::shared_ptr<RiscVBRASnippets1> res;
+            res.reset(new RiscVBRASnippets1(a_backend));
             return std::static_pointer_cast<CompilerPass>(res);
         } 
     private: 
-        RiscVBRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
+        RiscVBRASnippets1(const Backend* a_backend) : CompilerPass(a_backend) {}
     };
+
+    class RiscVBRASnippets2 : public CompilerPass
+    {
+    public:
+        virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
+        virtual ~RiscVBRASnippets2() override {}
+        virtual bool is_inplace() const override final { return false; }
+        virtual std::string pass_id() const override final { return "CP_RISCV_BRA_SNIPPETS2"; }
+        static CompilerPassPtr make(const Backend* a_backend)
+        {
+            std::shared_ptr<RiscVBRASnippets2> res;
+            res.reset(new RiscVBRASnippets2(a_backend));
+            return std::static_pointer_cast<CompilerPass>(res);
+        } 
+    private: 
+        RiscVBRASnippets2(const Backend* a_backend) : CompilerPass(a_backend) {}
+    };    
 
     class Intel64ARASnippets : public CompilerPass
     {
@@ -1766,7 +1836,8 @@ namespace loops
         m_postInstructionOffset = false;
         m_registersAmount = 40;
         m_name = "Risc-V";
-        m_beforeRegAllocPasses.push_back(RiscVBRASnippets::make(this));
+        m_beforeRegAllocPasses.push_back(RiscVBRASnippets1::make(this));
+        m_beforeRegAllocPasses.push_back(RiscVBRASnippets2::make(this));
         m_afterRegAllocPasses.push_back(Intel64ARASnippets::make(this));
 #if __LOOPS_OS == __LOOPS_LINUX
         m_parameterRegisters[RB_INT] = { A0, A1, A2, A3, A4, A5, A6, A7 };
@@ -1791,12 +1862,12 @@ namespace loops
         switch (a_op.opcode)
         {
         case OP_X86_ADC:
-        case OP_MUL:
-        case OP_AND:
-        case OP_OR:
-        case OP_XOR:
-        case OP_MIN:
-        case OP_MAX:
+        // case OP_MUL:
+        // case OP_AND:
+        // case OP_OR:
+        // case OP_XOR:
+        // case OP_MIN:
+        // case OP_MAX:
         {
             if (undefinedArgNums.count(1)) //TODO(ch): Hmmm... looks like there binary mask will there works faster.
                 return 1;
@@ -1804,23 +1875,23 @@ namespace loops
                 return 2;
             break;
         }
-        case OP_NEG:
+        // case OP_NEG:
         case OP_SHL:
         case OP_SHR:
         case OP_SAR:
         case OP_NOT:
-        case OP_SIGN:
+        // case OP_SIGN:
         {
             if (undefinedArgNums.count(1))
                 return 1;
             break;
         }
-        case OP_SELECT:
-        {
-            if (undefinedArgNums.count(3))
-                return 3;
-            break;
-        }
+        // case OP_SELECT:
+        // {
+        //     if (undefinedArgNums.count(3))
+        //         return 3;
+        //     break;
+        // }
         default:
             break;
         }
@@ -1841,10 +1912,10 @@ namespace loops
             case (OP_SAR):
                 Assert(a_op.size() == 3);
                 return a_op[2].tag == Arg::IREG ? 1 : 0;
-            case (OP_ABS):
-            case (OP_SIGN):
-                return 1;
-                break;
+            // case (OP_ABS):
+            // case (OP_SIGN):
+            //     return 1;
+            //     break;
             case (OP_CALL):
             case (OP_CALL_NORET):
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -1889,11 +1960,11 @@ namespace loops
             // case (OP_MUL):
             // case (OP_MOD):
             // case (OP_DIV):
-            case (OP_AND):
-            case (OP_OR):
-            case (OP_XOR):
-            case (OP_MIN):
-            case (OP_MAX):
+            // case (OP_AND):
+            // case (OP_OR):
+            // case (OP_XOR):
+            // case (OP_MIN):
+            // case (OP_MAX):
             case (OP_SHL):
             case (OP_SHR):
             case (OP_SAR):
@@ -1908,33 +1979,33 @@ namespace loops
                 }
                 break;
             }
-            case (OP_SELECT):
-            {
-                Assert(a_op.size() == 4 && a_op[0].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
-                if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
-                {
-                    actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
-                    inRegs = makeBitmask64({ 2, 3 });
-                    outRegs = makeBitmask64({ 0 });
-                    bypass = false;
-                }
-                break;
-            }
+            // case (OP_SELECT):
+            // {
+            //     Assert(a_op.size() == 4 && a_op[0].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
+            //     if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+            //     {
+            //         actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
+            //         inRegs = makeBitmask64({ 2, 3 });
+            //         outRegs = makeBitmask64({ 0 });
+            //         bypass = false;
+            //     }
+            //     break;
+            // }
             // case (OP_NEG):
             case (OP_NOT):
-            case (OP_ABS):
-            case (OP_SIGN):
-            {
-                Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
-                if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
-                {
-                    actualRegs = makeBitmask64({ 0,1 });
-                    inRegs = makeBitmask64({ 1 });
-                    outRegs = makeBitmask64({ 0 });
-                    bypass = false;
-                }
-                break;
-            }
+            // case (OP_ABS):
+            // case (OP_SIGN):
+            // {
+            //     Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+            //     if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+            //     {
+            //         actualRegs = makeBitmask64({ 0,1 });
+            //         inRegs = makeBitmask64({ 1 });
+            //         outRegs = makeBitmask64({ 0 });
+            //         bypass = false;
+            //     }
+            //     break;
+            // }
             case (OP_IVERSON):
             {
                 Assert(a_op.size() == 4);
@@ -2365,7 +2436,93 @@ namespace loops
         return ret;
     }
 
-    void RiscVBRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    void RiscVBRASnippets1::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    {
+        a_dest.name = a_source.name;
+        a_dest.params = a_source.params;
+        for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+        a_dest.program.reserve(2 * a_source.program.size());
+        for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
+        {
+            const Syntop& op = a_source.program[opnum];
+            switch (op.opcode)
+            {//DUBUG: check twice efficiency of these solutions.
+            case OP_SELECT:
+            {
+                Assert(op.args_size == 4 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IREG);
+                Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, op.args[1] }));
+                Arg diap = op.args[0]; diap.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_SUB,  { diap, op.args[2], op.args[3] }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
+                a_dest.program.push_back(Syntop(OP_AND,  { zero_or_one, zero_or_one, diap }));
+                a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[3], zero_or_one }));
+                break;
+            }
+            case OP_MIN:
+            {
+                Assert(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], op.args[2] }));
+                Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
+                Arg diap = op.args[0]; diap.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_SUB,  { diap, op.args[1], op.args[2] }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
+                a_dest.program.push_back(Syntop(OP_AND,  { zero_or_one, zero_or_one, diap }));
+                a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[2], zero_or_one }));
+                break;
+            }
+            case OP_MAX:
+            {
+                Assert(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], op.args[2] }));
+                Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
+                Arg diap = op.args[0]; diap.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_SUB,  { diap, op.args[2], op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
+                a_dest.program.push_back(Syntop(OP_AND,  { zero_or_one, zero_or_one, diap }));
+                a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[1], zero_or_one }));
+                break;
+            }
+            case OP_ABS:
+            {
+                Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
+                Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT)); zero.elemtype = TYPE_I64;
+                a_dest.program.push_back(Syntop(OP_MOV,  { argIImm(0), zero }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
+                Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
+                a_dest.program.push_back(Syntop(OP_AND,  { zero_or_one, zero_or_one, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[0], zero_or_one }));
+                a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[0], zero_or_one }));
+                break;
+            }
+            case OP_SIGN:            
+            {
+                Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
+                Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT));  zero.elemtype = TYPE_I64;
+                a_dest.program.push_back(Syntop(OP_MOV,  { argIImm(0), zero }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
+                Arg positive = op.args[0]; positive.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { positive, argIImm(OP_LT) }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
+                Arg negative = op.args[0]; negative.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { negative, argIImm(OP_LT) }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], positive, negative }));
+                break;
+            }
+            default:
+                a_dest.program.push_back(op);
+                break;
+            }
+        }
+    }
+
+    void RiscVBRASnippets2::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         a_dest.name = a_source.name;
         a_dest.params = a_source.params;
@@ -2380,9 +2537,9 @@ namespace loops
             case OP_LOAD:
                 if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
                 {
-                    RegIdx newId = a_dest.provideIdx(RB_INT);
-                    a_dest.program.push_back(Syntop(OP_ADD,  { argReg(RB_INT, newId), op.args[1], op.args[2] }));
-                    a_dest.program.push_back(Syntop(OP_LOAD, { op.args[0], argReg(RB_INT, newId)}));
+                    Arg newaddr = op.args[1]; newaddr.idx = a_dest.provideIdx(RB_INT);
+                    a_dest.program.push_back(Syntop(OP_ADD,  { newaddr, op.args[1], op.args[2] }));
+                    a_dest.program.push_back(Syntop(OP_LOAD, { op.args[0], newaddr}));
                 }
                 else
                     a_dest.program.push_back(op);
@@ -2390,9 +2547,9 @@ namespace loops
             case OP_STORE:
                 if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
                 {
-                    RegIdx newId = a_dest.provideIdx(RB_INT);
-                    a_dest.program.push_back(Syntop(OP_ADD,  { argReg(RB_INT, newId), op.args[0], op.args[1] }));
-                    a_dest.program.push_back(Syntop(OP_LOAD, { argReg(RB_INT, newId), op.args[2] }));
+                    Arg newaddr = op.args[0]; newaddr.idx = a_dest.provideIdx(RB_INT);
+                    a_dest.program.push_back(Syntop(OP_ADD,  { newaddr, op.args[0], op.args[1] }));
+                    a_dest.program.push_back(Syntop(OP_STORE, { newaddr, op.args[2] }));
                 }
                 else
                     a_dest.program.push_back(op);
@@ -2467,9 +2624,9 @@ namespace loops
                     && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
-            case OP_AND:
-            case OP_OR:
-            case OP_XOR:
+            // case OP_AND:
+            // case OP_OR:
+            // case OP_XOR:
             case OP_X86_ADC:
             // case OP_ADD:
             // case OP_MUL:
@@ -2614,63 +2771,63 @@ namespace loops
                 a_dest.program.push_back(op_);
                 break;
             }
-            case OP_SELECT:
-                Assert(op.size() == 4 && regOrSpi(op[0]) && op[2].tag == Arg::IREG && op[3].tag == Arg::IREG);
-                if (regOrSpiEq(op[2], op[3]))
-                {
-                    if (!regOrSpiEq(op[0], op[2]))
-                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[2]}));
-                }
-                else if (!regOrSpiEq(op[0], op[2]))
-                {
-                    if (!regOrSpiEq(op[0], op[3]))
-                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[3] }));
-                    a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op[1], op[2], op[0] }));
-                }
-                else
-                    a_dest.program.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
-                break;
-            case OP_MIN:
-            case OP_MAX:
-            {
-                Syntop op_ = op;
-                Assert(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
-                if (regOrSpiEq(op_[0], op_[1]))
-                    std::swap(op_[1], op_[2]);
-                if (op_[2].tag == Arg::ISPILLED)
-                    std::swap(op_[1], op_[2]);
-                if (!regOrSpiEq(op_[0], op_[2]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
-                a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? OP_GT : OP_LT, op_[1], op_[0] }));
-                break;
-            }
-            case OP_ABS:
-            {
-                Assert(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
-                bool augAbs = regOrSpiEq(op[0], op[1]);
-                if (regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
-                else
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
-                break;
-            }
-            case OP_SIGN:
-            {
-                Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-                Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
-                a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
-                if (!regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[0] }));
-                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
-                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
-                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
-                break;
-            }
+            // case OP_SELECT:
+            //     Assert(op.size() == 4 && regOrSpi(op[0]) && op[2].tag == Arg::IREG && op[3].tag == Arg::IREG);
+            //     if (regOrSpiEq(op[2], op[3]))
+            //     {
+            //         if (!regOrSpiEq(op[0], op[2]))
+            //             a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[2]}));
+            //     }
+            //     else if (!regOrSpiEq(op[0], op[2]))
+            //     {
+            //         if (!regOrSpiEq(op[0], op[3]))
+            //             a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[3] }));
+            //         a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op[1], op[2], op[0] }));
+            //     }
+            //     else
+            //         a_dest.program.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
+            //     break;
+            // case OP_MIN:
+            // case OP_MAX:
+            // {
+            //     Syntop op_ = op;
+            //     Assert(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
+            //     if (regOrSpiEq(op_[0], op_[1]))
+            //         std::swap(op_[1], op_[2]);
+            //     if (op_[2].tag == Arg::ISPILLED)
+            //         std::swap(op_[1], op_[2]);
+            //     if (!regOrSpiEq(op_[0], op_[2]))
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
+            //     a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
+            //     a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? OP_GT : OP_LT, op_[1], op_[0] }));
+            //     break;
+            // }
+            // case OP_ABS:
+            // {
+            //     Assert(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
+            //     bool augAbs = regOrSpiEq(op[0], op[1]);
+            //     if (regOrSpiEq(op[0], op[1]))
+            //         a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
+            //     else
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+            //     a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
+            //     a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
+            //     break;
+            // }
+            // case OP_SIGN:
+            // {
+            //     Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+            //     Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
+            //     a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
+            //     if (!regOrSpiEq(op[0], op[1]))
+            //         a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
+            //     a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[0] }));
+            //     a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
+            //     a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
+            //     a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
+            //     a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
+            //     break;
+            // }
             case OP_CALL:
             case OP_CALL_NORET:
             {
