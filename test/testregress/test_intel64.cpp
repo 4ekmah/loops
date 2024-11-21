@@ -4,9 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
-#ifndef __LOOPS_TEST_INTEL64_HPP__
-#define __LOOPS_TEST_INTEL64_HPP__
-
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
@@ -756,4 +753,3 @@ TEST(intel64, instruction_set_test)
     EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif//__LOOPS_ARCH == __LOOPS_INTEL64
-#endif//__LOOPS_TEST_INTEL64_HPP__

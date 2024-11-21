@@ -4,9 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
-#ifndef __LOOPS_TEST_RISCV_HPP__
-#define __LOOPS_TEST_RISCV_HPP__
-
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_RISCV
 #include "loops/loops.hpp"
@@ -881,4 +878,3 @@ TEST(riscV, instruction_set_test)
     EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif//__LOOPS_ARCH == __LOOPS_RISCV
-#endif//__LOOPS_TEST_RISCV_HPP__

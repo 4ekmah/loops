@@ -10,7 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 
-//DUBUG RIGHT NOW: Make tests recompilable faster!
+//DUBUG: Release build for some reason cannot be done now.
 
 //DUBUG: There is a lot of situtuations, when instructions with zero immediates create extra instruction, where
 //zero register is moved to temporary register and temporary used in original due to immediate implantation.
