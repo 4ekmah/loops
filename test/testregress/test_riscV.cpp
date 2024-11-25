@@ -60,6 +60,33 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_NEG, { t6,   zero });
         newiopNoret(OP_NEG, { zero, t6   });
 
+        newiopNoret(OP_SHL, { zero, zero, zero });
+        newiopNoret(OP_SHL, {   t6, zero, zero });
+        newiopNoret(OP_SHL, { zero,   t6, zero });
+        newiopNoret(OP_SHL, { zero, zero,   t6 });
+        newiopNoret(OP_SHL, { zero, zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHL, { t6  , zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHL, { zero, t6  , immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHL, { zero, zero, immtyped<int64_t>(63, _f) });
+
+        newiopNoret(OP_SHR, { zero, zero, zero });
+        newiopNoret(OP_SHR, {   t6, zero, zero });
+        newiopNoret(OP_SHR, { zero,   t6, zero });
+        newiopNoret(OP_SHR, { zero, zero,   t6 });
+        newiopNoret(OP_SHR, { zero, zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHR, { t6  , zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHR, { zero, t6  , immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SHR, { zero, zero, immtyped<int64_t>(63, _f) });
+
+        newiopNoret(OP_SAR, { zero, zero, zero });
+        newiopNoret(OP_SAR, {   t6, zero, zero });
+        newiopNoret(OP_SAR, { zero,   t6, zero });
+        newiopNoret(OP_SAR, { zero, zero,   t6 });
+        newiopNoret(OP_SAR, { zero, zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SAR, { t6  , zero, immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SAR, { zero, t6  , immtyped<int64_t>(0 , _f) });
+        newiopNoret(OP_SAR, { zero, zero, immtyped<int64_t>(63, _f) });
+
         newiopNoret(OP_MUL, { zero, zero, zero });
         newiopNoret(OP_MUL, { t6  , zero, zero });
         newiopNoret(OP_MUL, { zero, t6  , zero });
@@ -104,6 +131,10 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_AND, { zero, t6  , immtyped<int64_t>(0    , _f) });
         newiopNoret(OP_AND, { zero, zero, immtyped<int64_t>(2047 , _f) });
         newiopNoret(OP_AND, { zero, zero, immtyped<int64_t>(-2048, _f) });
+
+        newiopNoret(OP_NOT, { zero, zero });
+        newiopNoret(OP_NOT, { t6,   zero });
+        newiopNoret(OP_NOT, { zero, t6   });
 
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(zero), zero });
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(t6)  , zero });

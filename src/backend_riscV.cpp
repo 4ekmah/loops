@@ -37,12 +37,19 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_REM  , "rem"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_NEG  , "neg"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SLL  , "sll"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SLLI , "slli" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SRL  , "srl"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SRLI , "srli" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SRA  , "sra"  ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_SRAI , "srai" ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_XOR  , "xor"  ), 
     LOOPS_HASHMAP_ELEM(loops::RISCV_XORI , "xori" ), 
     LOOPS_HASHMAP_ELEM(loops::RISCV_OR   , "or"   ), 
     LOOPS_HASHMAP_ELEM(loops::RISCV_ORI  , "ori"  ), 
     LOOPS_HASHMAP_ELEM(loops::RISCV_AND  , "and"  ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ANDI , "andi" ), 
+    LOOPS_HASHMAP_ELEM(loops::RISCV_ANDI , "andi" ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_NOT  , "not"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SLT  , "slt"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SLTU , "sltu" ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SEQZ , "seqz" ),
@@ -424,6 +431,66 @@ namespace loops
         return BinTranslation();
     }
 
+    //I-type(shift specialization):
+    //|static|immediate|register|static|register|static|
+    //|funct6|imm[5:0] |rs1     |funct3|rd      |opcode|
+    //|6 bits|6 bits   |5 bits  |3 bits|5 bits  |7 bit |
+    static inline BinTranslation istype(const Syntop& index, bool& scs, uint64_t funct6, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(((funct6 & ~(uint64_t(0b111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        if(fixed & ARG0_FIXED)
+        {
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            Assert((fixed1 >= ZERO && fixed1 <= T6));
+            effargidxs[1] = -1;
+            effargidxs[2]--;
+            effargnum--;
+        }
+        if(fixed & ARG2_FIXED)
+        {
+            Assert(((fixed2 & ~(uint64_t(0b111111))) == 0));
+            effargidxs[2] = -1;
+            effargnum--;
+        }
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(6);
+            if((fixed & ARG2_FIXED) || ((((uint64_t)index.args[effargidxs[2]].value) & ~(uint64_t(0b111111))) == 0))
+            {
+                tokens.push_back(BTsta(funct6, 6)); 
+                if(fixed & ARG2_FIXED)
+                    tokens.push_back(BTsta(fixed2, 6));
+                else
+                    tokens.push_back(BTimm(effargidxs[2], 6, flags2));
+                if(fixed & ARG1_FIXED)
+                    tokens.push_back(BTsta(fixed1, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+                tokens.push_back(BTsta(funct3, 3)); 
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                tokens.push_back(BTsta(opcode, 7));
+            }
+            return BinTranslation(tokens);
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
     //S-type:
     //|immediate|register|register|static|immediate|static|
     //|imm[11:5]|rs2     |rs1     |funct3|imm[4:0] |opcode|
@@ -491,38 +558,45 @@ namespace loops
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
-        {//                                                                    | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
-        case (RISCV_SB):   return stype(index, scs, 0b000, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 8?
-        case (RISCV_SH):   return stype(index, scs, 0b001, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 16?
-        case (RISCV_SW):   return stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
-        case (RISCV_SD):   return stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
-        case (RISCV_MV):   return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
-        case (RISCV_ADD):  return rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_SUB):  return rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_NEG):  return rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,      0,        In,                           ARG1_FIXED,     0,     0,     0);
-        case (RISCV_ADDI): return itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
-        case (RISCV_MUL):  return rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_DIV):  return rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_REM):  return rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_XOR):  return rtype(index, scs, 0b0000000, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_XORI): return itype(index, scs, 0b100, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
-        case (RISCV_OR):   return rtype(index, scs, 0b0000000, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_ORI):  return itype(index, scs, 0b110, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
-        case (RISCV_AND):  return rtype(index, scs, 0b0000000, 0b111, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_ANDI): return itype(index, scs, 0b111, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
-        case (RISCV_SLT):  return rtype(index, scs, 0b0000000, 0b010, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_SLTU): return rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
-        case (RISCV_SEQZ): return itype(index, scs, 0b011, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     1);
-        case (RISCV_SNEZ): return rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                           ARG1_FIXED,     0,     0,     0);
-        case (RISCV_BEQ):  return btype(index, scs, 0b000, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_BNE):  return btype(index, scs, 0b001, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_BLT):  return btype(index, scs, 0b100, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_BGE):  return btype(index, scs, 0b101, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_BLTU): return btype(index, scs, 0b110, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_BGEU): return btype(index, scs, 0b111, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_J):    return jtype(index, scs, 0b1101111,                        0,    Lab,                                    ARG0_FIXED,     0,     0);
+        {//                                                                     | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
+        case (RISCV_SB):   return  stype(index, scs, 0b000, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 8?
+        case (RISCV_SH):   return  stype(index, scs, 0b001, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 16?
+        case (RISCV_SW):   return  stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
+        case (RISCV_SD):   return  stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
+        case (RISCV_MV):   return  itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
+        case (RISCV_ADD):  return  rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SUB):  return  rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_NEG):  return  rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,      0,        In,                           ARG1_FIXED,     0,     0,     0);
+        case (RISCV_ADDI): return  itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_MUL):  return  rtype(index, scs, 0b0000001, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_DIV):  return  rtype(index, scs, 0b0000001, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_REM):  return  rtype(index, scs, 0b0000001, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SLL):  return  rtype(index, scs, 0b0000000, 0b001, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SLLI): return istype(index, scs,  0b000000, 0b001, 0b0010011,    Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_SRL):  return  rtype(index, scs, 0b0000000, 0b101, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SRLI): return istype(index, scs,  0b000000, 0b101, 0b0010011,    Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_SRA):  return  rtype(index, scs, 0b0100000, 0b101, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SRAI): return istype(index, scs,  0b010000, 0b101, 0b0010011,    Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_XOR):  return  rtype(index, scs, 0b0000000, 0b100, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_XORI): return  itype(index, scs, 0b100, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_OR):   return  rtype(index, scs, 0b0000000, 0b110, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_ORI):  return  itype(index, scs, 0b110, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_AND):  return  rtype(index, scs, 0b0000000, 0b111, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_ANDI): return  itype(index, scs, 0b111, 0b0010011,               Out,     In,         0,                                    0,     0,     0,     0);
+        case (RISCV_NOT):  return  itype(index, scs, 0b100, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,    -1);
+        case (RISCV_SLT):  return  rtype(index, scs, 0b0000000, 0b010, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SLTU): return  rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
+        case (RISCV_SEQZ): return  itype(index, scs, 0b011, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     1);
+        case (RISCV_SNEZ): return  rtype(index, scs, 0b0000000, 0b011, 0b0110011,    Out,     In,        In,                           ARG1_FIXED,     0,     0,     0);
+        case (RISCV_BEQ):  return  btype(index, scs, 0b000, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BNE):  return  btype(index, scs, 0b001, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLT):  return  btype(index, scs, 0b100, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGE):  return  btype(index, scs, 0b101, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BLTU): return  btype(index, scs, 0b110, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_BGEU): return  btype(index, scs, 0b111, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
+        case (RISCV_J):    return  jtype(index, scs, 0b1101111,                        0,    Lab,                                    ARG0_FIXED,     0,     0);
         case (RISCV_LABEL): return BiT({});
-        case (RISCV_RET):  return itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
+        case (RISCV_RET):  return  itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
         case (RISCV_LB): //DUBUG:Addr64 is everywhere in loads. Are you sure it haven't to be addr8, addr16, addr32? 
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b000, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
@@ -1540,6 +1614,18 @@ namespace loops
         case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_MOD): return SyT(RISCV_REM,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_NEG): return SyT(RISCV_NEG,  { SAcop(0), SAcop(1) });
+        case (OP_SHL):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && (index[2].tag == Arg::IREG || index[2].tag == Arg::IIMMEDIATE))
+                return SyT(index[2].tag == Arg::IREG ? RISCV_SLL : RISCV_SLLI,  { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_SHR):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && (index[2].tag == Arg::IREG || index[2].tag == Arg::IIMMEDIATE))
+                return SyT(index[2].tag == Arg::IREG ? RISCV_SRL : RISCV_SRLI,  { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_SAR):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && (index[2].tag == Arg::IREG || index[2].tag == Arg::IIMMEDIATE))
+                return SyT(index[2].tag == Arg::IREG ? RISCV_SRA : RISCV_SRAI,  { SAcop(0), SAcop(1), SAcop(2) });
+            break;
         case (OP_XOR): 
             if(index.size() == 3 && index[0].tag == Arg::IREG)
             {
@@ -1573,6 +1659,7 @@ namespace loops
                     return SyT(RISCV_ANDI,  { SAcop(0), SAcop(2), SAcop(1) });
             }
             break;
+        case (OP_NOT): return SyT(RISCV_NOT,  { SAcop(0), SAcop(1) });
         case (OP_IVERSON): 
             if (index.args_size == 4 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::IREG)
             {
@@ -1700,13 +1787,13 @@ namespace loops
         // case (OP_MUL):     return SyT(INTEL64_IMUL, { SAcop(0), SAcop(2) });
         // case (OP_MOD):     
         // case (OP_DIV):     return SyT(INTEL64_IDIV, { SAcop(2) });
-        case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
-        case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
-        case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
+        // case (OP_SHL):     return SyT(INTEL64_SHL,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
+        // case (OP_SHR):     return SyT(INTEL64_SHR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
+        // case (OP_SAR):     return SyT(INTEL64_SAR,  { SAcop(0), index[2].tag == Arg::IIMMEDIATE ? SAcop(2) : SAcopelt(2, TYPE_I8) });
         // case (OP_AND):     return SyT(INTEL64_AND,  { SAcop(0), SAcop(2) });
         // case (OP_OR):      return SyT(INTEL64_OR,   { SAcop(0), SAcop(2) });
         // case (OP_XOR):     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(2) });
-        case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
+        // case (OP_NOT):     return SyT(INTEL64_NOT,  { SAcop(0) });
         // case (OP_NEG):     return SyT(INTEL64_NEG,  { SAcop(0) });
         case (OP_X86_CQO): return SyT(INTEL64_CQO,  {});
         // case (OP_CMP):     return SyT(INTEL64_CMP,  { SAcop(0), SAcop(1) });
@@ -1876,16 +1963,16 @@ namespace loops
             break;
         }
         // case OP_NEG:
-        case OP_SHL:
-        case OP_SHR:
-        case OP_SAR:
-        case OP_NOT:
+        // case OP_SHL:
+        // case OP_SHR:
+        // case OP_SAR:
+        // case OP_NOT:
         // case OP_SIGN:
-        {
-            if (undefinedArgNums.count(1))
-                return 1;
-            break;
-        }
+        // {
+        //     if (undefinedArgNums.count(1))
+        //         return 1;
+        //     break;
+        // }
         // case OP_SELECT:
         // {
         //     if (undefinedArgNums.count(3))
@@ -1907,11 +1994,11 @@ namespace loops
             // case (OP_MOD):
             //     return 2;
             //     break;
-            case (OP_SHL):
-            case (OP_SHR):
-            case (OP_SAR):
-                Assert(a_op.size() == 3);
-                return a_op[2].tag == Arg::IREG ? 1 : 0;
+            // case (OP_SHL):
+            // case (OP_SHR):
+            // case (OP_SAR):
+            //     Assert(a_op.size() == 3);
+            //     return a_op[2].tag == Arg::IREG ? 1 : 0;
             // case (OP_ABS):
             // case (OP_SIGN):
             //     return 1;
@@ -1965,9 +2052,9 @@ namespace loops
             // case (OP_XOR):
             // case (OP_MIN):
             // case (OP_MAX):
-            case (OP_SHL):
-            case (OP_SHR):
-            case (OP_SAR):
+            // case (OP_SHL):
+            // case (OP_SHR):
+            // case (OP_SAR):
             {
                 Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -1992,7 +2079,7 @@ namespace loops
             //     break;
             // }
             // case (OP_NEG):
-            case (OP_NOT):
+            // case (OP_NOT):
             // case (OP_ABS):
             // case (OP_SIGN):
             // {
