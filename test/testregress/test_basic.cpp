@@ -706,7 +706,7 @@ TEST(basic, compile_all)
     Context ctx;
     loops::Func a_plus_b_func = make_a_plus_b(ctx, "a_plus_b");
     loops::Func min_max_scalar_func = make_min_max_scalar(ctx, "min_max_scalar");
-    loops::Func ten_args_to_sum_func = make_ten_args_to_sum(ctx, "min_max_scalar");
+    loops::Func ten_args_to_sum_func = make_ten_args_to_sum(ctx, "ten_args_to_sum");
     loops::Func min_max_select_func = make_min_max_select(ctx, "min_max_select");
     loops::Func triangle_types_func = make_triangle_types(ctx, "triangle_types");
     loops::Func nonnegative_odd_func = make_nonnegative_odd(ctx, "nonnegative_odd");

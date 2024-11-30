@@ -2098,7 +2098,7 @@ namespace loops
                 Assert(a_op.size() == 4);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
-                    actualRegs = makeBitmask64({ 0, 2, 3 });
+                    actualRegs = a_op[3].tag == Arg::IREG ? makeBitmask64({ 0, 2, 3 }) : makeBitmask64({ 0, 2 });
                     inRegs = makeBitmask64({ 2, 3 });
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
@@ -2577,8 +2577,8 @@ namespace loops
             {
                 Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
                 Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT)); zero.elemtype = TYPE_I64;
-                a_dest.program.push_back(Syntop(OP_MOV,  { argIImm(0), zero }));
-                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
+                a_dest.program.push_back(Syntop(OP_MOV,  { zero, argIImm(0) }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
                 a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
@@ -2592,13 +2592,13 @@ namespace loops
             {
                 Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
                 Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT));  zero.elemtype = TYPE_I64;
-                a_dest.program.push_back(Syntop(OP_MOV,  { argIImm(0), zero }));
-                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
-                Arg positive = op.args[0]; positive.idx = a_dest.provideIdx(RB_INT);
-                a_dest.program.push_back(Syntop(OP_IVERSON,  { positive, argIImm(OP_LT) }));
-                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_MOV,  { zero, argIImm(0) }));
                 Arg negative = op.args[0]; negative.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { negative, argIImm(OP_LT) }));
+                Arg positive = op.args[0]; positive.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_IVERSON,  { positive, argIImm(OP_LT) }));
                 a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], positive, negative }));
                 break;
             }

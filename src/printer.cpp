@@ -140,7 +140,7 @@ LOOPS_HASHMAP_STATIC(int, suffixed_opname) suffixed_opnames_[] =
     LOOPS_HASHMAP_ELEM(loops::OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}),	
     LOOPS_HASHMAP_ELEM(loops::OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}),
     LOOPS_HASHMAP_ELEM(loops::OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}),
-    LOOPS_HASHMAP_ELEM(loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}),
+    LOOPS_HASHMAP_ELEM(loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}), //DUBUG: current version of iverson doesn't printed correctly. Also check what's going on with select!
     LOOPS_HASHMAP_ELEM(loops::VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}),
