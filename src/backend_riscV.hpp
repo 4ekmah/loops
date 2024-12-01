@@ -62,54 +62,6 @@ namespace loops
         RISCV_J        = 42,
         RISCV_LABEL    = 43,
         RISCV_RET      = 44,
-
-
-        INTEL64_MOV    =  0+100,
-        INTEL64_MOVSX  =  1+100,
-        INTEL64_MOVSXD =  2+100,
-        INTEL64_MOVZX  =  3+100,
-        INTEL64_ADC    =  4+100,
-        INTEL64_ADD    =  5+100,
-        INTEL64_SUB    =  6+100,
-        INTEL64_IMUL   =  7+100,
-        INTEL64_IDIV   =  8+100,
-        INTEL64_SHL    =  9+100,
-        INTEL64_SHR    = 10+100,
-        INTEL64_SAR    = 11+100,
-        INTEL64_AND    = 12+100,
-        INTEL64_OR     = 13+100,
-        INTEL64_XOR    = 14+100,
-        INTEL64_NOT    = 15+100,
-        INTEL64_NEG    = 16+100,
-        INTEL64_CQO    = 17+100,
-        INTEL64_XCHG   = 18+100,
-        INTEL64_CMP    = 19+100,
-        INTEL64_CMOVE  = 20+100, //TODO(ch)[printer]: implement CMOVCC operation instead of this endless variations.
-        INTEL64_CMOVNE = 21+100,
-        INTEL64_CMOVL  = 22+100,
-        INTEL64_CMOVG  = 23+100,
-        INTEL64_CMOVLE = 24+100,
-        INTEL64_CMOVGE = 25+100,
-        INTEL64_CMOVS  = 26+100,
-        INTEL64_CMOVNS = 27+100,
-        INTEL64_SETE   = 28+100, //TODO(ch)[printer]: implement SETCC operation instead of this endless variations.
-        INTEL64_SETNE  = 29+100,
-        INTEL64_SETL   = 30+100,
-        INTEL64_SETG   = 31+100,
-        INTEL64_SETLE  = 32+100,
-        INTEL64_SETGE  = 33+100,
-        INTEL64_SETS   = 34+100,
-        INTEL64_SETNS  = 35+100,
-        INTEL64_JMP    = 36+100,
-        INTEL64_JNE    = 37+100, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
-        INTEL64_JE     = 38+100,
-        INTEL64_JL     = 39+100,
-        INTEL64_JLE    = 40+100,
-        INTEL64_JG     = 41+100,
-        INTEL64_JGE    = 42+100,
-        INTEL64_CALL   = 43+100,
-        INTEL64_LABEL  = 44+100, 
-        INTEL64_RET    = 45+100 
     };
 
     class RiscVBackend : public Backend
@@ -117,7 +69,6 @@ namespace loops
     public:
         RiscVBackend();
         virtual ~RiscVBackend() override;
-        virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
         virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
         virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
