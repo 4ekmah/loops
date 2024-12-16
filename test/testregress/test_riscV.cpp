@@ -23,6 +23,12 @@ TEST(riscV, big_immediates)
     STARTFUNC_(test_info_->name(), &targetptr)
     {
         double e = 2.718281828459045235360287471352;
+        store_<uint64_t>(targetptr, CONST_(0x1000)); targetptr += sizeof(uint64_t);
+        store_<uint64_t>(targetptr, CONST_(0x1fff)); targetptr += sizeof(uint64_t);
+        store_<uint64_t>(targetptr, CONST_(0x7ffffaaa)); targetptr += sizeof(uint64_t);
+        store_<uint64_t>(targetptr, CONST_(0x100000000)); targetptr += sizeof(uint64_t);
+        store_<uint64_t>(targetptr, CONST_(0x1ffffffff)); targetptr += sizeof(uint64_t);
+        store_<uint64_t>(targetptr, CONST_(0x7fffffffaaaaaaaa)); targetptr += sizeof(uint64_t);
         store_<uint64_t>(targetptr, CONST_(65535)); targetptr += sizeof(uint64_t);
         store_<uint64_t>(targetptr, CONST_(65536)); targetptr += sizeof(uint64_t);
         store_<int64_t>(targetptr, CONST_(-32768)); targetptr += sizeof(uint64_t);
@@ -52,7 +58,7 @@ TEST(riscV, big_immediates)
         uconv_() : val64(0) {} 
     } conv;
     conv.val = e;
-    const std::vector<int64_t> scalars_ref = {65535, 65536, -32768, -32769, 0x5F3759DF, conv.val64};
+    const std::vector<int64_t> scalars_ref = {0x1000, 0x1fff, 0x7ffffaaa, 0x100000000, 0x1ffffffff, 0x7fffffffaaaaaaaa, 65535, 65536, -32768, -32769, 0x5F3759DF, conv.val64};
     std::vector<int64_t> scalars(scalars_ref.size(), 0);
     tested((void*)&(scalars[0]));
     for(int i = 0; i < (int)scalars.size(); i++) ASSERT_EQ(scalars[i], scalars_ref[i]);
@@ -78,6 +84,10 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_MOV, { t6  , immtyped<int64_t>(1    , _f)});
         newiopNoret(OP_MOV, { zero, immtyped<int64_t>(2047 , _f)});
         newiopNoret(OP_MOV, { zero, immtyped<int64_t>(-2048, _f)});
+
+        newiopNoret(OP_RV_LUI, { zero, immtyped<int64_t>(0      , _f)});
+        newiopNoret(OP_RV_LUI, {   t6, immtyped<int64_t>(0      , _f)});
+        newiopNoret(OP_RV_LUI, { zero, immtyped<int64_t>(1048575, _f)});
 
         newiopNoret(OP_ADD, { zero, zero, zero });
         newiopNoret(OP_ADD, {   t6, zero, zero });

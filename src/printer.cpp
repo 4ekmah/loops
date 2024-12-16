@@ -96,6 +96,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_MOVK    , "arm_movk"              ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_LDP     , "arm_ldp"               ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_STP     , "arm_stp"               ) ,
+    LOOPS_HASHMAP_ELEM(loops::OP_RV_LUI      , "rv_lui"                ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_DEF         , "def"                   ) ,
 };
 

@@ -166,11 +166,13 @@ enum {
     VOP_ARM_SHRINK_HIGH = 112,
     VOP_GETLANE         = 113,
     VOP_SETLANE         = 114,
+//RiscV-only operations:
+    OP_RV_LUI           = 115,
 
-    OP_DEF              = 115,
-    VOP_DEF             = 116,
+    OP_DEF              = 116,
+    VOP_DEF             = 117,
 
-    OP_NOINIT           = 117,
+    OP_NOINIT           = 118,
 };
 
 enum

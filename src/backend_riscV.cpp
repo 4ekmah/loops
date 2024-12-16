@@ -30,6 +30,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::RISCV_SW   , "sw"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SD   , "sd"   ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_MV   , "mv"   ),
+    LOOPS_HASHMAP_ELEM(loops::RISCV_LUI  , "lui"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_ADD  , "add"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_SUB  , "sub"  ),
     LOOPS_HASHMAP_ELEM(loops::RISCV_ADDI , "addi" ),
@@ -227,6 +228,55 @@ namespace loops
                             ((imm & 0b000000000011111111110) << 8 ) | 
                             ((imm & 0b000000000100000000000) >> 3 ) | 
                             ((imm & 0b011111111000000000000) >> 12);
+                    if((fixed & ARG1_FIXED) == 0)
+                        tokens.push_back(BTomm(effargidxs[1], flags1));
+                    tokens.push_back(BTsta(imm, 20));
+                }
+                if(fixed & ARG0_FIXED)
+                    tokens.push_back(BTsta(fixed0, 5));
+                else
+                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                tokens.push_back(BTsta(opcode, 7));
+                return BinTranslation(tokens);
+            }
+        }
+        scs = false;
+        return BinTranslation();
+    }    
+
+    //U-type:
+    //|immediate |register|static|
+    //|imm[31:12]|rd      |opcode|
+    //|20 bits   |5 bits  |7 bit |
+    static inline BinTranslation utype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t fixed1)
+    {
+        using namespace BinTranslationConstruction;
+        Assert((opcode & ~(uint64_t(0b1111111))) == 0);
+        scs = true;
+        int effargidxs[2] = {0,1};
+        int effargnum = 2;
+        if(fixed & ARG0_FIXED)
+        {
+            Assert((fixed0 >= ZERO && fixed0 <= T6));
+            effargidxs[0] = -1;
+            effargidxs[1]--;
+            effargnum--;
+        }
+        if(fixed & ARG1_FIXED)
+        {
+            effargidxs[1] = -1;
+            effargnum--;
+        }
+        if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(4);
+            uint64_t value1 = (fixed & ARG1_FIXED) ? fixed1 : (uint64_t)index.args[effargidxs[1]].value;
+            if((value1 & ~(uint64_t(0b11111111111111111111))) == 0)
+            {
+                {
+                    //imm[20|10:1|11|19:12]
+                    uint64_t imm = value1 & 0b11111111111111111111;
                     if((fixed & ARG1_FIXED) == 0)
                         tokens.push_back(BTomm(effargidxs[1], flags1));
                     tokens.push_back(BTsta(imm, 20));
@@ -483,7 +533,6 @@ namespace loops
 
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
-        // imm[31:12] rd 0110111  LUI  //DUBUG: We need big constant analogue. LUI(set 20 upper bits in 32 bit of register[sign-extended to 64 bits]) is part of it.
         using namespace BinTranslationConstruction;
         scs = true;
         switch (index.opcode)
@@ -493,6 +542,7 @@ namespace loops
         case (RISCV_SW):   return  stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
         case (RISCV_SD):   return  stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
         case (RISCV_MV):   return  itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
+        case (RISCV_LUI):  return  utype(index, scs, 0b0110111,                      Out,      0,                                               0,     0,     0);
         case (RISCV_ADD):  return  rtype(index, scs, 0b0000000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_SUB):  return  rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,     In,        In,                                    0,     0,     0,     0);
         case (RISCV_NEG):  return  rtype(index, scs, 0b0100000, 0b000, 0b0110011,    Out,      0,        In,                           ARG1_FIXED,     0,     0,     0);
@@ -523,7 +573,7 @@ namespace loops
         case (RISCV_BGE):  return  btype(index, scs, 0b101, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
         case (RISCV_BLTU): return  btype(index, scs, 0b110, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
         case (RISCV_BGEU): return  btype(index, scs, 0b111, 0b1100011,                In,     In,       Lab,                                    0,     0,     0,     0);
-        case (RISCV_J):    return  jtype(index, scs, 0b1101111,                        0,    Lab,                                    ARG0_FIXED,     0,     0);
+        case (RISCV_J):    return  jtype(index, scs, 0b1101111,                        0,    Lab,                                      ARG0_FIXED,     0,     0);
         case (RISCV_LABEL): return BiT({});
         case (RISCV_RET):  return  itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
         case (RISCV_LB): //DUBUG:Addr64 is everywhere in loads. Are you sure it haven't to be addr8, addr16, addr32? 
@@ -665,6 +715,10 @@ namespace loops
                         return SyT(RISCV_ADDI,  { SAcop(0), SAreg(ZERO), SAcop(1)});
                 }
             }
+            break;
+        case (OP_RV_LUI):
+            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_LUI,  { SAcop(0), SAcop(1) });
             break;
         case (OP_MUL): return SyT(RISCV_MUL,  { SAcop(0), SAcop(1), SAcop(2) });
         case (OP_DIV): return SyT(RISCV_DIV,  { SAcop(0), SAcop(1), SAcop(2) });
@@ -814,6 +868,7 @@ namespace loops
         } 
     private: 
         RiscVBRASnippets2(const Backend* a_backend) : CompilerPass(a_backend) {}
+        void mov32(Syntfunc& a_dest, Arg destarg, int64_t val);
     };    
 
     class RiscVARASnippets : public CompilerPass
@@ -1422,10 +1477,73 @@ namespace loops
                 }
                 break;
             case OP_JCC: case OP_IVERSON: break; //it have to be handled in cmp option.
+            case OP_MOV:
+                if(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IIMMEDIATE && !signed_fits(op.args[1].value, 12))
+                {
+                    if(signed_fits(uint64_t(op.args[1].value), 32))
+                    {
+                        mov32(a_dest, op.args[0], op.args[1].value);
+                    }
+                    else
+                    {
+                        uint64_t upper32 = uint64_t(op.args[1].value >> 32);
+                        int64_t lower32 = (int64_t)(uint64_t(op.args[1].value) & 0xffffffff);
+                        bool negative_lower32 = (lower32 & (1 << 31)) != 0;
+                        if(negative_lower32)
+                            lower32 = int64_t(uint64_t(lower32) | 0xffffffff00000000); //Expand to negative.
+                        if(negative_lower32 && upper32 == 0x7fffffff)
+                        {
+                            a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], argIImm(1) }));
+                            a_dest.program.push_back(Syntop(OP_SHL, { op.args[0], op.args[0], argIImm(63) }));
+                        }
+                        else
+                        {
+                            if(negative_lower32)
+                                upper32 += 1;
+                            mov32(a_dest, op.args[0], upper32);
+                            a_dest.program.push_back(Syntop(OP_SHL, { op.args[0], op.args[0], argIImm(32) }));
+                        }
+                        Arg lowerkeeper = op.args[0]; lowerkeeper.idx = a_dest.provideIdx(RB_INT);
+                        mov32(a_dest, lowerkeeper, lower32);
+                        a_dest.program.push_back(Syntop((negative_lower32 && upper32 == 0x7fffffff) ? OP_XOR : OP_ADD, { op.args[0], op.args[0], lowerkeeper }));
+                    }
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
             default:
                 a_dest.program.push_back(op);
                 break;
             }
+        }
+    }
+
+    void RiscVBRASnippets2::mov32(Syntfunc& a_dest, Arg destarg, int64_t val)
+    {
+        Assert(destarg.tag == Arg::IREG && signed_fits(uint64_t(val), 32));
+        if(!signed_fits(uint64_t(val), 12))
+        {
+            uint64_t upper20 = (uint64_t(val) >> 12) & 0b11111111111111111111;
+            int64_t lower12 = (int64_t)(uint64_t(val) & 0b111111111111);
+            bool negative_lower12 = (lower12 & (1 << 11)) != 0;
+            if(negative_lower12)
+                lower12 = int64_t(uint64_t(lower12) | 0xfffffffffffff000); //Expand to negative.
+            if(negative_lower12 && (upper20 == 0b01111111111111111111))
+            {
+                a_dest.program.push_back(Syntop(OP_RV_LUI, { destarg, argIImm(0x80000) }));
+                a_dest.program.push_back(Syntop(OP_XOR, { destarg, destarg, lower12}));
+            }
+            else
+            {
+                if(negative_lower12)
+                    upper20 += 1;
+                a_dest.program.push_back(Syntop(OP_RV_LUI, { destarg, argIImm(upper20) }));
+                a_dest.program.push_back(Syntop(OP_ADD, { destarg, destarg, argIImm(lower12)}));
+            }
+        }
+        else
+        {
+            a_dest.program.push_back(Syntop(OP_MOV, { destarg, argIImm(val) }));
         }
     }
 
