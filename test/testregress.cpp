@@ -13,7 +13,7 @@ int main(int argc, char** argv)
     unzip_listings();
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::GTEST_FLAG(filter) = "riscV.instruction_set_test:basic.a_plus_b:basic.min_max_scalar:basic.min_max_select:basic.triangle_types:basic.ten_args_to_sum:basic.nonnegative_odd:basic.all_loads_all_stores:basic.nullify_msb_lsb:basic.bresenham:basic.conditionpainter:basic.compile_all:riscV.big_immediates:math/fixed_power.fixed_power/0:math/fixed_power.fixed_power/1:math/fixed_power.fixed_power/2"; //DUBUG: return original line.
+    //::testing::GTEST_FLAG(filter) = "basic.triangle_types";
     int res = RUN_ALL_TESTS();
     refresh_zip_listings();
 

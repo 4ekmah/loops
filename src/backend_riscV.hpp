@@ -62,8 +62,9 @@ namespace loops
         RISCV_BLTU     = 41,
         RISCV_BGEU     = 42,
         RISCV_J        = 43,
-        RISCV_LABEL    = 44,
-        RISCV_RET      = 45,
+        RISCV_JALR     = 44,
+        RISCV_LABEL    = 45,
+        RISCV_RET      = 46,
     };
 
     class RiscVBackend : public Backend

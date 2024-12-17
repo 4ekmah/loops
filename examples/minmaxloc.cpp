@@ -63,14 +63,7 @@ int main(int /*argc*/, char** /*argv*/)
     minmaxpos_t f = reinterpret_cast<minmaxpos_t>(mmlfunc.ptr());
     std::vector<int> v = { 8, 2, -5, 7, 6 };
     int minpos = -1, maxpos = -1;
-    //DUBUG: delete and uncomment
-    // /home/devloops/dev/loops/examples/minmaxloc.cpp:72
-    int* pv = &v[0];
-    int64_t vs = v.size();
-    int* pminpos = &minpos;
-    int* pmaxpos = &maxpos;
-    int retval = f(pv, vs, pminpos, pmaxpos);
-    // int retval = f(&v[0], v.size(), &minpos, &maxpos);
+    int retval = f(&v[0], v.size(), &minpos, &maxpos);
     std::cout << "retval=" << retval<< ", minpos="<< (int)minpos <<", maxpos="<< (int)maxpos << std::endl;
     std::cout << std::endl << std::endl << std::endl;
 

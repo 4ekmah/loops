@@ -306,13 +306,10 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_IVERSON, { t6  , argIImm(OP_NE), zero, argIImm(0)});
         newiopNoret(OP_IVERSON, { zero, argIImm(OP_NE), t6  , argIImm(0)});
 
-        // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
+        newiopNoret(OP_CALL_NORET, { zero });
+        newiopNoret(OP_CALL_NORET, { t6   });
 
-        // newiopNoret(OP_CALL_NORET, { rax });
-        // newiopNoret(OP_CALL_NORET, { rdi });
-        // newiopNoret(OP_CALL_NORET, {  r8 });
-        // newiopNoret(OP_CALL_NORET, { r15 });
-        // newiopNoret(OP_CALL_NORET, { spilled32 });
+        // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     EXPECT_ASSEMBLY_CORRECT(func);
