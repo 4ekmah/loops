@@ -64,7 +64,7 @@ namespace loops
                 for (int arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
-                if (op.opcode == OP_SELECT) //TODO(ch): create universal mechanism(probably based on encoding attempt?)
+                if (op.opcode == OP_SELECT || op.opcode == OP_IVERSON) //TODO(ch): create universal mechanism(probably based on encoding attempt?) //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
                 {
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());
@@ -296,7 +296,7 @@ namespace loops
                 // so, for compactification, they are divided by 4.
                 int labarg = op.opcode == OP_JCC ? 1 : 0;
                 int mentionarg = 0;
-//DUBUG: Is it possible to make this code depends lesser on arch specific?
+//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
 #if __LOOPS_ARCH == __LOOPS_RISCV
                 Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
                     || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE)

@@ -12,9 +12,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 //DUBUG: Release build for some reason cannot be done now.
 
-//DUBUG: There is a lot of situtuations, when instructions with zero immediates create extra instruction, where
-//zero register is moved to temporary register and temporary used in original due to immediate implantation.
-//TYhe to heal this is to add cases with zero value immediate to S2s condition and handle it specifically.
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
@@ -538,9 +535,9 @@ namespace loops
         scs = true;
         switch (index.opcode)
         {//                                                                     | flags0| flags1|    flags2|               fixed                 |fixed0|fixed1|fixed2|
-        case (RISCV_SB):   return  stype(index, scs, 0b000, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 8?
-        case (RISCV_SH):   return  stype(index, scs, 0b001, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 16?
-        case (RISCV_SW):   return  stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0); //DUBUG:Addr64? Not 32?
+        case (RISCV_SB):   return  stype(index, scs, 0b000, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
+        case (RISCV_SH):   return  stype(index, scs, 0b001, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
+        case (RISCV_SW):   return  stype(index, scs, 0b010, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
         case (RISCV_SD):   return  stype(index, scs, 0b011, 0b0100011,                In, Addr64, Addr64|In,                                    0,     0,     0,     0);
         case (RISCV_MV):   return  itype(index, scs, 0b000, 0b0010011,               Out,     In,         0,                           ARG2_FIXED,     0,     0,     0); //ADDI <rd>, <rs>, 0
         case (RISCV_LUI):  return  utype(index, scs, 0b0110111,                      Out,      0,                                               0,     0,     0);
@@ -578,7 +575,7 @@ namespace loops
         case (RISCV_JALR): return  itype(index, scs, 0b000, 0b1100111,                 0,     In,         0,              ARG0_FIXED | ARG2_FIXED,    RA,     0,     0);
         case (RISCV_LABEL): return BiT({});
         case (RISCV_RET):  return  itype(index, scs, 0b000, 0b1100111,                 0,      0,         0, ARG0_FIXED | ARG1_FIXED | ARG2_FIXED,  ZERO,    RA,     0);
-        case (RISCV_LB): //DUBUG:Addr64 is everywhere in loads. Are you sure it haven't to be addr8, addr16, addr32? 
+        case (RISCV_LB):
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b000, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
             break;
@@ -697,10 +694,10 @@ namespace loops
                 {
                     if(index[2].tag == Arg::IREG )
                         return SyT(RISCV_SUB,  { SAcop(0), SAcop(1), SAcop(2) });
-                    else if(index[2].tag == Arg::IIMMEDIATE)
-                        return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAimm(-index.args[2].value) }); //DUBUG: I'm not sure it will be handled by ImmediteFit or, even worse, i'm not sure invalid values will be caught by ImmediateFit, check it twice.
+                    else if(index[2].tag == Arg::IIMMEDIATE && signed_fits(-index.args[2].value, 12))
+                        return SyT(RISCV_ADDI,  { SAcop(0), SAcop(1), SAimm(-index.args[2].value) });
                 }
-                else if(index.args[1].tag == Arg::IIMMEDIATE && index.args[1].value == 0 && index.args[2].tag == Arg::IREG) //DUBUG: reproduce this case everywhere it's possible or create some general approach.
+                else if(index.args[1].tag == Arg::IIMMEDIATE && index.args[1].value == 0 && index.args[2].tag == Arg::IREG)
                     return SyT(RISCV_SUB,  { SAcop(0), SAreg(0), SAcop(2) });
             }
             break;
@@ -772,33 +769,23 @@ namespace loops
             }
             break;
         case (OP_NOT): return SyT(RISCV_NOT,  { SAcop(0), SAcop(1) });
-        case (OP_IVERSON): 
-            if (index.args_size == 4 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::IREG)
+        case (OP_IVERSON):
+            if (index.args_size == 4 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE)
             {
-                switch (index.args[1].value)
-                {//TODO(ch): Sometimes it's possible to handle immediate on second positions with SLTI and SLTIU.
-                case OP_LT:
-                    if(index.args[3].tag == Arg::IREG)
-                        return SyT(RISCV_SLT,  { SAcop(0), SAcop(2), SAcop(3) });
-                    break;
-                case OP_GT:
-                    if(index.args[3].tag == Arg::IREG)
-                        return SyT(RISCV_SLT,  { SAcop(0), SAcop(3), SAcop(2) });
-                    break;
-                case OP_UGT:
-                    if(index.args[3].tag == Arg::IREG)
-                        return SyT(RISCV_SLTU,  { SAcop(0), SAcop(3), SAcop(2) });
-                    break;
-                case OP_EQ:
-                    if(index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)
-                        return SyT(RISCV_SEQZ,  { SAcop(0), SAcop(2) });
-                    break;
-                case OP_NE:
-                    if(index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)
-                        return SyT(RISCV_SNEZ,  { SAcop(0), SAcop(2) });
-                    break;
-                default:
-                    break;
+                if((index.args[1].value == OP_EQ || index.args[1].value == OP_NE) && index.args[2].tag == Arg::IREG && index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)
+                    return SyT(index.args[1].value == OP_EQ ? RISCV_SEQZ : RISCV_SNEZ,  { SAcop(0), SAcop(2) });
+                else if((index.args[2].tag == Arg::IREG || (index.args[2].tag == Arg::IIMMEDIATE && index.args[2].value == 0)) && 
+                        (index.args[3].tag == Arg::IREG || (index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value == 0)))
+                {
+                    SyntopTranslation::ArgTranslation arg2 = (index.args[2].tag == Arg::IREG ? SAcop(2) : SAreg(ZERO));
+                    SyntopTranslation::ArgTranslation arg3 = (index.args[3].tag == Arg::IREG ? SAcop(3) : SAreg(ZERO));
+                    switch (index.args[1].value)
+                    {//TODO(ch): Sometimes it's possible to handle immediate on second positions with SLTI and SLTIU.
+                    case OP_LT: return SyT(RISCV_SLT,  { SAcop(0), arg2, arg3 });
+                    case OP_GT: return SyT(RISCV_SLT,  { SAcop(0), arg3, arg2 });
+                    case OP_UGT: return SyT(RISCV_SLTU,  { SAcop(0), arg3, arg2 });
+                    default: break;
+                    }
                 }
             }
             break;
@@ -810,7 +797,7 @@ namespace loops
             if(index.size() == 2 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IREG) 
                 return SyT(RISCV_SD, { SAcopelt(1, TYPE_I64), SAcopsar(0,-3), SAreg(SP) });
             break;        
-        case (OP_JCC):
+        case (OP_JCC): //TODO(ch)[1]: Sometimes immediate zero can be encoded with hardwired zero.
             if(index.size() == 4 && index[0].tag == Arg::IIMMEDIATE && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG && index[3].tag == Arg::IIMMEDIATE)
             {
                 switch (index[0].value)
@@ -929,7 +916,7 @@ namespace loops
             {
             case (OP_CALL):
             case (OP_CALL_NORET):
-                return 14; //DUBUG: check! Now i just summed all caller saved and parameter registers.
+                return 14;
             default:
                 break;
             }
@@ -941,11 +928,6 @@ namespace loops
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
         //Actually, it's easy to think, that we have to keep used registers info on level of SyntopTranslation. Hmm...
-
-        bool bypass = true;
-        uint64_t actualRegs = 0;
-        uint64_t inRegs  = 0;
-        uint64_t outRegs = 0;
         switch (a_op.opcode)
         {
             case (OP_JCC):
@@ -954,21 +936,22 @@ namespace loops
                 {
                     if (AF_INPUT & flagmask)
                         return std::set<int>({1,2});
-                    if (AF_OUTPUT & flagmask)
+                    else 
                         return std::set<int>({});
                 } else if(basketNum == RB_VEC)
                     return std::set<int>({});
                 break;
-
             case (OP_IVERSON):
             {
                 Assert(a_op.size() == 4);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
-                    actualRegs = a_op[3].tag == Arg::IREG ? makeBitmask64({ 0, 2, 3 }) : makeBitmask64({ 0, 2 });
-                    inRegs = makeBitmask64({ 2, 3 });
-                    outRegs = makeBitmask64({ 0 });
-                    bypass = false;
+                    if (AF_OUTPUT & flagmask && ((AF_INPUT & flagmask) == 0))
+                        return std::set<int>({0});
+                    else if(((AF_OUTPUT & flagmask) == 0) && (AF_INPUT & flagmask))
+                        return ((a_op[3].tag == Arg::IIMMEDIATE) ? std::set<int>({2}) : ((a_op[2].tag == Arg::IIMMEDIATE) ? std::set<int>({3}) : std::set<int>({2, 3})));
+                    else
+                        return std::set<int>({});
                 }
                 break;
             }
@@ -1006,27 +989,7 @@ namespace loops
             default:
                 break;
         };
-        if (!bypass) //DUBUG: I'm not sure this "actualRegs" scheme is still needed here. Check it twice!
-        {
-            std::set<int> res;
-            auto checkAndAdd = [&res](uint64_t mask, int posnum)
-            {
-                if (mask & (uint64_t(1) << posnum))
-                    res.insert(posnum);
-            };
-            if (AF_INPUT & flagmask)
-                actualRegs &= inRegs;
-            if (AF_OUTPUT & flagmask)
-                actualRegs &= outRegs;
-            checkAndAdd(actualRegs, 0);
-            checkAndAdd(actualRegs, 1);
-            checkAndAdd(actualRegs, 2);
-            checkAndAdd(actualRegs, 3);
-            bypass = false;
-            return res;
-        }
-        else
-            return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+        return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
     void RiscVBackend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
@@ -1331,7 +1294,7 @@ namespace loops
         {
             const Syntop& op = a_source.program[opnum];
             switch (op.opcode)
-            {//DUBUG: check twice efficiency of these solutions.
+            {
             case OP_SELECT:
             {
                 Assert(op.args_size == 4 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IREG);
@@ -1373,14 +1336,12 @@ namespace loops
             case OP_ABS:
             {
                 Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
-                Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT)); zero.elemtype = TYPE_I64;
-                a_dest.program.push_back(Syntop(OP_MOV,  { zero, argIImm(0) }));
-                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { argIImm(0), op.args[1] }));
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
                 a_dest.program.push_back(Syntop(OP_SUB,  { zero_or_one, argIImm(0), zero_or_one }));
                 a_dest.program.push_back(Syntop(OP_AND,  { zero_or_one, zero_or_one, op.args[1] }));
-                a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], argIImm(0), op.args[1] }));
                 a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[0], zero_or_one }));
                 a_dest.program.push_back(Syntop(OP_ADD,  { op.args[0], op.args[0], zero_or_one }));
                 break;
@@ -1388,13 +1349,11 @@ namespace loops
             case OP_SIGN:            
             {
                 Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
-                Arg zero = argReg(RB_INT, a_dest.provideIdx(RB_INT));  zero.elemtype = TYPE_I64;
-                a_dest.program.push_back(Syntop(OP_MOV,  { zero, argIImm(0) }));
                 Arg negative = op.args[0]; negative.idx = a_dest.provideIdx(RB_INT);
-                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], zero }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], argIImm(0) }));
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { negative, argIImm(OP_LT) }));
                 Arg positive = op.args[0]; positive.idx = a_dest.provideIdx(RB_INT);
-                a_dest.program.push_back(Syntop(OP_CMP,  { zero, op.args[1] }));
+                a_dest.program.push_back(Syntop(OP_CMP,  { argIImm(0), op.args[1] }));
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { positive, argIImm(OP_LT) }));
                 a_dest.program.push_back(Syntop(OP_SUB,  { op.args[0], positive, negative }));
                 break;
@@ -1571,7 +1530,7 @@ namespace loops
                     && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
-            case OP_CALL: //DUBUG: check!
+            case OP_CALL:
             case OP_CALL_NORET:
             {
                 std::vector<int> parameterRegisters = { A0, A1, A2, A3, A4, A5, A6, A7 };

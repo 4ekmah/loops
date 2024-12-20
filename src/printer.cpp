@@ -141,7 +141,7 @@ LOOPS_HASHMAP_STATIC(int, suffixed_opname) suffixed_opnames_[] =
     LOOPS_HASHMAP_ELEM(loops::OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}),	
     LOOPS_HASHMAP_ELEM(loops::OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}),
     LOOPS_HASHMAP_ELEM(loops::OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}),
-    LOOPS_HASHMAP_ELEM(loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}), //DUBUG: current version of iverson doesn't printed correctly. Also check what's going on with select!
+    LOOPS_HASHMAP_ELEM(loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}),
@@ -342,7 +342,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
             case loops::OP_JCC:
             {
                 if (!(op->args_size == 2 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IIMMEDIATE))
-                {
+                {//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
 #if __LOOPS_ARCH == __LOOPS_RISCV
                     if (!(op->args_size == 4 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IREG && op->args[2].tag == loops::Arg::IREG && op->args[3].tag == loops::Arg::IIMMEDIATE))
 #endif
@@ -442,8 +442,8 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
     case loops::OP_LABEL:
         break;
     case loops::OP_JCC:
-        if(op->args_size != 2 
-#if __LOOPS_ARCH == __LOOPS_RISCV
+        if(op->args_size != 2  //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV 
             && op->args_size != 4 
 #endif
             )
@@ -457,7 +457,6 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
         }
         LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", op->args[op->args_size - 1].value));
         break;
-    case loops::OP_IVERSON:
     case loops::VOP_DEF:
         LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
         break;
@@ -495,6 +494,16 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
         if(op->args_size > 1)
             LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
         LOOPS_CALL_THROW(loops_printf(printer, ")"));
+        break;
+    case loops::OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        if(op->args_size > 2)
+        {
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+        }
         break;
     case loops::OP_SELECT:
         LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
