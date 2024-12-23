@@ -973,7 +973,22 @@ template<typename _Tp> void storevec(const IExpr& base, const IExpr& offset, con
 template<typename _Tp> void storelane(const IExpr& base, const VReg<_Tp>& r, int64_t lane_index) {storelane(base, VExpr<_Tp>(r), lane_index);}
 
 template<typename _Dp, typename _Tp> VExpr<_Dp> cast(const VReg<_Tp>& a) { return cast<_Dp>(VExpr<_Tp>(a));}
-template<typename _Dp, typename _Tp> VExpr<_Dp> reinterpret(const VReg<_Tp>& a) { return reinterpret<_Dp>(VExpr<_Tp>(a));}
+template<typename _Dp, typename _Tp> VExpr<_Dp> reinterpret(const VReg<_Tp>& a)
+{
+    //Next block of code is workaround instead of "return reinterpret<_Dp>(VExpr<_Tp>(a));". Gcc 12.2 on Aarch64 have some strange problems with quoted code.
+    Expr notyped;
+    notyped.pointee = new __loops_ExprStr_;
+    notyped.pointee->refcounter = 1;
+    notyped.pointee->opcode = EXPR_LEAF;
+    notyped.pointee->is_vector = true;
+    notyped.pointee->type = ElemTraits<_Tp>::depth;
+    notyped.pointee->leaf = Arg(a);
+    notyped.pointee->func = a.func;
+    VExpr<_Dp> res(VOP_REINTERPRET, {});
+    res.super.pointee->func = a.func;
+    res.super.pointee->children.push_back(notyped);
+    return res;
+}
 
 LOOPS_CONVERT_ARGS_TUNARY_DIN(f16_t, trunc)
 LOOPS_CONVERT_ARGS_TUNARY_DIN(float, trunc)
