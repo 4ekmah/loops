@@ -53,7 +53,7 @@ enum {
     OP_NEG              =  16,
     OP_CMP              =  17,
     OP_SELECT           =  18, //SELECT <dest>, <condition>, <value-for-true>, <value-for-false>
-    OP_IVERSON          =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise
+    OP_IVERSON          =  19, //IVERSON <dest>, <condition> - set dest reg to 1 if cond is true and to 0 - otherwise | In Risc-V on latest stages it looks like OP_IVERSON <dest>, <condition>, <arg1>, <arg2>
     OP_MIN              =  20,
     OP_MAX              =  21,
     OP_ABS              =  22,
@@ -83,7 +83,7 @@ enum {
     OP_LOGICAL_NOT      =  42,
     
     OP_JMP              =  43, //OP_JMP <target_label>             //TODO(ch): keep there more annotations
-    OP_JCC              =  44, //OP_JCC <cmpcode>, <target_label>
+    OP_JCC              =  44, //OP_JCC <cmpcode>, <target_label> | In Risc-V on latest stages it can look like OP_JCC <cmpcode>, <reg1>, <reg2>, <target_label>
     OP_RET              =  45,
     OP_CALL             =  46, //OP_CALL       <function_addr>, <retreg>, <arg0>, ..., <arg7> (args are optional)
     OP_CALL_NORET       =  47, //OP_CALL_NORET <function_addr>, <arg0>, ..., <arg8> (args are optional)
@@ -166,11 +166,13 @@ enum {
     VOP_ARM_SHRINK_HIGH = 112,
     VOP_GETLANE         = 113,
     VOP_SETLANE         = 114,
+//RiscV-only operations:
+    OP_RV_LUI           = 115,
 
-    OP_DEF              = 115,
-    VOP_DEF             = 116,
+    OP_DEF              = 116,
+    VOP_DEF             = 117,
 
-    OP_NOINIT           = 117,
+    OP_NOINIT           = 118,
 };
 
 enum

@@ -1161,7 +1161,6 @@ namespace loops
         m_isLittleEndianInstructions = false;
         m_isLittleEndianOperands = true;
         m_isMonowidthInstruction = false;
-        m_offsetShift = 0;
         m_callerStackIncrement = 1;
         m_postInstructionOffset = true;
         m_registersAmount = 40;

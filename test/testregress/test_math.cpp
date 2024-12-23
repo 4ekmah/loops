@@ -4,9 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
-#ifndef __LOOPS_TEST_MATH_HPP__
-#define __LOOPS_TEST_MATH_HPP__
-
 #include "tests.hpp"
 #include <math.h>
 #if __LOOPS_ARCH == __LOOPS_AARCH64
@@ -152,4 +149,3 @@ TEST(math, exp_f32)
         ASSERT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
 }
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
-#endif//__LOOPS_TEST_MATH_HPP__

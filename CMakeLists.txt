@@ -39,8 +39,8 @@ target_link_libraries(loopslayers loops)
 target_compile_options(loopslayers ${CMP_OPTIONS})
 
 #TESTREGRESS
-file(GLOB testregress_hdrs "${CMAKE_CURRENT_SOURCE_DIR}/test/testregress/*.hpp")
-add_executable(testregress ${testregress_hdrs} 
+file(GLOB testregress_cases "${CMAKE_CURRENT_SOURCE_DIR}/test/testregress/*.cpp")
+add_executable(testregress ${testregress_cases} 
               "${CMAKE_CURRENT_SOURCE_DIR}/test/tests.cpp" 
               "${CMAKE_CURRENT_SOURCE_DIR}/test/tests.hpp"
               "${CMAKE_CURRENT_SOURCE_DIR}/test/testregress.cpp")

@@ -9,6 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #define __LOOPS_AARCH64 1
 #define __LOOPS_INTEL64 2
+#define __LOOPS_RISCV   3
 
 #define __LOOPS_WINDOWS 1
 #define __LOOPS_LINUX   2
@@ -32,6 +33,8 @@ See https://github.com/4ekmah/loops/LICENSE
         #define __LOOPS_ARCH   __LOOPS_INTEL64
     #elif defined(__aarch64__)
         #define __LOOPS_ARCH   __LOOPS_AARCH64
+    #elif defined(__riscv)
+        #define __LOOPS_ARCH   __LOOPS_RISCV
     #else
         #error Unknown CPU
     #endif

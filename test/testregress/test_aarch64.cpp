@@ -4,8 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
-#ifndef __LOOPS_TEST_AARCH64_HPP__
-#define __LOOPS_TEST_AARCH64_HPP__
 #include "loops/loops.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 #include "tests.hpp"
@@ -13,35 +11,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 
 using namespace loops;
-
-TEST(aarch64, ten_args_to_sum) //There we are testing stack parameter passing.
-{
-    Context ctx;
-    USE_CONTEXT_(ctx);
-    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
-    STARTFUNC_(test_info_->name(), &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
-    {
-        IReg res = a0 * 1;
-        res += a1 * 2;
-        res += a2 * 3;
-        res += a3 * 4;
-        res += a4 * 5;
-        res += a5 * 6;
-        res += a6 * 7;
-        res += a7 * 8;
-        res += a8 * 3;
-        res += a9 * 2;
-        RETURN_(res);
-    }
-    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
-    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(func.ptr());
-    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
-    ASSERT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
-}
 
 TEST(aarch64, nullify_msb_lsb_v)
 {
@@ -1411,4 +1380,3 @@ TEST(aarch64, instruction_set_test)
     EXPECT_ASSEMBLY_CORRECT(func);
 }
 #endif
-#endif// __LOOPS_ARCH == __LOOPS_AARCH64

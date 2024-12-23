@@ -74,6 +74,7 @@ namespace loops
         int m_bytewidth;
         BinTranslation(): m_bytewidth(0) {}
         BinTranslation(std::initializer_list<Token> lst);
+        BinTranslation(const std::vector<Token>& lst);
         int size() const { return m_bytewidth; }
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
     };

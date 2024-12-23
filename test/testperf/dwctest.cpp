@@ -613,7 +613,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     }
 
     //Second, parallel for
-    std::vector< mtCallData<_Tp> > mtdatas(threads, mtCallData<_Tp>());
+    std::vector< mtCallData<_Tp> > mtdatas(threads);
     std::vector<std::thread> tpool; 
     std::vector<_Tp> outdata(H0*W0*NC*3, empty_value);
     _Tp* optr = &(outdata[0]) + H0*W0*NC;

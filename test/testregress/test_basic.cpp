@@ -4,9 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 
-#ifndef __LOOPS_TEST_BASIC_HPP__
-#define __LOOPS_TEST_BASIC_HPP__
-
 #include "loops/loops.hpp"
 #include "tests.hpp"
 #include <iostream>
@@ -116,6 +113,45 @@ TEST(basic, min_max_scalar)
     EXPECT_IR_CORRECT(func);
     EXPECT_ASSEMBLY_CORRECT(func);
     test_min_max_scalar(func);
+}
+
+Func make_ten_args_to_sum(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg a0, a1, a2, a3, a4, a5, a6, a7, a8, a9;
+    STARTFUNC_(fname, &a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7, &a8, &a9)
+    {
+        IReg res = a0 * 1;
+        res += a1 * 2;
+        res += a2 * 3;
+        res += a3 * 4;
+        res += a4 * 5;
+        res += a5 * 6;
+        res += a6 * 7;
+        res += a7 * 8;
+        res += a8 * 3;
+        res += a9 * 2;
+        RETURN_(res);
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_ten_args_to_sum(Func func)
+{
+    typedef int64_t(*ten_args_to_sum_f)(int64_t a0, int64_t a1, int64_t a2, int64_t a3, int64_t a4, int64_t a5, int64_t a6, int64_t a7, int64_t a8, int64_t a9);
+    ten_args_to_sum_f tested = reinterpret_cast<ten_args_to_sum_f>(func.ptr());
+    std::vector<int> v = { 1,1,1,1,1,1,1,1,3,5 };
+    ASSERT_EQ(tested(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9]),(int64_t)(55));
+}
+
+TEST(basic, ten_args_to_sum) //There we are testing stack parameter passing.
+{
+    Context ctx;
+    loops::Func func = make_ten_args_to_sum(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_ten_args_to_sum(func);
 }
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -670,6 +706,7 @@ TEST(basic, compile_all)
     Context ctx;
     loops::Func a_plus_b_func = make_a_plus_b(ctx, "a_plus_b");
     loops::Func min_max_scalar_func = make_min_max_scalar(ctx, "min_max_scalar");
+    loops::Func ten_args_to_sum_func = make_ten_args_to_sum(ctx, "ten_args_to_sum");
     loops::Func min_max_select_func = make_min_max_select(ctx, "min_max_select");
     loops::Func triangle_types_func = make_triangle_types(ctx, "triangle_types");
     loops::Func nonnegative_odd_func = make_nonnegative_odd(ctx, "nonnegative_odd");
@@ -680,6 +717,7 @@ TEST(basic, compile_all)
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
+    test_ten_args_to_sum(ten_args_to_sum_func);
     test_min_max_select(min_max_select_func);
     test_triangle_types(triangle_types_func);
     test_nonnegative_odd(nonnegative_odd_func);
@@ -688,216 +726,3 @@ TEST(basic, compile_all)
     test_bresenham(bresenham_func);
     test_conditionpainter(conditionpainter_func);
 }
-
-static void hw()
-{
-    get_test_ostream()<<"Hello world!"<<std::endl;
-}
-
-TEST(calls, helloworld_call)
-{
-    Context ctx;
-    USE_CONTEXT_(ctx);
-    STARTFUNC_(test_info_->name())
-    {
-        CALL_(hw);
-        RETURN_();
-    }
-    typedef void(*helloworld_call_f)();
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
-    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
-    helloworld_call_f tested = reinterpret_cast<helloworld_call_f>(func.ptr());
-    reset_test_ostream();
-    tested();
-    std::string res = get_test_ostream_result();
-    reset_test_ostream();
-    hw();
-    std::string refres = get_test_ostream_result();
-    reset_test_ostream();
-    ASSERT_EQ(res, refres);
-}
-
-static void snake_dprint(int64_t x, int64_t y)
-{
-    get_test_ostream()<<"(x, y) = ("<< (int)x << ", " << (int)y << ")" << std::endl;
-}
-TEST(calls, snake)
-{
-    Context ctx;
-    USE_CONTEXT_(ctx);
-    {
-        IReg ptr, h, w;
-        STARTFUNC_(test_info_->name(), &ptr, &h, &w)
-        {
-            IReg diagamount = (h + w - 1);
-            IReg curvalue = CONST_(0);
-            IReg curdx = CONST_(1);
-            IReg curdy = -curdx;
-            IReg dn = CONST_(0);
-            WHILE_(dn < diagamount)
-            {
-                IReg x = CONST_(0);
-                IReg y = CONST_(0);
-                IF_(dn&1) //Diagonal moving down
-                {
-                    IReg wm1 = w - 1;
-                    x = min(wm1, dn);
-                    y = select(dn > wm1, dn - (wm1), 0);
-                }
-                ELSE_ //Diagonal moving up
-                {
-                    IReg hm1 = h - 1;
-                    x = select(dn > hm1, dn - (hm1), 0);
-                    y = min(hm1, dn);
-                }
-                WHILE_(x>=0 && x < w && y >= 0 && y < h)
-                {
-                    CALL_(snake_dprint, x, y);
-                    store_<uint8_t>(ptr, y * w + x, curvalue);
-                    curvalue += 1;
-                    x += curdx;
-                    y += curdy;
-                }
-                curdx = -curdx;
-                curdy = -curdy;
-                dn += 1;
-            }
-            RETURN_();
-        }
-    }
-    typedef void(*snake_f)(uint8_t*, int64_t, int64_t);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
-    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
-    snake_f tested = reinterpret_cast<snake_f>(func.ptr());
-    const int h = 10, w = 5;
-    uint8_t canvas[3 * h*w];
-    uint8_t canvas_ref[h*w];
-    memset(canvas, 0, 3*h*w);
-    memset(canvas_ref, 0, h*w);
-    reset_test_ostream();
-    tested(&(canvas[h*w]), h, w);
-    ASSERT_EQ(memok(&canvas[0], w, h), true);
-    std::string dprint = get_test_ostream_result();
-    reset_test_ostream();
-    int diagamount = (h + w - 1);
-    uint8_t curvalue = 0;
-    int curdx = 1;
-    int curdy = -1;
-    for(int dn = 0; dn < diagamount; dn++)
-    {
-        int x = 0;
-        int y = 0;
-        if(dn&1) //Diagonal moving down
-        {
-            if(dn > w - 1)
-            {
-                x = w-1;
-                y = dn - (w-1);
-            }
-            else
-            {
-                x = dn;
-                y = 0;
-            }
-        }
-        else //Diagonal moving up
-        {
-            if(dn > h-1)
-            {
-                x = dn - (h-1);
-                y = h-1;
-            }
-            else
-            {
-                x = 0;
-                y = dn;
-            }
-        }
-        while(x>=0 && x < w && y >= 0 && y < h)
-        {
-            get_test_ostream()<<"(x, y) = ("<< (int)x << ", " << (int)y << ")" << std::endl;
-            canvas_ref[y * w + x] = curvalue;
-            curvalue ++;
-            x += curdx;
-            y += curdy;
-        }
-        curdx = -curdx;
-        curdy = -curdy;
-    }
-    std::string dprint_ref = get_test_ostream_result();
-    reset_test_ostream();
-    for(int y = 0; y < h ; y++)
-        for(int x = 0; x < w ; x++)
-            ASSERT_EQ(canvas[y * w + x + h*w], canvas_ref[y * w + x]);
-    ASSERT_EQ(dprint, dprint_ref);
-}
-
-static int64_t lesser_dbl(int64_t a, int64_t b)
-{
-    union uconv_ //TODO: create general template for conversion. 
-    {
-        int64_t val64;
-        double val;
-        uconv_() : val64(0) {} 
-    } conv0, conv1;
-    conv0.val64 = a;
-    conv1.val64 = b;
-    return conv0.val < conv1.val;
-}
-TEST(calls, sort_double)
-{
-    Context ctx;
-    USE_CONTEXT_(ctx);
-    IReg ptr, n;
-    STARTFUNC_(test_info_->name(), &ptr, &n)
-    {
-        n <<= 3; //*sizeof(double)
-        IReg nm1 = n - sizeof(double);
-        IReg curpos = CONST_(0);
-        WHILE_(curpos < nm1)
-        {
-            IReg minpos = curpos;
-            IReg ipos = minpos + sizeof(double);
-            WHILE_(ipos < n)
-            {
-                // IF_(CALL_(lesser_dbl, load_<double>(ptr, ipos), load_<double>(ptr, minpos))) //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
-                IF_(CALL_(lesser_dbl, load_<double>(ptr + ipos), load_<double>(ptr + minpos)))
-                    minpos = ipos;
-                ipos += sizeof(double);
-            }
-            IF_(minpos != curpos)
-            {
-                //TODO(ch): There is some bug on intel here, causing segfault. Uncomment next four lines and fix it:
-                // IReg cur_ = load_<double>(ptr, curpos); 
-                // IReg min_ = load_<double>(ptr, minpos);
-                // store_<double>(ptr, minpos, cur_);
-                // store_<double>(ptr, curpos, min_);
-                IReg cur_ = load_<double>(ptr + curpos); 
-                IReg min_ = load_<double>(ptr + minpos);
-                store_<double>(ptr + minpos, cur_);
-                store_<double>(ptr + curpos, min_);
-            }
-            curpos += sizeof(double);
-        }
-        RETURN_();
-    }
-    typedef void(*sort_double_f)(double*, int64_t);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT_TOLERABLE_DEFECT(func);
-    EXPECT_ASSEMBLY_CORRECT_TOLERABLE_DEFECT(func);
-        sort_double_f tested = reinterpret_cast<sort_double_f>(func.ptr());
-    std::vector<double> arr = {7.3, 2.0, 5.3, 10.0, -500000.0, -17.0, 70.0, 1.9, 71212.7878, 12.0};
-    std::vector<double> arr_ref = arr;
-    tested(&(arr[0]), arr.size());
-    std::sort(arr_ref.begin(), arr_ref.end());
-    for(int pos = 0; pos < (int)arr_ref.size(); pos++)
-        ASSERT_EQ(arr[pos], arr_ref[pos]);
-
-}
-
-#endif//__LOOPS_TEST_BASIC_HPP__

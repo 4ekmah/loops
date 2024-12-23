@@ -96,6 +96,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_MOVK    , "arm_movk"              ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_LDP     , "arm_ldp"               ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_ARM_STP     , "arm_stp"               ) ,
+    LOOPS_HASHMAP_ELEM(loops::OP_RV_LUI      , "rv_lui"                ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_DEF         , "def"                   ) ,
 };
 
@@ -341,20 +342,25 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
             case loops::OP_JCC:
             {
                 if (!(op->args_size == 2 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IIMMEDIATE))
-                    LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                {//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV
+                    if (!(op->args_size == 4 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IREG && op->args[2].tag == loops::Arg::IREG && op->args[3].tag == loops::Arg::IIMMEDIATE))
+#endif
+                        LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                }
                 err = loops_hashmap_get(cond_suffixes, (int)op->args[0].value, &found_name);
                 if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                     LOOPS_THROW(LOOPS_ERR_UNKNOWN_CONDITION);
                 else if(err != LOOPS_ERR_SUCCESS)
                     LOOPS_THROW(err);
-                LOOPS_CALL_THROW(loops_printf(printer, "jmp_%s %d", found_name, op->args[1].value));
+                LOOPS_CALL_THROW(loops_printf(printer, "jmp_%s", found_name));
                 break;
             }
             case loops::OP_LABEL:
             {
                 if (!(op->args_size == 1 && op->args[0].tag == loops::Arg::IIMMEDIATE))
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                LOOPS_CALL_THROW(loops_printf(printer, "label %d:", op->args[0].value));
+                LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", op->args[0].value));
                 break;
             }
             default:
@@ -434,9 +440,23 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
     switch(op->opcode)
     {
     case loops::OP_LABEL:
-    case loops::OP_JCC:
         break;
-    case loops::OP_IVERSON:
+    case loops::OP_JCC:
+        if(op->args_size != 2  //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV 
+            && op->args_size != 4 
+#endif
+            )
+            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        if(op->args[op->args_size - 1].tag != loops::Arg::IIMMEDIATE)
+            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        for(int anum = 1; anum < op->args_size - 1; anum++)
+        {
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+        }
+        LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", op->args[op->args_size - 1].value));
+        break;
     case loops::VOP_DEF:
         LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
         break;
@@ -474,6 +494,16 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
         if(op->args_size > 1)
             LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
         LOOPS_CALL_THROW(loops_printf(printer, ")"));
+        break;
+    case loops::OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        if(op->args_size > 2)
+        {
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+        }
         break;
     case loops::OP_SELECT:
         LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));

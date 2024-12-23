@@ -64,7 +64,7 @@ namespace loops
                 for (int arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
-                if (op.opcode == OP_SELECT) //TODO(ch): create universal mechanism(probably based on encoding attempt?)
+                if (op.opcode == OP_SELECT || op.opcode == OP_IVERSON) //TODO(ch): create universal mechanism(probably based on encoding attempt?) //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
                 {
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());
@@ -294,13 +294,23 @@ namespace loops
                 // TODO(ch): We need for this purposes something like label/offset manager with transparent logic.
                 // AArch64 supports only multiply-4 offsets,
                 // so, for compactification, they are divided by 4.
-                int current_offset_ = current_offset >> m_backend->offsetShift();
-                Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE) ||
-                       (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
-                int64_t target_label = op[op.opcode == OP_JCC ? 1 : 0].value;
-                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), 0, current_offset_);
+                int labarg = op.opcode == OP_JCC ? 1 : 0;
+                int mentionarg = 0;
+//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV
+                Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
+                    || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE)
+                    || (op.opcode == OP_JCC && op.args_size == 4 && op.args[0].tag == loops::Arg::IIMMEDIATE && op.args[1].tag == loops::Arg::IREG && op.args[2].tag == loops::Arg::IREG && op.args[3].tag == loops::Arg::IIMMEDIATE));
+                labarg = op.opcode == OP_JCC ? (op.args_size == 4 ? 3 : 1) : 0;
+                mentionarg = (op.opcode == OP_JCC && op.args_size == 4) ? 2 : 0;
+#else
+                Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
+                    || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
+#endif
+                int64_t target_label = op[labarg].value;
+                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), mentionarg, current_offset);
                 Syntop toTransform(op);
-                toTransform[op.opcode == OP_JCC ? 1 : 0].value = current_offset_;
+                toTransform[labarg].value = current_offset;
                 Syntop tarop = m_backend->lookS2s(toTransform).apply(toTransform, m_backend);
                 if (m_backend->postInstructionOffset())
                     tarop[0].value += m_backend->lookS2b(tarop).size();
@@ -309,12 +319,11 @@ namespace loops
             }
             case (OP_LABEL):
             {
-                size_t current_offset_ = current_offset >> m_backend->offsetShift();
                 if (op.size() != 1 || op[0].tag != Arg::IIMMEDIATE)
                     throw std::runtime_error("Wrong LABEL format.");
                 if (label_map.count(op[0].value) != 0)
                     throw std::runtime_error("Label redefinition");
-                label_map[op[0].value] = current_offset_;
+                label_map[op[0].value] = current_offset;
                 a_dest.program.emplace_back(m_backend->lookS2s(op).apply(op, m_backend));
                 break;
             }
