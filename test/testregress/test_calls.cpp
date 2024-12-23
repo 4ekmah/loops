@@ -51,6 +51,12 @@ static void snake_dprint(int64_t x, int64_t y)
 {
     get_test_ostream()<<"(x, y) = ("<< (int)x << ", " << (int)y << ")" << std::endl;
 }
+
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min // Windows.h implements min and max as macro.
+#undef max //
+#endif
+
 TEST(calls, snake)
 {
     Context ctx;
