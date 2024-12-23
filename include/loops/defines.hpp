@@ -28,29 +28,27 @@ See https://github.com/4ekmah/loops/LICENSE
     #error Unknown OS
 #endif
 
-// #ifdef __GNUC__   //DUBUG: uncomment!
-//     #if defined(__x86_64__)
-//         #define __LOOPS_ARCH   __LOOPS_INTEL64
-//     #elif defined(__aarch64__)
-//         #define __LOOPS_ARCH   __LOOPS_AARCH64
-//     #elif defined(__riscv)
-//         #define __LOOPS_ARCH   __LOOPS_RISCV
-//     #else
-//         #error Unknown CPU
-//     #endif
-// #elif _MSC_VER
-//     #if defined(_M_X64)
-//         #define __LOOPS_ARCH   __LOOPS_INTEL64
-//     #elif defined(_M_ARM64)
-//         #define __LOOPS_ARCH   __LOOPS_AARCH64
-//     #else
-//         #error Unknown CPU
-//     #endif
-// #else
-//     #error Unknown compiler
-// #endif
-
-#define __LOOPS_ARCH   __LOOPS_RISCV
+#ifdef __GNUC__
+    #if defined(__x86_64__)
+        #define __LOOPS_ARCH   __LOOPS_INTEL64
+    #elif defined(__aarch64__)
+        #define __LOOPS_ARCH   __LOOPS_AARCH64
+    #elif defined(__riscv)
+        #define __LOOPS_ARCH   __LOOPS_RISCV
+    #else
+        #error Unknown CPU
+    #endif
+#elif _MSC_VER
+    #if defined(_M_X64)
+        #define __LOOPS_ARCH   __LOOPS_INTEL64
+    #elif defined(_M_ARM64)
+        #define __LOOPS_ARCH   __LOOPS_AARCH64
+    #else
+        #error Unknown CPU
+    #endif
+#else
+    #error Unknown compiler
+#endif
 
 #if defined(__cplusplus)
 #define __LOOPS_LANGUAGE  __LOOPS_CPP

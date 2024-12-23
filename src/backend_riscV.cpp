@@ -10,8 +10,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 
-//DUBUG: Release build for some reason cannot be done now.
-
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id       |string_id|    */
@@ -115,9 +113,45 @@ namespace loops
         T6   = 31,
     }; 
 
-//DUBUG: There is a lot of repeatitive code in risc-v formats handlers. Do something.
-
     enum {ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED = 4 };
+
+    static inline void check_fixed_reg(uint64_t fixedflags, int argnum, int* effargidxs, int argsamount, int& effargnum, uint64_t val)
+    {
+        Assert(argnum >= 0 && argnum <= 2);
+        int checkflag = argnum == 0 ? ARG0_FIXED : (argnum == 1 ? ARG1_FIXED : ARG2_FIXED);
+        if(fixedflags & checkflag)
+        {
+            Assert((val >= ZERO && val <= T6));
+            effargidxs[argnum] = -1;
+            for(int anum = argnum + 1; anum < argsamount; anum++) 
+                effargidxs[anum]--;
+            effargnum--;
+        }
+    }
+
+    static inline void check_fixed_imm(uint64_t fixedflags, int argnum, int* effargidxs, int argsamount, int& effargnum, uint64_t val, int field_size, bool is_signed)
+    {
+        Assert(argnum >= 0 && argnum <= 2);
+        int checkflag = argnum == 0 ? ARG0_FIXED : (argnum == 1 ? ARG1_FIXED : ARG2_FIXED);
+        if(fixedflags & checkflag)
+        {
+            Assert((is_signed && signed_fits(val, field_size)) || (!is_signed && (val & ~((uint64_t(1) << field_size)-1)) == 0));
+            effargidxs[argnum] = -1;
+            for(int anum = argnum + 1; anum < argsamount; anum++) 
+                effargidxs[anum]--;
+            effargnum--;
+        }
+    }
+
+    static inline void put_reg_token(std::vector<BinTranslation::Token>& tokens, int* effargidxs, int argnum, int fixedreg, uint64_t flags)
+    {
+        using namespace BinTranslationConstruction;
+        if(effargidxs[argnum] == -1)
+            tokens.push_back(BTsta(fixedreg, 5));
+        else
+            tokens.push_back(BTreg(effargidxs[argnum], 5, flags));
+    }
+
     //R-type:
     //|immediate   |register|register|static|immediate  |static|
     //|imm[12|10:5]|rs2     |rs1     |funct3|imm[4:1|11]|opcode|
@@ -129,26 +163,9 @@ namespace loops
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            Assert((fixed1 >= ZERO && fixed1 <= T6));
-            effargidxs[1] = -1;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG2_FIXED)
-        {
-            effargidxs[2] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);
 
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
         {
@@ -170,14 +187,8 @@ namespace loops
                 if((fixed & ARG2_FIXED) == 0) 
                     tokens.push_back(BTomm(effargidxs[2], flags2));
                 tokens.push_back(BTsta(high7, 7)); 
-                if(fixed & ARG1_FIXED)
-                    tokens.push_back(BTsta(fixed1, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
                 tokens.push_back(BTsta(funct3, 3)); 
                 tokens.push_back(BTsta(low5, 5));
                 tokens.push_back(BTsta(opcode, 7));
@@ -199,18 +210,8 @@ namespace loops
         scs = true;
         int effargidxs[2] = {0,1};
         int effargnum = 2;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            effargidxs[1] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 2, effargnum, fixed0);
+        check_fixed_imm(fixed, 1, effargidxs, 2, effargnum, fixed1, 21, true);
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE))
         {
             std::vector<BinTranslation::Token> tokens;
@@ -230,10 +231,7 @@ namespace loops
                         tokens.push_back(BTomm(effargidxs[1], flags1));
                     tokens.push_back(BTsta(imm, 20));
                 }
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
                 tokens.push_back(BTsta(opcode, 7));
                 return BinTranslation(tokens);
             }
@@ -253,18 +251,8 @@ namespace loops
         scs = true;
         int effargidxs[2] = {0,1};
         int effargnum = 2;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            effargidxs[1] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 2, effargnum, fixed0);
+        check_fixed_imm(fixed, 1, effargidxs, 2, effargnum, fixed1, 20, true);
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE))
         {
             std::vector<BinTranslation::Token> tokens;
@@ -279,10 +267,7 @@ namespace loops
                         tokens.push_back(BTomm(effargidxs[1], flags1));
                     tokens.push_back(BTsta(imm, 20));
                 }
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
                 tokens.push_back(BTsta(opcode, 7));
                 return BinTranslation(tokens);
             }
@@ -302,45 +287,18 @@ namespace loops
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            Assert((fixed1 >= ZERO && fixed1 <= T6));
-            effargidxs[1] = -1;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG2_FIXED)
-        {
-            Assert((fixed2 >= ZERO && fixed2 <= T6));
-            effargidxs[2] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
         {
             std::vector<BinTranslation::Token> tokens;
             tokens.reserve(6);
             tokens.push_back(BTsta(funct7, 7)); 
-            if(fixed & ARG2_FIXED)
-                tokens.push_back(BTsta(fixed2, 5));
-            else
-                tokens.push_back(BTreg(effargidxs[2], 5, flags2));
-            if(fixed & ARG1_FIXED)
-                tokens.push_back(BTsta(fixed1, 5));
-            else
-                tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+            put_reg_token(tokens, effargidxs, 2, fixed2, flags2);
+            put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
             tokens.push_back(BTsta(funct3, 3)); 
-            if(fixed & ARG0_FIXED)
-                tokens.push_back(BTsta(fixed0, 5));
-            else
-                tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+            put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
             tokens.push_back(BTsta(opcode, 7));
             return BinTranslation(tokens);
         }
@@ -359,27 +317,10 @@ namespace loops
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            Assert((fixed1 >= ZERO && fixed1 <= T6));
-            effargidxs[1] = -1;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG2_FIXED)
-        {
-            Assert(signed_fits(fixed2, 12));
-            effargidxs[2] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_imm(fixed, 2, effargidxs, 3, effargnum, fixed2, 12, true);
+
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
         {
             std::vector<BinTranslation::Token> tokens;
@@ -390,15 +331,9 @@ namespace loops
                     tokens.push_back(BTsta(fixed2, 12));
                 else
                     tokens.push_back(BTimm(effargidxs[2], 12, flags2));
-                if(fixed & ARG1_FIXED)
-                    tokens.push_back(BTsta(fixed1, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+                put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
                 tokens.push_back(BTsta(funct3, 3)); 
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
                 tokens.push_back(BTsta(opcode, 7));
                 return BinTranslation(tokens);
 
@@ -419,27 +354,9 @@ namespace loops
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            Assert((fixed1 >= ZERO && fixed1 <= T6));
-            effargidxs[1] = -1;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG2_FIXED)
-        {
-            Assert(((fixed2 & ~(uint64_t(0b111111))) == 0));
-            effargidxs[2] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_imm(fixed, 2, effargidxs, 3, effargnum, fixed2, 6, false);
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IREG) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
         {
             std::vector<BinTranslation::Token> tokens;
@@ -451,15 +368,9 @@ namespace loops
                     tokens.push_back(BTsta(fixed2, 6));
                 else
                     tokens.push_back(BTimm(effargidxs[2], 6, flags2));
-                if(fixed & ARG1_FIXED)
-                    tokens.push_back(BTsta(fixed1, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[1], 5, flags1));
+                put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
                 tokens.push_back(BTsta(funct3, 3)); 
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
                 tokens.push_back(BTsta(opcode, 7));
             }
             return BinTranslation(tokens);
@@ -479,27 +390,9 @@ namespace loops
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
-        if(fixed & ARG0_FIXED)
-        {
-            Assert((fixed0 >= ZERO && fixed0 <= T6));
-            effargidxs[0] = -1;
-            effargidxs[1]--;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG1_FIXED)
-        {
-            Assert(signed_fits(fixed1, 12));
-            effargidxs[1] = -1;
-            effargidxs[2]--;
-            effargnum--;
-        }
-        if(fixed & ARG2_FIXED)
-        {
-            Assert((fixed2 >= ZERO && fixed2 <= T6));
-            effargidxs[2] = -1;
-            effargnum--;
-        }
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_imm(fixed, 1, effargidxs, 3, effargnum, fixed1, 12, true);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);        
         if(index.size() == effargnum && (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::IREG) && (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::IIMMEDIATE) && (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
         {
             std::vector<BinTranslation::Token> tokens;
@@ -511,14 +404,8 @@ namespace loops
                 if((fixed & ARG1_FIXED) == 0) 
                     tokens.push_back(BTomm(effargidxs[1], flags1));
                 tokens.push_back(BTsta(high7, 7));
-                if(fixed & ARG0_FIXED)
-                    tokens.push_back(BTsta(fixed0, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[0], 5, flags0));
-                if(fixed & ARG2_FIXED)
-                    tokens.push_back(BTsta(fixed2, 5));
-                else
-                    tokens.push_back(BTreg(effargidxs[2], 5, flags2));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
+                put_reg_token(tokens, effargidxs, 2, fixed2, flags2);
                 tokens.push_back(BTsta(funct3, 3)); 
                 tokens.push_back(BTsta(low5, 5));
                 tokens.push_back(BTsta(opcode, 7));

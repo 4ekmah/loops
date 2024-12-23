@@ -407,7 +407,11 @@ VExpr<_Tp> __loops_vconst_(Context* CTX, _Tp _val)
     conv.val = _val;
     Expr val(conv.val64);
     __setfunc_by_context_(CTX, val);
-    return VExpr<_Tp>(OP_MOV, {val});
+    //Next 3 lines of code is workaround instead of "return VExpr<_Tp>(OP_MOV, {val});". Gcc on Risc-V have some strange problems with quoted code.
+    VExpr<_Tp> res(OP_MOV, {});
+    __setfunc_by_context_(CTX, res.super);
+    res.super.pointee->children.push_back(val);
+    return res;
 }
 
 template<typename _Tp>
