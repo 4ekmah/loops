@@ -647,8 +647,7 @@ Func make_conditionpainter(Context ctx, const std::string& fname)
                 out += select(((x >= 2 && x <= 4) || (y >= 1 && y <= 3)) && (x*x + y*y <= 16), 2, 0);
                 IF_(((2*y >=x && y<= -(x+3)*(x+3))||(y <= 2*x && y >= -(x+3)*(x+3))) && x <= 0)
                     out += 3;
-                // store_<int64_t>(ptr, offsety + ((x - xmin) << 3), out); //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
-                store_<int64_t>(ptr + offsety + ((x - xmin) << 3), out);
+                store_<int64_t>(ptr, offsety + ((x - xmin) << 3), out);
                 x += 1;
             }
             y += 1;

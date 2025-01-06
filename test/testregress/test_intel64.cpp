@@ -188,6 +188,10 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_STORE, { r8, rax, iregtyped<int64_t>(r8)});
         newiopNoret(OP_STORE, { r8, r8, iregtyped<int64_t>(rax)});
         newiopNoret(OP_STORE, { r8, r8, iregtyped<int64_t>(r8)});
+        newiopNoret(OP_STORE, { r13, rax, iregtyped<int64_t>(rax)});
+        newiopNoret(OP_STORE, { r13, rax, iregtyped<int64_t>(r8)});
+        newiopNoret(OP_STORE, { r13, r8, iregtyped<int64_t>(rax)});
+        newiopNoret(OP_STORE, { r13, r8, iregtyped<int64_t>(r8)});
 
         newiopNoret(OP_STORE, { rax, rax, iregtyped<uint32_t>(eax)});
         newiopNoret(OP_STORE, { rax, rax, iregtyped<int32_t>(eax)});
@@ -348,50 +352,85 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_STORE, { r8, argIImm(257), immtyped<int8_t>(255, _f)});
         newiopNoret(OP_STORE, { r12, argIImm(257), immtyped<int8_t>(255, _f)});
 
-        newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax });
+        newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), rax });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rdi), rax });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), rdi });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), rax });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) , rax });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax), r13 });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) , r8  });
-                                              
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) , r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) , r13  });
+
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rdi });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r13 });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r13 });
+
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rdi });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r13 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r13 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di) , rax });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rdi });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r8  });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r12  });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r13  });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8  });
-
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r12  });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r13  });
+        
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(di) , rax });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rdi });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r8  });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r13 });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8  });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r12  });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r13  });
 
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(dil), rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rdi});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r12 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r13 });
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r13 });
 
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(dil), rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rdi});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r13 });
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r12 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r13 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, argIImm(256)});
@@ -400,49 +439,63 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(di) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(dil), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(dil), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r8 , argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r13, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, rax});
@@ -453,10 +506,14 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r13, rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  r13, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  r13, r8 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax, rax});
@@ -465,34 +522,62 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r13, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r13, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), r13, r8 });
 
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rdi, rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rax, rdi});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rdi, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, rdi});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r13, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), r13, r8 });
+
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di) , rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rdi, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, rdi});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8 , rax});
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, r8 });
-        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r13 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), r13 , r8 });
 
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rdi, rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, rdi});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(di) , rax, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rdi, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax, rdi});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8 , rax});
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), rax, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, r8 });
-        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r13, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), r13, r8 });
 
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(dil), rax, rax});
@@ -501,10 +586,14 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r13 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r13 , rax});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r13 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), r13 , r8 });
 
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(dil), rax, rax});
@@ -513,10 +602,14 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r8 , rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r8 , rax});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r13, rax});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r13, rax});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), rax, r8 });
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r8 , r8 });
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r8 , r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r13, r8 });
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r13, r8 });
 
         newiopNoret(OP_XCHG, { rax, rax });
         newiopNoret(OP_XCHG, { rax, rdi });

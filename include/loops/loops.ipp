@@ -824,7 +824,7 @@ template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_low(c
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VExpr<_Tp>& r)
 { return VExpr<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_HIGH, { r.notype() }); }
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const VExpr<_Tp>& r0, const VExpr<_Tp>& r1)
-{ return VExpr<typename ElemTraits<_Tp>::half_type>(VOP_SHRINK, {r0.notype(),r1.notype()}); }
+{ return VExpr<typename ElemTraits<_Tp>::halftype>(VOP_SHRINK, {r0.notype(),r1.notype()}); }
 
 //Lane manipulations:
 template<typename _Tp> IExpr getlane(const VExpr<_Tp>& r, int64_t lane_index)

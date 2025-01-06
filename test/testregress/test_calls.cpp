@@ -198,8 +198,7 @@ TEST(calls, sort_double)
             IReg ipos = minpos + sizeof(double);
             WHILE_(ipos < n)
             {
-                // IF_(CALL_(lesser_dbl, load_<double>(ptr, ipos), load_<double>(ptr, minpos))) //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
-                IF_(CALL_(lesser_dbl, load_<double>(ptr + ipos), load_<double>(ptr + minpos)))
+                IF_(CALL_(lesser_dbl, load_<double>(ptr, ipos), load_<double>(ptr, minpos)))
                     minpos = ipos;
                 ipos += sizeof(double);
             }
