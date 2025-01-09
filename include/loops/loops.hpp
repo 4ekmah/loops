@@ -431,7 +431,7 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(loops::__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
 #define CONST_(x) loops::__loops_const_(&__loops_ctx__, x)
-#define DEF_(x) loops::__loops_def_<eltyp>(&__loops_ctx__)
+#define DEF_() loops::__loops_def_(&__loops_ctx__)
 #define VCONST_(eltyp, x) loops::__loops_vconst_<eltyp>(&__loops_ctx__, eltyp(x))
 #define VDEF_(eltyp) loops::__loops_vdef_<eltyp>(&__loops_ctx__)
 #define IF_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::IF, (expr)}) ; else

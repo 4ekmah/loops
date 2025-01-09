@@ -373,7 +373,7 @@ Func make_all_loads_all_stores(Context ctx, const std::string& fname)
         oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
         WHILE_(num < n)
         {
-            IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
+            IReg x = DEF_();
             IF_(ityp == TYPE_U8)
                 x = load_<uint8_t>(iptr, i_offset);
             ELIF_(ityp == TYPE_I8)
