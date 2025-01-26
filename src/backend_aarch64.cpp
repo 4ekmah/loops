@@ -2836,7 +2836,14 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                     if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
                         a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regnum), argReg(RB_INT,  op[fargnum].idx)}));
                     else
-                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regnum), argIImm(op[fargnum].idx)}));
+                    {
+                        int spillPos = 0;
+                        for(auto iter = allSaved.begin(); spillPos < (int)allSaved.size(); spillPos++, iter++)
+                            if(*iter == op[fargnum].idx)
+                                break;
+                        Assert(spillPos < (int)allSaved.size());
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(spillPos)}));
+                    }
                     brokenRegs.insert(regnum);
                 }
             }

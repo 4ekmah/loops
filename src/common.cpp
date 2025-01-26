@@ -503,47 +503,47 @@ namespace loops
     void __Loops_CF_rvalue_::return_(const IExpr& r) { Expr r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
     void __Loops_CF_rvalue_::return_(int64_t r) { Expr r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
 
-    void __Loops_CF_rvalue_::call_(funcptr0_noret_t fptr)
+    void __Loops_CF_rvalue_::void_call(funcptr0_noret_t fptr)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)) });
     }
-    
-    void __Loops_CF_rvalue_::call_(funcptr1_noret_t fptr, const IExpr& arg0)
+
+    void __Loops_CF_rvalue_::void_call(funcptr1_noret_t fptr, const IExpr& arg0)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr2_noret_t fptr, const IExpr& arg0, const IExpr& arg1)
+    void __Loops_CF_rvalue_::void_call(funcptr2_noret_t fptr, const IExpr& arg0, const IExpr& arg1)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr3_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
+    void __Loops_CF_rvalue_::void_call(funcptr3_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr4_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
+    void __Loops_CF_rvalue_::void_call(funcptr4_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr5_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
+    void __Loops_CF_rvalue_::void_call(funcptr5_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr6_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
+    void __Loops_CF_rvalue_::void_call(funcptr6_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr7_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
+    void __Loops_CF_rvalue_::void_call(funcptr7_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype() });
     }
 
-    void __Loops_CF_rvalue_::call_(funcptr8_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
+    void __Loops_CF_rvalue_::void_call(funcptr8_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
     {
         getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { Expr(int64_t(fptr)), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype() });
     }
@@ -617,6 +617,105 @@ namespace loops
         Expr fptr_ = Expr(int64_t(fptr));
         fptr_.func() = getImpl((getImpl(CTX)->getCurrentFunc()));
         IExpr res(OP_CALL, TYPE_I64, {fptr_, arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype()});
+        return IReg(res);
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype() });
+    }
+
+    void __Loops_CF_rvalue_::void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
+    {
+        getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->newiopNoret(OP_CALL_NORET, { fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype() });
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype()});
+        return IReg(res);
+    }
+        
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype()});
+        return IReg(res);
+    }
+
+    IReg __Loops_CF_rvalue_::call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7)
+    {
+        IExpr res(OP_CALL, TYPE_I64, {fptr.notype(), arg0.notype(), arg1.notype(), arg2.notype(), arg3.notype(), arg4.notype(), arg5.notype(), arg6.notype(), arg7.notype()});
         return IReg(res);
     }
 
