@@ -2837,7 +2837,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                         a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regidx), argReg(RB_INT,  op[fargnum].idx)}));
                     else
                     {
-                        int spillPos = spillLayout.size()*2;
+                        int spillPos = (int)spillLayout.size()*2;
                         for(int pairNum = 0; pairNum < (int)spillLayout.size(); pairNum++)
                             if(spillLayout[pairNum].second.first == op[fargnum].idx)
                             {
