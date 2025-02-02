@@ -8,6 +8,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include <iostream>
 #include <cstring>
+#define  _USE_MATH_DEFINES
 #include <math.h>
 #include <stdexcept>
 #include <algorithm>
