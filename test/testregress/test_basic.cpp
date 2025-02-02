@@ -290,13 +290,13 @@ Func make_nonnegative_odd(Context ctx, const std::string& fname)
             IF_(x < 0)
             {
                 i += sizeof(int);
-                CONTINUE_;
+                CONTINUE_();
             }
             IReg mod = x % 2;
             IF_(mod != 0)
             {
                 res = i;
-                BREAK_;
+                BREAK_();
             }
             i += sizeof(int);
         }
@@ -373,7 +373,7 @@ Func make_all_loads_all_stores(Context ctx, const std::string& fname)
         oelemsize = select(otyp > TYPE_I32, CONST_(8), oelemsize);
         WHILE_(num < n)
         {
-            IReg x = CONST_(0); //TODO(ch): we need to have variable definition without init value(probably with context reference or something...). [I think, we can introduce pure def instruction, which will dissappear on liveness analysis].
+            IReg x = DEF_();
             IF_(ityp == TYPE_U8)
                 x = load_<uint8_t>(iptr, i_offset);
             ELIF_(ityp == TYPE_I8)
@@ -534,19 +534,19 @@ Func make_bresenham(Context ctx, const std::string& fname)
         {
             store_<uint8_t>(canvas, y0* w + x0, filler);
             IF_(x0 == x1 && y0 == y1)
-                BREAK_;
+                BREAK_();
             IReg e2 = error << 1;
             IF_(e2 >= dy)
             {
                 IF_(x0 == x1)
-                    BREAK_;
+                    BREAK_();
                 error = error + dy;
                 x0 = x0 + sx;
             }
             IF_(e2 <= dx)
             {
                 IF_(y0 == y1)
-                    BREAK_;
+                    BREAK_();
                 error = error + dx;
                 y0 = y0 + sy;
             }
@@ -647,8 +647,7 @@ Func make_conditionpainter(Context ctx, const std::string& fname)
                 out += select(((x >= 2 && x <= 4) || (y >= 1 && y <= 3)) && (x*x + y*y <= 16), 2, 0);
                 IF_(((2*y >=x && y<= -(x+3)*(x+3))||(y <= 2*x && y >= -(x+3)*(x+3))) && x <= 0)
                     out += 3;
-                // store_<int64_t>(ptr, offsety + ((x - xmin) << 3), out); //TODO(ch): There is some bug on intel here, causing segfault. Uncomment and fix it. 
-                store_<int64_t>(ptr + offsety + ((x - xmin) << 3), out);
+                store_<int64_t>(ptr, offsety + ((x - xmin) << 3), out);
                 x += 1;
             }
             y += 1;
@@ -701,6 +700,170 @@ TEST(basic, conditionpainter)
     test_conditionpainter(func);
 }
 
+struct join_database
+{
+    int32_t* a;
+    int32_t* b;
+    int64_t tab1_size;
+    int32_t* c;
+    int32_t* d;
+    int64_t tab2_size;
+    int32_t* e;
+    int32_t* f;
+    int64_t tab3_size;
+};
+
+Func make_has_in_join_cascade(Context ctx, const std::string& fname)
+{
+// Test checks that result of table's join cascade contains some line.
+//
+// All columns - int32_t.
+// Sorting:(lesser - first):
+// first table is sorted by a field "a", if there is more than one a value, lines with same value are sorted by "b".
+// second table is sorted by "d" field, 
+// third table is sorted by "e" field, 
+// All columns, used in equations, are deleted from output, so, search request is about rest columns.
+// Tables: (a,b) (c,d) (e,f)
+// join  a==d b==e
+// Output: (c,f), therefore search condition is c == c_s, f = f_s
+    USE_CONTEXT_(ctx);
+    IReg db, c_s, f_s;
+    STARTFUNC_(fname, &db, &c_s, &f_s)
+    {
+        IReg res = CONST_(0);
+        IReg t1size = load_<int64_t>(db, offsetof(join_database, tab1_size));
+        IReg aptr = load_<int64_t>(db, offsetof(join_database, a));
+        IReg bptr = load_<int64_t>(db, offsetof(join_database, b));
+        WHILE_(t1size > 0)
+        {
+            IReg a_val = load_<int32_t>(aptr);
+            aptr += sizeof(int32_t);
+            IReg b_val = load_<int32_t>(bptr);
+            bptr += sizeof(int32_t);
+            t1size = t1size - 1;
+
+            IReg t2size = load_<int64_t>(db, offsetof(join_database, tab2_size));
+            IReg cptr = load_<int64_t>(db, offsetof(join_database, c));
+            IReg dptr = load_<int64_t>(db, offsetof(join_database, d));
+            WHILE_(t2size >0) 
+            {
+                IReg c_val = load_<int32_t>(cptr);
+                cptr += sizeof(int32_t);
+                IReg d_val = load_<int32_t>(dptr);
+                dptr += sizeof(int32_t);
+                t2size = t2size - 1;
+                IF_(d_val > a_val)
+                {
+                    CONTINUE_(2);
+                }
+                ELIF_(d_val == a_val)
+                {
+                    IReg t3size = load_<int64_t>(db, offsetof(join_database, tab3_size));
+                    IReg eptr = load_<int64_t>(db, offsetof(join_database, e));
+                    IReg fptr = load_<int64_t>(db, offsetof(join_database, f));
+                    WHILE_(t3size > 0)
+                    {
+                        IReg e_val = load_<int32_t>(eptr);
+                        eptr += sizeof(int32_t);
+                        IReg f_val = load_<int32_t>(fptr);
+                        fptr += sizeof(int32_t);
+                        t3size = t3size - 1;
+                        IF_(e_val > b_val)
+                        {
+                            CONTINUE_(3);
+                        }
+                        ELIF_(e_val == b_val && c_val == c_s && f_val == f_s)
+                        {
+                            res = CONST_(1);
+                            BREAK_(3);
+                        }
+                    }
+                }
+            }
+        }
+        RETURN_(res);
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_has_in_join_cascade(Func func)
+{
+    auto reference_func = [](const join_database& db, int32_t c_s, int32_t f_s)
+    {
+        int64_t res = 0;
+        for(int t1num = 0; t1num < db.tab1_size; t1num++)
+        {
+            bool double_continue = false;
+            for(int t2num = 0; t2num < db.tab2_size; t2num++)
+            {
+                if(db.d[t2num] > db.a[t1num])
+                {
+                    break;
+                }
+                else if(db.d[t2num] == db.a[t1num])
+                {
+                    for(int t3num = 0; t3num < db.tab3_size; t3num++)
+                    {
+                        if(db.e[t3num] > db.b[t1num])
+                        {
+                            double_continue = true;
+                            break;
+                        }
+                        else if(db.e[t3num] == db.b[t1num] && db.c[t2num] == c_s && db.f[t3num] == f_s)
+                        {
+                            res = 1;
+                            break;
+                        }
+                    }
+                    if(res == 1 || double_continue)
+                        break;
+                }
+            }
+            if(res == 1)
+                break;
+        }
+        return res;
+    };
+
+    typedef int64_t (*has_in_join_cascade_f)(join_database* db, int64_t c_s, int64_t f_s);
+    has_in_join_cascade_f tested = reinterpret_cast<has_in_join_cascade_f>(func.ptr());
+
+    std::vector<int32_t> a = { 1, 7, 7,  7, 11, 11, 12, 15, 15, 15};
+    std::vector<int32_t> b = {10, 7, 8, 15,  9, 25,  1,  2,  8, 16};
+
+    std::vector<int32_t> c = {12, 13, 1, 14, 35,  2,  2,  3,  5, 17, 43, 14, 15,  0,  5};
+    std::vector<int32_t> d = { 2,  3, 5,  7,  8,  9, 11, 12, 12, 12, 13, 13, 15, 16, 20};
+
+    std::vector<int32_t> e = {2,  8,  9, 10, 16};
+    std::vector<int32_t> f = {4, 14, 78,  2, 18};
+
+    join_database db;
+    db.a = a.data();
+    db.b = b.data();
+    db.c = c.data();
+    db.d = d.data();
+    db.e = e.data();
+    db.f = f.data();
+    db.tab1_size = (int64_t)a.size();
+    db.tab2_size = (int64_t)c.size();
+    db.tab3_size = (int64_t)e.size();
+
+    std::vector<std::pair<int32_t, int32_t> > queries = {{14, 14}, {14, 78}, {2, 78}, {35, 4}, {15, 4}, {15, 14}, {15, 18}, {15, 2}};
+
+    for(size_t n = 0; n < queries.size(); n++)
+        ASSERT_EQ(tested(&db, queries[n].first, queries[n].second), reference_func(db, queries[n].first, queries[n].second));
+}
+
+TEST(basic, has_in_join_cascade)
+{
+    Context ctx;
+    loops::Func func = make_has_in_join_cascade(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_has_in_join_cascade(func);
+}
+
 TEST(basic, compile_all)
 {
     Context ctx;
@@ -714,6 +877,7 @@ TEST(basic, compile_all)
     loops::Func nullify_msb_lsb_func = make_nullify_msb_lsb(ctx, "nullify_msb_lsb");
     loops::Func bresenham_func = make_bresenham(ctx, "bresenham");
     loops::Func conditionpainter_func = make_conditionpainter(ctx, "conditionpainter");
+    loops::Func has_in_join_cascade_func = make_has_in_join_cascade(ctx, "has_in_join_cascade");
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
@@ -725,4 +889,5 @@ TEST(basic, compile_all)
     test_nullify_msb_lsb(nullify_msb_lsb_func);
     test_bresenham(bresenham_func);
     test_conditionpainter(conditionpainter_func);
+    test_has_in_join_cascade(has_in_join_cascade_func);
 }

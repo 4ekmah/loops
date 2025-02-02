@@ -351,20 +351,20 @@ struct __Loops_CF_rvalue_
 {
     __Loops_CF_rvalue_(Context* _CTX);
     Context* CTX;
-    void break_();
-    void continue_();
+    void break_(int depth = 1);
+    void continue_(int depth = 1);
     void return_();
     void return_(const IExpr& r);
     void return_(int64_t r);
-    void call_(funcptr0_noret_t fptr);
-    void call_(funcptr1_noret_t fptr, const IExpr& arg0);
-    void call_(funcptr2_noret_t fptr, const IExpr& arg0, const IExpr& arg1);
-    void call_(funcptr3_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2);
-    void call_(funcptr4_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3);
-    void call_(funcptr5_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4);
-    void call_(funcptr6_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5);
-    void call_(funcptr7_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6);
-    void call_(funcptr8_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7);
+    void void_call(funcptr0_noret_t fptr);
+    void void_call(funcptr1_noret_t fptr, const IExpr& arg0);
+    void void_call(funcptr2_noret_t fptr, const IExpr& arg0, const IExpr& arg1);
+    void void_call(funcptr3_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2);
+    void void_call(funcptr4_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3);
+    void void_call(funcptr5_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4);
+    void void_call(funcptr6_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5);
+    void void_call(funcptr7_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6);
+    void void_call(funcptr8_noret_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7);
     IReg call_(funcptr0_t fptr);
     IReg call_(funcptr1_t fptr, const IExpr& arg0);
     IReg call_(funcptr2_t fptr, const IExpr& arg0, const IExpr& arg1);
@@ -374,6 +374,24 @@ struct __Loops_CF_rvalue_
     IReg call_(funcptr6_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5);
     IReg call_(funcptr7_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6);
     IReg call_(funcptr8_t fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7);
+    void void_call(const IExpr& fptr);
+    void void_call(const IExpr& fptr, const IExpr& arg0);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6);
+    void void_call(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7);
+    IReg call_(const IExpr& fptr);
+    IReg call_(const IExpr& fptr, const IExpr& arg0);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6);
+    IReg call_(const IExpr& fptr, const IExpr& arg0, const IExpr& arg1, const IExpr& arg2, const IExpr& arg3, const IExpr& arg4, const IExpr& arg5, const IExpr& arg6, const IExpr& arg7);
 };
 
 void __setfunc_by_context_(Context* CTX, Expr& expr);
@@ -824,7 +842,7 @@ template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_low(c
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> cast_high(const VExpr<_Tp>& r)
 { return VExpr<typename ElemTraits<_Tp>::duplicatetype>(VOP_CAST_HIGH, { r.notype() }); }
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::halftype> shrink(const VExpr<_Tp>& r0, const VExpr<_Tp>& r1)
-{ return VExpr<typename ElemTraits<_Tp>::half_type>(VOP_SHRINK, {r0.notype(),r1.notype()}); }
+{ return VExpr<typename ElemTraits<_Tp>::halftype>(VOP_SHRINK, {r0.notype(),r1.notype()}); }
 
 //Lane manipulations:
 template<typename _Tp> IExpr getlane(const VExpr<_Tp>& r, int64_t lane_index)

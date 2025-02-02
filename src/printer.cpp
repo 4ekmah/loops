@@ -394,7 +394,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
                             LOOPS_THROW(err);
                         break;
                     case SUFFIX_ELEMTYPE:
-                        if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG)
+                        if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG && op->args[argnum].tag != loops::Arg::IIMMEDIATE)
                             LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                         err = loops_hashmap_get(type_suffixes, op->args[argnum].elemtype, &found_name);
                         if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)

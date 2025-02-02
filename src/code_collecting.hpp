@@ -52,8 +52,8 @@ public:
     void reg_assign(Expr& target, Expr& fromwho);
     void while_(Expr& r);
     void endwhile_();
-    void break_();
-    void continue_();
+    void break_(int depth);
+    void continue_(int depth);
     void if_(Expr& r);
     void elif_(Expr& r);
     void else_();

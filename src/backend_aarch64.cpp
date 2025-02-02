@@ -2830,14 +2830,29 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
             {
                 Assert(op[fargnum].tag == Arg::IREG);
-                int regnum = fargnum - (op.opcode == OP_CALL ? 2 : 1);
-                if(op[fargnum].idx != regnum)
+                int regidx = fargnum - (op.opcode == OP_CALL ? 2 : 1);
+                if(op[fargnum].idx != regidx)
                 {
                     if(brokenRegs.find(op[fargnum].idx) == brokenRegs.end())
-                        a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regnum), argReg(RB_INT,  op[fargnum].idx)}));
+                        a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT,  regidx), argReg(RB_INT,  op[fargnum].idx)}));
                     else
-                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regnum), argIImm(op[fargnum].idx)}));
-                    brokenRegs.insert(regnum);
+                    {
+                        int spillPos = (int)spillLayout.size()*2;
+                        for(int pairNum = 0; pairNum < (int)spillLayout.size(); pairNum++)
+                            if(spillLayout[pairNum].second.first == op[fargnum].idx)
+                            {
+                                spillPos = spillLayout[pairNum].first;
+                                break;
+                            }
+                            else if(spillLayout[pairNum].second.second == op[fargnum].idx)
+                            {
+                                spillPos = spillLayout[pairNum].first + 1;
+                                break;
+                            }
+                        Assert(spillPos < (int)spillLayout.size()*2);
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(spillPos)}));
+                    }
+                    brokenRegs.insert(regidx);
                 }
             }
             if(brokenRegs.find(addrkeeper.idx) != brokenRegs.end())
