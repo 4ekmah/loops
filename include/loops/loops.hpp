@@ -426,7 +426,7 @@ typedef int64_t (*funcptr6_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 typedef int64_t (*funcptr7_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 
-//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls, in future) will be
+//TODO(ch): Unfortunately, execution of condtions cannot be considered as lazy. Code with effects(assignments or function calls) will be
 //done independently of status of already evaluated conditions. It's result of code collection procedure traits. Probably, it should be fixed, but it's not easy.
 #define USE_CONTEXT_(ctx) loops::Context __loops_ctx__(ctx);
 #define STARTFUNC_(funcname, ...) if(loops::__Loops_FuncScopeBracket_ __loops_func_{&__loops_ctx__, (funcname), {__VA_ARGS__}}) ; else
@@ -438,8 +438,25 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 #define ELIF_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::ELIF, (expr)}) ; else
 #define ELSE_ if(loops::__Loops_CFScopeBracket_ __loops_cf_{__loops_ctx__}) ; else
 #define WHILE_(expr) if(loops::__Loops_CFScopeBracket_ __loops_cf_{loops::__Loops_CondPrefixMarker_(__loops_ctx__), loops::__Loops_CFScopeBracket_::WHILE, (expr)}) ; else
-#define BREAK_ loops::__Loops_CF_rvalue_(&__loops_ctx__).break_()
-#define CONTINUE_ loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
+
+//Note: Loops doesn'n have general "goto" operator, due to theoretical ineffeciency of general Liveness Analysis algorithm.
+//For simplification of some frequent situation, there appended non-usual construction types, CONTINUE and BREAK with nesting level.
+//For example, consider next pseudo code: 
+// WHILE_(...)
+// {
+//     //outer loop start<──┐
+//     WHILE_(...)          │
+//     {                    │
+//         WHILE_(...)      │
+//         {                │
+//             CONTINUE(3);─┘
+//             BREAK(2);─┐
+//         }             │
+//     }                 │
+//     //end of 2 loop<──┘
+// }
+#define BREAK_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).break_(__VA_ARGS__)
+#define CONTINUE_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
 #define RETURN_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(__VA_ARGS__)
 
 //Call signature:

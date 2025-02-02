@@ -27,19 +27,19 @@ loops::Func genbresenham(loops::Context& CTX)
         {
             store_<uint8_t>(canvas, y0 * w + x0, filler);
             IF_(x0 == x1 && y0 == y1)
-                BREAK_;
+                BREAK_();
             IReg e2 = error << 1;
             IF_(e2 >= dy)
             {
                 IF_(x0 == x1)
-                    BREAK_;
+                    BREAK_();
                 error = error + dy;
                 x0 = x0 + sx;
             }
             IF_(e2 <= dx)
             {
                 IF_(y0 == y1)
-                    BREAK_;
+                    BREAK_();
                 error = error + dx;
                 y0 = y0 + sy;
             }

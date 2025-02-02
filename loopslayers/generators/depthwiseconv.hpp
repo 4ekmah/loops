@@ -261,7 +261,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                 IF_(padhor?(ult(xcond, Wcond)):ult(yi, Hcond))
                                 {
                                     multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, 0);
-                                    CONTINUE_;
+                                    CONTINUE_();
                                 }
                                 multilineHandler(HcondV, WcondV, yi, xo, xi, data__, result_rs, rstride, handlerFlags);
                             }
@@ -301,7 +301,7 @@ typename DWCGenTraits<_Tp>::dwconv_t DepthwiseconvGenerator<_Tp>::generate(int k
                                     IF_(padhor?ult(xcond,Wcond):ult(yi, Hcond))
                                     {
                                         onlylineHandler(WcondV, yi, xo, xi, data__, result_rs, 0);
-                                        CONTINUE_;
+                                        CONTINUE_();
                                     }
                                     onlylineHandler(WcondV, yi, xo, xi, data__, result_rs, handlerFlags);
                                 }
@@ -562,7 +562,7 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
                         base += W << elemshift;
                         yi += 1;
                         krow += 1;
-                        CONTINUE_;
+                        CONTINUE_();
                     }
                 }
                 IReg kptr = kernel + krow * (kw * elemsize);
@@ -643,7 +643,7 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
                         base += W << elemshift;
                         yi += 1;
                         krow += 1;
-                        CONTINUE_;
+                        CONTINUE_();
                     }
                 }
                 IReg kptr = kernel + krow * (kw * elemsize);

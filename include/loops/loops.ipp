@@ -351,8 +351,8 @@ struct __Loops_CF_rvalue_
 {
     __Loops_CF_rvalue_(Context* _CTX);
     Context* CTX;
-    void break_();
-    void continue_();
+    void break_(int depth = 1);
+    void continue_(int depth = 1);
     void return_();
     void return_(const IExpr& r);
     void return_(int64_t r);

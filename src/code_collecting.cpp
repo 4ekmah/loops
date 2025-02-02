@@ -107,24 +107,37 @@ namespace loops
         m_data.program.push_back(Syntop(OP_ENDWHILE, {argIImm(continuelabel), argIImm(breaklabel)}));
     }
 
-    void CodeCollecting::break_()
+    void CodeCollecting::break_(int depth)
     {
+        Assert(depth >= 1);
         auto rator = m_cflowStack.rbegin();
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
-                break;
+            {
+                if(depth <= 1)
+                    break;
+                else 
+                    depth--;
+            }
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"break\".");
         int breaklabel = rator->auxfield;
         m_data.program.push_back(Syntop(OP_BREAK, {Arg(breaklabel)}));
     }
 
-    void CodeCollecting::continue_()
+    void CodeCollecting::continue_(int depth)
     {
+        Assert(depth >= 1);
+        (void)depth;
         auto rator = m_cflowStack.rbegin();
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
-                break;
+            {
+                if(depth <= 1)
+                    break;
+                else 
+                    depth--;
+            }
         if (rator == m_cflowStack.rend())
             throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"continue\".");
         int continuelabel = rator->label_or_pos;

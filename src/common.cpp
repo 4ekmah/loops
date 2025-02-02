@@ -497,8 +497,8 @@ namespace loops
     __Loops_FuncScopeBracket_::~__Loops_FuncScopeBracket_() { getImpl(CTX)->endFunc(); }
 
     __Loops_CF_rvalue_::__Loops_CF_rvalue_(Context* _CTX) : CTX(_CTX) {}
-    void __Loops_CF_rvalue_::break_(){ getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(); }
-    void __Loops_CF_rvalue_::continue_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(); }
+    void __Loops_CF_rvalue_::break_(int depth){ getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->break_(depth); }
+    void __Loops_CF_rvalue_::continue_(int depth) { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->continue_(depth); }
     void __Loops_CF_rvalue_::return_() { getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(); }
     void __Loops_CF_rvalue_::return_(const IExpr& r) { Expr r_(r.notype()); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
     void __Loops_CF_rvalue_::return_(int64_t r) { Expr r_(r); getImpl((getImpl(CTX)->getCurrentFunc()))->get_code_collecting()->return_(r_); }
