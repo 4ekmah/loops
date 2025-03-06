@@ -12,53 +12,54 @@ See https://github.com/4ekmah/loops/LICENSE
 
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
-                  /*  |       enum_id       |string_id|    */
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOV   , "mov"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSX , "movsx" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSXD, "movsxd"),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVZX , "movzx" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADC   , "adc"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADD   , "add"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SUB   , "sub"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_IMUL  , "imul"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_IDIV  , "idiv"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHL   , "shl"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHR   , "shr"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SAR   , "sar"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_AND   , "and"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_OR    , "or"    ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_XOR   , "xor"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_NOT   , "not"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_NEG   , "neg"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CQO   , "cqo"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_XCHG  , "xchg"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMP   , "cmp"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVE , "cmove" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNE, "cmovne"),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVL , "cmovl" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVG , "cmovg" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVLE, "cmovle"),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVGE, "cmovge"),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVS , "cmovs" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNS, "cmovns"),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETE  , "sete"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNE , "setne" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETL  , "setl"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETG  , "setg"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETLE , "setle" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETGE , "setge" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS  , "sets"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS , "setns" ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP   , "jmp"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE   , "jne"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JE    , "je"    ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JL    , "jl"    ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JLE   , "jle"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JG    , "jg"    ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JGE   , "jge"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CALL  , "call"  ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_RET   , "ret"   ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_LABEL , ""      ),
+                  /*  |       enum_id        |string_id |    */
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOV    , "mov"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSX  , "movsx"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVSXD , "movsxd" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_MOVZX  , "movzx"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADC    , "adc"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_ADD    , "add"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SUB    , "sub"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_IMUL   , "imul"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_IDIV   , "idiv"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHL    , "shl"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SHR    , "shr"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SAR    , "sar"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_AND    , "and"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_OR     , "or"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_XOR    , "xor"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_NOT    , "not"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_NEG    , "neg"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CQO    , "cqo"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_XCHG   , "xchg"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMP    , "cmp"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVE  , "cmove"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNE , "cmovne" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVL  , "cmovl"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVG  , "cmovg"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVLE , "cmovle" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVGE , "cmovge" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVS  , "cmovs"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNS , "cmovns" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETE   , "sete"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNE  , "setne"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETL   , "setl"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETG   , "setg"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETLE  , "setle"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETGE  , "setge"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS   , "sets"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS  , "setns"  ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU, "vmovdqu"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP    , "jmp"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE    , "jne"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JE     , "je"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JL     , "jl"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JLE    , "jle"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JG     , "jg"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JGE    , "jge"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CALL   , "call"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_RET    , "ret"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_LABEL  , ""       ),
 };
 
 static LOOPS_HASHMAP(int, loops_cstring) opstrings = NULL;
@@ -96,10 +97,83 @@ namespace loops
         R15 = 15
     }; 
 
+    enum Intel64VReg
+    {
+        YMM0  =  0,
+        YMM1  =  1,
+        YMM2  =  2,
+        YMM3  =  3,
+        YMM4  =  4,
+        YMM5  =  5,
+        YMM6  =  6,
+        YMM7  =  7,
+        YMM8  =  8,
+        YMM9  =  9,
+        YMM10 = 10,
+        YMM11 = 11,
+        YMM12 = 12,
+        YMM13 = 13,
+        YMM14 = 14,
+        YMM15 = 15,
+    };    
+
     static inline BinTranslation::Token nBkb(int n, uint64_t bytes, int k, uint64_t bits)
     {
         uint64_t field = ((((uint64_t(1) << (n * 8)) - 1) & bytes) << k) | bits;
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
+    }
+
+    static inline BinTranslation VEX_instuction(const Syntop& index, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
+        Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
+        std::vector<BinTranslation::Token> tokens;
+        const uint32_t R = ((index.args[0].idx & 0b1000) == 0); //DUBUG: actually, it's questionable, that ModR/M is always index.args[0].idx
+        const uint32_t X = 1; //DUBUG: actually, it's questionable, that SIB index field is always index.args[1].idx
+        const uint32_t B = ((index.args[1].idx & 0b1000) == 0);
+        const uint32_t W = 0; // DUBUG: WIG is for W ignored, means W = 0 always. Move WIG to arguments?
+        const uint32_t L = 1;
+        const uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
+        const uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
+
+        // pp:opcode extension providing equivalent functionality of a SIMD prefix
+        // 00: None
+        // 01: 66
+        // 10: F3
+        // 11: F2        
+        const uint32_t vvvv = 0b1111;
+        uint32_t vex = 0;
+        int vex_size;
+        if(W == 0 && B == 1 && X == 1 && m_mmmm == 0b00001)
+        {
+            //c1 = 1010 0001
+            //41 = 0010 0001
+            vex_size = 16;
+            //VEX.256.F3.0F.WIG 7F /r
+            vex = (0xc5 << 8)|(R<<7)|(vvvv<<3)|(L<<2)|pp;
+        }
+        else
+        {
+            //7e = 0111 1110
+            //fe = 1111 1110
+            vex_size = 24;
+            //VEX.256.F3.0F.WIG 7F /r
+            vex = (0xc4 << 16)|(R<<15)|(X<<14)|(B<<13)|(m_mmmm<<8)|(W<<7)|(vvvv<<3)|(L<<2)|pp;
+        }
+
+        //OPCODE construction: <prefix><leading bytes><other bytes>
+        // R, X and B bits are complements of the REX prefix's R, X and B bits; these provide a fourth (high) bit for register index fields
+        // (ModRM reg, SIB index, and ModRM r/m; SIB base; or opcode reg fields, respectively) allowing access to 16 instead of 8 registers.
+        tokens.push_back(BTsta(vex, vex_size));
+        tokens.push_back(BTsta(opcode, 8));
+        {//ModRM
+            const uint32_t mod = 0;//// DUBUG: how to detect other combinations?
+            tokens.push_back(BTsta(mod, 2));
+            tokens.push_back(BTreg(0, 3, Out));
+            tokens.push_back(BTreg(1, 3, In | Addr64));
+        }
+        return BinTranslation(tokens);
     }
 
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
@@ -1024,6 +1098,26 @@ namespace loops
             }
             break;
         }
+        case (INTEL64_VMOVDQU):
+            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && isInteger(index.args[0].elemtype))
+            {
+                return VEX_instuction(index, 0xF3, 0x0F, 0x6F);
+//vmovdqu  ymm0, [rax] // c5 fe 6f 00      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm7, [rax] // c5 fe 6f 38      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm0, [rdi] // c5 fe 6f 07      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm8, [rax] // c5 7e 6f 00      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm8, [rdi] // c5 7e 6f 07      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu ymm15, [rax] // c5 7e 6f 38      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm0,  [r8] // c4 c1 7e 6f 00   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm7,  [r8] // c4 c1 7e 6f 38   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm0, [r15] // c4 c1 7e 6f 07   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu  ymm8,  [r8] // c4 41 7e 6f 00   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu ymm15,  [r8] // c4 41 7e 6f 38   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu ymm15, [r15] // c4 41 7e 6f 3f   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
+//vmovdqu ymm15, [r15+rax]c4 41 7e 6f 3c 07 
+//vmovdqu ymm15, [rax+r15]c4 21 7e 6f 3c 38
+            }
+            break;
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -1154,6 +1248,20 @@ namespace loops
                 return SyT(tarcode, { SAcopelt(0, TYPE_U8) });
             }
             break;
+        case (VOP_LOAD):
+            //DUBUG: It works only for uint32(and other ints)! Check other types variations.
+            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG)
+                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS) });
+            else if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))
+                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+            break;
+        case (VOP_STORE):
+            //DUBUG: It works only for uint32(and other ints)! Check other types variations.
+            if (index.args_size == 2 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG)
+                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1) });
+            else if (index.args_size == 3 && index.args[0].tag == Arg::IREG && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE) && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
         case (OP_JCC):
@@ -1244,6 +1352,18 @@ namespace loops
         m_returnRegisters[RB_INT] = { RAX, RDX };
         m_callerSavedRegisters[RB_INT] = { R10, R11 };
         m_calleeSavedRegisters[RB_INT] = { RBX, R12, R13, R14, R15 };
+#else
+#error Unknown OS
+#endif
+
+    m_returnRegisters[RB_VEC] = { YMM0 };
+#if __LOOPS_OS == __LOOPS_WINDOWS
+    m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3 };
+#error DUBUG Not Supported!
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+    m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7};
+    m_callerSavedRegisters[RB_VEC] = { YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
+    m_calleeSavedRegisters[RB_VEC] = {  };
 #else
 #error Unknown OS
 #endif
@@ -1698,6 +1818,11 @@ namespace loops
                                     (elem_size(arg.elemtype) == 4 ? 2 : 
                                   /*(elem_size(arg.elemtype) == 8*/ 3));
                 LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]));
+                break;
+            }
+            case Arg::VREG:
+            {
+                LOOPS_CALL_THROW(loops_printf(printer, "ymm%d", arg.idx));
                 break;
             }
             case Arg::IIMMEDIATE:

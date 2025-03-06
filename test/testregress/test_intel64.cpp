@@ -55,6 +55,11 @@ TEST(intel64, instruction_set_test)
         spilled32.func() = _f;
         spilled0x1FFF.func() = _f;
 
+        Expr ymm0_4s = VExpr<int32_t>(vregHid<int32_t>(0,_f)).notype();
+        Expr ymm7_4s = VExpr<int32_t>(vregHid<int32_t>(7,_f)).notype();
+        Expr ymm8_4s = VExpr<int32_t>(vregHid<int32_t>(8,_f)).notype();
+        Expr ymm15_4s = VExpr<int32_t>(vregHid<int32_t>(15,_f)).notype();
+
         newiopNoret(OP_MOV, { rax, immtyped<int64_t>(0x10fffffff, _f) });
         newiopNoret(OP_MOV, { rdi, immtyped<int64_t>(0x10fffffff, _f) });
         newiopNoret(OP_MOV, {  r8, immtyped<int64_t>(0x10fffffff, _f) });
@@ -791,6 +796,20 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CALL_NORET, {  r8 });
         newiopNoret(OP_CALL_NORET, { r15 });
         newiopNoret(OP_CALL_NORET, { spilled32 });
+
+        //DUBUG: don't forget to fix instruction mnemonic format.
+        newiopNoret(VOP_LOAD, { ymm0_4s , rax });
+        newiopNoret(VOP_LOAD, { ymm7_4s , rax });
+        newiopNoret(VOP_LOAD, { ymm0_4s , rdi });
+        newiopNoret(VOP_LOAD, { ymm8_4s , rax });
+        newiopNoret(VOP_LOAD, { ymm15_4s, rax });
+        newiopNoret(VOP_LOAD, { ymm8_4s , rdi });
+        newiopNoret(VOP_LOAD, { ymm0_4s , r8  });
+        newiopNoret(VOP_LOAD, { ymm7_4s , r8  });
+        newiopNoret(VOP_LOAD, { ymm0_4s , r15 });
+        newiopNoret(VOP_LOAD, { ymm8_4s , r8  });
+        newiopNoret(VOP_LOAD, { ymm15_4s, r8  });
+        newiopNoret(VOP_LOAD, { ymm8_4s , r15 });
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     EXPECT_ASSEMBLY_CORRECT(func);
