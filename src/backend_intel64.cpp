@@ -125,23 +125,30 @@ namespace loops
 
     static inline BinTranslation VEX_instuction(const Syntop& index, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
     {
+        //DUBUG: move here checks!
         using namespace BinTranslationConstruction;
+        Assert(index.args_size == 2 || index.args_size == 3);
         Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
         std::vector<BinTranslation::Token> tokens;
-        const uint32_t R = ((index.args[0].idx & 0b1000) == 0); //DUBUG: actually, it's questionable, that ModR/M is always index.args[0].idx
-        const uint32_t X = 1; //DUBUG: actually, it's questionable, that SIB index field is always index.args[1].idx
-        const uint32_t B = ((index.args[1].idx & 0b1000) == 0);
+        int nar = 0; //non-address register.
+        int far = 1; // first address register.
+        int sar = 2; // second address register.
+        if (index.args[nar].flags & AF_ADDRESS)
+        {
+            far = 0;
+            sar = 1;
+            nar = 1 + (index.args_size == 3);
+        }
+        const uint32_t R = ((index.args[nar].idx & 0b1000) == 0);
+        const uint32_t X = ((index.args_size == 3 && index.args[sar].tag == Arg::IREG) ? ((index.args[sar].idx & 0b1000) == 0) : 1);
+        const uint32_t B = ((index.args[far].idx & 0b1000) == 0);
         const uint32_t W = 0; // DUBUG: WIG is for W ignored, means W = 0 always. Move WIG to arguments?
         const uint32_t L = 1;
         const uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
+        // pp:opcode extension providing equivalent functionality of a SIMD prefix: {00: None | 01: 66 | 10: F3 | 11: F2}
         const uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
 
-        // pp:opcode extension providing equivalent functionality of a SIMD prefix
-        // 00: None
-        // 01: 66
-        // 10: F3
-        // 11: F2        
         const uint32_t vvvv = 0b1111;
         uint32_t vex = 0;
         int vex_size;
@@ -167,11 +174,55 @@ namespace loops
         // (ModRM reg, SIB index, and ModRM r/m; SIB base; or opcode reg fields, respectively) allowing access to 16 instead of 8 registers.
         tokens.push_back(BTsta(vex, vex_size));
         tokens.push_back(BTsta(opcode, 8));
-        {//ModRM
-            const uint32_t mod = 0;//// DUBUG: how to detect other combinations?
-            tokens.push_back(BTsta(mod, 2));
-            tokens.push_back(BTreg(0, 3, Out));
-            tokens.push_back(BTreg(1, 3, In | Addr64));
+        {//ModRM+SIB
+            if(index.args_size == 2)
+            {
+                if ((index.args[far].idx & 0b111) == 0b100)
+                {
+                    const uint32_t mod = 0;
+                    tokens.push_back(BTsta(mod, 2));
+                    tokens.push_back(BTreg(nar, 3, Out));
+                    tokens.push_back(BTsta(0b10000100, 8));
+                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                }
+                else if ((index.args[far].idx & 0b111) == 0b101)
+                {
+                    const uint32_t mod = 1;
+                    tokens.push_back(BTsta(mod, 2));
+                    tokens.push_back(BTreg(nar, 3, Out));
+                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                    tokens.push_back(BTsta(0, 8));
+                }
+                else 
+                {
+                    const uint32_t mod = 0;
+                    tokens.push_back(BTsta(mod, 2));
+                    tokens.push_back(BTreg(nar, 3, Out));
+                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                }
+            }
+            else if(index.args_size == 3 && index.args[sar].tag == Arg::IREG)
+            {
+                const uint32_t mod = 0;
+                tokens.push_back(BTsta(mod, 2));
+                tokens.push_back(BTreg(nar, 3, Out));
+                const uint32_t r_m = 0b100;
+                const uint32_t scale = 0;
+                tokens.push_back(BTsta(r_m, 3));
+                tokens.push_back(BTsta(scale, 2));
+                tokens.push_back(BTreg(sar, 3, In | Addr64)); //index
+                tokens.push_back(BTreg(far, 3, In | Addr64)); //base
+            }
+            else if(index.args_size == 3 && index.args[sar].tag == Arg::IIMMEDIATE)
+            {
+                const uint32_t mod = 0b10;
+                tokens.push_back(BTsta(mod, 2));
+                tokens.push_back(BTreg(nar, 3, Out));
+                if ((index.args[far].idx & 0b111) == 0b100)
+                    tokens.push_back(BTsta(0b10000100, 8));
+                tokens.push_back(BTreg(far, 3, In | Addr64));  //base
+                tokens.push_back(BTimm(sar, 32, In | Addr64)); //index
+            }
         }
         return BinTranslation(tokens);
     }
@@ -1098,25 +1149,14 @@ namespace loops
             }
             break;
         }
-        case (INTEL64_VMOVDQU):
-            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && isInteger(index.args[0].elemtype))
-            {
+        case (INTEL64_VMOVDQU)://DUBUG:IsInteger lower is veeeeery questionable.
+            if ((index.args_size == 2 || (index.args_size == 3 && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))) &&
+                 index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && isInteger(index.args[0].elemtype))
                 return VEX_instuction(index, 0xF3, 0x0F, 0x6F);
-//vmovdqu  ymm0, [rax] // c5 fe 6f 00      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm7, [rax] // c5 fe 6f 38      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm0, [rdi] // c5 fe 6f 07      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm8, [rax] // c5 7e 6f 00      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm8, [rdi] // c5 7e 6f 07      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu ymm15, [rax] // c5 7e 6f 38      // [REX2][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm0,  [r8] // c4 c1 7e 6f 00   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm7,  [r8] // c4 c1 7e 6f 38   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm0, [r15] // c4 c1 7e 6f 07   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu  ymm8,  [r8] // c4 41 7e 6f 00   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu ymm15,  [r8] // c4 41 7e 6f 38   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu ymm15, [r15] // c4 41 7e 6f 3f   // [REX3][opcode byte: "6f" EXACTLY for loads][Mod R/m, i.e description of operands]
-//vmovdqu ymm15, [r15+rax]c4 41 7e 6f 3c 07 
-//vmovdqu ymm15, [rax+r15]c4 21 7e 6f 3c 38
-            }
+            else
+                if ((index.args_size == 2 || (index.args_size == 3 && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE))) &&
+                     index.args[0].tag == Arg::IREG && index.args[index.args_size - 1].tag == Arg::VREG && isInteger(index.args[index.args_size - 1].elemtype))
+                    return VEX_instuction(index, 0xF3, 0x0F, 0x7F);
             break;
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
@@ -1258,9 +1298,9 @@ namespace loops
         case (VOP_STORE):
             //DUBUG: It works only for uint32(and other ints)! Check other types variations.
             if (index.args_size == 2 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1) });
+                return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1) });
             else if (index.args_size == 3 && index.args[0].tag == Arg::IREG && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE) && index.args[2].tag == Arg::VREG)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1), SAcop(2) });
+                return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
