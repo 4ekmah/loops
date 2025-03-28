@@ -40,6 +40,7 @@ TEST(intel64, instruction_set_test)
         DEFINE_ASSEMBLY_REG(r13d, 13);
 
         DEFINE_ASSEMBLY_REG(ax  , 0 );
+        DEFINE_ASSEMBLY_REG(sp  , 4 );
         DEFINE_ASSEMBLY_REG(di  , 7 );
         DEFINE_ASSEMBLY_REG(r8w , 8 );
         DEFINE_ASSEMBLY_REG(r12w, 12);
@@ -337,23 +338,27 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<uint64_t>(256, _f)});
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<int64_t>(256, _f)});
+        newiopNoret(OP_STORE, { rsp, argIImm(257), immtyped<int64_t>(256, _f)});
         newiopNoret(OP_STORE, { rdi, argIImm(257), immtyped<int64_t>(256, _f)});
         newiopNoret(OP_STORE, { r8, argIImm(257), immtyped<int64_t>(256, _f)});
         newiopNoret(OP_STORE, { r12, argIImm(257), immtyped<int64_t>(256, _f)});
 
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<uint32_t>(256, _f)});
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<int32_t>(256, _f)});
+        newiopNoret(OP_STORE, { rsp, argIImm(257), immtyped<int32_t>(256, _f)});
         newiopNoret(OP_STORE, { rdi, argIImm(257), immtyped<int32_t>(256, _f)});
         newiopNoret(OP_STORE, { r8, argIImm(257), immtyped<int32_t>(256, _f)});
         newiopNoret(OP_STORE, { r12, argIImm(257), immtyped<int32_t>(256, _f)});
 
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<uint16_t>(256, _f)});
         newiopNoret(OP_STORE, { rax, argIImm(257), immtyped<int16_t>(256, _f)});
+        newiopNoret(OP_STORE, { rsp, argIImm(257), immtyped<int16_t>(256, _f)});
         newiopNoret(OP_STORE, { rdi, argIImm(257), immtyped<int16_t>(256, _f)});
         newiopNoret(OP_STORE, { r8, argIImm(257), immtyped<int16_t>(256, _f)});
         newiopNoret(OP_STORE, { r12, argIImm(257), immtyped<int16_t>(256, _f)});
 
         newiopNoret(OP_STORE, { ax, argIImm(257), immtyped<uint8_t>(255, _f)});
+        newiopNoret(OP_STORE, { sp, argIImm(257), immtyped<int8_t>(255, _f)});
         newiopNoret(OP_STORE, { ax, argIImm(257), immtyped<int8_t>(255, _f)});
         newiopNoret(OP_STORE, { di, argIImm(257), immtyped<int8_t>(255, _f)});
         newiopNoret(OP_STORE, { r8, argIImm(257), immtyped<int8_t>(255, _f)});
@@ -442,6 +447,7 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rdi),  rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(r8) ,  rax, argIImm(256)});
@@ -452,6 +458,7 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(edi), rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(r8d), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint32_t>(eax), r8 , argIImm(256)});
@@ -461,6 +468,7 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(edi), rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(r8d), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int32_t>(eax), r8 , argIImm(256)});
@@ -470,6 +478,7 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(di) , rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(r8w), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint16_t>(ax) , r8 , argIImm(256)});
@@ -479,6 +488,7 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(di) , rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(r8w), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int16_t>(ax) , r8 , argIImm(256)});
@@ -488,6 +498,7 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(dil), rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(r8b), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<uint8_t>(al) , r8 , argIImm(256)});
@@ -497,12 +508,13 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(dil), rax, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rsp, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , rdi, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), rax, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r8 , argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(al) , r12, argIImm(256)});
         newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r8 , argIImm(256)});
-        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r13, argIImm(256)});
+        newiopNoret(OP_LOAD, { iregtyped<int8_t>(r8b), r12, argIImm(256)});
 
         newiopNoret(OP_LOAD, { iregtyped<uint64_t>(rax), rax, rax});
         newiopNoret(OP_LOAD, { iregtyped<int64_t>(rax),  rax, rax});
@@ -799,7 +811,6 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CALL_NORET, { r15 });
         newiopNoret(OP_CALL_NORET, { spilled32 });
 
-        //DUBUG: don't forget to fix instruction mnemonic format.
         newiopNoret(VOP_LOAD, { ymm0_4s , rax });
         newiopNoret(VOP_LOAD, { ymm7_4s , rax });
         newiopNoret(VOP_LOAD, { ymm0_4s , rsp });
@@ -871,77 +882,76 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_LOAD, { ymm8_4s , r12 , argIImm(0x100)});
         newiopNoret(VOP_LOAD, { ymm8_4s , r15 , argIImm(0x100)});
 
-        //DUBUG: fix order, currently it is reverted via parameter swap.
         newiopNoret(VOP_STORE, { rax, ymm0_4s });
-        newiopNoret(VOP_STORE, { rax, ymm7_4s });
         newiopNoret(VOP_STORE, { rsp, ymm0_4s });
         newiopNoret(VOP_STORE, { rbp, ymm0_4s });
         newiopNoret(VOP_STORE, { rdi, ymm0_4s });
+        newiopNoret(VOP_STORE, { rax, ymm7_4s });
         newiopNoret(VOP_STORE, { rax, ymm8_4s });
-        newiopNoret(VOP_STORE, { rax, ymm15_4s});
         newiopNoret(VOP_STORE, { rsp, ymm8_4s });
         newiopNoret(VOP_STORE, { rbp, ymm8_4s });
         newiopNoret(VOP_STORE, { rdi, ymm8_4s });
+        newiopNoret(VOP_STORE, { rax, ymm15_4s});
         newiopNoret(VOP_STORE, { r8 , ymm0_4s });
-        newiopNoret(VOP_STORE, { r8 , ymm7_4s });
         newiopNoret(VOP_STORE, { r12, ymm0_4s });
         newiopNoret(VOP_STORE, { r13, ymm0_4s });
         newiopNoret(VOP_STORE, { r15, ymm0_4s });
+        newiopNoret(VOP_STORE, { r8 , ymm7_4s });
         newiopNoret(VOP_STORE, { r8 , ymm8_4s });
-        newiopNoret(VOP_STORE, { r8 , ymm15_4s});
         newiopNoret(VOP_STORE, { r12, ymm8_4s });
         newiopNoret(VOP_STORE, { r13, ymm8_4s });
         newiopNoret(VOP_STORE, { r15, ymm8_4s });
+        newiopNoret(VOP_STORE, { r8 , ymm15_4s});
 
         newiopNoret(VOP_STORE, { rax, rax,  ymm0_4s });
-        newiopNoret(VOP_STORE, { rax, rax,  ymm7_4s });
         newiopNoret(VOP_STORE, { rdi, rax,  ymm0_4s });
         newiopNoret(VOP_STORE, { rax, rdi,  ymm0_4s });
+        newiopNoret(VOP_STORE, { rax, rax,  ymm7_4s });
         newiopNoret(VOP_STORE, { rax, rax,  ymm8_4s });
-        newiopNoret(VOP_STORE, { rax, rax, ymm15_4s });
         newiopNoret(VOP_STORE, { rdi, rax,  ymm8_4s });
         newiopNoret(VOP_STORE, { rax, rdi,  ymm8_4s });
+        newiopNoret(VOP_STORE, { rax, rax, ymm15_4s });
         newiopNoret(VOP_STORE, {  r8, rax,  ymm0_4s });
-        newiopNoret(VOP_STORE, {  r8, rax,  ymm7_4s });
         newiopNoret(VOP_STORE, { r15, rax,  ymm0_4s });
         newiopNoret(VOP_STORE, { rax, rdi,  ymm0_4s });
+        newiopNoret(VOP_STORE, {  r8, rax,  ymm7_4s });
         newiopNoret(VOP_STORE, { rax,  r8,  ymm0_4s });
-        newiopNoret(VOP_STORE, { rax,  r8,  ymm7_4s });
         newiopNoret(VOP_STORE, { rdi,  r8,  ymm0_4s });
         newiopNoret(VOP_STORE, { rax, r15,  ymm0_4s });
+        newiopNoret(VOP_STORE, { rax,  r8,  ymm7_4s });
         newiopNoret(VOP_STORE, {  r8, rax,  ymm8_4s });
-        newiopNoret(VOP_STORE, {  r8, rax, ymm15_4s });
         newiopNoret(VOP_STORE, { r15, rax,  ymm8_4s });
         newiopNoret(VOP_STORE, {  r8, rdi,  ymm8_4s });
+        newiopNoret(VOP_STORE, {  r8, rax, ymm15_4s });
         newiopNoret(VOP_STORE, { rax,  r8,  ymm8_4s });
-        newiopNoret(VOP_STORE, { rax,  r8, ymm15_4s });
         newiopNoret(VOP_STORE, { rdi,  r8,  ymm8_4s });
         newiopNoret(VOP_STORE, { rax, r15,  ymm8_4s });
+        newiopNoret(VOP_STORE, { rax,  r8, ymm15_4s });
         newiopNoret(VOP_STORE, {  r8,  r8,  ymm0_4s });
-        newiopNoret(VOP_STORE, {  r8,  r8,  ymm7_4s });
         newiopNoret(VOP_STORE, { r15,  r8,  ymm0_4s });
         newiopNoret(VOP_STORE, { rax, r15,  ymm0_4s });
+        newiopNoret(VOP_STORE, {  r8,  r8,  ymm7_4s });
         newiopNoret(VOP_STORE, {  r8,  r8,  ymm8_4s });
-        newiopNoret(VOP_STORE, {  r8,  r8, ymm15_4s });
         newiopNoret(VOP_STORE, { r15,  r8,  ymm8_4s });
         newiopNoret(VOP_STORE, {  r8, r15,  ymm8_4s });
+        newiopNoret(VOP_STORE, {  r8,  r8, ymm15_4s });
 
         newiopNoret(VOP_STORE, { rax , argIImm(0x100),  ymm0_4s });
-        newiopNoret(VOP_STORE, { rax , argIImm(0x100),  ymm7_4s });
         newiopNoret(VOP_STORE, { rsp , argIImm(0x100),  ymm0_4s });
         newiopNoret(VOP_STORE, { rdi , argIImm(0x100),  ymm0_4s });
+        newiopNoret(VOP_STORE, { rax , argIImm(0x100),  ymm7_4s });
         newiopNoret(VOP_STORE, { rax , argIImm(0x100),  ymm8_4s });
-        newiopNoret(VOP_STORE, { rax , argIImm(0x100), ymm15_4s });
         newiopNoret(VOP_STORE, { rsp , argIImm(0x100),  ymm8_4s });
         newiopNoret(VOP_STORE, { rdi , argIImm(0x100),  ymm8_4s });
+        newiopNoret(VOP_STORE, { rax , argIImm(0x100), ymm15_4s });
         newiopNoret(VOP_STORE, { r8  , argIImm(0x100),  ymm0_4s });
-        newiopNoret(VOP_STORE, { r8  , argIImm(0x100),  ymm7_4s });
         newiopNoret(VOP_STORE, { r12 , argIImm(0x100),  ymm0_4s });
         newiopNoret(VOP_STORE, { r15 , argIImm(0x100),  ymm0_4s });
+        newiopNoret(VOP_STORE, { r8  , argIImm(0x100),  ymm7_4s });
         newiopNoret(VOP_STORE, { r8  , argIImm(0x100),  ymm8_4s });
-        newiopNoret(VOP_STORE, { r8  , argIImm(0x100), ymm15_4s });
         newiopNoret(VOP_STORE, { r12 , argIImm(0x100),  ymm8_4s });
         newiopNoret(VOP_STORE, { r15 , argIImm(0x100),  ymm8_4s });
+        newiopNoret(VOP_STORE, { r8  , argIImm(0x100), ymm15_4s });
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     EXPECT_ASSEMBLY_CORRECT(func);
