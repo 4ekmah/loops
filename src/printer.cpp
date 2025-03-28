@@ -820,3 +820,55 @@ int sprint_syntfunc(program_printer* printer, char** out, syntfunc2print* func)
 {
     return print_syntfunc(printer, NULL, out, PRINT_TO_STRING, func);
 }
+
+std::string IR_instruction2string(const loops::Syntop& op)
+{
+    const int columns = loops::Func::PC_OP;
+    program_printer* _printer;
+    Assert(create_ir_printer(columns, &_printer) == 0);
+    syntfunc2print s2p;
+    std::string name = "";
+    s2p.name = const_cast<char*>(name.c_str());
+    int err = loops_span_construct(&(s2p.program), const_cast<loops::Syntop*>(&op), 1);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    err = loops_span_construct(&(s2p.params), nullptr, 0);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    char* printed_str;
+    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    free_printer(_printer);
+    std::string result = printed_str + 3;
+    if(result.size()) 
+        result.resize(result.size()-1);
+    free(printed_str);
+    return result;
+}
+
+std::string assembly_instruction2string(const loops::Syntop& op, const loops::Backend& backend)
+{
+    const int columns = loops::Func::PC_OP;
+    program_printer* _printer;
+    Assert(create_assembly_printer(columns, const_cast<loops::Backend*>(&backend), &_printer) == 0);
+    syntfunc2print s2p;
+    std::string name = "";
+    s2p.name = const_cast<char*>(name.c_str());
+    int err = loops_span_construct(&(s2p.program), const_cast<loops::Syntop*>(&op), 1);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    err = loops_span_construct(&(s2p.params), nullptr, 0);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    char* printed_str;
+    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    if(err != LOOPS_ERR_SUCCESS)
+        throw std::runtime_error(get_errstring(err));
+    free_printer(_printer);
+    std::string result = printed_str + 3;
+    if(result.size()) 
+        result.resize(result.size()-1);
+    free(printed_str);
+    return result;
+}

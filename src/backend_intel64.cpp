@@ -123,23 +123,38 @@ namespace loops
         return BinTranslation::Token(BinTranslation::Token::T_STATIC, field, n*8+k);
     }
 
-    static inline BinTranslation VEX_instuction(const Syntop& index, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
+    static inline BinTranslation VEX_instuction(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
     {
-        //DUBUG: move here checks!
         using namespace BinTranslationConstruction;
-        Assert(index.args_size == 2 || index.args_size == 3);
         Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
-        std::vector<BinTranslation::Token> tokens;
+        
+        if(index.args_size != 2 && index.args_size != 3)
+        {
+            scs = false;
+            return BinTranslation();
+        }
         int nar = 0; //non-address register.
         int far = 1; // first address register.
         int sar = 2; // second address register.
-        if (index.args[nar].flags & AF_ADDRESS)
+        int arIOFlag = In; 
+        int narIOFlag = Out; 
+        if (index.args[0].flags & AF_ADDRESS)
         {
             far = 0;
             sar = 1;
             nar = 1 + (index.args_size == 3);
+            arIOFlag = Out; 
+            narIOFlag = In;
         }
+        if(!(index.args[nar].tag == Arg::VREG && index.args[far].tag == Arg::IREG && (index.args_size == 2 || 
+             index.args[sar].tag == Arg::IREG || (index.args[sar].tag == Arg::IIMMEDIATE && signed_fits(index.args[sar].value,32)))))
+        {
+            scs = false;
+            return BinTranslation();
+        }
+
+        std::vector<BinTranslation::Token> tokens;
         const uint32_t R = ((index.args[nar].idx & 0b1000) == 0);
         const uint32_t X = ((index.args_size == 3 && index.args[sar].tag == Arg::IREG) ? ((index.args[sar].idx & 0b1000) == 0) : 1);
         const uint32_t B = ((index.args[far].idx & 0b1000) == 0);
@@ -181,47 +196,47 @@ namespace loops
                 {
                     const uint32_t mod = 0;
                     tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, Out));
+                    tokens.push_back(BTreg(nar, 3, narIOFlag));
                     tokens.push_back(BTsta(0b10000100, 8));
-                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                    tokens.push_back(BTreg(far, 3, arIOFlag | Addr64));
                 }
                 else if ((index.args[far].idx & 0b111) == 0b101)
                 {
                     const uint32_t mod = 1;
                     tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, Out));
-                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                    tokens.push_back(BTreg(nar, 3, narIOFlag));
+                    tokens.push_back(BTreg(far, 3, arIOFlag | Addr64));
                     tokens.push_back(BTsta(0, 8));
                 }
                 else 
                 {
                     const uint32_t mod = 0;
                     tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, Out));
-                    tokens.push_back(BTreg(far, 3, In | Addr64));
+                    tokens.push_back(BTreg(nar, 3, narIOFlag));
+                    tokens.push_back(BTreg(far, 3, arIOFlag | Addr64));
                 }
             }
             else if(index.args_size == 3 && index.args[sar].tag == Arg::IREG)
             {
                 const uint32_t mod = 0;
                 tokens.push_back(BTsta(mod, 2));
-                tokens.push_back(BTreg(nar, 3, Out));
+                tokens.push_back(BTreg(nar, 3, narIOFlag));
                 const uint32_t r_m = 0b100;
                 const uint32_t scale = 0;
                 tokens.push_back(BTsta(r_m, 3));
                 tokens.push_back(BTsta(scale, 2));
-                tokens.push_back(BTreg(sar, 3, In | Addr64)); //index
-                tokens.push_back(BTreg(far, 3, In | Addr64)); //base
+                tokens.push_back(BTreg(sar, 3, arIOFlag | Addr64)); //index
+                tokens.push_back(BTreg(far, 3, arIOFlag | Addr64)); //base
             }
             else if(index.args_size == 3 && index.args[sar].tag == Arg::IIMMEDIATE)
             {
                 const uint32_t mod = 0b10;
                 tokens.push_back(BTsta(mod, 2));
-                tokens.push_back(BTreg(nar, 3, Out));
+                tokens.push_back(BTreg(nar, 3, narIOFlag));
                 if ((index.args[far].idx & 0b111) == 0b100)
                     tokens.push_back(BTsta(0b10000100, 8));
-                tokens.push_back(BTreg(far, 3, In | Addr64));  //base
-                tokens.push_back(BTimm(sar, 32, In | Addr64)); //index
+                tokens.push_back(BTreg(far, 3, arIOFlag | Addr64));  //base
+                tokens.push_back(BTimm(sar, 32, arIOFlag | Addr64)); //index
             }
         }
         return BinTranslation(tokens);
@@ -768,6 +783,10 @@ namespace loops
                         }
                         else if(elem_size(index[2].elemtype) == 4)
                         {
+                            if(index[0].idx == RSP) //DUBUG: Thiw is rapid workaround. Fix this misencoding for all cases(elemtypes).
+                            {
+                                return BiT({ nBkb(1, 0xc7, 5, 0b10000), BTreg(0, 3, In | Addr32), BTsta(0x24, 8), BTimm(1, 32, Addr32), BTimm(2, 32) });//mov dword ptr [r12 + <offset>], <imm>    
+                            }
                             uint64_t stat = ((index[0].idx < 8) ? 0xc7 : 0x41c7);
                             int statw = ((index[0].idx < 8) ? 1 : 2);
                             if (index[0].idx == R12)
@@ -1149,14 +1168,9 @@ namespace loops
             }
             break;
         }
-        case (INTEL64_VMOVDQU)://DUBUG:IsInteger lower is veeeeery questionable.
-            if ((index.args_size == 2 || (index.args_size == 3 && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))) &&
-                 index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && isInteger(index.args[0].elemtype))
-                return VEX_instuction(index, 0xF3, 0x0F, 0x6F);
-            else
-                if ((index.args_size == 2 || (index.args_size == 3 && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE))) &&
-                     index.args[0].tag == Arg::IREG && index.args[index.args_size - 1].tag == Arg::VREG && isInteger(index.args[index.args_size - 1].elemtype))
-                    return VEX_instuction(index, 0xF3, 0x0F, 0x7F);
+        case (INTEL64_VMOVDQU):
+            if (index.args_size > 1)
+                return VEX_instuction(index, scs, 0xF3, 0x0F, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F);
             break;
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
@@ -1289,17 +1303,15 @@ namespace loops
             }
             break;
         case (VOP_LOAD):
-            //DUBUG: It works only for uint32(and other ints)! Check other types variations.
-            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG)
+            if (index.args_size == 2)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS) });
-            else if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))
+            else if (index.args_size == 3)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
             break;
         case (VOP_STORE):
-            //DUBUG: It works only for uint32(and other ints)! Check other types variations.
-            if (index.args_size == 2 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG)
+            if (index.args_size == 2)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1) });
-            else if (index.args_size == 3 && index.args[0].tag == Arg::IREG && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE) && index.args[2].tag == Arg::VREG)
+            else if (index.args_size == 3)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
@@ -1554,6 +1566,17 @@ namespace loops
             default:
                 break;
             }
+        else if(basketNum == RB_VEC)
+            switch (a_op.opcode)
+            {
+            case (OP_MOV): //DUBUG: Temporary solution for mov v0, <const>
+                if(a_op.args_size == 2 && a_op.args[0].tag == Arg::VREG && a_op.args[1].tag == Arg::IIMMEDIATE)
+                    return 1;
+                break;
+            default:
+                break;
+            }
+
         return Backend::spillSpaceNeeded(a_op, basketNum);
     }
 
@@ -1635,12 +1658,24 @@ namespace loops
             }
             case (OP_MOV):
                 //mov ax, 0 is represented as xor ax, ax. Such approach changes default in/out register distribution. There we are fixing it.
-                if ( (a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
+                if ( (a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IIMMEDIATE && a_op[1].value == 0) &&
                      (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0) )
                 {
                     actualRegs = makeBitmask64({ 0 });
                     inRegs = makeBitmask64({});
                     outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                else if(a_op.size() == 2 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::IIMMEDIATE)
+                {
+                    if(basketNum == RB_VEC)
+                    {
+                        actualRegs = makeBitmask64({ 0 });
+                        inRegs = makeBitmask64({});
+                        outRegs = makeBitmask64({ 0 });
+                    }
+                    else //if(basketNum == RB_INT)
+                        actualRegs = inRegs = outRegs = makeBitmask64({});
                     bypass = false;
                 }
                 break;
@@ -2081,7 +2116,20 @@ namespace loops
                 if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
                     (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
                     && op[0].idx == op[1].idx))
-                    a_dest.program.push_back(op);
+                {
+                    if(op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE) //DUBUG: Temporary solution for mov v0, <const>
+                    {
+                        const int elements = m_backend->vlanes(op.args[0].elemtype);
+                        int lanesize = elem_size(op.args[0].elemtype);
+                        Arg laneval = op.args[1];
+                        laneval.elemtype = op.args[0].elemtype;
+                        for(int lane = 0; lane < elements; lane++)
+                            a_dest.program.push_back(Syntop(OP_STORE, { argReg(RB_INT, RSP), argIImm(lane*lanesize), laneval }));
+                        a_dest.program.push_back(Syntop(VOP_LOAD, { op.args[0], argReg(RB_INT, RSP) }));
+                    }
+                    else
+                        a_dest.program.push_back(op);
+                }
                 break;
             case OP_AND:
             case OP_OR:

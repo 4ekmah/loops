@@ -40,7 +40,7 @@ TEST_P(fixed_power, fixed_power)
 
 INSTANTIATE_TEST_SUITE_P(math, fixed_power, ::testing::Values(0, 1, 9));
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64
+#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 template <typename _Tp, int _p>
 struct fpv_param
 {
@@ -112,7 +112,9 @@ fpv_param<double, 4>,
 fpv_param<double, 9>
 > fpv_cases;
 INSTANTIATE_TYPED_TEST_SUITE_P(math, fixed_power_v_suite, fpv_cases);
+#endif //__LOOPS_ARCH == __LOOPS_AARCH64  || __LOOPS_ARCH == __LOOPS_INTEL64 //DUBUG: move further.
 
+#if __LOOPS_ARCH == __LOOPS_AARCH64
 TEST(math, exp_f32)
 {
     Context ctx;
