@@ -50,6 +50,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS   , "sets"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS  , "setns"  ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU, "vmovdqu"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLD, "vpmulld"),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP    , "jmp"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE    , "jne"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE     , "je"     ),
@@ -169,18 +170,12 @@ namespace loops
         int vex_size;
         if(W == 0 && B == 1 && X == 1 && m_mmmm == 0b00001)
         {
-            //c1 = 1010 0001
-            //41 = 0010 0001
             vex_size = 16;
-            //VEX.256.F3.0F.WIG 7F /r
             vex = (0xc5 << 8)|(R<<7)|(vvvv<<3)|(L<<2)|pp;
         }
         else
         {
-            //7e = 0111 1110
-            //fe = 1111 1110
             vex_size = 24;
-            //VEX.256.F3.0F.WIG 7F /r
             vex = (0xc4 << 16)|(R<<15)|(X<<14)|(B<<13)|(m_mmmm<<8)|(W<<7)|(vvvv<<3)|(L<<2)|pp;
         }
 
@@ -241,6 +236,60 @@ namespace loops
         }
         return BinTranslation(tokens);
     }
+
+    //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction
+    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
+    {
+        using namespace BinTranslationConstruction;
+        Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
+        Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
+        
+        if(!(index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+            index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype))
+        {
+            scs = false;
+            return BinTranslation();
+        }
+
+        std::vector<BinTranslation::Token> tokens;
+        const uint32_t R = ((index.args[0].idx & 0b1000) == 0);
+        const uint32_t X = 1; //Alway in non-inplace operations.
+        const uint32_t B = ((index.args[2].idx & 0b1000) == 0);
+        const uint32_t W = 0; // DUBUG: WIG is for W ignored, means W = 0 always. Move WIG to arguments?
+        const uint32_t L = 1;
+        const uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
+        // pp:opcode extension providing equivalent functionality of a SIMD prefix: {00: None | 01: 66 | 10: F3 | 11: F2}
+        const uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
+
+        if(W == 0 && B == 1 && X == 1 && m_mmmm == 0b00001)
+        {
+            tokens.push_back(BTsta((0xc5 << 1)|R, 9));
+            tokens.push_back(BTomm(1, In)); //vvvv field in VEX terminology
+            tokens.push_back(BTsta(~(index.args[1].idx&0b1111) , 4)); //vvvv field in VEX terminology
+            tokens.push_back(BTsta((L<<2)|pp, 3));
+        }
+        else
+        {
+            tokens.push_back(BTsta((0xc4 << 9)|(R<<8)|(X<<7)|(B<<6)|(m_mmmm<<1)|W, 17));
+            tokens.push_back(BTomm(1, In)); //vvvv field in VEX terminology
+            tokens.push_back(BTsta(~(index.args[1].idx)&0b1111 , 4)); //vvvv field in VEX terminology
+            tokens.push_back(BTsta((L<<2)|pp, 3));
+        }
+
+        //OPCODE construction: <prefix><leading bytes><other bytes>
+        // R, X and B bits are complements of the REX prefix's R, X and B bits; these provide a fourth (high) bit for register index fields
+        // (ModRM reg, SIB index, and ModRM r/m; SIB base; or opcode reg fields, respectively) allowing access to 16 instead of 8 registers.
+        tokens.push_back(BTsta(opcode, 8));
+        {//ModRM
+            //Non-inplace case, first source register(or "non-destructive source register") is encoded in vvvv part of vex
+            //So arg[2] is considered like usual, well-known intel input and scheme look for ModRM byte like it is two argument instruction
+            const uint32_t mod = 0b11; //DUBUG:of course, it's not clear how we have to choose mod bits.
+            tokens.push_back(BTsta(mod, 2));
+            tokens.push_back(BTreg(0, 3, Out));
+            tokens.push_back(BTreg(2, 3, In));
+        }
+        return BinTranslation(tokens);
+    }    
 
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
@@ -1168,6 +1217,10 @@ namespace loops
             if (index.args_size > 1)
                 return VEX_instuction(index, scs, 0xF3, 0x0F, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F);
             break;
+        case (INTEL64_VPMULLD): //DUBUG: VEX.256.66.0F38.WIG 40  
+            if (index.args_size >= 1 && (index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
+                return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x40);
+            break;
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -1309,6 +1362,18 @@ namespace loops
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1) });
             else if (index.args_size == 3)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
+            break;
+        case (VOP_MUL): 
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype &&
+                (index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
+                return SyT(INTEL64_VPMULLD, { SAcop(0), SAcop(1), SAcop(2) }); //DUBUG: Probably, it's enough for uint32 too.
+//DUBUG: check these guys too!
+                // VPMULHUW,
+                // VPMULHRSW,
+                // VPMULHW/LW,
+                // VPMULUDQ,
+                // VPMULDQ             
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });

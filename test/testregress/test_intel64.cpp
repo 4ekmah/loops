@@ -952,6 +952,23 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_STORE, { r12 , argIImm(0x100),  ymm8_4s });
         newiopNoret(VOP_STORE, { r15 , argIImm(0x100),  ymm8_4s });
         newiopNoret(VOP_STORE, { r8  , argIImm(0x100), ymm15_4s });
+
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm0_4s,  ymm0_4s});// c4 e2 7d 40 c0
+        newiopNoret(VOP_MUL, {  ymm7_4s,  ymm0_4s,  ymm0_4s});// c4 e2 7d 40 f8
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm7_4s,  ymm0_4s});// c4 e2 45 40 c0
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm0_4s,  ymm7_4s});// c4 e2 7d 40 c7
+        newiopNoret(VOP_MUL, {  ymm8_4s,  ymm0_4s,  ymm0_4s});// c4 62 7d 40 c0
+        newiopNoret(VOP_MUL, { ymm15_4s,  ymm0_4s,  ymm0_4s});// c4 62 7d 40 f8
+        newiopNoret(VOP_MUL, {  ymm8_4s,  ymm7_4s,  ymm0_4s});// c4 62 45 40 c0
+        newiopNoret(VOP_MUL, {  ymm8_4s,  ymm0_4s,  ymm7_4s});// c4 62 7d 40 c7
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm8_4s,  ymm0_4s});// c4 e2 3d 40 c0
+        newiopNoret(VOP_MUL, {  ymm7_4s,  ymm8_4s,  ymm0_4s});// c4 e2 3d 40 f8
+        newiopNoret(VOP_MUL, {  ymm0_4s, ymm15_4s,  ymm0_4s});// c4 e2 05 40 c0
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm8_4s,  ymm7_4s});// c4 e2 3d 40 c7
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm0_4s,  ymm8_4s});// c4 c2 7d 40 c0
+        newiopNoret(VOP_MUL, {  ymm7_4s,  ymm0_4s,  ymm8_4s});// c4 c2 7d 40 f8
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm7_4s,  ymm8_4s});// c4 c2 45 40 c0
+        newiopNoret(VOP_MUL, {  ymm0_4s,  ymm0_4s, ymm15_4s});// c4 c2 7d 40 c7
     }
     loops::Func func = ctx.getFunc(test_info_->name());
     EXPECT_ASSEMBLY_CORRECT(func);
