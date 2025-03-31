@@ -54,17 +54,20 @@ namespace loops
         INTEL64_SETS    = 34,
         INTEL64_SETNS   = 35,
         INTEL64_VMOVDQU = 36, // DUBUG: VMOVDQA is also needed, at least for stack!
-        INTEL64_VPMULLD = 37,
-        INTEL64_JMP     = 38,
-        INTEL64_JNE     = 39, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
-        INTEL64_JE      = 40,
-        INTEL64_JL      = 41,
-        INTEL64_JLE     = 42,
-        INTEL64_JG      = 43,
-        INTEL64_JGE     = 44,
-        INTEL64_CALL    = 45,
-        INTEL64_LABEL   = 46, 
-        INTEL64_RET     = 47
+        INTEL64_VPMULLW = 37,
+        INTEL64_VPMULLD = 38,
+        INTEL64_VMULPS  = 39,
+        INTEL64_VMULPD  = 40,
+        INTEL64_JMP     = 41,
+        INTEL64_JNE     = 42, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
+        INTEL64_JE      = 43,
+        INTEL64_JL      = 44,
+        INTEL64_JLE     = 45,
+        INTEL64_JG      = 46,
+        INTEL64_JGE     = 47,
+        INTEL64_CALL    = 48,
+        INTEL64_LABEL   = 49, 
+        INTEL64_RET     = 50
     };
 
     class Intel64Backend : public Backend

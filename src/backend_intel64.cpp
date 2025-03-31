@@ -50,7 +50,10 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS   , "sets"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS  , "setns"  ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU, "vmovdqu"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLW, "vpmullw"),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLD, "vpmulld"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMULPS , "vmulps" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMULPD , "vmulpd" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP    , "jmp"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE    , "jne"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE     , "je"     ),
@@ -1217,9 +1220,21 @@ namespace loops
             if (index.args_size > 1)
                 return VEX_instuction(index, scs, 0xF3, 0x0F, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F);
             break;
-        case (INTEL64_VPMULLD): //DUBUG: VEX.256.66.0F38.WIG 40  
+        case (INTEL64_VPMULLW):
+            if (index.args_size >= 1 && (index.args[0].elemtype == TYPE_I16 || index.args[0].elemtype == TYPE_U16))
+                return VEX_instuction_V(index, scs, 0x66, 0x0F, 0xD5);
+            break;
+        case (INTEL64_VPMULLD):
             if (index.args_size >= 1 && (index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
                 return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x40);
+            break;
+        case (INTEL64_VMULPS):
+            if (index.args_size >= 1 && index.args[0].elemtype == TYPE_FP32)
+                return VEX_instuction_V(index, scs, 0, 0x0F, 0x59);
+            break;
+        case (INTEL64_VMULPD): // VEX.256.66.0F.WIG 59 /r
+            if (index.args_size >= 1 && index.args[0].elemtype == TYPE_FP64)
+                return VEX_instuction_V(index, scs, 0x66, 0x0F, 0x59);
             break;
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
@@ -1365,15 +1380,17 @@ namespace loops
             break;
         case (VOP_MUL): 
             if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype &&
-                (index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
-                return SyT(INTEL64_VPMULLD, { SAcop(0), SAcop(1), SAcop(2) }); //DUBUG: Probably, it's enough for uint32 too.
-//DUBUG: check these guys too!
-                // VPMULHUW,
-                // VPMULHRSW,
-                // VPMULHW/LW,
-                // VPMULUDQ,
-                // VPMULDQ             
+                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+                {
+                    if((index.args[0].elemtype == TYPE_I16 || index.args[0].elemtype == TYPE_U16))
+                        return SyT(INTEL64_VPMULLW, { SAcop(0), SAcop(1), SAcop(2) });
+                    if((index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
+                        return SyT(INTEL64_VPMULLD, { SAcop(0), SAcop(1), SAcop(2) });
+                    else if(index.args[0].elemtype == TYPE_FP32)
+                        return SyT(INTEL64_VMULPS, { SAcop(0), SAcop(1), SAcop(2) });
+                    else if(index.args[0].elemtype == TYPE_FP64)
+                        return SyT(INTEL64_VMULPD, { SAcop(0), SAcop(1), SAcop(2) });
+                }
             break;
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
@@ -2185,7 +2202,17 @@ namespace loops
                         Arg laneval = op.args[1];
                         laneval.elemtype = op.args[0].elemtype;
                         for(int lane = 0; lane < elements; lane++)
-                            a_dest.program.push_back(Syntop(OP_STORE, { argReg(RB_INT, RSP), argIImm(lane*lanesize), laneval }));
+                        {
+                            if(lanesize == 8) 
+                            {
+                                Arg first = argIImm(((uint64_t)(laneval.value)) & 0xffffffff); first.elemtype = TYPE_U32;
+                                Arg second = argIImm(((uint64_t)(laneval.value)) >> 32); second.elemtype = TYPE_U32;
+                                a_dest.program.push_back(Syntop(OP_STORE, { argReg(RB_INT, RSP), argIImm(lane*lanesize), first }));
+                                a_dest.program.push_back(Syntop(OP_STORE, { argReg(RB_INT, RSP), argIImm(lane*lanesize+4), second }));
+                            }
+                            else
+                                a_dest.program.push_back(Syntop(OP_STORE, { argReg(RB_INT, RSP), argIImm(lane*lanesize), laneval }));
+                        }
                         a_dest.program.push_back(Syntop(VOP_LOAD, { op.args[0], argReg(RB_INT, RSP) }));
                     }
                     else
