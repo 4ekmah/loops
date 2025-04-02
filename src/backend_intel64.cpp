@@ -50,10 +50,32 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS   , "sets"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS  , "setns"  ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU, "vmovdqu"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDB , "vpaddb" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDW , "vpaddw" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDD , "vpaddd" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDQ , "vpaddq" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDPS , "vaddps" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDPD , "vaddpd" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLW, "vpmullw"),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLD, "vpmulld"),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMULPS , "vmulps" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMULPD , "vmulpd" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINUB, "vpminub"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINSB, "vpminsb"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINUW, "vpminuw"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINSW, "vpminsw"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINUD, "vpminud"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMINSD, "vpminsd"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMINPS , "vminps" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMINPD , "vminpd" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXUB, "vpmaxub"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXSB, "vpmaxsb"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXUW, "vpmaxuw"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXSW, "vpmaxsw"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXUD, "vpmaxud"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXSD, "vpmaxsd"),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMAXPS , "vmaxps" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMAXPD , "vmaxpd" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP    , "jmp"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE    , "jne"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE     , "je"     ),
@@ -241,14 +263,15 @@ namespace loops
     }
 
     //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction
-    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
+    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode, uint64_t supportedTypesBitmask = 0)
     {
         using namespace BinTranslationConstruction;
         Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
         
         if(!(index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-            index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype))
+            index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype &&
+            (supportedTypesBitmask == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask) != 0)))
         {
             scs = false;
             return BinTranslation();
@@ -1220,22 +1243,35 @@ namespace loops
             if (index.args_size > 1)
                 return VEX_instuction(index, scs, 0xF3, 0x0F, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F);
             break;
-        case (INTEL64_VPMULLW):
-            if (index.args_size >= 1 && (index.args[0].elemtype == TYPE_I16 || index.args[0].elemtype == TYPE_U16))
-                return VEX_instuction_V(index, scs, 0x66, 0x0F, 0xD5);
-            break;
-        case (INTEL64_VPMULLD):
-            if (index.args_size >= 1 && (index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
-                return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x40);
-            break;
-        case (INTEL64_VMULPS):
-            if (index.args_size >= 1 && index.args[0].elemtype == TYPE_FP32)
-                return VEX_instuction_V(index, scs, 0, 0x0F, 0x59);
-            break;
-        case (INTEL64_VMULPD): // VEX.256.66.0F.WIG 59 /r
-            if (index.args_size >= 1 && index.args[0].elemtype == TYPE_FP64)
-                return VEX_instuction_V(index, scs, 0x66, 0x0F, 0x59);
-            break;
+        case (INTEL64_VPADDB):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xFC, makeBitmask64({TYPE_U8, TYPE_I8}));
+        case (INTEL64_VPADDW):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xFD, makeBitmask64({TYPE_U16, TYPE_I16}));
+        case (INTEL64_VPADDD):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xFE, makeBitmask64({TYPE_U32, TYPE_I32}));
+        case (INTEL64_VPADDQ):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xD4, makeBitmask64({TYPE_U64, TYPE_I64}));
+        case (INTEL64_VADDPS):  return VEX_instuction_V(index, scs,    0,   0x0F, 0x58, makeBitmask64({TYPE_FP32}));
+        case (INTEL64_VADDPD):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0x58, makeBitmask64({TYPE_FP64}));
+        case (INTEL64_VPMULLW): return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xD5, makeBitmask64({TYPE_U16, TYPE_I16}));
+        case (INTEL64_VPMULLD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x40, makeBitmask64({TYPE_U32, TYPE_I32}));
+        case (INTEL64_VMULPS):  return VEX_instuction_V(index, scs,    0,   0x0F, 0x59, makeBitmask64({TYPE_FP32}));
+        case (INTEL64_VMULPD):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0x59, makeBitmask64({TYPE_FP64}));
+        case (INTEL64_VPMINUB): return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xDA, makeBitmask64({TYPE_U8}));
+        case (INTEL64_VPMINSB): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x38, makeBitmask64({TYPE_I8}));
+        case (INTEL64_VPMINUW): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3A, makeBitmask64({TYPE_U16}));
+        case (INTEL64_VPMINSW): return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xEA, makeBitmask64({TYPE_I16}));
+        case (INTEL64_VPMINUD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3B, makeBitmask64({TYPE_U32}));
+        case (INTEL64_VPMINSD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x39, makeBitmask64({TYPE_I32}));
+        case (INTEL64_VMINPS):  return VEX_instuction_V(index, scs,    0,   0x0F, 0x5D, makeBitmask64({TYPE_FP32}));
+        case (INTEL64_VMINPD):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0x5D, makeBitmask64({TYPE_FP64}));
+        case (INTEL64_VPMAXUB): return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xDE, makeBitmask64({TYPE_U8}));
+        case (INTEL64_VPMAXSB): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3C, makeBitmask64({TYPE_I8}));
+        case (INTEL64_VPMAXUW): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3E, makeBitmask64({TYPE_U16}));
+        case (INTEL64_VPMAXSW): return VEX_instuction_V(index, scs, 0x66,   0x0F, 0xEE, makeBitmask64({TYPE_I16}));
+        case (INTEL64_VPMAXUD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3F, makeBitmask64({TYPE_U32}));
+        case (INTEL64_VPMAXSD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0x3D, makeBitmask64({TYPE_I32}));
+        case (INTEL64_VMAXPS):  return VEX_instuction_V(index, scs,    0,   0x0F, 0x5F, makeBitmask64({TYPE_FP32}));
+        case (INTEL64_VMAXPD):  return VEX_instuction_V(index, scs, 0x66,   0x0F, 0x5F, makeBitmask64({TYPE_FP64}));
+
+
+
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -1378,20 +1414,75 @@ namespace loops
             else if (index.args_size == 3)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
             break;
-        case (VOP_MUL): 
+
+        case (VOP_ADD):
             if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
                 index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+            {
+                switch(index.args[0].elemtype)
                 {
-                    if((index.args[0].elemtype == TYPE_I16 || index.args[0].elemtype == TYPE_U16))
-                        return SyT(INTEL64_VPMULLW, { SAcop(0), SAcop(1), SAcop(2) });
-                    if((index.args[0].elemtype == TYPE_I32 || index.args[0].elemtype == TYPE_U32))
-                        return SyT(INTEL64_VPMULLD, { SAcop(0), SAcop(1), SAcop(2) });
-                    else if(index.args[0].elemtype == TYPE_FP32)
-                        return SyT(INTEL64_VMULPS, { SAcop(0), SAcop(1), SAcop(2) });
-                    else if(index.args[0].elemtype == TYPE_FP64)
-                        return SyT(INTEL64_VMULPD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U8):  case(TYPE_I8):  return SyT(INTEL64_VPADDB, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U16): case(TYPE_I16): return SyT(INTEL64_VPADDW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U32): case(TYPE_I32): return SyT(INTEL64_VPADDD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U64): case(TYPE_I64): return SyT(INTEL64_VPADDQ, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP32): return SyT(INTEL64_VADDPS, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP64): return SyT(INTEL64_VADDPD, { SAcop(0), SAcop(1), SAcop(2) });
                 }
+            }
             break;
+        case (VOP_MUL):
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+            {
+                switch(index.args[0].elemtype)
+                {
+                    case(TYPE_U16): case(TYPE_I16): return SyT(INTEL64_VPMULLW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U32): case(TYPE_I32): return SyT(INTEL64_VPMULLD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP32): return SyT(INTEL64_VMULPS, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP64): return SyT(INTEL64_VMULPD, { SAcop(0), SAcop(1), SAcop(2) });
+                }
+            }
+            break;
+        case (VOP_MIN):
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+            {
+                switch(index.args[0].elemtype)
+                {
+                    case(TYPE_U8):   return SyT(INTEL64_VPMINUB, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I8):   return SyT(INTEL64_VPMINSB, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U16):  return SyT(INTEL64_VPMINUW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I16):  return SyT(INTEL64_VPMINSW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U32):  return SyT(INTEL64_VPMINUD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I32):  return SyT(INTEL64_VPMINSD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP32): return SyT(INTEL64_VMINPS , { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP64): return SyT(INTEL64_VMINPD , { SAcop(0), SAcop(1), SAcop(2) });
+                }
+            }
+            break;
+        case (VOP_MAX):
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+            {
+                switch(index.args[0].elemtype)
+                {
+                    case(TYPE_U8):   return SyT(INTEL64_VPMAXUB, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I8):   return SyT(INTEL64_VPMAXSB, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U16):  return SyT(INTEL64_VPMAXUW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I16):  return SyT(INTEL64_VPMAXSW, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_U32):  return SyT(INTEL64_VPMAXUD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_I32):  return SyT(INTEL64_VPMAXSD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP32): return SyT(INTEL64_VMAXPS , { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP64): return SyT(INTEL64_VMAXPD , { SAcop(0), SAcop(1), SAcop(2) });
+                }
+            }
+            break;
+//DUBUG: next guys are needed for exponent:
+// floor.fp32_i32
+// cast.i32_fp32
+// fma.fp32
+// sal.i32      
+// And spill, of course!
         case (OP_UNSPILL): return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
         case (OP_SPILL):   return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
         case (OP_JCC):
