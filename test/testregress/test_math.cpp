@@ -112,9 +112,7 @@ fpv_param<double, 4>,
 fpv_param<double, 9>
 > fpv_cases;
 INSTANTIATE_TYPED_TEST_SUITE_P(math, fixed_power_v_suite, fpv_cases);
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64  || __LOOPS_ARCH == __LOOPS_INTEL64 //DUBUG: move further.
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64
 TEST(math, exp_f32)
 {
     Context ctx;
@@ -150,4 +148,4 @@ TEST(math, exp_f32)
     for (size_t i = 0; i < src.size(); i++ )
         ASSERT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
 }
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64
+#endif //__LOOPS_ARCH == __LOOPS_AARCH64  || __LOOPS_ARCH == __LOOPS_INTEL64

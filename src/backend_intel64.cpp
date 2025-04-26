@@ -288,7 +288,7 @@ namespace loops
         return BinTranslation(tokens);
     }
 
-    //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction
+    //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction?
     static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint16_t W, uint64_t opcode, uint64_t mrm_opcode, uint64_t supportedTypesBitmask0 = 0, uint64_t supportedTypesBitmask1 = 0, uint64_t supportedTypesBitmask2 = 0)
     {
         using namespace BinTranslationConstruction;
@@ -305,7 +305,8 @@ namespace loops
              (index.args[2].tag == Arg::IIMMEDIATE || mrm_opcode == 0)) ||
              (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
              (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
-             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0))))
+             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
+             (mrm_opcode == 0))))
         {
             scs = false;
             return BinTranslation();
@@ -328,7 +329,7 @@ namespace loops
             if(ordinaryIn == 2 || mrm_opcode != 0) //vvvv field in VEX terminology
             {
                 int vvvv_num = mrm_opcode != 0 ? 0 : 1;
-                tokens.push_back(BTomm(vvvv_num, In));
+                tokens.push_back(BTomm(vvvv_num, vvvv_num == 0 ? Out : In));
                 tokens.push_back(BTsta(~(index.args[vvvv_num].idx&0b1111), 4));
             }
             else
@@ -341,7 +342,7 @@ namespace loops
             if(ordinaryIn == 2 || mrm_opcode != 0) //vvvv field in VEX terminology
             {
                 int vvvv_num = mrm_opcode != 0 ? 0 : 1;
-                tokens.push_back(BTomm(vvvv_num, In));
+                tokens.push_back(BTomm(vvvv_num, vvvv_num == 0 ? Out : In));
                 tokens.push_back(BTsta(~(index.args[vvvv_num].idx)&0b1111, 4));
             }
             else
@@ -1537,12 +1538,12 @@ namespace loops
         case (VOP_FMA):
             if (index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
                 index.args[3].tag == Arg::VREG && index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype &&
-                index.args[0].elemtype == index.args[3].elemtype)
+                index.args[0].elemtype == index.args[3].elemtype && index.args[0].idx == index.args[1].idx)
             {
                 switch(index.args[0].elemtype)
                 {
-                    case(TYPE_FP32): return SyT(INTEL64_VFMADD231PS, { SAcop(0), SAcop(1), SAcop(2) });
-                    case(TYPE_FP64): return SyT(INTEL64_VFMADD231PD, { SAcop(0), SAcop(1), SAcop(2) });
+                    case(TYPE_FP32): return SyT(INTEL64_VFMADD231PS, { SAcop(1), SAcop(2), SAcop(3) });
+                    case(TYPE_FP64): return SyT(INTEL64_VFMADD231PD, { SAcop(1), SAcop(2), SAcop(3) });
                 }
             }
             break;
@@ -1662,7 +1663,7 @@ namespace loops
                 if(index[0].tag == Arg::IREG) 
                     return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
                 else if(index[0].tag == Arg::VREG) 
-                    return SyT(INTEL64_VMOVDQU, { SAcopelt(0, TYPE_I64), SAreg(RSP, AF_ADDRESS), SAcop(1, AF_ADDRESS) }); //DUBUG: SAcop(1, AF_ADDRESS)? Looks like we need shift left here!
+                    return SyT(INTEL64_VMOVDQU, { SAcopelt(0, TYPE_I64), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
             }
             break;
         case (OP_SPILL): if(index.args_size == 2)
@@ -1670,7 +1671,7 @@ namespace loops
                 if(index[1].tag == Arg::IREG)
                     return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
                 else if(index[1].tag == Arg::VREG)
-                    return SyT(INTEL64_VMOVDQU, { SAreg(RSP, AF_ADDRESS), SAcop(0, AF_ADDRESS), SAcopelt(1, TYPE_I64) }); //DUBUG: SAcop(0, AF_ADDRESS)? Looks like we need shift left here!
+                    return SyT(INTEL64_VMOVDQU, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcopelt(1, TYPE_I64) });
             }
             break;
         case (OP_JCC):
@@ -1789,6 +1790,9 @@ namespace loops
             if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
                 && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
                 return std::set<int>({});
+            else if(toFilter.size() >= 1 && (a_op.args[*toFilter.begin()].tag == Arg::VREG || 
+                    (toFilter.size() == 2 && a_op.args[*(++toFilter.begin())].tag == Arg::VREG))) 
+                return std::set<int>({});            
             else 
                 return (toFilter.size() < 2) ? toFilter : std::set<int>({ 1 });
         case(OP_AND):
@@ -2050,8 +2054,8 @@ namespace loops
                 if(basketNum == RB_VEC)
                 {
                     actualRegs = makeBitmask64({ 0, 1, 2, 3 });
-                    inRegs = makeBitmask64({ 0 });
-                    outRegs = makeBitmask64({ 1, 2, 3 });
+                    inRegs = makeBitmask64({ 1, 2, 3 });
+                    outRegs = makeBitmask64({ 0 });
                 }
                 else  //if(basketNum == RB_INT)
                     actualRegs = inRegs = outRegs = makeBitmask64({});
