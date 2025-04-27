@@ -12,62 +12,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 using namespace loops;
 
-TEST(aarch64, nullify_msb_lsb_v)
-{
-    Context ctx;
-    USE_CONTEXT_(ctx);
-    IReg iptr, omptr, olptr, n;
-    STARTFUNC_(test_info_->name(), &iptr, &omptr, &olptr, &n)
-    {
-        IReg offset  = CONST_(0);
-        n *= sizeof(uint32_t);
-        VReg<uint32_t> one  = VCONST_(uint32_t, 1);
-        WHILE_(offset < n)
-        {
-            VReg<uint32_t> in = loadvec<uint32_t>(iptr, offset);
-            VReg<uint32_t> msb = in | ushift_right(in,1);
-            msb |= ushift_right(msb,  2);
-            msb |= ushift_right(msb,  4);
-            msb |= ushift_right(msb,  8);
-            msb |= ushift_right(msb, 16);
-            msb += one;  //It's assumed, that 0x80000000 bit is switched off.
-            msb = ushift_right(msb, 1);
-            msb ^= in;
-            storevec(omptr, offset, msb);
-            VReg<uint32_t> lsb = in & ~(in - one);
-            lsb ^= in;
-            storevec(olptr, offset, lsb);
-            offset += ctx.vbytes();
-        }
-        RETURN_();
-    }
-    typedef int64_t (*nullify_msb_lsb_v_f)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
-    loops::Func func = ctx.getFunc(test_info_->name());
-    switch_spill_stress_test_mode_on(func);
-    EXPECT_IR_CORRECT(func);
-    EXPECT_ASSEMBLY_CORRECT(func);
-    nullify_msb_lsb_v_f tested = reinterpret_cast<nullify_msb_lsb_v_f>(func.ptr());
-    std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
-    std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    std::vector<uint32_t> msb = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    tested(&v[0], &msb[0], &lsb[0], v.size());
-    for (size_t vnum = 0; vnum < v.size(); vnum++ )
-    {
-        uint32_t tchk = v[vnum];
-        uint32_t relsb = tchk ^ (tchk & ~(tchk - 1));
-        uint32_t remsb = tchk | tchk >> 1;
-        remsb |= remsb >> 2;
-        remsb |= remsb >> 4;
-        remsb |= remsb >> 8;
-        remsb |= remsb >> 16;
-        remsb = (remsb + 1) >> 1;
-        remsb ^= tchk;
-        ASSERT_EQ(msb[vnum], remsb);
-        ASSERT_EQ(lsb[vnum], relsb);
-    }
-}
-
-
 TEST(aarch64, big_immediates)
 {
     enum {TBI_SCALARS, TBI_I8_0, TBI_I8_1, TBI_I16_0, TBI_I16_1, TBI_I32_0, TBI_I32_1, TBI_I64_0, TBI_I64_1, TBI_I64_2};

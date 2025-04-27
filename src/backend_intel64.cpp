@@ -56,6 +56,12 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDQ      , "vpaddq"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDPS      , "vaddps"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDPD      , "vaddpd"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSUBB      , "vpsubb"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSUBW      , "vpsubw"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSUBD      , "vpsubd"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSUBQ      , "vpsubq"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VSUBPS      , "vsubps"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VSUBPD      , "vsubpd"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLW     , "vpmullw"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMULLD     , "vpmulld"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMULPS      , "vmulps"      ),
@@ -78,6 +84,9 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMAXSD     , "vpmaxsd"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMAXPS      , "vmaxps"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMAXPD      , "vmaxpd"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPAND       , "vpand"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPOR        , "vpor"        ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPXOR       , "vpxor"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSLLW      , "vpsllw"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSLLD      , "vpslld"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSLLQ      , "vpsllq"      ),
@@ -1312,6 +1321,12 @@ namespace loops
         case (INTEL64_VPADDQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xD4, 0, bm64({TYPE_U64, TYPE_I64}));
         case (INTEL64_VADDPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x58, 0, bm64({TYPE_FP32}));
         case (INTEL64_VADDPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x58, 0, bm64({TYPE_FP64}));
+        case (INTEL64_VPSUBB):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xF8, 0, bm64({TYPE_U8, TYPE_I8}));
+        case (INTEL64_VPSUBW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xF9, 0, bm64({TYPE_U16, TYPE_I16}));
+        case (INTEL64_VPSUBD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFA, 0, bm64({TYPE_U32, TYPE_I32}));
+        case (INTEL64_VPSUBQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFB, 0, bm64({TYPE_U64, TYPE_I64}));
+        case (INTEL64_VSUBPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5C, 0, bm64({TYPE_FP32}));
+        case (INTEL64_VSUBPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5C, 0, bm64({TYPE_FP64}));
         case (INTEL64_VPMULLW):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xD5, 0, bm64({TYPE_U16, TYPE_I16}));
         case (INTEL64_VPMULLD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x40, 0, bm64({TYPE_U32, TYPE_I32}));
         case (INTEL64_VMULPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x59, 0, bm64({TYPE_FP32}));
@@ -1334,6 +1349,21 @@ namespace loops
         case (INTEL64_VPMAXSD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3D, 0, bm64({TYPE_I32}));
         case (INTEL64_VMAXPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5F, 0, bm64({TYPE_FP32}));
         case (INTEL64_VMAXPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5F, 0, bm64({TYPE_FP64}));
+        case (INTEL64_VPAND): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
+                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
+                                 isUnsignedInteger(index.args[2].elemtype))
+                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xDB, 0);
+            break;
+        case (INTEL64_VPOR): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
+                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
+                                 isUnsignedInteger(index.args[2].elemtype))
+                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEB, 0);
+            break;
+        case (INTEL64_VPXOR): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
+                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
+                                 isUnsignedInteger(index.args[2].elemtype))
+                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEF, 0);
+            break;
         case (INTEL64_VPSLLW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x71, 6, bm64({TYPE_U16, TYPE_I16}));
         case (INTEL64_VPSLLD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x72, 6, bm64({TYPE_U32, TYPE_I32}));
         case (INTEL64_VPSLLQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x73, 6, bm64({TYPE_U64, TYPE_I64}));
@@ -1522,6 +1552,21 @@ namespace loops
                 }
             }
             break;
+        case (VOP_SUB):
+        if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+            index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
+        {
+            switch(index.args[0].elemtype)
+            {
+                case(TYPE_U8):  case(TYPE_I8):  return SyT(INTEL64_VPSUBB, { SAcop(0), SAcop(1), SAcop(2) });
+                case(TYPE_U16): case(TYPE_I16): return SyT(INTEL64_VPSUBW, { SAcop(0), SAcop(1), SAcop(2) });
+                case(TYPE_U32): case(TYPE_I32): return SyT(INTEL64_VPSUBD, { SAcop(0), SAcop(1), SAcop(2) });
+                case(TYPE_U64): case(TYPE_I64): return SyT(INTEL64_VPSUBQ, { SAcop(0), SAcop(1), SAcop(2) });
+                case(TYPE_FP32): return SyT(INTEL64_VSUBPS, { SAcop(0), SAcop(1), SAcop(2) });
+                case(TYPE_FP64): return SyT(INTEL64_VSUBPD, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+        }
+        break;
         case (VOP_MUL):
             if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
                 index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
@@ -1579,6 +1624,19 @@ namespace loops
                     case(TYPE_FP32): return SyT(INTEL64_VMAXPS , { SAcop(0), SAcop(1), SAcop(2) });
                     case(TYPE_FP64): return SyT(INTEL64_VMAXPD , { SAcop(0), SAcop(1), SAcop(2) });
                 }
+            }
+            break;
+        case (VOP_AND):
+        case (VOP_OR):
+        case (VOP_XOR):
+            if(index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG  &&
+                index.args[0].elemtype == index.args[1].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
+                isUnsignedInteger(index.args[2].elemtype))
+            {
+                int taropcode = index.opcode == VOP_AND ?   INTEL64_VPAND:
+                                index.opcode == VOP_OR  ?   INTEL64_VPOR :
+                                /*index.opcode == VOP_XOR?*/INTEL64_VPXOR;
+                return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
             break;
         case (VOP_SAL):
@@ -2532,7 +2590,18 @@ namespace loops
                 }
                 else
                     a_dest.program.push_back(op);
-                break;                
+                break;         
+            case VOP_NOT:
+            {//DUBUG: Temporary solution for mov v0, <const>
+                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                Arg allones = op.args[1]; 
+                allones.elemtype = TYPE_U8;
+                allones.idx = a_dest.provideIdx(RB_VEC);
+                a_dest.program.push_back(Syntop(OP_MOV, { allones, argIImm(0xff) }));
+                allones.elemtype = op.args[1].elemtype;
+                a_dest.program.push_back(Syntop(VOP_XOR, { op.args[0], op.args[1], allones }));
+                break;                 
+            }
             default:
                 a_dest.program.push_back(op);
                 break;
