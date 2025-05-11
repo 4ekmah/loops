@@ -15,6 +15,130 @@ See https://github.com/4ekmah/loops/LICENSE
 
 using namespace loops;
 
+enum { VCMP_EQ, VCMP_NE, VCMP_LT, VCMP_LE, VCMP_GT, VCMP_GE };
+
+template<typename _Tp> struct CmpElemTraits {};
+
+template<> struct CmpElemTraits<int8_t> {
+    typedef uint8_t masktype;
+    static inline std::string typestring() { return "i8"; } 
+};
+
+template<> struct CmpElemTraits<int16_t> {
+    typedef uint16_t masktype;
+    static inline std::string typestring() { return "i16"; } 
+};
+
+template<> struct CmpElemTraits<int32_t> {
+    typedef uint32_t masktype;
+    static inline std::string typestring() { return "i32"; } 
+};
+
+template<> struct CmpElemTraits<int64_t> {
+    typedef uint64_t masktype;
+    static inline std::string typestring() { return "i64"; } 
+};
+
+template<> struct CmpElemTraits<float> {
+    typedef uint32_t masktype;
+    static inline std::string typestring() { return "fp32"; } 
+};
+
+template<> struct CmpElemTraits<double> {
+    typedef uint64_t masktype;
+    static inline std::string typestring() { return "fp64"; } 
+};
+
+template<typename _Tp>
+Func make_vector_cmp_func(Context ctx, int cmptype)
+{
+    USE_CONTEXT_(ctx);
+    std::string cmptypestr = (cmptype == VCMP_EQ) ? "e" :
+                             (cmptype == VCMP_NE) ? "n" :
+                             (cmptype == VCMP_LT) ? "lt" :
+                             (cmptype == VCMP_LE) ? "le" :
+                             (cmptype == VCMP_GT) ? "gt" :
+                           /*(cmptype == VCMP_GE)?*/"ge";
+    std::string funcname = std::string("vector_cmp_") + cmptypestr + "_" + CmpElemTraits<_Tp>::typestring();
+    IReg aptr, bptr, resptr, amount;
+    STARTFUNC_(funcname, &aptr, &bptr, &resptr, &amount)
+    {
+        IReg i = CONST_(0);
+        amount *= sizeof(_Tp);
+        WHILE_(i < amount)
+        {
+            VReg<_Tp> a = loadvec<_Tp>(aptr, i);
+            VReg<_Tp> b = loadvec<_Tp>(bptr, i);
+            VReg<typename CmpElemTraits<_Tp>::masktype> res;
+            switch(cmptype)
+            {
+                case VCMP_EQ: res.copyidx(a==b); break;
+                case VCMP_NE: res.copyidx(a!=b); break;
+                case VCMP_LT: res.copyidx(a<b); break;
+                case VCMP_LE: res.copyidx(a<=b); break;
+                case VCMP_GT: res.copyidx(a>b); break;
+                case VCMP_GE: res.copyidx(a>=b); break;
+            };
+            storevec(resptr, i, res);
+            i += ctx.vbytes();
+        }
+        RETURN_();
+    }
+    return ctx.getFunc(funcname);
+}
+
+template<typename _Tp>
+void check_vector_cmp_func(int cmptype, Func tested_)
+{
+    std::vector<_Tp> a = {0, 4, 9, 0, -16, -24, 0, 22, 39, 0, -28, -55, -33, 0, 69, 48, 0, -82, -68, 0, 91, 87, 0, -98, -109, 0, 99, 127, 0, -97, -120, -63};
+    typedef void (*vector_cmp_f)(_Tp*, _Tp*, typename CmpElemTraits<_Tp>::masktype*, int64_t);
+    vector_cmp_f tested = reinterpret_cast<vector_cmp_f>(tested_.ptr());
+    for(int shift = 0; shift < (int)a.size() - 1; shift++)
+    {
+        std::vector<_Tp> b(a.size(), 0);
+        std::vector<typename CmpElemTraits<_Tp>::masktype> resvec(a.size(), 0);
+        memcpy(b.data(), a.data() + shift, (a.size() - shift)*sizeof(_Tp));
+        memcpy(b.data() + (a.size() - shift), a.data(), shift*sizeof(_Tp));
+        tested(a.data(), b.data(), resvec.data(), a.size());
+        for(int elnum = 0; elnum < (int)a.size(); elnum++)
+        {
+            typename CmpElemTraits<_Tp>::masktype res;
+            switch(cmptype)
+            {
+                case VCMP_EQ: res = (a[elnum] == b[elnum]); break;
+                case VCMP_NE: res = (a[elnum]!= b[elnum]); break;
+                case VCMP_LT: res = (a[elnum]< b[elnum]); break;
+                case VCMP_LE: res = (a[elnum]<= b[elnum]); break;
+                case VCMP_GT: res = (a[elnum]> b[elnum]); break;
+                case VCMP_GE: res = (a[elnum]>= b[elnum]); break;
+            };
+            res = 0 - res;
+            ASSERT_EQ(res, resvec[elnum]);
+        }
+    }
+}
+
+TEST(intel64, all_vector_comparings)
+{
+    Context ctx;
+    std::vector<int> cmpoperations = {VCMP_EQ, VCMP_NE, VCMP_LT, VCMP_LE, VCMP_GT, VCMP_GE};
+    for(int cnum = 0; cnum < (int)cmpoperations.size(); cnum++)
+    {
+        Func t = make_vector_cmp_func<int8_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<int8_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<int16_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<int16_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<int32_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<int32_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<int64_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<int64_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<float>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<float>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<double>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<double>(cmpoperations[cnum], t);
+    }
+}
+
 TEST(intel64, instruction_set_test)
 {
     Context ctx;
@@ -1923,6 +2047,278 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_SHR, {  ymm7_4u,  ymm0_4u,  ymm8_4u});
         newiopNoret(VOP_SHR, {  ymm0_4u,  ymm7_4u,  ymm8_4u});
         newiopNoret(VOP_SHR, {  ymm0_4u,  ymm0_4u, ymm15_4u});
+
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm7_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_EQ, {  ymm8_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, { ymm15_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm8_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm8_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm7_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u, ymm15_32u,  ymm0_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm8_32u,  ymm7_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_EQ, {  ymm7_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm7_32u,  ymm8_32u});
+        newiopNoret(VOP_EQ, {  ymm0_32u,  ymm0_32u, ymm15_32u});
+
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm0_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm7_16u,  ymm0_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm7_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm0_16u,  ymm7_16u});
+        newiopNoret(VOP_EQ, {  ymm8_16u,  ymm0_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, { ymm15_16u,  ymm0_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm8_16u,  ymm7_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm8_16u,  ymm0_16u,  ymm7_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm8_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm7_16u,  ymm8_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u, ymm15_16u,  ymm0_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm8_16u,  ymm7_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm0_16u,  ymm8_16u});
+        newiopNoret(VOP_EQ, {  ymm7_16u,  ymm0_16u,  ymm8_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm7_16u,  ymm8_16u});
+        newiopNoret(VOP_EQ, {  ymm0_16u,  ymm0_16u, ymm15_16u});
+
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm0_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm7_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8u,  ymm7_8u});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm0_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, { ymm15_8u,  ymm0_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm7_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm0_8u,  ymm7_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm8_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm8_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u, ymm15_8u,  ymm0_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm8_8u,  ymm7_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8u,  ymm8_8u});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm0_8u,  ymm8_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm7_8u,  ymm8_8u});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8u, ymm15_8u});
+
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm0_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm7_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4u,  ymm7_4u});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm0_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, { ymm15_4u,  ymm0_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm7_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm0_4u,  ymm7_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm8_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm8_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u, ymm15_4u,  ymm0_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm8_4u,  ymm7_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4u,  ymm8_4u});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm0_4u,  ymm8_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm7_4u,  ymm8_4u});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4u, ymm15_4u});
+
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, { ymm15_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm8_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u, ymm15_8f,  ymm0_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm8_8f,  ymm7_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_EQ, {  ymm7_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm7_8f,  ymm8_8f});
+        newiopNoret(VOP_EQ, {  ymm0_8u,  ymm0_8f, ymm15_8f});
+
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, { ymm15_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm8_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u, ymm15_4f,  ymm0_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm8_4f,  ymm7_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_EQ, {  ymm7_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm7_4f,  ymm8_4f});
+        newiopNoret(VOP_EQ, {  ymm0_4u,  ymm0_4f, ymm15_4f});
+
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm7_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_NE, {  ymm8_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, { ymm15_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm8_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm8_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm7_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u, ymm15_8f,  ymm0_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm8_8f,  ymm7_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_NE, {  ymm7_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm7_8f,  ymm8_8f});
+        newiopNoret(VOP_NE, {  ymm0_8u,  ymm0_8f, ymm15_8f});
+
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm7_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_NE, {  ymm8_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, { ymm15_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm8_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm8_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm7_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u, ymm15_4f,  ymm0_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm8_4f,  ymm7_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_NE, {  ymm7_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm7_4f,  ymm8_4f});
+        newiopNoret(VOP_NE, {  ymm0_4u,  ymm0_4f, ymm15_4f});
+
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm7_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_LT, {  ymm8_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, { ymm15_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm8_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm8_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm7_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u, ymm15_8f,  ymm0_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm8_8f,  ymm7_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_LT, {  ymm7_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm7_8f,  ymm8_8f});
+        newiopNoret(VOP_LT, {  ymm0_8u,  ymm0_8f, ymm15_8f});
+
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm7_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_LT, {  ymm8_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, { ymm15_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm8_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm8_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm7_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u, ymm15_4f,  ymm0_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm8_4f,  ymm7_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_LT, {  ymm7_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm7_4f,  ymm8_4f});
+        newiopNoret(VOP_LT, {  ymm0_4u,  ymm0_4f, ymm15_4f});
+        
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm7_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_LE, {  ymm8_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, { ymm15_8u,  ymm0_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm8_8u,  ymm7_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm8_8u,  ymm0_8f,  ymm7_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm7_8u,  ymm8_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u, ymm15_8f,  ymm0_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm8_8f,  ymm7_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_LE, {  ymm7_8u,  ymm0_8f,  ymm8_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm7_8f,  ymm8_8f});
+        newiopNoret(VOP_LE, {  ymm0_8u,  ymm0_8f, ymm15_8f});
+
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm7_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_LE, {  ymm8_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, { ymm15_4u,  ymm0_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm8_4u,  ymm7_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm8_4u,  ymm0_4f,  ymm7_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm7_4u,  ymm8_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u, ymm15_4f,  ymm0_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm8_4f,  ymm7_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_LE, {  ymm7_4u,  ymm0_4f,  ymm8_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm7_4f,  ymm8_4f});
+        newiopNoret(VOP_LE, {  ymm0_4u,  ymm0_4f, ymm15_4f});
+
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm0_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm7_32u,  ymm0_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm7_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm0_32s,  ymm7_32s});
+        newiopNoret(VOP_GT, {  ymm8_32u,  ymm0_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, { ymm15_32u,  ymm0_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm8_32u,  ymm7_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm8_32u,  ymm0_32s,  ymm7_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm8_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm7_32u,  ymm8_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u, ymm15_32s,  ymm0_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm8_32s,  ymm7_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm0_32s,  ymm8_32s});
+        newiopNoret(VOP_GT, {  ymm7_32u,  ymm0_32s,  ymm8_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm7_32s,  ymm8_32s});
+        newiopNoret(VOP_GT, {  ymm0_32u,  ymm0_32s, ymm15_32s});
+
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm0_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm7_16u,  ymm0_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm7_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm0_16s,  ymm7_16s});
+        newiopNoret(VOP_GT, {  ymm8_16u,  ymm0_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, { ymm15_16u,  ymm0_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm8_16u,  ymm7_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm8_16u,  ymm0_16s,  ymm7_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm8_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm7_16u,  ymm8_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u, ymm15_16s,  ymm0_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm8_16s,  ymm7_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm0_16s,  ymm8_16s});
+        newiopNoret(VOP_GT, {  ymm7_16u,  ymm0_16s,  ymm8_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm7_16s,  ymm8_16s});
+        newiopNoret(VOP_GT, {  ymm0_16u,  ymm0_16s, ymm15_16s});
+
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm0_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm7_8u,  ymm0_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm7_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm0_8s,  ymm7_8s});
+        newiopNoret(VOP_GT, {  ymm8_8u,  ymm0_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, { ymm15_8u,  ymm0_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm8_8u,  ymm7_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm8_8u,  ymm0_8s,  ymm7_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm8_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm7_8u,  ymm8_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u, ymm15_8s,  ymm0_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm8_8s,  ymm7_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm0_8s,  ymm8_8s});
+        newiopNoret(VOP_GT, {  ymm7_8u,  ymm0_8s,  ymm8_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm7_8s,  ymm8_8s});
+        newiopNoret(VOP_GT, {  ymm0_8u,  ymm0_8s, ymm15_8s});
+
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm0_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm7_4u,  ymm0_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm7_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm0_4s,  ymm7_4s});
+        newiopNoret(VOP_GT, {  ymm8_4u,  ymm0_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, { ymm15_4u,  ymm0_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm8_4u,  ymm7_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm8_4u,  ymm0_4s,  ymm7_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm8_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm7_4u,  ymm8_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u, ymm15_4s,  ymm0_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm8_4s,  ymm7_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm0_4s,  ymm8_4s});
+        newiopNoret(VOP_GT, {  ymm7_4u,  ymm0_4s,  ymm8_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm7_4s,  ymm8_4s});
+        newiopNoret(VOP_GT, {  ymm0_4u,  ymm0_4s, ymm15_4s});
 
         // for(int half0 = 0; half0 < 2; half0++)   //DUBUG: good checking code piece.
         // for(int half1 = 0; half1 < 2; half1++) 

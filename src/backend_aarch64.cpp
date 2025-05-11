@@ -1876,7 +1876,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             return SyT(AARCH64_XTN2, { SAcop(0), SAcop(1) });
         break;
     case (VOP_POPCOUNT):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == TYPE_U8 && elem_size(index[1].elemtype) == 1 && isInteger(index[1].elemtype))
             return SyT(AARCH64_CNT, { SAcop(0), SAcop(1) });
         break;
     case (VOP_REDUCE_MAX):
@@ -1902,7 +1902,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
         }
         break;
     case (VOP_REDUCE_SUM):
-        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&            index[0].elemtype == index[1].elemtype  && elem_size(index[0].elemtype) <= 4 && isInteger(index[0].elemtype))
+        if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype && elem_size(index[0].elemtype) <= 4 && isInteger(index[0].elemtype))
             return SyT(AARCH64_ADDV, { SAcop(0), SAcop(1) });
         break;
     case (VOP_REDUCE_WSUM):
