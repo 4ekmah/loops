@@ -9,7 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
-
+//DUBUG: Visual Studio run of testregress in Debug mode gave segfault. Have to check it. First of all!
 enum 
 {
     TYPE_SAME_AS_0 = 62,
@@ -1341,7 +1341,7 @@ namespace loops
             {
                 size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
                 static uint64_t statB[4] = { 0xc5fe6f, 0xc57e6f, 0xc57e7f, 0xc4417e6f }; 
-                static uint64_t statW[4] = { 3, 3, 3, 4 }; 
+                static int statW[4] = { 3, 3, 3, 4 }; 
                 if(statn == 2)
                     return BiT({ nBkb(statW[statn], statB[statn], 2, 0b11), BTreg(1, 3, In), BTreg(0, 3, Out) });
                 else
@@ -1963,9 +1963,12 @@ namespace loops
     m_returnRegisters[RB_VEC] = { YMM0 };
 #if __LOOPS_OS == __LOOPS_WINDOWS
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3 };
-#error DUBUG Not Supported!
+    m_returnRegisters[RB_VEC] = { YMM0 };
+    m_callerSavedRegisters[RB_VEC] = { YMM5 };
+    m_calleeSavedRegisters[RB_VEC] = { YMM6, YMM7, YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7};
+    m_returnRegisters[RB_VEC] = { YMM0 };
     m_callerSavedRegisters[RB_VEC] = { YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
     m_calleeSavedRegisters[RB_VEC] = {  };
 #else

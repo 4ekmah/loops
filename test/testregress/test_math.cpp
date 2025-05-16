@@ -86,7 +86,7 @@ public:
         ASSERT_EQ(tested(&v[0], &res_pow[0], v.size()), (int)(0));
         for (size_t vnum = 0; vnum < v.size(); vnum++)
         {
-            _Tp tmp = static_cast<int>(::pow(v[vnum], static_cast<_Tp>(p)));
+            _Tp tmp = static_cast<_Tp>(static_cast<int>(::pow(v[vnum], static_cast<_Tp>(p))));
             ASSERT_EQ(res_pow[vnum], tmp);
         }
     };
@@ -140,9 +140,9 @@ TEST(math, exp_f32)
     EXPECT_ASSEMBLY_CORRECT(func);
     exp_f32_f tested = reinterpret_cast<exp_f32_f>(func.ptr());
 
-    const float ln15 = ::log(15);
-    std::vector<float> src  = { 88.3762626647949f, -90, 1, 2, -15, 4.6, 23.1, -3, 13.7, -14.8, 18.2, 56, 22.12, 85.05, -12.6, -36.6,
-                                9.9, -12.5, 44, 1.7, 64.2, 34.8, -15.7, 55.5, 69, -34, ln15, 9, 0.2, 62.13, -74.5, -18.1 };
+    const float ln15 = ::log(15.f);
+    std::vector<float> src  = { 88.3762626647949f, -90.f, 1.f, 2.f, -15.f, 4.6f, 23.1f, -3.f, 13.7f, -14.8f, 18.2f, 56.f, 22.12f, 85.05f, -12.6f, -36.6f,
+                                9.9f, -12.5f, 44.f, 1.7f, 64.2f, 34.8f, -15.7f, 55.5f, 69.f, -34.f, ln15, 9.f, 0.2f, 62.13f, -74.5f, -18.1f };
     std::vector<float> dest(src.size(), 0);
     tested(&dest[0], &src[0], src.size());
     for (size_t i = 0; i < src.size(); i++ )

@@ -102,7 +102,7 @@ void check_vector_cmp_func(int cmptype, Func tested_)
         tested(a.data(), b.data(), resvec.data(), a.size());
         for(int elnum = 0; elnum < (int)a.size(); elnum++)
         {
-            typename CmpElemTraits<_Tp>::masktype res;
+            typename CmpElemTraits<_Tp>::masktype res = 0;
             switch(cmptype)
             {
                 case VCMP_EQ: res = (a[elnum] == b[elnum]); break;
