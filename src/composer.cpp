@@ -31,9 +31,9 @@ void Bitwriter::writeToken(uint64_t a_token, int a_fieldwidth)
         throw std::runtime_error("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
         throw std::runtime_error("Bitwriter: writing token out of instruction");
-    if((int)m_buffer->size() < m_size + (a_fieldwidth >> 3) + 1)
+    if((int)m_buffer->size() < m_size + ((m_bitpos + a_fieldwidth) >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
-    uint8_t* buffer = &m_buffer->operator[](0);
+    uint8_t* buffer = m_buffer->data();
     uint64_t body = m_bitpos ? ((uint64_t)(*(buffer + m_size))) << 56 : 0;
     a_token = (a_fieldwidth < 64)? a_token & ( ((uint64_t)(1) << a_fieldwidth) - 1): a_token;
     const size_t bits2write = m_bitpos + a_fieldwidth;
