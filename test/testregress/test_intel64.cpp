@@ -2320,6 +2320,84 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_GT, {  ymm0_4u,  ymm7_4s,  ymm8_4s});
         newiopNoret(VOP_GT, {  ymm0_4u,  ymm0_4s, ymm15_4s});
 
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm7_16s,  ymm0_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm7_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm7_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm0_16s,  ymm7_16u});
+        newiopNoret(VOP_SELECT, {  ymm8_16s,  ymm0_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, { ymm15_16s,  ymm0_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm8_16s,  ymm7_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm8_16s,  ymm0_16s,  ymm7_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm8_16s,  ymm0_16s,  ymm0_16s,  ymm7_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm8_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm7_16s,  ymm8_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s, ymm15_16s,  ymm0_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm8_16s,  ymm7_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm8_16s,  ymm0_16s,  ymm7_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm8_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm7_16s,  ymm0_16s,  ymm8_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm7_16s,  ymm8_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s, ymm15_16s,  ymm0_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm8_16s,  ymm7_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm0_16s,  ymm8_16u});
+        newiopNoret(VOP_SELECT, {  ymm7_16s,  ymm0_16s,  ymm0_16s,  ymm8_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm7_16s,  ymm0_16s,  ymm8_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm7_16s,  ymm8_16u});
+        newiopNoret(VOP_SELECT, {  ymm0_16s,  ymm0_16s,  ymm0_16s, ymm15_16u});
+
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm7_8f,  ymm0_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm7_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm7_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm0_8f,  ymm7_8u});
+        newiopNoret(VOP_SELECT, {  ymm8_8f,  ymm0_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, { ymm15_8f,  ymm0_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm8_8f,  ymm7_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm8_8f,  ymm0_8f,  ymm7_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm8_8f,  ymm0_8f,  ymm0_8f,  ymm7_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm8_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm7_8f,  ymm8_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f, ymm15_8f,  ymm0_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm8_8f,  ymm7_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm8_8f,  ymm0_8f,  ymm7_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm8_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm7_8f,  ymm0_8f,  ymm8_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm7_8f,  ymm8_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f, ymm15_8f,  ymm0_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm8_8f,  ymm7_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm0_8f,  ymm8_8u});
+        newiopNoret(VOP_SELECT, {  ymm7_8f,  ymm0_8f,  ymm0_8f,  ymm8_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm7_8f,  ymm0_8f,  ymm8_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm7_8f,  ymm8_8u});
+        newiopNoret(VOP_SELECT, {  ymm0_8f,  ymm0_8f,  ymm0_8f, ymm15_8u});
+
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm7_4f,  ymm0_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm7_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm7_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm0_4f,  ymm7_4u});
+        newiopNoret(VOP_SELECT, {  ymm8_4f,  ymm0_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, { ymm15_4f,  ymm0_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm8_4f,  ymm7_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm8_4f,  ymm0_4f,  ymm7_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm8_4f,  ymm0_4f,  ymm0_4f,  ymm7_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm8_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm7_4f,  ymm8_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f, ymm15_4f,  ymm0_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm8_4f,  ymm7_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm8_4f,  ymm0_4f,  ymm7_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm8_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm7_4f,  ymm0_4f,  ymm8_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm7_4f,  ymm8_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f, ymm15_4f,  ymm0_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm8_4f,  ymm7_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm0_4f,  ymm8_4u});
+        newiopNoret(VOP_SELECT, {  ymm7_4f,  ymm0_4f,  ymm0_4f,  ymm8_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm7_4f,  ymm0_4f,  ymm8_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm7_4f,  ymm8_4u});
+        newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm0_4f, ymm15_4u});
+
         // for(int half0 = 0; half0 < 2; half0++)   //DUBUG: good checking code piece.
         // for(int half1 = 0; half1 < 2; half1++) 
         // for(int half2 = 0; half2 < 2; half2++)

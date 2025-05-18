@@ -9,11 +9,13 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
-//DUBUG: Visual Studio run of testregress in Debug mode gave segfault. Have to check it. First of all!
+
 enum 
 {
-    TYPE_SAME_AS_0 = 62,
-    TYPE_SAME_AS_1 = 63,
+    TYPE_SAME_AS_0 = 60,
+    TYPE_SAME_AS_1 = 61,
+    TYPE_MASK_FOR_0 = 62,
+    TYPE_MASK_FOR_1 = 63,
 };
 
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
@@ -106,6 +108,9 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCMPNEQPD   , "vcmpneqpd"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCMPLTPD    , "vcmpltpd"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCMPLEPD    , "vcmplepd"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPBLENDVB   , "vpblendvb"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VBLENDVPS   , "vblendvps"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VBLENDVPD   , "vblendvpd"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPAND       , "vpand"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPOR        , "vpor"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPXOR       , "vpxor"       ),
@@ -320,27 +325,52 @@ namespace loops
     }
 
     //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction?
-    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint16_t W, uint64_t opcode, uint64_t mrm_opcode, uint64_t supportedTypesBitmask0 = 0, uint64_t supportedTypesBitmask1 = 0, uint64_t supportedTypesBitmask2 = 0, bool ib_present = false, uint64_t ib = 0)
+    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint16_t W, uint64_t opcode, uint64_t mrm_opcode, uint64_t supportedTypesBitmask0 = 0, uint64_t supportedTypesBitmask1 = 0, uint64_t supportedTypesBitmask2 = 0, uint64_t supportedTypesBitmask3 = 0, bool ib_present = false, uint64_t ib = 0)
     {
         using namespace BinTranslationConstruction;
         Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
-        //Metatypes TYPE_SAME_AS_0 and TYPE_SAME_AS_1 cannot be variation, it have to be only type!
+        //Metatypes TYPE_SAME_AS_0, TYPE_SAME_AS_1, TYPE_UINT_SAMESIZE_AS_0 and TYPE_UINT_SAMESIZE_AS_1 cannot be variation, it have to be only type!
+        Assert(((supportedTypesBitmask0 & (uint64_t(1) << TYPE_MASK_FOR_1)) == 0) || (supportedTypesBitmask0 == (uint64_t(1) << TYPE_MASK_FOR_1)));
         Assert(((supportedTypesBitmask1 & (uint64_t(1) << TYPE_SAME_AS_0)) == 0) || (supportedTypesBitmask1 == (uint64_t(1) << TYPE_SAME_AS_0)));
+        Assert(((supportedTypesBitmask1 & (uint64_t(1) << TYPE_MASK_FOR_0)) == 0) || (supportedTypesBitmask1 == (uint64_t(1) << TYPE_MASK_FOR_0)));
         Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_SAME_AS_0)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_0)));
         Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_SAME_AS_1)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_1)));
+        Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_MASK_FOR_0)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_MASK_FOR_0)));
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
+        Assert(index.args_size >= 2);
         if(supportedTypesBitmask1 == 0 && supportedTypesBitmask0 != 0)
             supportedTypesBitmask1 = supportedTypesBitmask0;
         if(supportedTypesBitmask2 == 0 && supportedTypesBitmask0 != 0)
             supportedTypesBitmask2 = supportedTypesBitmask0;
+        if(supportedTypesBitmask3 == 0 && supportedTypesBitmask0 != 0)
+            supportedTypesBitmask3 = supportedTypesBitmask0;
+        static uint64_t uint_same_size[] = {0 , uint64_t(1) << TYPE_U8, uint64_t(1) << TYPE_U16, 0, uint64_t(1) << TYPE_U32, 0, 0, 0, uint64_t(1) << TYPE_U64};
+        if((supportedTypesBitmask0 == (uint64_t(1) << TYPE_MASK_FOR_1)))
+            supportedTypesBitmask0 = uint_same_size[elem_size(index.args[1].elemtype)];
         if((supportedTypesBitmask1 == (uint64_t(1) << TYPE_SAME_AS_0)))
             supportedTypesBitmask1 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
+        if((supportedTypesBitmask1 == (uint64_t(1) << TYPE_MASK_FOR_0)))
+            supportedTypesBitmask1 = uint_same_size[elem_size(index.args[0].elemtype)];
         if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_0)))
             supportedTypesBitmask2 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
         if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_1)))
             supportedTypesBitmask2 = ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1);
-        if(!((index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && (index.args[2].tag == Arg::VREG || index.args[2].tag == Arg::IIMMEDIATE) &&
+        if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_MASK_FOR_0)))
+            supportedTypesBitmask2 = uint_same_size[elem_size(index.args[0].elemtype)];
+        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_SAME_AS_0)))
+            supportedTypesBitmask3 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
+        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_SAME_AS_1)))
+            supportedTypesBitmask3 = ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1);
+        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_MASK_FOR_0)))
+            supportedTypesBitmask3 = uint_same_size[elem_size(index.args[0].elemtype)];
+        if(!((index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+             (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
+             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
+             (supportedTypesBitmask2 == 0 || ((uint64_t(1))<<index.args[2].elemtype & supportedTypesBitmask2) != 0) &&
+             (supportedTypesBitmask3 == 0 || ((uint64_t(1))<<index.args[3].elemtype & supportedTypesBitmask3) != 0) && 
+             mrm_opcode == 0) ||
+             (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && (index.args[2].tag == Arg::VREG || index.args[2].tag == Arg::IIMMEDIATE) &&
              (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
              (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
              (index.args[2].tag == Arg::IIMMEDIATE || supportedTypesBitmask2 == 0 || ((uint64_t(1))<<index.args[2].elemtype & supportedTypesBitmask2) != 0) &&
@@ -410,9 +440,14 @@ namespace loops
                 tokens.push_back(BTimm(2, 8));
             else if(index.args_size == 3 && ib_present) 
                 tokens.push_back(BTsta(ib, 8));
+            else if(index.args_size == 4)
+            {
+                tokens.push_back(BTreg(3, 4, In));
+                tokens.push_back(BTsta(0, 4));
+            }
         }
         return BinTranslation(tokens);
-    }    
+    }
 
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
     {
@@ -1384,23 +1419,25 @@ namespace loops
         case (INTEL64_VPMAXSD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3D, 0,           bm64({TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VMAXPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5F, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VMAXPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5F, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPCMPEQB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x74, 0,            bm64({TYPE_U8}),   bm64({TYPE_I8, TYPE_U8}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x75, 0,           bm64({TYPE_U16}), bm64({TYPE_I16, TYPE_U16}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x76, 0,           bm64({TYPE_U32}), bm64({TYPE_I32, TYPE_U32}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x29, 0,           bm64({TYPE_U64}), bm64({TYPE_I64, TYPE_U64}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPGTB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x64, 0,            bm64({TYPE_U8}),            bm64({TYPE_I8}),        bm64({TYPE_I8}));
-        case (INTEL64_VPCMPGTW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x65, 0,           bm64({TYPE_U16}),           bm64({TYPE_I16}),       bm64({TYPE_I16}));
-        case (INTEL64_VPCMPGTD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x66, 0,           bm64({TYPE_U32}),           bm64({TYPE_I32}),       bm64({TYPE_I32}));
-        case (INTEL64_VPCMPGTQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x37, 0,           bm64({TYPE_U64}),           bm64({TYPE_I64}),       bm64({TYPE_I64}));
-        case (INTEL64_VCMPEQPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U32}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), true, 0);
-        case (INTEL64_VCMPNEQPS):   return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U32}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), true, 4);
-        case (INTEL64_VCMPLTPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U32}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), true, 1);
-        case (INTEL64_VCMPLEPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U32}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), true, 2);
-        case (INTEL64_VCMPEQPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U64}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), true, 0);
-        case (INTEL64_VCMPNEQPD):   return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U64}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), true, 4);
-        case (INTEL64_VCMPLTPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U64}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), true, 1);
-        case (INTEL64_VCMPLEPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,           bm64({TYPE_U64}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), true, 2);
-        
+        case (INTEL64_VPCMPEQB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x74, 0,     bm64({TYPE_MASK_FOR_1}),   bm64({TYPE_I8, TYPE_U8}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x75, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I16, TYPE_U16}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x76, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I32, TYPE_U32}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x29, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I64, TYPE_U64}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPGTB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x64, 0,     bm64({TYPE_MASK_FOR_1}),            bm64({TYPE_I8}),        bm64({TYPE_I8}));
+        case (INTEL64_VPCMPGTW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x65, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I16}),       bm64({TYPE_I16}));
+        case (INTEL64_VPCMPGTD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x66, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I32}),       bm64({TYPE_I32}));
+        case (INTEL64_VPCMPGTQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x37, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I64}),       bm64({TYPE_I64}));
+        case (INTEL64_VCMPEQPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 0);
+        case (INTEL64_VCMPNEQPS):   return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 4);
+        case (INTEL64_VCMPLTPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 1);
+        case (INTEL64_VCMPLEPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 2);
+        case (INTEL64_VCMPEQPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 0);
+        case (INTEL64_VCMPNEQPD):   return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 4);
+        case (INTEL64_VCMPLTPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 1);
+        case (INTEL64_VCMPLEPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 2);
+        case (INTEL64_VBLENDVPS):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4A, 0,           bm64({TYPE_FP32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VBLENDVPD):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4B, 0,           bm64({TYPE_FP64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPBLENDVB):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4C, 0,           bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_I32, TYPE_U64, TYPE_I64,}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
         case (INTEL64_VPAND): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
                                  elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
                                  isUnsignedInteger(index.args[2].elemtype))
@@ -1679,9 +1716,9 @@ namespace loops
             }
             break;
         case (VOP_EQ):
-        if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-            index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
-            isUnsignedInteger(index.args[0].elemtype))
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
+                isUnsignedInteger(index.args[0].elemtype))
             {
                 switch(index.args[1].elemtype)
                 {
@@ -1695,9 +1732,9 @@ namespace loops
             }
             break;
         case (VOP_NE):
-        if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-            index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
-            isUnsignedInteger(index.args[0].elemtype))
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
+                isUnsignedInteger(index.args[0].elemtype))
             {
                 switch(index.args[1].elemtype)
                 {
@@ -1705,12 +1742,12 @@ namespace loops
                     case(TYPE_FP64):  return SyT(INTEL64_VCMPNEQPD, { SAcop(0), SAcop(1), SAcop(2) });
                 }
             }
-            break;            
+            break;
         case (VOP_LT):
         case (VOP_GT):
-        if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-            index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
-            isUnsignedInteger(index.args[0].elemtype))
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
+                isUnsignedInteger(index.args[0].elemtype))
             {
                 int first = (index.opcode == VOP_GT ? 1 : 2);
                 int second = (index.opcode == VOP_GT ? 2 : 1);
@@ -1725,12 +1762,12 @@ namespace loops
                     case(TYPE_FP64):  return SyT(INTEL64_VCMPLTPD, { SAcop(0), SAcop(second), SAcop(first) });
                 }
             }
-            break;
+                break;
         case (VOP_LE):
         case (VOP_GE):
-        if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-            index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
-            isUnsignedInteger(index.args[0].elemtype))
+            if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[1].elemtype == index.args[2].elemtype && elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) &&
+                isUnsignedInteger(index.args[0].elemtype))
             {
                 int first = (index.opcode == VOP_GE ? 2 : 1);
                 int second = (index.opcode == VOP_GE ? 1 : 2);
@@ -1738,6 +1775,19 @@ namespace loops
                 {
                     case(TYPE_FP32):  return SyT(INTEL64_VCMPLEPS, { SAcop(0), SAcop(first), SAcop(second) });
                     case(TYPE_FP64):  return SyT(INTEL64_VCMPLEPD, { SAcop(0), SAcop(first), SAcop(second) });
+                }
+            }
+            break;
+        case (VOP_SELECT):
+            if (index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[3].tag == Arg::VREG && index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype && 
+                elem_size(index.args[0].elemtype) == elem_size(index.args[3].elemtype) && isUnsignedInteger(index.args[3].elemtype))
+            {
+                switch(index.args[0].elemtype)
+                {
+                    case(TYPE_FP32):  return SyT(INTEL64_VBLENDVPS, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                    case(TYPE_FP64):  return SyT(INTEL64_VBLENDVPD, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                    default: return SyT(INTEL64_VPBLENDVB, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
                 }
             }
             break;
@@ -1834,10 +1884,6 @@ namespace loops
 //DUBUG: Implement V's list:
 //VOP_DIV: vdivps, vdivpd (floats only??)
 //VOP_CAST: vcvttps2dq and check all abilities!
-//VOP_SELECT:
-// def vpblendvb(rd, rs1, s2, rsmask):
-// def vblendvps(rd, rs1, s2, rsmask):
-// def vblendvpd(rd, rs1, s2, rsmask):
 //VOP_BROADCAST: 
 // def vbroadcast_(rd, opcode, s):
 // def vpbroadcastb(rd, imm):
@@ -1964,7 +2010,7 @@ namespace loops
 #if __LOOPS_OS == __LOOPS_WINDOWS
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3 };
     m_returnRegisters[RB_VEC] = { YMM0 };
-    m_callerSavedRegisters[RB_VEC] = { YMM5 };
+    m_callerSavedRegisters[RB_VEC] = { YMM5, YMM6, YMM7, YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
     m_calleeSavedRegisters[RB_VEC] = { YMM6, YMM7, YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7};
@@ -3062,7 +3108,7 @@ namespace loops
             }
             case OP_CALL:
             case OP_CALL_NORET:
-            {
+            {//DUBUG: We need saving vector register efforts.
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
                 std::vector<int> parameterRegisters = { RCX, RDX, R8, R9 };
