@@ -2418,6 +2418,58 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_SETLANE, {  ymm7_4f,  argIImm(0),  r8d});
         newiopNoret(VOP_SETLANE, {  ymm0_4f,  argIImm(0), r15d});
 
+        newiopNoret(VOP_BROADCAST, {  ymm0_32u,  ymm0_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_32u,  ymm0_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_32u,  ymm7_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_32u,  ymm0_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_32u,  ymm0_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_32u,  ymm7_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_32u,  ymm8_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_32u,  ymm8_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_32u, ymm15_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_32u,  ymm8_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_32u,  ymm8_32u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_32u, ymm15_32u, argIImm(0) });
+
+        newiopNoret(VOP_BROADCAST, {  ymm0_16u,  ymm0_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_16u,  ymm0_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_16u,  ymm7_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_16u,  ymm0_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_16u,  ymm0_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_16u,  ymm7_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_16u,  ymm8_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_16u,  ymm8_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_16u, ymm15_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_16u,  ymm8_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_16u,  ymm8_16u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_16u, ymm15_16u, argIImm(0) });
+
+        newiopNoret(VOP_BROADCAST, {  ymm0_8u,  ymm0_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_8u,  ymm0_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_8u,  ymm7_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_8u,  ymm0_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_8u,  ymm0_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_8u,  ymm7_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_8u,  ymm8_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_8u,  ymm8_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_8u, ymm15_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_8u,  ymm8_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_8u,  ymm8_8u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_8u, ymm15_8u, argIImm(0) });
+
+        newiopNoret(VOP_BROADCAST, {  ymm0_4u,  ymm0_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_4u,  ymm0_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_4u,  ymm7_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_4u,  ymm0_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_4u,  ymm0_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_4u,  ymm7_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_4u,  ymm8_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm7_4u,  ymm8_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm0_4u, ymm15_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_4u,  ymm8_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, { ymm15_4u,  ymm8_4u, argIImm(0) });
+        newiopNoret(VOP_BROADCAST, {  ymm8_4u, ymm15_4u, argIImm(0) });
+
         // for(int half0 = 0; half0 < 2; half0++)   //DUBUG: good checking code piece.
         // for(int half1 = 0; half1 < 2; half1++) 
         // for(int half2 = 0; half2 < 2; half2++)
