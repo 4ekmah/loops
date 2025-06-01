@@ -58,6 +58,8 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS        , "sets"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS       , "setns"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU     , "vmovdqu"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVD       , "vmovd"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVQ       , "vmovq"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDB      , "vpaddb"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDW      , "vpaddw"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPADDD      , "vpaddd"      ),
@@ -211,133 +213,67 @@ namespace loops
         return makeBitmask64(regNumbers);
     }
 
-    static inline BinTranslation VEX_instuction(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint64_t opcode)
+    static inline uint64_t bm64(uint64_t bitNumber)
     {
-        using namespace BinTranslationConstruction;
-        Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
-        Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
-        
-        if(index.args_size != 2 && index.args_size != 3)
-        {
-            scs = false;
-            return BinTranslation();
-        }
-        int nar = 0; //non-address register.
-        int far = 1; // first address register.
-        int sar = 2; // second address register.
-        int arIOFlag = In; 
-        int narIOFlag = Out; 
-        if (index.args[0].flags & AF_ADDRESS)
-        {
-            far = 0;
-            sar = 1;
-            nar = 1 + (index.args_size == 3);
-            arIOFlag = Out; 
-            narIOFlag = In;
-        }
-        if(!(index.args[nar].tag == Arg::VREG && index.args[far].tag == Arg::IREG && (index.args_size == 2 || 
-             index.args[sar].tag == Arg::IREG || (index.args[sar].tag == Arg::IIMMEDIATE && signed_fits(index.args[sar].value,32)))))
-        {
-            scs = false;
-            return BinTranslation();
-        }
-
-        std::vector<BinTranslation::Token> tokens;
-        const uint32_t R = ((index.args[nar].idx & 0b1000) == 0);
-        const uint32_t X = ((index.args_size == 3 && index.args[sar].tag == Arg::IREG) ? ((index.args[sar].idx & 0b1000) == 0) : 1);
-        const uint32_t B = ((index.args[far].idx & 0b1000) == 0);
-        const uint32_t W = 0; // DUBUG: WIG is for W ignored, means W = 0 always. Move WIG to arguments?
-        const uint32_t L = 1;
-        const uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
-        // pp:opcode extension providing equivalent functionality of a SIMD prefix: {00: None | 01: 66 | 10: F3 | 11: F2}
-        const uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
-
-        const uint32_t vvvv = 0b1111;
-        uint32_t vex = 0;
-        int vex_size;
-        if(W == 0 && B == 1 && X == 1 && m_mmmm == 0b00001)
-        {
-            vex_size = 16;
-            vex = (0xc5 << 8)|(R<<7)|(vvvv<<3)|(L<<2)|pp;
-        }
-        else
-        {
-            vex_size = 24;
-            vex = (0xc4 << 16)|(R<<15)|(X<<14)|(B<<13)|(m_mmmm<<8)|(W<<7)|(vvvv<<3)|(L<<2)|pp;
-        }
-
-        //OPCODE construction: <prefix><leading bytes><other bytes>
-        // R, X and B bits are complements of the REX prefix's R, X and B bits; these provide a fourth (high) bit for register index fields
-        // (ModRM reg, SIB index, and ModRM r/m; SIB base; or opcode reg fields, respectively) allowing access to 16 instead of 8 registers.
-        tokens.push_back(BTsta(vex, vex_size));
-        tokens.push_back(BTsta(opcode, 8));
-        {//ModRM+SIB
-            if(index.args_size == 2)
-            {
-                if ((index.args[far].idx & 0b111) == 0b100)
-                {
-                    const uint32_t mod = 0;
-                    tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, narIOFlag));
-                    tokens.push_back(BTsta(0b10000100, 8));
-                    tokens.push_back(BTreg(far, 3, arIOFlag | AF_ADDRESS));
-                }
-                else if ((index.args[far].idx & 0b111) == 0b101)
-                {
-                    const uint32_t mod = 1;
-                    tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, narIOFlag));
-                    tokens.push_back(BTreg(far, 3, arIOFlag | AF_ADDRESS));
-                    tokens.push_back(BTsta(0, 8));
-                }
-                else 
-                {
-                    const uint32_t mod = 0;
-                    tokens.push_back(BTsta(mod, 2));
-                    tokens.push_back(BTreg(nar, 3, narIOFlag));
-                    tokens.push_back(BTreg(far, 3, arIOFlag | AF_ADDRESS));
-                }
-            }
-            else if(index.args_size == 3 && index.args[sar].tag == Arg::IREG)
-            {
-                const uint32_t mod = 0;
-                tokens.push_back(BTsta(mod, 2));
-                tokens.push_back(BTreg(nar, 3, narIOFlag));
-                const uint32_t r_m = 0b100;
-                const uint32_t scale = 0;
-                tokens.push_back(BTsta(r_m, 3));
-                tokens.push_back(BTsta(scale, 2));
-                tokens.push_back(BTreg(sar, 3, arIOFlag | AF_ADDRESS)); //index
-                tokens.push_back(BTreg(far, 3, arIOFlag | AF_ADDRESS)); //base
-            }
-            else if(index.args_size == 3 && index.args[sar].tag == Arg::IIMMEDIATE)
-            {
-                const uint32_t mod = 0b10;
-                tokens.push_back(BTsta(mod, 2));
-                tokens.push_back(BTreg(nar, 3, narIOFlag));
-                if ((index.args[far].idx & 0b111) == 0b100)
-                    tokens.push_back(BTsta(0b10000100, 8));
-                tokens.push_back(BTreg(far, 3, arIOFlag | AF_ADDRESS));  //base
-                tokens.push_back(BTimm(sar, 32, arIOFlag | AF_ADDRESS)); //index
-            }
-        }
-        return BinTranslation(tokens);
+        return bm64({bitNumber});
     }
 
-    //DUBUG: Is it possible to splice VEX_instuction_V and VEX_instuction?
-    static inline BinTranslation VEX_instuction_V(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint16_t W, uint64_t opcode, uint64_t mrm_opcode, uint64_t supportedTypesBitmask0 = 0, uint64_t supportedTypesBitmask1 = 0, uint64_t supportedTypesBitmask2 = 0, uint64_t supportedTypesBitmask3 = 0, bool ib_present = false, uint64_t ib = 0)
+    static inline uint64_t bm64(int bitNumber)
+    {
+        return bm64({uint64_t(bitNumber)});
+    }
+    
+    static inline bool bm64_exclusive(uint64_t field, uint8_t flag)
+    {
+        return ((field & bm64(flag)) == 0) || (field == bm64(flag));
+    }
+
+    static inline bool bm64_exists(uint64_t field, int flag)
+    {
+        Assert(flag >= 0);
+        return (field == 0 || (bm64(flag) & field) != 0);
+    }
+
+    static inline bool bm64_exists(uint64_t field, const Syntop& index, int argnum)
+    {
+        Assert(argnum < index.args_size);
+        return (field == 0 || (bm64(index.args[argnum].elemtype) & field) != 0);
+    }
+
+    const uint64_t bm64_all = bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_I32,
+                                    TYPE_U64, TYPE_I64, TYPE_FP16, TYPE_BF16, TYPE_FP32, TYPE_FP64, TYPE_BOOLEAN});
+
+    const uint64_t bm64_all_ints = bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_I32, TYPE_U64, TYPE_I64});
+
+    static inline void synchronizeTypesBitmask(const Syntop& index, uint64_t& a, uint64_t& b, int numA, int numB)
+    {
+        Assert(numA<numB);
+        static uint64_t uint_same_size[] = {0 , bm64({TYPE_U8}), bm64({TYPE_U16}), 0, bm64({TYPE_U32}), 0, 0, 0, bm64({TYPE_U64})};
+        if(numA == 0 && numB == 1 && (a == bm64(TYPE_MASK_FOR_1)))
+            a = uint_same_size[elem_size(index.args[1].elemtype)];
+        if(numA == 0 && (b == bm64(TYPE_SAME_AS_0)))
+            b = ((uint64_t(1))<<index.args[0].elemtype & a);
+        if(numA == 0 && (b == bm64(TYPE_MASK_FOR_0))) 
+            b = uint_same_size[elem_size(index.args[0].elemtype)];
+        if(numA == 1 && (b == bm64(TYPE_SAME_AS_1)))
+            b = ((uint64_t(1))<<index.args[1].elemtype & a);
+        if(numA == 1 && (b == bm64(TYPE_MASK_FOR_1))) 
+            b = uint_same_size[elem_size(index.args[1].elemtype)];
+    }
+
+    static inline BinTranslation VEX_instuction(const Syntop& index, bool& scs, uint32_t pp_opcode, uint32_t m_opcode, uint16_t W, uint16_t L, uint64_t opcode, uint64_t mrm_opcode, uint64_t supportedTypesBitmask0 = 0, uint64_t supportedTypesBitmask1 = 0, uint64_t supportedTypesBitmask2 = 0, uint64_t supportedTypesBitmask3 = 0, bool ib_present = false, uint64_t ib = 0)
     {
         using namespace BinTranslationConstruction;
+        scs = false;
         Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
         Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
         //Metatypes TYPE_SAME_AS_0, TYPE_SAME_AS_1, TYPE_UINT_SAMESIZE_AS_0 and TYPE_UINT_SAMESIZE_AS_1 cannot be variation, it have to be only type!
-        Assert(((supportedTypesBitmask0 & (uint64_t(1) << TYPE_MASK_FOR_1)) == 0) || (supportedTypesBitmask0 == (uint64_t(1) << TYPE_MASK_FOR_1)));
-        Assert(((supportedTypesBitmask1 & (uint64_t(1) << TYPE_SAME_AS_0)) == 0) || (supportedTypesBitmask1 == (uint64_t(1) << TYPE_SAME_AS_0)));
-        Assert(((supportedTypesBitmask1 & (uint64_t(1) << TYPE_MASK_FOR_0)) == 0) || (supportedTypesBitmask1 == (uint64_t(1) << TYPE_MASK_FOR_0)));
-        Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_SAME_AS_0)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_0)));
-        Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_SAME_AS_1)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_1)));
-        Assert(((supportedTypesBitmask2 & (uint64_t(1) << TYPE_MASK_FOR_0)) == 0) || (supportedTypesBitmask2 == (uint64_t(1) << TYPE_MASK_FOR_0)));
-        Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
+        Assert(bm64_exclusive(supportedTypesBitmask0, TYPE_MASK_FOR_1));
+        Assert(bm64_exclusive(supportedTypesBitmask1, TYPE_SAME_AS_0));
+        Assert(bm64_exclusive(supportedTypesBitmask1, TYPE_MASK_FOR_0));
+        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_0));
+        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_1));
+        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_MASK_FOR_0));
         Assert(index.args_size >= 2);
         if(supportedTypesBitmask1 == 0 && supportedTypesBitmask0 != 0)
             supportedTypesBitmask1 = supportedTypesBitmask0;
@@ -345,64 +281,191 @@ namespace loops
             supportedTypesBitmask2 = supportedTypesBitmask0;
         if(supportedTypesBitmask3 == 0 && supportedTypesBitmask0 != 0)
             supportedTypesBitmask3 = supportedTypesBitmask0;
-        static uint64_t uint_same_size[] = {0 , uint64_t(1) << TYPE_U8, uint64_t(1) << TYPE_U16, 0, uint64_t(1) << TYPE_U32, 0, 0, 0, uint64_t(1) << TYPE_U64};
-        if((supportedTypesBitmask0 == (uint64_t(1) << TYPE_MASK_FOR_1)))
-            supportedTypesBitmask0 = uint_same_size[elem_size(index.args[1].elemtype)];
-        if((supportedTypesBitmask1 == (uint64_t(1) << TYPE_SAME_AS_0)))
-            supportedTypesBitmask1 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
-        if((supportedTypesBitmask1 == (uint64_t(1) << TYPE_MASK_FOR_0)))
-            supportedTypesBitmask1 = uint_same_size[elem_size(index.args[0].elemtype)];
-        if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_0)))
-            supportedTypesBitmask2 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
-        if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_SAME_AS_1)))
-            supportedTypesBitmask2 = ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1);
-        if((supportedTypesBitmask2 == (uint64_t(1) << TYPE_MASK_FOR_0)))
-            supportedTypesBitmask2 = uint_same_size[elem_size(index.args[0].elemtype)];
-        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_SAME_AS_0)))
-            supportedTypesBitmask3 = ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0);
-        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_SAME_AS_1)))
-            supportedTypesBitmask3 = ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1);
-        if((supportedTypesBitmask3 == (uint64_t(1) << TYPE_MASK_FOR_0)))
-            supportedTypesBitmask3 = uint_same_size[elem_size(index.args[0].elemtype)];
-        if(!((index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-             (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
-             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
-             (supportedTypesBitmask2 == 0 || ((uint64_t(1))<<index.args[2].elemtype & supportedTypesBitmask2) != 0) &&
-             (supportedTypesBitmask3 == 0 || ((uint64_t(1))<<index.args[3].elemtype & supportedTypesBitmask3) != 0) && 
-             mrm_opcode == 0) ||
-             (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && (index.args[2].tag == Arg::VREG || index.args[2].tag == Arg::IIMMEDIATE) &&
-             (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
-             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
-             (index.args[2].tag == Arg::IIMMEDIATE || supportedTypesBitmask2 == 0 || ((uint64_t(1))<<index.args[2].elemtype & supportedTypesBitmask2) != 0) &&
-             (index.args[2].tag == Arg::IIMMEDIATE || mrm_opcode == 0)) ||
-             (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
-             (supportedTypesBitmask0 == 0 || ((uint64_t(1))<<index.args[0].elemtype & supportedTypesBitmask0) != 0) &&
-             (supportedTypesBitmask1 == 0 || ((uint64_t(1))<<index.args[1].elemtype & supportedTypesBitmask1) != 0) &&
-             (mrm_opcode == 0))))
-        {
-            scs = false;
-            return BinTranslation();
-        }
-
-        const int ordinaryIn = (index.args_size == 2 || index.args[2].tag == Arg::IIMMEDIATE) ? 1 : 2;
-
-        std::vector<BinTranslation::Token> tokens;
-        const uint32_t R = mrm_opcode != 0 ? 1 : ((index.args[0].idx & 0b1000) == 0);
-        const uint32_t X = 1; //Alway in non-inplace operations.
-        const uint32_t B = ((index.args[ordinaryIn].idx & 0b1000) == 0);
-        const uint32_t L = 1;
-        const uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
+        uint32_t mod = 0b11;
+        int modRM_reg0_argnum = 0;
+        int modRM_reg0_flags = Out; 
+        int modRM_reg1_argnum = 1;
+        int modRM_reg1_flags = In; 
+        bool vvvv_encode_reg = false;
+        int vvvv_reg_num = 0;
+        bool postfix_immediate = false;
+        int postfix_immediate_size = 8; 
+        int postfix_immediate_argnum = 2;
+        int postfix_immediate_flags = 0;
+        bool postfix_static = false; 
+        bool postfix_register = false; 
+        bool sib_byte_present = false;
+        int sib_scale = 0;
+        int sib_reg0_argnum = 2;
+        int sib_reg0_flags = In;
+        int sib_reg1_argnum = 1;
+        int sib_reg1_flags = In;
+        uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
         // pp:opcode extension providing equivalent functionality of a SIMD prefix: {00: None | 01: 66 | 10: F3 | 11: F2}
-        const uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
-
+        uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
+        std::vector<BinTranslation::Token> tokens;
+        if(index.args_size == 2 && (mrm_opcode == 0))
+        {
+            if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG)
+            {
+                synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask1, 0, 1);
+                if(!((index.args[0].tag == Arg::VREG && bm64_exists(supportedTypesBitmask0, index, 0) && bm64_exists(supportedTypesBitmask1, index, 1))))
+                    return BinTranslation();
+            }
+            else if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && bm64_exists(supportedTypesBitmask0, index, 0))
+            {
+                if((index.args[1].flags & AF_ADDRESS) != 0)
+                {
+                    modRM_reg1_flags |= AF_ADDRESS;
+                    mod = ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0;
+                    if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b100)
+                    {
+                        postfix_static = true;
+                        ib = 0b00100100;
+                    }
+                    else if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101)
+                    {
+                        postfix_static = true;
+                        ib = 0;
+                    }
+                }
+            }
+            else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 &&
+                    bm64_exists(supportedTypesBitmask1, index, 1))
+            {
+                modRM_reg0_argnum = 1;
+                modRM_reg1_argnum = 0;
+                modRM_reg0_flags = In;
+                modRM_reg1_flags = In | AF_ADDRESS;
+                mod = ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0;
+                if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b100)
+                {
+                    postfix_static = true;
+                    ib = 0b00100100;
+                }
+                else if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101)
+                {
+                    postfix_static = true;
+                    ib = 0;
+                }
+            }
+            else 
+                return BinTranslation();
+        }
+        else if(index.args_size == 3)
+        {
+            if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::IREG && (index.args[1].flags & AF_ADDRESS) != 0 && 
+               (index.args[2].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask0, index, 0))
+            {
+                mod = 0;
+                sib_byte_present = true;
+                sib_reg0_argnum = 2;
+                sib_reg0_flags = In | AF_ADDRESS;
+                sib_reg1_argnum = 1;
+                sib_reg1_flags = In | AF_ADDRESS;
+            }
+            else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 && 
+               (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))
+            {
+                modRM_reg0_argnum = 2;
+                modRM_reg0_flags = In;
+                mod = 0;
+                sib_byte_present = true;
+                sib_reg0_argnum = 1;
+                sib_reg0_flags = In | AF_ADDRESS;
+                modRM_reg1_argnum = sib_reg1_argnum = 0;
+                sib_reg1_flags = In | AF_ADDRESS;
+            }
+            else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 && 
+               (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))
+            {
+                modRM_reg0_argnum = 2;
+                modRM_reg0_flags = In;
+                mod = 0b10;
+                modRM_reg1_argnum = 0;
+                modRM_reg1_flags |= AF_ADDRESS;
+                if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b100)
+                {
+                    postfix_static = true;
+                    ib = 0b00100100;
+                }
+                postfix_immediate = true;
+                postfix_immediate_argnum = 1;
+                postfix_immediate_size = 32;
+                postfix_immediate_flags |= AF_ADDRESS;
+            }
+            else if (index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::IIMMEDIATE && (index.args[1].flags & AF_ADDRESS) != 0 && 
+               (index.args[1].flags & AF_ADDRESS) != 0 && signed_fits(index.args[2].value, 32) && 
+               bm64_exists(supportedTypesBitmask0, index, 0))
+            {
+                mod = 0b10;
+                modRM_reg1_flags |= AF_ADDRESS;
+                if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b100)
+                {
+                    postfix_static = true;
+                    ib = 0b00100100;
+                }
+                postfix_immediate = true;
+                postfix_immediate_size = 32;
+                postfix_immediate_flags |= AF_ADDRESS;
+            }
+            else
+            {
+                synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask1, 0, 1);
+                synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask2, 0, 2);
+                synchronizeTypesBitmask(index, supportedTypesBitmask1, supportedTypesBitmask2, 1, 2);
+                if(!((index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && (index.args[2].tag == Arg::VREG || index.args[2].tag == Arg::IIMMEDIATE) &&
+                    bm64_exists(supportedTypesBitmask0, index, 0) && bm64_exists(supportedTypesBitmask1, index, 1) &&
+                    (index.args[2].tag == Arg::IIMMEDIATE || bm64_exists(supportedTypesBitmask2, index, 2)) &&
+                    (index.args[2].tag == Arg::IIMMEDIATE || mrm_opcode == 0))))
+                    return BinTranslation();
+                if(index.args[2].tag != Arg::IIMMEDIATE)
+                {
+                    vvvv_encode_reg = true; 
+                    vvvv_reg_num = 1; 
+                    modRM_reg1_argnum = 2;
+                }
+                if(mrm_opcode != 0)
+                {
+                    vvvv_encode_reg = true; 
+                    vvvv_reg_num = 0; 
+                }
+                postfix_immediate = index.args[2].tag == Arg::IIMMEDIATE;
+                postfix_static = ib_present;
+            }
+        }
+        else if(index.args_size == 4)
+        {
+            synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask1, 0, 1);
+            synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask2, 0, 2);
+            synchronizeTypesBitmask(index, supportedTypesBitmask1, supportedTypesBitmask2, 1, 2);
+            synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask3, 0, 3);
+            synchronizeTypesBitmask(index, supportedTypesBitmask1, supportedTypesBitmask3, 1, 3);
+            if(!((index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG && index.args[3].tag == Arg::VREG &&
+                (supportedTypesBitmask0 == 0 || (bm64(index.args[0].elemtype) & supportedTypesBitmask0) != 0) &&
+                (supportedTypesBitmask1 == 0 || (bm64(index.args[1].elemtype) & supportedTypesBitmask1) != 0) &&
+                (supportedTypesBitmask2 == 0 || (bm64(index.args[2].elemtype) & supportedTypesBitmask2) != 0) &&
+                (supportedTypesBitmask3 == 0 || (bm64(index.args[3].elemtype) & supportedTypesBitmask3) != 0) && 
+                mrm_opcode == 0)))
+                return BinTranslation();
+            vvvv_encode_reg = true; 
+            vvvv_reg_num = 1; 
+            modRM_reg1_argnum = 2;
+            postfix_register = true;
+        }
+        else
+            return BinTranslation();
+        const uint32_t R = mrm_opcode != 0 ? 1 : ((index.args[modRM_reg0_argnum].idx & 0b1000) == 0);
+        const uint32_t X = sib_byte_present ? ((index.args[sib_reg0_argnum].idx & 0b1000) == 0) : 1;
+        const uint32_t B = ((index.args[modRM_reg1_argnum].idx & 0b1000) == 0);
+        //VEX prefix itself
         if(W == 0 && B == 1 && X == 1 && m_mmmm == 0b00001)
         {
             tokens.push_back(BTsta((0xc5 << 1)|R, 9));
-            if(ordinaryIn == 2 || mrm_opcode != 0) //vvvv field in VEX terminology
+            if(vvvv_encode_reg) //vvvv field in VEX terminology
             {
-                int vvvv_num = mrm_opcode != 0 ? 0 : 1;
-                tokens.push_back(BTomm(vvvv_num, vvvv_num == 0 ? Out : In));
-                tokens.push_back(BTsta(~(index.args[vvvv_num].idx&0b1111), 4));
+                tokens.push_back(BTomm(vvvv_reg_num, vvvv_reg_num == 0 ? Out : In));
+                tokens.push_back(BTsta(~(index.args[vvvv_reg_num].idx&0b1111), 4));
             }
             else
                 tokens.push_back(BTsta(0b1111, 4));
@@ -411,41 +474,54 @@ namespace loops
         else
         {
             tokens.push_back(BTsta((0xc4 << 9)|(R<<8)|(X<<7)|(B<<6)|(m_mmmm<<1)|W, 17));
-            if(ordinaryIn == 2 || mrm_opcode != 0) //vvvv field in VEX terminology
+            //vvvv field in VEX terminology
+            if(vvvv_encode_reg) 
             {
-                int vvvv_num = mrm_opcode != 0 ? 0 : 1;
-                tokens.push_back(BTomm(vvvv_num, vvvv_num == 0 ? Out : In));
-                tokens.push_back(BTsta(~(index.args[vvvv_num].idx)&0b1111, 4));
+                tokens.push_back(BTomm(vvvv_reg_num, vvvv_reg_num == 0 ? Out : In));
+                tokens.push_back(BTsta(~(index.args[vvvv_reg_num].idx)&0b1111, 4));
             }
             else
                 tokens.push_back(BTsta(0b1111, 4));
             tokens.push_back(BTsta((L<<2)|pp, 3));
         }
-
-        //OPCODE construction: <prefix><leading bytes><other bytes>
-        // R, X and B bits are complements of the REX prefix's R, X and B bits; these provide a fourth (high) bit for register index fields
-        // (ModRM reg, SIB index, and ModRM r/m; SIB base; or opcode reg fields, respectively) allowing access to 16 instead of 8 registers.
         tokens.push_back(BTsta(opcode, 8));
         {//ModRM
             //Non-inplace case, first source register(or "non-destructive source register") is encoded in vvvv part of vex
-            //So arg[2] is considered like usual, well-known intel input and scheme look for ModRM byte like it is two argument instruction
-            const uint32_t mod = 0b11; //DUBUG:of course, it's not clear how we have to choose mod bits.
+            //So arg[2] is considered like usual, well-known intel input and scheme look for ModRM byte like it is two argument instruction.
             tokens.push_back(BTsta(mod, 2));
+            //For some instructions is wider, than 8 bits. 3 extra bits located in ModRM byte.
             if(mrm_opcode != 0)
                 tokens.push_back(BTsta(mrm_opcode, 3));
             else 
-                tokens.push_back(BTreg(0, 3, Out));
-            tokens.push_back(BTreg(ordinaryIn, 3, In));
-            if(index.args_size == 3 && index.args[2].tag == Arg::IIMMEDIATE) 
-                tokens.push_back(BTimm(2, 8));
-            else if(index.args_size == 3 && ib_present) 
-                tokens.push_back(BTsta(ib, 8));
-            else if(index.args_size == 4)
+                tokens.push_back(BTreg(modRM_reg0_argnum, 3, modRM_reg0_flags));
+            if(!sib_byte_present)
             {
-                tokens.push_back(BTreg(3, 4, In));
-                tokens.push_back(BTsta(0, 4));
+                tokens.push_back(BTreg(modRM_reg1_argnum, 3, modRM_reg1_flags));
+                if(postfix_register)
+                {
+                    tokens.push_back(BTreg(3, 4, In));
+                    tokens.push_back(BTsta(0, 4));
+                }
+                else
+                {
+                    if(postfix_static)
+                        tokens.push_back(BTsta(ib, 8));
+                    if(postfix_immediate)
+                        tokens.push_back(BTimm(postfix_immediate_argnum, postfix_immediate_size, postfix_immediate_flags));
+                }
+            }
+            else
+            {
+                tokens.push_back(BTsta(0b100, 3));
             }
         }
+        if(sib_byte_present)
+        {
+            tokens.push_back(BTsta(sib_scale, 2));
+            tokens.push_back(BTreg(sib_reg0_argnum, 3, sib_reg0_flags)); //index
+            tokens.push_back(BTreg(sib_reg1_argnum, 3, sib_reg1_flags)); //base
+        }
+        scs = true;
         return BinTranslation(tokens);
     }
 
@@ -1372,107 +1448,88 @@ namespace loops
             break;
         }
         case (INTEL64_VMOVDQU):
-            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[0].elemtype == index.args[1].elemtype)
-            {
-                size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
-                static uint64_t statB[4] = { 0xc5fe6f, 0xc57e6f, 0xc57e7f, 0xc4417e6f }; 
-                static int statW[4] = { 3, 3, 3, 4 }; 
-                if(statn == 2)
-                    return BiT({ nBkb(statW[statn], statB[statn], 2, 0b11), BTreg(1, 3, In), BTreg(0, 3, Out) });
-                else
-                    return BiT({ nBkb(statW[statn], statB[statn], 2, 0b11), BTreg(0, 3, Out), BTreg(1, 3, In) });
-            }
-            else if (index.args_size > 1)
-                return VEX_instuction(index, scs, 0xF3, 0x0F, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F);
+            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG)
+                return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 1, 0x6F, 0, bm64_all, bm64({TYPE_SAME_AS_0}));
+            else if (index.args_size == 2 || index.args_size == 3)
+                return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F, 0);
             break;
-        case (INTEL64_VPADDB):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFC, 0,   bm64({TYPE_U8, TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPADDW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFD, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPADDD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFE, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPADDQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xD4, 0, bm64({TYPE_U64, TYPE_I64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VADDPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x58, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VADDPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x58, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSUBB):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xF8, 0,   bm64({TYPE_U8, TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSUBW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xF9, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSUBD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFA, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSUBQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xFB, 0, bm64({TYPE_U64, TYPE_I64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VSUBPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5C, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VSUBPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5C, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMULLW):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xD5, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMULLD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x40, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMULPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x59, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMULPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x59, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VFMADD231PS): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0xB8, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VFMADD231PD): return VEX_instuction_V(index, scs, 0x66, 0x0F38, 1, 0xB8, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINUB):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xDA, 0,            bm64({TYPE_U8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINSB):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x38, 0,            bm64({TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINUW):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3A, 0,           bm64({TYPE_U16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINSW):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEA, 0,           bm64({TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINUD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3B, 0,           bm64({TYPE_U32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMINSD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x39, 0,           bm64({TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMINPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5D, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMINPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5D, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXUB):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xDE, 0,            bm64({TYPE_U8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXSB):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3C, 0,            bm64({TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXUW):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3E, 0,           bm64({TYPE_U16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXSW):     return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEE, 0,           bm64({TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXUD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3F, 0,           bm64({TYPE_U32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPMAXSD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x3D, 0,           bm64({TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMAXPS):      return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5F, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VMAXPD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5F, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPCMPEQB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x74, 0,     bm64({TYPE_MASK_FOR_1}),   bm64({TYPE_I8, TYPE_U8}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x75, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I16, TYPE_U16}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x76, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I32, TYPE_U32}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPEQQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x29, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I64, TYPE_U64}), bm64({TYPE_SAME_AS_1}));
-        case (INTEL64_VPCMPGTB):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x64, 0,     bm64({TYPE_MASK_FOR_1}),            bm64({TYPE_I8}),        bm64({TYPE_I8}));
-        case (INTEL64_VPCMPGTW):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x65, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I16}),       bm64({TYPE_I16}));
-        case (INTEL64_VPCMPGTD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x66, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I32}),       bm64({TYPE_I32}));
-        case (INTEL64_VPCMPGTQ):    return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x37, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I64}),       bm64({TYPE_I64}));
-        case (INTEL64_VCMPEQPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 0);
-        case (INTEL64_VCMPNEQPS):   return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 4);
-        case (INTEL64_VCMPLTPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 1);
-        case (INTEL64_VCMPLEPS):    return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 2);
-        case (INTEL64_VCMPEQPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 0);
-        case (INTEL64_VCMPNEQPD):   return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 4);
-        case (INTEL64_VCMPLTPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 1);
-        case (INTEL64_VCMPLEPD):    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 2);
-        case (INTEL64_VBLENDVPS):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4A, 0,           bm64({TYPE_FP32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
-        case (INTEL64_VBLENDVPD):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4B, 0,           bm64({TYPE_FP64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
-        case (INTEL64_VPBLENDVB):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x4C, 0,           bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_I32, TYPE_U64, TYPE_I64,}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
-        case (INTEL64_VPAND): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
-                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
-                                 isUnsignedInteger(index.args[2].elemtype))
-                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xDB, 0);
-            break;
-        case (INTEL64_VPOR): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
-                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
-                                 isUnsignedInteger(index.args[2].elemtype))
-                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEB, 0);
-            break;
-        case (INTEL64_VPXOR): if(index.args_size == 3 && index.args[0].elemtype == index.args[1].elemtype && 
-                                 elem_size(index.args[0].elemtype) == elem_size(index.args[2].elemtype) &&
-                                 isUnsignedInteger(index.args[2].elemtype))
-                                    return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0xEF, 0);
-            break;
-        case (INTEL64_VPSLLW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x71, 6, bm64({TYPE_U16, TYPE_I16}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSLLD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x72, 6, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSLLQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x73, 6, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPSLLVD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x47, 0, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
-        case (INTEL64_VPSLLVQ):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 1, 0x47, 0, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
-        case (INTEL64_VPSRAW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x71, 4,           bm64({TYPE_I16}),       bm64({TYPE_I16}), bm64({TYPE_U16}));
-        case (INTEL64_VPSRAD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x72, 4,           bm64({TYPE_I32}),       bm64({TYPE_I32}), bm64({TYPE_U32}));
-        case (INTEL64_VPSRAVD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x46, 0,           bm64({TYPE_I32}),       bm64({TYPE_I32}), bm64({TYPE_U32}));
-        case (INTEL64_VPSRLW):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x71, 2, bm64({TYPE_U16, TYPE_I16}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U16}));
-        case (INTEL64_VPSRLD):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x72, 2, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
-        case (INTEL64_VPSRLQ):      return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x73, 2, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
-        case (INTEL64_VPSRLVD):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x45, 0, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
-        case (INTEL64_VPSRLVQ):     return VEX_instuction_V(index, scs, 0x66, 0x0F38, 1, 0x45, 0, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
-        case (INTEL64_VROUNDPS):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x08, 0,          bm64({TYPE_FP32}));
-        case (INTEL64_VROUNDPD):    return VEX_instuction_V(index, scs, 0x66, 0x0F3A, 0, 0x09, 0,          bm64({TYPE_FP64}));
-        case (INTEL64_VCVTPS2DQ):   return VEX_instuction_V(index, scs, 0x66,   0x0F, 0, 0x5B, 0,           bm64({TYPE_I32}),      bm64({TYPE_FP32}));
-        case (INTEL64_VCVTPD2DQ):   return VEX_instuction_V(index, scs, 0xF2,   0x0F, 0, 0xE6, 0,           bm64({TYPE_I32}),      bm64({TYPE_FP64})); //DUBUG: have to fix printer from "vcvtpd2dq ymm0, ymm0" to "vcvtpd2dq xmm0, ymm0"
-        case (INTEL64_VCVTDQ2PS):   return VEX_instuction_V(index, scs,    0,   0x0F, 0, 0x5B, 0,          bm64({TYPE_FP32}),       bm64({TYPE_I32})); 
-        case (INTEL64_VPMOVSXDQ):   return VEX_instuction_V(index, scs, 0x66, 0x0F38, 0, 0x25, 0,           bm64({TYPE_I64}),       bm64({TYPE_I32})); //DUBUG: have to fix printer from "vpmovsxdq ymm0, ymm0" to "vpmovsxdq ymm0, xmm0"
-
+        case (INTEL64_VMOVD):       return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x6E, 0,          bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_FP32, TYPE_FP16})); //DUBUG: have to fix printer from "vmovd ymm0, eax" to "vmovd xmm0, eax"
+        case (INTEL64_VMOVQ):       return VEX_instuction(index, scs, 0x66,   0x0F, 1, 0, 0x6E, 0,          bm64({TYPE_U64, TYPE_I64, TYPE_FP64})); //DUBUG: have to fix printer from "vmovq ymm0, rax" to "vmovq xmm0, rax"  
+        case (INTEL64_VPADDB):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xFC, 0,   bm64({TYPE_U8, TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPADDW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xFD, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPADDD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xFE, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPADDQ):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xD4, 0, bm64({TYPE_U64, TYPE_I64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VADDPS):      return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x58, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VADDPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x58, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSUBB):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF8, 0,   bm64({TYPE_U8, TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSUBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF9, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSUBD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xFA, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSUBQ):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xFB, 0, bm64({TYPE_U64, TYPE_I64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VSUBPS):      return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5C, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VSUBPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x5C, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMULLW):     return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xD5, 0, bm64({TYPE_U16, TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMULLD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x40, 0, bm64({TYPE_U32, TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMULPS):      return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x59, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMULPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x59, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VFMADD231PS): return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0xB8, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VFMADD231PD): return VEX_instuction(index, scs, 0x66, 0x0F38, 1, 1, 0xB8, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINUB):     return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xDA, 0,            bm64({TYPE_U8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINSB):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x38, 0,            bm64({TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINUW):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3A, 0,           bm64({TYPE_U16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINSW):     return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xEA, 0,           bm64({TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINUD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3B, 0,           bm64({TYPE_U32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMINSD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x39, 0,           bm64({TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMINPS):      return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5D, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMINPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x5D, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXUB):     return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xDE, 0,            bm64({TYPE_U8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXSB):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3C, 0,            bm64({TYPE_I8}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXUW):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3E, 0,           bm64({TYPE_U16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXSW):     return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xEE, 0,           bm64({TYPE_I16}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXUD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3F, 0,           bm64({TYPE_U32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPMAXSD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x3D, 0,           bm64({TYPE_I32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMAXPS):      return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5F, 0,          bm64({TYPE_FP32}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VMAXPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x5F, 0,          bm64({TYPE_FP64}),     bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPCMPEQB):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x74, 0,     bm64({TYPE_MASK_FOR_1}),   bm64({TYPE_I8, TYPE_U8}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQW):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x75, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I16, TYPE_U16}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQD):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x76, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I32, TYPE_U32}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPEQQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x29, 0,     bm64({TYPE_MASK_FOR_1}), bm64({TYPE_I64, TYPE_U64}), bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPCMPGTB):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x64, 0,     bm64({TYPE_MASK_FOR_1}),            bm64({TYPE_I8}),        bm64({TYPE_I8}));
+        case (INTEL64_VPCMPGTW):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x65, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I16}),       bm64({TYPE_I16}));
+        case (INTEL64_VPCMPGTD):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x66, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I32}),       bm64({TYPE_I32}));
+        case (INTEL64_VPCMPGTQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x37, 0,     bm64({TYPE_MASK_FOR_1}),           bm64({TYPE_I64}),       bm64({TYPE_I64}));
+        case (INTEL64_VCMPEQPS):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 0);
+        case (INTEL64_VCMPNEQPS):   return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 4);
+        case (INTEL64_VCMPLTPS):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 1);
+        case (INTEL64_VCMPLEPS):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP32}),      bm64({TYPE_FP32}), 0, true, 2);
+        case (INTEL64_VCMPEQPD):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 0);
+        case (INTEL64_VCMPNEQPD):   return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 4);
+        case (INTEL64_VCMPLTPD):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 1);
+        case (INTEL64_VCMPLEPD):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xC2, 0,     bm64({TYPE_MASK_FOR_1}),          bm64({TYPE_FP64}),      bm64({TYPE_FP64}), 0, true, 2);
+        case (INTEL64_VBLENDVPS):   return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x4A, 0,           bm64({TYPE_FP32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VBLENDVPD):   return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x4B, 0,           bm64({TYPE_FP64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPBLENDVB):   return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x4C, 0,               bm64_all_ints, bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPAND):       return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xDB, 0,                    bm64_all, bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPOR):        return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xEB, 0,                    bm64_all, bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPXOR):       return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xEF, 0,                    bm64_all, bm64({TYPE_SAME_AS_0}), bm64({TYPE_MASK_FOR_0}));
+        case (INTEL64_VPSLLW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x71, 6, bm64({TYPE_U16, TYPE_I16}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSLLD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x72, 6, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSLLQ):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x73, 6, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPSLLVD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x47, 0, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
+        case (INTEL64_VPSLLVQ):     return VEX_instuction(index, scs, 0x66, 0x0F38, 1, 1, 0x47, 0, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
+        case (INTEL64_VPSRAW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x71, 4,           bm64({TYPE_I16}),       bm64({TYPE_I16}), bm64({TYPE_U16}));
+        case (INTEL64_VPSRAD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x72, 4,           bm64({TYPE_I32}),       bm64({TYPE_I32}), bm64({TYPE_U32}));
+        case (INTEL64_VPSRAVD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x46, 0,           bm64({TYPE_I32}),       bm64({TYPE_I32}), bm64({TYPE_U32}));
+        case (INTEL64_VPSRLW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x71, 2, bm64({TYPE_U16, TYPE_I16}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U16}));
+        case (INTEL64_VPSRLD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x72, 2, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
+        case (INTEL64_VPSRLQ):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x73, 2, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
+        case (INTEL64_VPSRLVD):     return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x45, 0, bm64({TYPE_U32, TYPE_I32}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U32}));
+        case (INTEL64_VPSRLVQ):     return VEX_instuction(index, scs, 0x66, 0x0F38, 1, 1, 0x45, 0, bm64({TYPE_U64, TYPE_I64}), bm64({TYPE_SAME_AS_0}), bm64({TYPE_U64}));
+        case (INTEL64_VROUNDPS):    return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x08, 0,          bm64({TYPE_FP32}));
+        case (INTEL64_VROUNDPD):    return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x09, 0,          bm64({TYPE_FP64}));
+        case (INTEL64_VCVTPS2DQ):   return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x5B, 0,           bm64({TYPE_I32}),      bm64({TYPE_FP32}));
+        case (INTEL64_VCVTPD2DQ):   return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 1, 0xE6, 0,           bm64({TYPE_I32}),      bm64({TYPE_FP64})); //DUBUG: have to fix printer from "vcvtpd2dq ymm0, ymm0" to "vcvtpd2dq xmm0, ymm0"
+        case (INTEL64_VCVTDQ2PS):   return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5B, 0,          bm64({TYPE_FP32}),       bm64({TYPE_I32})); 
+        case (INTEL64_VPMOVSXDQ):   return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x25, 0,           bm64({TYPE_I64}),       bm64({TYPE_I32})); //DUBUG: have to fix printer from "vpmovsxdq ymm0, ymm0" to "vpmovsxdq ymm0, xmm0"
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -1625,7 +1682,10 @@ namespace loops
             else if (index.args_size == 3)
                 return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
             break;
-
+        case (VOP_SETLANE):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && index.args[1].value == 0)
+                return SyT(elem_size(index.args[0].elemtype) <= 4 ? INTEL64_VMOVD : INTEL64_VMOVQ, { SAcop(0), SAcop(2) });
+            break;
         case (VOP_ADD):
             if (index.args_size == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
                 index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype)
@@ -1895,7 +1955,6 @@ namespace loops
 // Something about loads and stores(you obviously need some instructions for expanding preloaded constants, probably, that's it!):
 // def vmovups(d, s):
 // def vmovupd(d, s):
-// def vmovq(d, s):
 //DUBUG: Check rest instructions from Arm's list.
 
         case (OP_UNSPILL): if(index.args_size == 2)

@@ -162,6 +162,7 @@ TEST(intel64, instruction_set_test)
         DEFINE_ASSEMBLY_REG(r8d , 8);
         DEFINE_ASSEMBLY_REG(r12d, 12);
         DEFINE_ASSEMBLY_REG(r13d, 13);
+        DEFINE_ASSEMBLY_REG(r15d, 15);
 
         DEFINE_ASSEMBLY_REG(ax  , 0 );
         DEFINE_ASSEMBLY_REG(sp  , 4 );
@@ -971,7 +972,7 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CALL_NORET, { r15 });
         newiopNoret(OP_CALL_NORET, { spilled32 });
 
-        newiopNoret(OP_MOV, {  ymm0_8s, ymm0_8s });   //DUBUG: check this block for sp/12|bp/13!
+        newiopNoret(OP_MOV, {  ymm0_8s, ymm0_8s });
         newiopNoret(OP_MOV, {  ymm7_8s, ymm0_8s });
         newiopNoret(OP_MOV, {  ymm0_8s, ymm7_8s });
         newiopNoret(OP_MOV, {  ymm8_8s, ymm0_8s });
@@ -2397,6 +2398,25 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm7_4f,  ymm0_4f,  ymm8_4u});
         newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm7_4f,  ymm8_4u});
         newiopNoret(VOP_SELECT, {  ymm0_4f,  ymm0_4f,  ymm0_4f, ymm15_4u});
+
+        newiopNoret(VOP_SETLANE, {  ymm0_8f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm7_8f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm0_8f,  argIImm(0),  edi});
+        newiopNoret(VOP_SETLANE, {  ymm8_8f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, { ymm15_8f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm8_8f,  argIImm(0),  edi});
+        newiopNoret(VOP_SETLANE, {  ymm0_8f,  argIImm(0),  r8d});
+        newiopNoret(VOP_SETLANE, {  ymm7_8f,  argIImm(0),  r8d});
+        newiopNoret(VOP_SETLANE, {  ymm0_8f,  argIImm(0), r15d});
+        newiopNoret(VOP_SETLANE, {  ymm0_4f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm7_4f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm0_4f,  argIImm(0),  edi});
+        newiopNoret(VOP_SETLANE, {  ymm8_4f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, { ymm15_4f,  argIImm(0),  eax});
+        newiopNoret(VOP_SETLANE, {  ymm8_4f,  argIImm(0),  edi});
+        newiopNoret(VOP_SETLANE, {  ymm0_4f,  argIImm(0),  r8d});
+        newiopNoret(VOP_SETLANE, {  ymm7_4f,  argIImm(0),  r8d});
+        newiopNoret(VOP_SETLANE, {  ymm0_4f,  argIImm(0), r15d});
 
         // for(int half0 = 0; half0 < 2; half0++)   //DUBUG: good checking code piece.
         // for(int half1 = 0; half1 < 2; half1++) 
