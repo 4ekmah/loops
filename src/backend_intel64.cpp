@@ -58,6 +58,8 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS        , "sets"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS       , "setns"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU     , "vmovdqu"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVUPS     , "vmovups"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVUPD     , "vmovupd"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVD       , "vmovd"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVQ       , "vmovq"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPBROADCASTB, "vpbroadcastb"),
@@ -1457,6 +1459,18 @@ namespace loops
             else if (index.args_size == 2 || index.args_size == 3)
                 return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F, 0);
             break;
+        case (INTEL64_VMOVUPS):
+            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG)
+                return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x10, 0, bm64(TYPE_FP32), bm64(TYPE_FP32));
+            else if (index.args_size == 2 || index.args_size == 3)
+                return VEX_instuction(index, scs,    0,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x10 : 0x11, 0, bm64(TYPE_FP32));
+            break;
+        case (INTEL64_VMOVUPD):
+            if (index.args_size == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG)
+                return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x10, 0, bm64(TYPE_FP64), bm64(TYPE_FP64));
+            else if (index.args_size == 2 || index.args_size == 3)
+                return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x10 : 0x11, 0, bm64(TYPE_FP64));
+            break;
         case (INTEL64_VMOVD):        return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x6E, 0,          bm64({TYPE_U8, TYPE_I8, TYPE_U16, TYPE_I16, TYPE_U32, TYPE_I32, TYPE_FP32, TYPE_FP16})); //DUBUG: have to fix printer from "vmovd ymm0, eax" to "vmovd xmm0, eax"
         case (INTEL64_VMOVQ):        return VEX_instuction(index, scs, 0x66,   0x0F, 1, 0, 0x6E, 0,          bm64({TYPE_U64, TYPE_I64, TYPE_FP64})); //DUBUG: have to fix printer from "vmovq ymm0, rax" to "vmovq xmm0, rax"  
         case (INTEL64_VPBROADCASTB): return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x78, 0,              bm64({TYPE_U8, TYPE_I8}), bm64({TYPE_SAME_AS_0})); //DUBUG: have to fix printer from "vbroadcastb ymm0, ymm0" to "vbroadcastb ymm0, xmm0"
@@ -1626,7 +1640,11 @@ namespace loops
                 if(index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[1].value == 0) 
                     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(0) });
                 else if(index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype)
-                    return SyT(INTEL64_VMOVDQU,  { SAcop(0), SAcop(1) }); //DUBUG: check if this is correct approach for vector mov!
+                {
+                    int opcode = index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
+                                 index[0].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                    return SyT(opcode,  { SAcop(0), SAcop(1) });
+                }
                 else
                     return SyT(INTEL64_MOV,  { SAcop(0), SAcop(1) });
             }
@@ -1679,16 +1697,26 @@ namespace loops
             }
             break;
         case (VOP_LOAD):
-            if (index.args_size == 2)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS) });
-            else if (index.args_size == 3)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+            if (index.args_size >= 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG)
+            {
+                int opcode = index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
+                             index[0].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                if (index.args_size == 2)
+                    return SyT(opcode, { SAcop(0), SAcop(1, AF_ADDRESS) });
+                else if (index.args_size == 3 && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))
+                    return SyT(opcode, { SAcop(0), SAcop(1, AF_ADDRESS), SAcop(2, AF_ADDRESS) });
+            }
             break;
         case (VOP_STORE):
-            if (index.args_size == 2)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1) });
-            else if (index.args_size == 3)
-                return SyT(INTEL64_VMOVDQU, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
+            if (index.args_size >= 2 && index.args[index.args_size-1].tag == Arg::VREG && index.args[0].tag == Arg::IREG)
+            {
+                int opcode = index[index.args_size-1].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
+                             index[index.args_size-1].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                if (index.args_size == 2)
+                    return SyT(opcode, { SAcop(0, AF_ADDRESS), SAcop(1) });
+                else if (index.args_size == 3 && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE))
+                    return SyT(opcode, { SAcop(0, AF_ADDRESS), SAcop(1, AF_ADDRESS), SAcop(2) });
+            }
             break;
         case (VOP_SETLANE):
             if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && index.args[1].value == 0)
@@ -1964,25 +1992,34 @@ namespace loops
 //DUBUG: Implement V's list:
 //VOP_DIV: vdivps, vdivpd (floats only??)
 //VOP_CAST: vcvttps2dq and check all abilities!
-// Something about loads and stores(you obviously need some instructions for expanding preloaded constants, probably, that's it!):
-// def vmovups(d, s):
-// def vmovupd(d, s):
 //DUBUG: Check rest instructions from Arm's list.
 
-        case (OP_UNSPILL): if(index.args_size == 2)
+        case (OP_UNSPILL):
+            if(index.args_size == 2)
             {
                 if(index[0].tag == Arg::IREG) 
                     return SyT(INTEL64_MOV, { SAcopelt(0, TYPE_I64), SAcopspl(1) });
-                else if(index[0].tag == Arg::VREG) 
-                    return SyT(INTEL64_VMOVDQU, { SAcopelt(0, TYPE_I64), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
+                else if(index[0].tag == Arg::VREG)
+                {
+                    if(index[0].elemtype == TYPE_FP32 || index[0].elemtype == TYPE_FP64)
+                        return SyT(index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS : loops::INTEL64_VMOVUPD, { SAcop(0), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
+                    else
+                        return SyT(INTEL64_VMOVDQU, { SAcopelt(0, TYPE_I64), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
+                }
             }
             break;
-        case (OP_SPILL): if(index.args_size == 2)
+        case (OP_SPILL):
+            if(index.args_size == 2)
             {
                 if(index[1].tag == Arg::IREG)
                     return SyT(INTEL64_MOV, { SAcopspl(0), SAcopelt(1, TYPE_I64) });
                 else if(index[1].tag == Arg::VREG)
-                    return SyT(INTEL64_VMOVDQU, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcopelt(1, TYPE_I64) });
+                {
+                    if(index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_FP64)
+                        return SyT(index[1].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS : loops::INTEL64_VMOVUPD, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcop(1) });
+                    else
+                        return SyT(INTEL64_VMOVDQU, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcopelt(1, TYPE_I64) });
+                }
             }
             break;
         case (OP_JCC):
