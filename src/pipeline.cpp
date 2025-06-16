@@ -69,6 +69,16 @@ namespace loops
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());
                 }
+                if (op.opcode == VOP_GETLANE) //DUBUG: too much, we have to mark some arguments like non-implantable!!!
+                {
+                    Assert(arnums[0] == 2);
+                    arnums.erase(arnums.begin());
+                }
+                if (op.opcode == VOP_SETLANE) //DUBUG: too much, we have to mark some arguments like non-implantable!!!
+                {
+                    Assert(arnums[0] == 1);
+                    arnums.erase(arnums.begin());
+                }
                 std::set<RegIdx> usedRegs;
                 for (const Arg &ar : op_probe)
                     if (ar.tag == Arg::IREG)
