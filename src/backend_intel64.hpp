@@ -53,7 +53,7 @@ namespace loops
         INTEL64_SETGE        =  33,
         INTEL64_SETS         =  34,
         INTEL64_SETNS        =  35,
-        INTEL64_VMOVDQU      =  36, // DUBUG: VMOVDQA is also needed, at least for stack!
+        INTEL64_VMOVDQU      =  36, // TODO(ch): Would be nice to have VMOVDQA for stack.
         INTEL64_VMOVUPS      =  37,
         INTEL64_VMOVUPD      =  38,
         INTEL64_VEXTRACTI128 =  39,

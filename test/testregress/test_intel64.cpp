@@ -966,7 +966,7 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF), r15 });
         newiopNoret(OP_CMP, { spilled0x1FFF, argIImm(0x8888) });
 
-        newiopNoret(OP_CALL_NORET, { rax });
+        newiopNoret(OP_CALL_NORET, { rax });    //DUBUG: Move these guys to the end!
         newiopNoret(OP_CALL_NORET, { rdi });
         newiopNoret(OP_CALL_NORET, {  r8 });
         newiopNoret(OP_CALL_NORET, { r15 });
