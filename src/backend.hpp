@@ -187,6 +187,7 @@ protected:
 
 BinTranslation Backend::lookS2b(const Syntop& index) const
 {
+    //TODO(ch): Unfortunately, Intel64 printer calls lookS2b, so, because of recursion we cannot print instruction here. Fix it.
     bool NOTSUPPORTED;
     BinTranslation ret = m_s2blookup(index, NOTSUPPORTED);
     Assert(NOTSUPPORTED);
@@ -194,9 +195,10 @@ BinTranslation Backend::lookS2b(const Syntop& index) const
 }
 SyntopTranslation Backend::lookS2s(const Syntop& index) const
 {
-    bool NOTSUPPORTED;
-    SyntopTranslation ret = m_s2slookup(this, index, NOTSUPPORTED);
-    Assert(NOTSUPPORTED);
+    bool success;
+    SyntopTranslation ret = m_s2slookup(this, index, success);
+    if(!success) 
+        throw std::runtime_error(std::string("Unsupported intermediate representation instruction: ") + IR_instruction2string(index));
     return ret;
 }
 

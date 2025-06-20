@@ -73,4 +73,7 @@ int fprint_syntfunc(program_printer* printer, FILE* out, syntfunc2print* func);
 * Allocate with malloc enough data for out string. Allocated out have to be free by user.
 */
 int sprint_syntfunc(program_printer* printer, char** out, syntfunc2print* func);
+
+std::string IR_instruction2string(const loops::Syntop& op);
+std::string assembly_instruction2string(const loops::Syntop& op, const loops::Backend& backend);
 #endif//__LOOPS_PRINTER_HPP__

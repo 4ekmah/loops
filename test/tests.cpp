@@ -23,12 +23,12 @@ using namespace loops;
 //There is two flags managing process of updating listing and archives:
 //
 //RECREATE_REFERENCE_TEXTS enable listing files rewriting for files differs
-//with listings have been taken on test run(exception if files with tolerable defects: 
+//with listings have been taken on test run(exception is files with tolerable defects: 
 //see lower). Also this flag swithched on delete old <arch>_<os>.zip archive and 
 //recreates it with updated listings.
 //NOTE: all the listing files in test/refasm/listings will be zipped, not just used
 //in tests, so be careful with test disabling - it's possible to rewrite something you 
-//don't to rewrite.
+//don't want to rewrite.
 //
 //RECREATE_TOLERABLE_DEFECT. There is a tests with unstable corresponding listings. 
 //For now the only case is function calling from loops-generated code. Loops call

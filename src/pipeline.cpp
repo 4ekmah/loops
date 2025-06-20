@@ -43,6 +43,8 @@ namespace loops
             case (OP_JMP):
             case (OP_JCC):
             case (OP_LABEL):
+            case (VOP_GETLANE):
+            case (VOP_SETLANE):
                 a_dest.program.push_back(op);
                 break;
             case (VOP_FMA):

@@ -205,15 +205,10 @@ TEST(calls, sort_double)
             }
             IF_(minpos != curpos)
             {
-                //TODO(ch): There is some bug on intel here, causing segfault. Uncomment next four lines and fix it:
-                // IReg cur_ = load_<double>(ptr, curpos); 
-                // IReg min_ = load_<double>(ptr, minpos);
-                // store_<double>(ptr, minpos, cur_);
-                // store_<double>(ptr, curpos, min_);
-                IReg cur_ = load_<double>(ptr + curpos); 
-                IReg min_ = load_<double>(ptr + minpos);
-                store_<double>(ptr + minpos, cur_);
-                store_<double>(ptr + curpos, min_);
+                IReg cur_ = load_<double>(ptr, curpos); 
+                IReg min_ = load_<double>(ptr, minpos);
+                store_<double>(ptr, minpos, cur_);
+                store_<double>(ptr, curpos, min_);
             }
             curpos += sizeof(double);
         }

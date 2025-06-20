@@ -864,6 +864,73 @@ TEST(basic, has_in_join_cascade)
     test_has_in_join_cascade(func);
 }
 
+#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
+
+Func make_nullify_msb_lsb_v(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg iptr, omptr, olptr, n;
+    STARTFUNC_(fname, &iptr, &omptr, &olptr, &n)
+    {
+        IReg offset  = CONST_(0);
+        n *= sizeof(uint32_t);
+        VReg<uint32_t> one  = VCONST_(uint32_t, 1);
+        WHILE_(offset < n)
+        {
+            VReg<uint32_t> in = loadvec<uint32_t>(iptr, offset);
+            VReg<uint32_t> msb = in | ushift_right(in,1);
+            msb |= ushift_right(msb,  2);
+            msb |= ushift_right(msb,  4);
+            msb |= ushift_right(msb,  8);
+            msb |= ushift_right(msb, 16);
+            msb += one;  //It's assumed, that 0x80000000 bit is switched off.
+            msb = ushift_right(msb, 1);
+            msb ^= in;
+            storevec(omptr, offset, msb);
+            VReg<uint32_t> lsb = in & ~(in - one);
+            lsb ^= in;
+            storevec(olptr, offset, lsb);
+            offset += ctx.vbytes();
+        }
+        RETURN_();
+    }
+    return ctx.getFunc(fname);
+}
+void test_nullify_msb_lsb_v(Func func)
+{
+    typedef int64_t (*nullify_msb_lsb_v_f)(const uint32_t* src, uint32_t* msbdest, uint32_t* lsbdest, int64_t n);
+    nullify_msb_lsb_v_f tested = reinterpret_cast<nullify_msb_lsb_v_f>(func.ptr());
+    std::vector<uint32_t> v =   { 0x60000000, 2, 0xf0, 7, 0x0fffffff, 0b101010101, 1234, 4321};
+    std::vector<uint32_t> lsb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    std::vector<uint32_t> msb = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    tested(&v[0], &msb[0], &lsb[0], v.size());
+    for (size_t vnum = 0; vnum < v.size(); vnum++ )
+    {
+        uint32_t tchk = v[vnum];
+        uint32_t relsb = tchk ^ (tchk & ~(tchk - 1));
+        uint32_t remsb = tchk | tchk >> 1;
+        remsb |= remsb >> 2;
+        remsb |= remsb >> 4;
+        remsb |= remsb >> 8;
+        remsb |= remsb >> 16;
+        remsb = (remsb + 1) >> 1;
+        remsb ^= tchk;
+        ASSERT_EQ(msb[vnum], remsb);
+        ASSERT_EQ(lsb[vnum], relsb);
+    }
+}
+
+TEST(basic, nullify_msb_lsb_v)
+{
+    Context ctx;
+    loops::Func func = make_nullify_msb_lsb_v(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_nullify_msb_lsb_v(func);
+}
+#endif // __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
+
 TEST(basic, compile_all)
 {
     Context ctx;
@@ -878,6 +945,9 @@ TEST(basic, compile_all)
     loops::Func bresenham_func = make_bresenham(ctx, "bresenham");
     loops::Func conditionpainter_func = make_conditionpainter(ctx, "conditionpainter");
     loops::Func has_in_join_cascade_func = make_has_in_join_cascade(ctx, "has_in_join_cascade");
+#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
+    loops::Func nullify_msb_lsb_v_func = make_nullify_msb_lsb_v(ctx, "nullify_msb_lsb_v");
+#endif
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
@@ -890,4 +960,7 @@ TEST(basic, compile_all)
     test_bresenham(bresenham_func);
     test_conditionpainter(conditionpainter_func);
     test_has_in_join_cascade(has_in_join_cascade_func);
+#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
+    test_nullify_msb_lsb_v(nullify_msb_lsb_v_func);
+#endif
 }
