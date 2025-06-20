@@ -1842,7 +1842,7 @@ namespace loops
                              elemsize == 4 ? loops::INTEL64_VPINSRD :
                              elemsize == 8 ? loops::INTEL64_VPINSRQ : -1;
                 if(opcode!=-1 && index.args[1].value < backend->vlanes(index.args[0].elemtype)/2)
-                    return SyT(opcode, { SAcop(0), SAcop(0), elemsize == 4 ? SAcopelt(2, TYPE_I32) : SAcop(2) , SAcop(1) });  
+                    return SyT(opcode, { SAcop(0), SAcop(0), elemsize == 8 ? SAcop(2) : SAcopelt(2, TYPE_I32), SAcop(1) });
             }
             break;
         case (VOP_BROADCAST):
@@ -2736,7 +2736,7 @@ namespace loops
             bool address = (argflags & AF_ADDRESS);
             bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
             bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
-            static const char* address_opener_brackets[5] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr [", "["};
+            static const char* address_opener_brackets[5] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr [", "ymmword ptr ["};//DUBUG add vecptr adress option!!!
             if (address_start)
             {
                 int opener_idx = (argflags & AF_ADDRESS) == AF_ADDRESS8  ? 0 : 
@@ -3427,6 +3427,7 @@ namespace loops
                         if(*iter == addrkeeper.idx)
                             addrkeeper_spilled = i;
                     }
+                    iter = allSavedV.begin();
                     for(int i = 0; i < (int)allSavedV.size(); i++, iter++)
                         a_dest.program.push_back(Syntop(OP_SPILL, { argIImm((offsetV + i) * 4), argReg(RB_VEC,  *iter)}));
                 }
@@ -3475,6 +3476,7 @@ namespace loops
                     for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                         if(op.opcode == OP_CALL_NORET || *iter != retidx)
                             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
+                    iter = allSavedV.begin();
                     for(int i = 0; i < (int)allSavedV.size(); i++, iter++)
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_VEC,  *iter), argIImm((offsetV + i) * 4)}));
                 }
