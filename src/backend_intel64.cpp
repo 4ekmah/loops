@@ -1505,9 +1505,9 @@ namespace loops
             }
             else if (index.args_size == 2 || index.args_size == 3)
             {
-                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AF_ADDRESS));
-                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AF_ADDRESS);
-                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AF_ADDRESS);
+                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AddrVec));
+                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AddrVec);
+                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AddrVec);
                 return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x6F : 0x7F, 0, flags0, flags1, flags2);
             }
             break;
@@ -1518,9 +1518,9 @@ namespace loops
             }
             else if (index.args_size == 2 || index.args_size == 3)
             {
-                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AF_ADDRESS));
-                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AF_ADDRESS);
-                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AF_ADDRESS);
+                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AddrVec));
+                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AddrVec);
+                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AddrVec);
                 return VEX_instuction(index, scs,    0,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x10 : 0x11, 0, flags0, flags1, flags2, 0, bm64(TYPE_FP32));
             }
             break;
@@ -1531,9 +1531,9 @@ namespace loops
             }
             else if (index.args_size == 2 || index.args_size == 3)
             {
-                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AF_ADDRESS));
-                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AF_ADDRESS);
-                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AF_ADDRESS);
+                int flags0 = (index.args[0].tag == Arg::VREG ? Out : (In | AddrVec));
+                int flags1 = (index.args[1].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[1].tag == Arg::VREG ? 0 : AddrVec);
+                int flags2 = (index.args[2].tag != Arg::IIMMEDIATE ? In : 0) | (index.args[2].tag == Arg::VREG ? 0 : AddrVec);
                 return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, index.args[0].tag == Arg::VREG ? 0x10 : 0x11, 0, flags0, flags1, flags2, 0, bm64(TYPE_FP64));
             }
             break;
@@ -2736,13 +2736,14 @@ namespace loops
             bool address = (argflags & AF_ADDRESS);
             bool address_start = address && (anum == 0 || !(operand_flags[anum - 1] & AF_ADDRESS));
             bool address_end = address && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_ADDRESS));
-            static const char* address_opener_brackets[5] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr [", "ymmword ptr ["};//DUBUG add vecptr adress option!!!
+            static const char* address_opener_brackets[5] = {"byte ptr [", "word ptr [", "dword ptr [", "qword ptr [", "ymmword ptr ["};
             if (address_start)
             {
-                int opener_idx = (argflags & AF_ADDRESS) == AF_ADDRESS8  ? 0 : 
-                                 (argflags & AF_ADDRESS) == AF_ADDRESS16 ? 1 : 
-                                 (argflags & AF_ADDRESS) == AF_ADDRESS32 ? 2 : 
-                                 (argflags & AF_ADDRESS) == AF_ADDRESS64 ? 3 : 4;
+                int opener_idx = (argflags & AF_ADDRESS) == AF_ADDRESS8   ? 0 : 
+                                 (argflags & AF_ADDRESS) == AF_ADDRESS16  ? 1 : 
+                                 (argflags & AF_ADDRESS) == AF_ADDRESS32  ? 2 : 
+                                 (argflags & AF_ADDRESS) == AF_ADDRESS64  ? 3 :
+                               /*(argflags & AF_ADDRESS) == AF_ADDRESSVEC ?*/ 4 /*: */;
                 LOOPS_CALL_THROW(loops_printf(printer, "%s", address_opener_brackets[opener_idx]));
             }
             switch (arg.tag)
