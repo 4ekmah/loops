@@ -2240,7 +2240,6 @@ namespace loops
 #error Unknown OS
 #endif
 
-    m_returnRegisters[RB_VEC] = { YMM0 };
 #if __LOOPS_OS == __LOOPS_WINDOWS
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3 };
     m_returnRegisters[RB_VEC] = { YMM0 };
@@ -2415,6 +2414,16 @@ namespace loops
                 if(a_op.args_size == 4)
                     return 1;
                 break;                
+            case (OP_CALL):
+            case (OP_CALL_NORET):
+#if __LOOPS_OS == __LOOPS_WINDOWS
+                return 16; //15+1 for alignment
+#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
+                return 17; //16+1 for alignment
+#else
+    #error Unknown OS.
+#endif        
+                break;
             default:
                 break;
             }
@@ -3382,23 +3391,24 @@ namespace loops
             }
             case OP_CALL:
             case OP_CALL_NORET:
-            {//DUBUG: We need saving vector register efforts.
-
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                std::vector<int> parameterRegisters = { RCX, RDX, R8, R9 };
-                std::vector<int> returnRegisters = { RAX };
-                std::vector<int> callerSavedRegisters = { R10, R11 };
-#elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
-                std::vector<int> parameterRegisters = { RDI, RSI, RDX, RCX, R8, R9 };
-                std::vector<int> returnRegisters = { RAX, RDX };
-                std::vector<int> callerSavedRegisters = { R10, R11 };
-#else
-#error Unknown OS
-#endif
+            {
+                std::vector<int> parameterRegisters = this->m_backend->parameterRegisters(RB_INT);
+                std::vector<int> returnRegisters = this->m_backend->returnRegisters(RB_INT);
+                std::vector<int> callerSavedRegisters = this->m_backend->callerSavedRegisters(RB_INT);
                 std::set<int> allSaved;
                 allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
                 allSaved.insert(returnRegisters.begin(), returnRegisters.end());
                 allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
+
+                int64_t offsetV = (allSaved.size() + 3)/4;
+                std::vector<int> parameterRegistersV = this->m_backend->parameterRegisters(RB_VEC);
+                std::vector<int> returnRegistersV = this->m_backend->returnRegisters(RB_VEC);
+                std::vector<int> callerSavedRegistersV = this->m_backend->callerSavedRegisters(RB_VEC);
+                std::set<int> allSavedV;
+                allSavedV.insert(parameterRegistersV.begin(), parameterRegistersV.end());
+                allSavedV.insert(returnRegistersV.begin(), returnRegistersV.end());
+                allSavedV.insert(callerSavedRegistersV.begin(), callerSavedRegistersV.end());
+
                 Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -3408,7 +3418,7 @@ namespace loops
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
                 size_t addrkeeper_spilled = size_t(-1);
-                //1.) Save scalar registers
+                //1.) Save registers
                 {
                     auto iter = allSaved.begin();
                     for(int i = 0; i < (int)allSaved.size(); i++, iter++)
@@ -3417,6 +3427,8 @@ namespace loops
                         if(*iter == addrkeeper.idx)
                             addrkeeper_spilled = i;
                     }
+                    for(int i = 0; i < (int)allSavedV.size(); i++, iter++)
+                        a_dest.program.push_back(Syntop(OP_SPILL, { argIImm((offsetV + i) * 4), argReg(RB_VEC,  *iter)}));
                 }
                 //2.) Prepare arguments accordingly to ABI. Call address must not be broken
                 //TODO(ch) : make this algo optimized with help of permutation analysis.
@@ -3457,14 +3469,16 @@ namespace loops
                 //4.) Move result to output register
                 if(op.opcode == OP_CALL && retidx != returnRegisters[0])
                     a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, returnRegisters[0])}));
-                //5.) Restore scalar registers
+                //5.) Restore registers
                 {
                     auto iter = allSaved.begin();
                     for(int i = 0; i < (int)allSaved.size(); i++, iter++)
                         if(op.opcode == OP_CALL_NORET || *iter != retidx)
                             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  *iter), argIImm(i)}));
-
+                    for(int i = 0; i < (int)allSavedV.size(); i++, iter++)
+                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_VEC,  *iter), argIImm((offsetV + i) * 4)}));
                 }
+
                 break;
             }
             default:

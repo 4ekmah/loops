@@ -43,6 +43,8 @@ namespace loops
             case (OP_JMP):
             case (OP_JCC):
             case (OP_LABEL):
+            case (VOP_GETLANE):
+            case (VOP_SETLANE):
                 a_dest.program.push_back(op);
                 break;
             case (VOP_FMA):
@@ -65,16 +67,6 @@ namespace loops
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
                 if (op.opcode == OP_SELECT || op.opcode == OP_IVERSON) //TODO(ch): create universal mechanism(probably based on encoding attempt?) //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
-                {
-                    Assert(arnums[0] == 1);
-                    arnums.erase(arnums.begin());
-                }
-                if (op.opcode == VOP_GETLANE) //DUBUG: too much, we have to mark some arguments like non-implantable!!!
-                {
-                    Assert(arnums[0] == 2);
-                    arnums.erase(arnums.begin());
-                }
-                if (op.opcode == VOP_SETLANE) //DUBUG: too much, we have to mark some arguments like non-implantable!!!
                 {
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());

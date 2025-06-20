@@ -966,12 +966,6 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_CMP, { argSpilled(RB_INT, 0x1FFF), r15 });
         newiopNoret(OP_CMP, { spilled0x1FFF, argIImm(0x8888) });
 
-        newiopNoret(OP_CALL_NORET, { rax });    //DUBUG: Move these guys to the end!
-        newiopNoret(OP_CALL_NORET, { rdi });
-        newiopNoret(OP_CALL_NORET, {  r8 });
-        newiopNoret(OP_CALL_NORET, { r15 });
-        newiopNoret(OP_CALL_NORET, { spilled32 });
-
         newiopNoret(OP_MOV, {  ymm0_8s, ymm0_8s });
         newiopNoret(OP_MOV, {  ymm7_8s, ymm0_8s });
         newiopNoret(OP_MOV, {  ymm0_8s, ymm7_8s });
@@ -2966,26 +2960,12 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_SETLANE, {  ymm8_4u , argIImm(1),  r8 });
         newiopNoret(VOP_SETLANE, { ymm15_4u , argIImm(1),  r8 });
         newiopNoret(VOP_SETLANE, {  ymm8_4u , argIImm(1), r15 });
-        
-        // for(int half0 = 0; half0 < 2; half0++)   //DUBUG: good checking code piece.
-        // for(int half1 = 0; half1 < 2; half1++) 
-        // for(int half2 = 0; half2 < 2; half2++)
-        // {
-        //     int numfix[4] = {0,4,5,7};
-        //     for(int nf0 = 0; nf0 < 4; nf0++) 
-        //     for(int nf1 = 0; nf1 < 4; nf1++) 
-        //     for(int nf2 = 0; nf2 < 4; nf2++)
-        //     {
-        //         int num0 = half0 * 8 + numfix[nf0];
-        //         int num1 = half1 * 8 + numfix[nf1];
-        //         int num2 = half2 * 8 + numfix[nf2];
-        //         Expr ymm0 = VExpr<uint8_t>(vregHid<uint8_t>(num0,_f)).notype();
-        //         Expr ymm1 = VExpr<uint8_t>(vregHid<uint8_t>(num1,_f)).notype();
-        //         Expr ymm2 = VExpr<uint8_t>(vregHid<uint8_t>(num2,_f)).notype();
 
-        //         newiopNoret(VOP_MIN, {  ymm0,  ymm1,  ymm2});
-        //     }
-        // }
+        newiopNoret(OP_CALL_NORET, { rax });
+        newiopNoret(OP_CALL_NORET, { rdi });
+        newiopNoret(OP_CALL_NORET, {  r8 });
+        newiopNoret(OP_CALL_NORET, { r15 });
+        newiopNoret(OP_CALL_NORET, { spilled32 });
     }
 
     loops::Func func = ctx.getFunc(test_info_->name());
