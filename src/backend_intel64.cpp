@@ -56,6 +56,7 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VEXTRACTF128, "vextractf128"),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VINSERTI128 , "vinserti128" ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VINSERTF128 , "vinsertf128" ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPERM2I128  , "vperm2i128"  ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPEXTRB     , "vpextrb"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPEXTRW     , "vpextrw"     ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPEXTRD     , "vpextrd"     ),
@@ -146,7 +147,14 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCVTPS2DQ   , "vcvtps2dq"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCVTPD2DQ   , "vcvtpd2dq"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCVTDQ2PS   , "vcvtdq2ps"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVSXBW   , "vpmovsxbw"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVSXWD   , "vpmovsxwd"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVSXDQ   , "vpmovsxdq"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVZXBW   , "vpmovzxbw"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVZXWD   , "vpmovzxwd"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVZXDQ   , "vpmovzxdq"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VCVTPS2PD   , "vcvtps2pd"   ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPALIGNR    , "vpalignr"    ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP         , "jmp"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE         , "jne"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE          , "je"          ),
@@ -1541,6 +1549,7 @@ namespace loops
         case (INTEL64_VEXTRACTF128): return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x19, 0, Out|Xmm,     In,      0,  0,             BM64_ALL_FP, bm64({TYPE_SAME_AS_0}),                       0,                       0, VX_SWAP_MODRM_REGS);
         case (INTEL64_VINSERTI128):  return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x38, 0,     Out,     In, In|Xmm,  0,           BM64_ALL_INTS, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
         case (INTEL64_VINSERTF128):  return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x18, 0,     Out,     In, In|Xmm,  0,             BM64_ALL_FP, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
+        case (INTEL64_VPERM2I128):   return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x46, 0,     Out,     In,     In,  0,                 BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                      0);
         case (INTEL64_VPEXTRB):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x14, 0,     Out, In|Xmm,      0,  0,                       0,              BM64_ALL8,                       0,                       0, VX_SWAP_MODRM_REGS);
         case (INTEL64_VPEXTRW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0xC5, 0,     Out, In|Xmm,      0,  0,                       0,             BM64_ALL16,                       0,                       0);
         case (INTEL64_VPEXTRD):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x16, 0,     Out, In|Xmm,      0,  0,                       0,             BM64_ALL32,                       0,                       0, VX_SWAP_MODRM_REGS);
@@ -1631,7 +1640,14 @@ namespace loops
         case (INTEL64_VCVTPS2DQ):    return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x5B, 0,     Out,     In,      0,  0,        bm64({TYPE_I32}),      bm64({TYPE_FP32}),                       0,                       0);
         case (INTEL64_VCVTPD2DQ):    return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 1, 0xE6, 0, Out|Xmm,     In,      0,  0,        bm64({TYPE_I32}),      bm64({TYPE_FP64}),                       0,                       0);
         case (INTEL64_VCVTDQ2PS):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5B, 0,     Out,     In,      0,  0,       bm64({TYPE_FP32}),       bm64({TYPE_I32}),                       0,                       0);
+        case (INTEL64_VPMOVSXBW):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x20, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_I16}),        bm64({TYPE_I8}),                       0,                       0);
+        case (INTEL64_VPMOVSXWD):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x23, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_I32}),       bm64({TYPE_I16}),                       0,                       0);
         case (INTEL64_VPMOVSXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x25, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_I64}),       bm64({TYPE_I32}),                       0,                       0);
+        case (INTEL64_VPMOVZXBW):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x30, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U16}),        bm64({TYPE_U8}),                       0,                       0);
+        case (INTEL64_VPMOVZXWD):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x33, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U32}),       bm64({TYPE_U16}),                       0,                       0);
+        case (INTEL64_VPMOVZXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x35, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U32}),                       0,                       0);
+        case (INTEL64_VCVTPS2PD):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5A, 0,     Out, In|Xmm,      0,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP32}),                       0,                       0);
+        case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                 BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                      0);
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -1820,6 +1836,21 @@ namespace loops
                index.args[3].tag == Arg::VREG && index.args[0].elemtype == index.args[2].elemtype && index.args[0].elemtype == index.args[3].elemtype && 
                (index.args[0].elemtype == TYPE_FP32 || index.args[0].elemtype == TYPE_FP64) && (index.args[1].value == 0 || index.args[1].value == 1))
                 return SyT(INTEL64_VINSERTF128, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
+            break;
+        case (VOP_X86_VPERM2I128):
+            //Permute halfs of ymm:
+            //Immediate contain higher 4 bits and lower 4 bits.
+            //Lower defines source of first half in destination register
+            //Higher defines source of second half in destination register
+            //Sources are defined:
+            // 0 - first half of first source register
+            // 1 - second half of first source register
+            // 2 - first half of second source register
+            // 3 - second half of second source register
+            //There is more sophisticated options, but we don't need them currently.
+            if(index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
+                index.args[3].tag == Arg::IIMMEDIATE && (index.args[3].value & 0b11) < 0b11 && (index.args[3].value & 0b110000) < 0b110000)
+                return SyT(INTEL64_VPERM2I128, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
             break;
         case (VOP_GETLANE):
             if(index.args_size == 3 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::IIMMEDIATE)
@@ -2109,16 +2140,32 @@ namespace loops
                     return SyT(INTEL64_VCVTDQ2PS, { SAcop(0), SAcop(1) });
             }
             break;
-        case (VOP_CAST_LOW):  
+        case (VOP_CAST_LOW):
             if(index.size() == 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
-               index.args[0].elemtype == TYPE_I64 && index.args[1].elemtype == TYPE_I32)
-               return SyT(INTEL64_VPMOVSXDQ, { SAcop(0), SAcop(1) });
+               ((isUnsignedInteger(index.args[0].elemtype) && isUnsignedInteger(index.args[1].elemtype)) || 
+                (isSignedInteger(index.args[0].elemtype) && isSignedInteger(index.args[1].elemtype)) || 
+                (index.args[0].elemtype == TYPE_FP64 && index.args[1].elemtype == TYPE_FP32)) && 
+                elem_size(index.args[0].elemtype) == 2 * elem_size(index.args[1].elemtype))
             {
-                if(index.args[0].elemtype == TYPE_I32 && index.args[1].elemtype == TYPE_FP32)
-                    return SyT(INTEL64_VCVTPS2DQ, { SAcop(0), SAcop(1) });
-                else if(index.args[0].elemtype == TYPE_FP32 && index.args[1].elemtype == TYPE_I32)
-                    return SyT(INTEL64_VCVTDQ2PS, { SAcop(0), SAcop(1) });
+                int opcode = -1;
+                switch (index.args[0].elemtype)
+                {
+                    case (TYPE_I16):  opcode = INTEL64_VPMOVSXBW; break;
+                    case (TYPE_I32):  opcode = INTEL64_VPMOVSXWD; break;
+                    case (TYPE_I64):  opcode = INTEL64_VPMOVSXDQ; break;
+                    case (TYPE_U16):  opcode = INTEL64_VPMOVZXBW; break;
+                    case (TYPE_U32):  opcode = INTEL64_VPMOVZXWD; break;
+                    case (TYPE_U64):  opcode = INTEL64_VPMOVZXDQ; break;
+                    case (TYPE_FP64): opcode = INTEL64_VCVTPS2PD; break;
+                }
+                if(opcode != -1)
+                    return SyT(opcode, { SAcop(0), SAcop(1) });
             }
+            break;
+        case (VOP_X86_VPALIGNR):
+            if(index.size() == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
+               index.args[2].tag == Arg::VREG && index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value < 16)
+                return SyT(INTEL64_VPALIGNR, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
             break;
         case (OP_UNSPILL):
             if(index.args_size == 2)
@@ -3111,6 +3158,15 @@ namespace loops
                     a_dest.program.push_back(Syntop(isInteger(op.args[0].elemtype) ? VOP_X86_VINSERTI128 : VOP_X86_VINSERTF128, { op.args[0], argIImm(1), op.args[0], halfvec }));
                 break;
             }
+            case VOP_CAST_HIGH:
+            {
+                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && elem_size(op.args[0].elemtype) == 2 * elem_size(op.args[1].elemtype));
+                Arg halfvec = op.args[1];
+                halfvec.idx = a_dest.provideIdx(RB_VEC);
+                a_dest.program.push_back(Syntop(isInteger(op.args[1].elemtype) ? VOP_X86_VEXTRACTI128 : VOP_X86_VEXTRACTF128, { halfvec, op.args[1], argIImm(1) }));
+                a_dest.program.push_back(Syntop(VOP_CAST_LOW, { op.args[0],  halfvec }));
+                break;
+            }
             case VOP_NOT:
             {
                 Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
@@ -3125,6 +3181,32 @@ namespace loops
                 allones.elemtype = op.args[1].elemtype;
                 a_dest.program.push_back(Syntop(VOP_XOR, { op.args[0], op.args[1], allones }));
                 break;                 
+            }
+            case VOP_EXT:
+            {
+                Assert(op.args_size == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::VREG &&
+                       op.args[3].tag == Arg::IIMMEDIATE && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == op.args[2].elemtype);
+                int shift_in_bytes = elem_size(op.args[0].elemtype) * op.args[3].value;
+                Assert(shift_in_bytes >= 0 && shift_in_bytes <= 32);
+                if(shift_in_bytes == 0)
+                {
+                    a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], op.args[1] }));
+                }
+                else if(shift_in_bytes == 32)
+                {
+                    a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], op.args[2] }));
+                }
+                else
+                {
+                    Arg center = op.args[0];
+                    center.idx = shift_in_bytes == 16 ? center.idx : a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VPERM2I128, { center, op.args[1], op.args[2], argIImm(0x21) }));
+                    if(shift_in_bytes < 16)
+                        a_dest.program.push_back(Syntop(VOP_X86_VPALIGNR, { op.args[0], center, op.args[1], argIImm(shift_in_bytes)}));
+                    if(shift_in_bytes > 16)
+                        a_dest.program.push_back(Syntop(VOP_X86_VPALIGNR, { op.args[0], op.args[2], center, argIImm(shift_in_bytes - 16)}));
+                } 
+                break;
             }
             default:
                 a_dest.program.push_back(op);

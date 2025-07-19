@@ -1675,7 +1675,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             return SyT(AARCH64_FMLA, { SAcop(0), SAcop(2), SAcop(3), SAcop(4) });
         }
         break;
-    case (VOP_ARM_EXT):
+    case (VOP_EXT):
         if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[3].tag == Arg::IIMMEDIATE && index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
         { 
             int esize = elem_size(index[0].elemtype); 

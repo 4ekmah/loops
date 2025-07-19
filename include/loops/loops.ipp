@@ -860,7 +860,7 @@ template<typename _Tp> VExpr<_Tp> reduce_sum(const VExpr<_Tp>& r)
 template<typename _Tp> VExpr<typename ElemTraits<_Tp>::duplicatetype> reduce_wsum(const VExpr<_Tp>& r)
 { return VExpr<typename ElemTraits<_Tp>::duplicatetype>(VOP_REDUCE_WSUM, { r.notype() }); }
 template<typename _Tp> VExpr<_Tp> ext(const VExpr<_Tp>& n, const VExpr<_Tp>& m, int64_t index)
-{ return VExpr<_Tp>(VOP_ARM_EXT, {n.notype(), m.notype(), Expr(index)}); }
+{ return VExpr<_Tp>(VOP_EXT, {n.notype(), m.notype(), Expr(index)}); }
 
 // Arithmetic and bitwise operations:
 template<typename _Tp> VExpr<_Tp> operator + (const VExpr<_Tp>& a, const VExpr<_Tp>& b)

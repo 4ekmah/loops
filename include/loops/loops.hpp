@@ -143,41 +143,43 @@ enum {
     VOP_CAST_LOW         =  92,
     VOP_CAST_HIGH        =  93,
     VOP_SHRINK           =  94, // VOP_SHRINK <target_with_halfsize_elements>, <source_packed_low_half>, <source_packed_high_half>
-    VOP_POPCOUNT         =  95,
-    VOP_REDUCE_MAX       =  96,
-    VOP_REDUCE_MIN       =  97,
-    VOP_REDUCE_SUM       =  98,
-    VOP_REDUCE_WSUM      =  99,
+    VOP_EXT              =  95,
+    VOP_POPCOUNT         =  96,
+    VOP_REDUCE_MAX       =  97,
+    VOP_REDUCE_MIN       =  98,
+    VOP_REDUCE_SUM       =  99,
+    VOP_REDUCE_WSUM      = 100,
 
 //Intel-only operations:
-    OP_X86_ADC           = 100, //Add with carry flag.
-    OP_X86_CQO           = 101,
-    VOP_X86_VEXTRACTI128 = 102,
-    VOP_X86_VEXTRACTF128 = 103,
-    VOP_X86_VINSERTI128  = 104,
-    VOP_X86_VINSERTF128  = 105,
+    OP_X86_ADC           = 101, //Add with carry flag.
+    OP_X86_CQO           = 102,
+    VOP_X86_VEXTRACTI128 = 103,  //DUBUG: well, it's possible to combine these two instructions into one VOP_X86_VEXTRACT128. We control IR.
+    VOP_X86_VEXTRACTF128 = 104,
+    VOP_X86_VINSERTI128  = 105,
+    VOP_X86_VINSERTF128  = 106,
+    VOP_X86_VPERM2I128   = 107,
+    VOP_X86_VPALIGNR     = 108,
     
 //Aarch64-only operations:
-    OP_ARM_CINC          = 106, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG          = 107,
-    OP_ARM_MOVK          = 108, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP           = 109,
-    OP_ARM_STP           = 110,
-    VOP_ARM_LD1          = 111,
-    VOP_ARM_ST1          = 112,
-    VOP_ARM_LD2          = 113,
-    VOP_ARM_EXT          = 114,
-    VOP_ARM_SHRINK_LOW   = 115, //Note: don't use these two directly, use VOP_SHRINK instead.
-    VOP_ARM_SHRINK_HIGH  = 116,
-    VOP_GETLANE          = 117,
-    VOP_SETLANE          = 118, //TODO(ch): Setlane must have ssa form.
+    OP_ARM_CINC          = 109, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG          = 110,
+    OP_ARM_MOVK          = 111, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP           = 112,
+    OP_ARM_STP           = 113,
+    VOP_ARM_LD1          = 114,
+    VOP_ARM_ST1          = 115,
+    VOP_ARM_LD2          = 116,
+    VOP_ARM_SHRINK_LOW   = 117, //Note: don't use these two directly, use VOP_SHRINK instead.
+    VOP_ARM_SHRINK_HIGH  = 118,
+    VOP_GETLANE          = 119,
+    VOP_SETLANE          = 120, //TODO(ch): Setlane must have ssa form.
 //RiscV-only operations:
-    OP_RV_LUI            = 119,
+    OP_RV_LUI            = 121,
 
-    OP_DEF               = 120,
-    VOP_DEF              = 121,
+    OP_DEF               = 122,
+    VOP_DEF              = 123,
 
-    OP_NOINIT            = 122,
+    OP_NOINIT            = 124,
 };
 
 enum

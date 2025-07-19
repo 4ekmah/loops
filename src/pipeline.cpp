@@ -45,6 +45,7 @@ namespace loops
             case (OP_LABEL):
             case (VOP_GETLANE):
             case (VOP_SETLANE):
+            case (VOP_EXT): //DUBUG!!!
                 a_dest.program.push_back(op);
                 break;
             case (VOP_FMA):
