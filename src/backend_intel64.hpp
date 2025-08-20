@@ -159,17 +159,24 @@ namespace loops
         INTEL64_VPMOVZXDQ    = 139,
         INTEL64_VCVTPS2PD    = 140,
         INTEL64_VPALIGNR     = 141,
-        INTEL64_JMP          = 142,
-        INTEL64_JNE          = 143, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
-        INTEL64_JE           = 144,
-        INTEL64_JL           = 145,
-        INTEL64_JLE          = 146,
-        INTEL64_JG           = 147,
-        INTEL64_JGE          = 148,
-        INTEL64_CALL         = 149,
-        INTEL64_LABEL        = 150,
-        INTEL64_RET          = 151
-    };
+        INTEL64_VPSHUFD      = 142,
+        INTEL64_VPSADBW      = 143,
+        INTEL64_VPHADDD      = 144,
+        INTEL64_VHADDPS      = 145,
+        INTEL64_VADDSS       = 146,
+        INTEL64_VHADDPD      = 147,
+        INTEL64_VADDSD       = 148,
+        INTEL64_JMP          = 149,
+        INTEL64_JNE          = 150, //TODO(ch)[printer]: implement JCC operation instead of this endless variations.
+        INTEL64_JE           = 151,
+        INTEL64_JL           = 152,
+        INTEL64_JLE          = 153,
+        INTEL64_JG           = 154,
+        INTEL64_JGE          = 155,
+        INTEL64_CALL         = 156,
+        INTEL64_LABEL        = 157,
+        INTEL64_RET          = 158,
+};
 
     class Intel64Backend : public Backend
     {

@@ -159,27 +159,34 @@ enum {
     VOP_X86_VINSERTF128  = 106,
     VOP_X86_VPERM2I128   = 107,
     VOP_X86_VPALIGNR     = 108,
+    VOP_X86_VPSHUFD      = 109,
+    VOP_X86_VPSADBW      = 110,
+    VOP_X86_VPHADDD      = 111,
+    VOP_X86_VHADDPS      = 112,
+    VOP_X86_VADDSS       = 113,
+    VOP_X86_VHADDPD      = 114,
+    VOP_X86_VADDSD       = 115,
     
 //Aarch64-only operations:
-    OP_ARM_CINC          = 109, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG          = 110,
-    OP_ARM_MOVK          = 111, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP           = 112,
-    OP_ARM_STP           = 113,
-    VOP_ARM_LD1          = 114,
-    VOP_ARM_ST1          = 115,
-    VOP_ARM_LD2          = 116,
-    VOP_ARM_SHRINK_LOW   = 117, //Note: don't use these two directly, use VOP_SHRINK instead.
-    VOP_ARM_SHRINK_HIGH  = 118,
-    VOP_GETLANE          = 119,
-    VOP_SETLANE          = 120, //TODO(ch): Setlane must have ssa form.
+    OP_ARM_CINC          = 116, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG          = 117,
+    OP_ARM_MOVK          = 118, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP           = 119,
+    OP_ARM_STP           = 120,
+    VOP_ARM_LD1          = 121,
+    VOP_ARM_ST1          = 122,
+    VOP_ARM_LD2          = 123,
+    VOP_ARM_SHRINK_LOW   = 124, //Note: don't use these two directly, use VOP_SHRINK instead.
+    VOP_ARM_SHRINK_HIGH  = 125,
+    VOP_GETLANE          = 126,
+    VOP_SETLANE          = 127, //TODO(ch): Setlane must have ssa form.
 //RiscV-only operations:
-    OP_RV_LUI            = 121,
+    OP_RV_LUI            = 128,
 
-    OP_DEF               = 122,
-    VOP_DEF              = 123,
+    OP_DEF               = 129,
+    VOP_DEF              = 130,
 
-    OP_NOINIT            = 124,
+    OP_NOINIT            = 131,
 };
 
 enum

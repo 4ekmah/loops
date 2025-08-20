@@ -10,6 +10,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 
+
+//DUBUG: Really, in this certain case all you need is a big switch. It's C-style and it's much faster. 
 LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
 {
                   /*  |       enum_id             |string_id      |*/
@@ -155,6 +157,13 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPMOVZXDQ   , "vpmovzxdq"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VCVTPS2PD   , "vcvtps2pd"   ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VPALIGNR    , "vpalignr"    ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSHUFD     , "vpshufd"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPSADBW     , "vpsadbw"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VPHADDD     , "vphaddd"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VHADDPS     , "vhaddps"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDSS      , "vaddss"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VHADDPD     , "vhaddpd"     ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_VADDSD      , "vaddsd"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JMP         , "jmp"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE         , "jne"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE          , "je"          ),
@@ -1647,7 +1656,25 @@ namespace loops
         case (INTEL64_VPMOVZXWD):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x33, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U32}),       bm64({TYPE_U16}),                       0,                       0);
         case (INTEL64_VPMOVZXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x35, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U32}),                       0,                       0);
         case (INTEL64_VCVTPS2PD):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5A, 0,     Out, In|Xmm,      0,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP32}),                       0,                       0);
-        case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                 BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                      0);
+        case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
+
+        case (INTEL64_VPSHUFD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x70, 0, Out|Xmm, In|Xmm,      0,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}));
+// DUBUG:        
+// VPSADBW description(DUBUG: reread!!!, be sure!)
+// Sources u8 a and b:
+// a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, a31
+// b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31
+// dest_u16[0] = abs(a0-b0) + abs(a1-b1) + abs(a2-b2) + abs(a3-b3) + abs(a4-b4) + abs(a5-b5) + abs(a6-b6) + abs(a7-b7)
+// dest_u16[4] = abs(a8-b8) + abs(a9-b9) + abs(a10-b10) + abs(a11-b11) + abs(a12-b12) + abs(a13-b13) + abs(a14-b14) + abs(a15-b15)
+// dest_u16[8] = abs(a16-b16) + abs(a17-b17) + abs(a18-b18) + abs(a19-b19) + abs(a20-b20) + abs(a21-b21) + abs(a22-b22) + abs(a23-b23)
+// dest_u16[12] = abs(a24-b24) + abs(a25-b25) + abs(a26-b26) + abs(a27-b27) + abs(a28-b28) + abs(a29-b29) + abs(a30-b30) + abs(a31-b31)
+        case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U16}),        bm64({TYPE_U8}),         bm64({TYPE_U8}));
+        case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,        bm64({TYPE_I32}),       bm64({TYPE_I32}),        bm64({TYPE_I32}));
+        case (INTEL64_VHADDPS):      return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
+        case (INTEL64_VADDSS):       return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
+        case (INTEL64_VHADDPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
+        case (INTEL64_VADDSD):       return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
+
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -2167,6 +2194,151 @@ namespace loops
                index.args[2].tag == Arg::VREG && index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value < 16)
                 return SyT(INTEL64_VPALIGNR, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
             break;
+
+
+        case VOP_X86_VPSHUFD:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
+               index.args[2].tag == Arg::IIMMEDIATE && index.args[2].value >= 0 && index.args[2].value < 256)
+                return SyT(INTEL64_VPSHUFD, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VPSADBW:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VPSADBW, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VPHADDD:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VPHADDD, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VHADDPS:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VHADDPS, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VADDSS:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VADDSS, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VHADDPD:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VHADDPD, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case VOP_X86_VADDSD:
+            if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
+                return SyT(INTEL64_VADDSD, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+
+
+
+
+
+
+// inline float v_reduce_sum(const v_float32x8& a)
+// {
+//     __m256 s0 = _mm256_hadd_ps(a.val, a.val);
+//            s0 = _mm256_hadd_ps(s0, s0);
+
+//     __m128 s1 = _v256_extract_high(s0);
+//            s1 = _mm_add_ps(_v256_extract_low(s0), s1);
+
+//     return _mm_cvtss_f32(s1);
+// }
+// v_reduce_sum(float vector[8] const&):
+//         vmovaps ymm0, ymmword ptr [rdi]
+//         vhaddps ymm0, ymm0, ymm0
+//         vhaddps ymm0, ymm0, ymm0
+//         vextractf128    xmm1, ymm0, 1
+//         vaddss  xmm0, xmm0, xmm1
+//         vzeroupper
+//         ret
+
+
+
+
+
+
+
+
+
+
+// INTEL64_VPSHUFD
+// INTEL64_VPSADBW
+// INTEL64_VPHADDD
+// INTEL64_VHADDPS
+// INTEL64_VADDSS
+// INTEL64_VHADDPD
+// INTEL64_VADDSD
+//         vpshufd xmm1, xmm0, 238  0b11101110 | 3 2 3 2
+//         vpsadbw ymm0, ymm0, ymm1
+//         vphaddd ymm0, ymm0, ymm0
+//         vhaddps ymm0, ymm0, ymm0
+//         vaddss  xmm0, xmm0, xmm1
+//         vhaddpd ymm0, ymm0, ymm0
+//         vaddsd  xmm0, xmm0, xmm1
+
+// inline unsigned v_reduce_sum(const v_uint8x32& a)
+// {
+//     __m256i half = _mm256_sad_epu8(a.val, _mm256_setzero_si256());
+//     __m128i quarter = _mm_add_epi32(_v256_extract_low(half), _v256_extract_high(half));
+//     return (unsigned)_mm_cvtsi128_si32(_mm_add_epi32(quarter, _mm_unpackhi_epi64(quarter, quarter)));
+// }
+// v_reduce_sum(long long vector[4] const&):
+//         vpxor   xmm0, xmm0, xmm0
+//         vpsadbw ymm0, ymm0, ymmword ptr [rdi]
+//         vextracti128    xmm1, ymm0, 1
+//         vpaddd  xmm0, xmm0, xmm1
+//         vpshufd xmm1, xmm0, 238
+//         vpaddd  xmm0, xmm0, xmm1
+//         vmovd   eax, xmm0
+//         vzeroupper
+//         ret
+
+// inline int v_reduce_sum(const v_int8x32& a)
+// {
+//     __m256i half = _mm256_sad_epu8(_mm256_xor_si256(a.val, _mm256_set1_epi8((schar)-128)), _mm256_setzero_si256());
+//     __m128i quarter = _mm_add_epi32(_v256_extract_low(half), _v256_extract_high(half));
+//     return (unsigned)_mm_cvtsi128_si32(_mm_add_epi32(quarter, _mm_unpackhi_epi64(quarter, quarter))) - 4096;
+// }         
+// v_reduce_sum(long long vector[4] const&):
+//         vmovdqa ymm0, ymmword ptr [rdi]
+//         vpxor   ymm0, ymm0, ymmword ptr [rip + .LCPI0_0]
+//         vpxor   xmm1, xmm1, xmm1
+//         vpsadbw ymm0, ymm0, ymm1
+//         vextracti128    xmm1, ymm0, 1
+//         vpaddd  xmm0, xmm0, xmm1
+//         vpshufd xmm1, xmm0, 238
+//         vpaddd  xmm0, xmm0, xmm1
+//         vmovd   eax, xmm0
+//         add     eax, -4096
+//         vzeroupper
+//         ret
+
+
+// inline int v_reduce_sum(const v_int32x8& a)
+// {
+//     __m256i s0 = _mm256_hadd_epi32(a.val, a.val);
+//             s0 = _mm256_hadd_epi32(s0, s0);
+//     __m128i s1 = _v256_extract_high(s0);
+//             s1 = _mm_add_epi32(_v256_extract_low(s0), s1);
+//     return _mm_cvtsi128_si32(s1);
+// }
+// v_reduce_sum(long long vector[4] const&):
+//         vmovdqa ymm0, ymmword ptr [rdi]
+//         vphaddd ymm0, ymm0, ymm0
+//         vphaddd ymm0, ymm0, ymm0
+//         vextracti128    xmm1, ymm0, 1
+//         vpaddd  xmm0, xmm0, xmm1
+//         vmovd   eax, xmm0
+//         vzeroupper
+//         ret
+
+// inline unsigned v_reduce_sum(const v_uint32x8& a)
+// { return v_reduce_sum(v_reinterpret_as_s32(a)); }
+
+// inline int v_reduce_sum(const v_int16x16& a)
+// { return v_reduce_sum(v_add(v_expand_low(a), v_expand_high(a))); }
+// inline unsigned v_reduce_sum(const v_uint16x16& a)
+// { return v_reduce_sum(v_add(v_expand_low(a), v_expand_high(a))); }
+
+
         case (OP_UNSPILL):
             if(index.args_size == 2)
             {
@@ -3208,6 +3380,72 @@ namespace loops
                 } 
                 break;
             }
+            case (VOP_REDUCE_SUM): //DUBUG: make it more compact.
+                if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == TYPE_FP32)
+                {
+                    //op[0] = {op[1][0] + op[1][1], op[1][2] + op[1][3], -//-, -//-, op[1][4] + op[1][5], op[1][6] + op[1][7], -//-, -//-,};
+                    a_dest.program.push_back(Syntop(VOP_X86_VHADDPS, { op.args[0], op.args[1], op.args[1] }));
+                    //op[0] = {op[1][0] + op[1][1] + op[1][2] + op[1][3], -//-, -//-, -//-, op[1][4] + op[1][5] + op[1][6] + op[1][7], ...};
+                    a_dest.program.push_back(Syntop(VOP_X86_VHADDPS, { op.args[0], op.args[0], op.args[0] }));
+                    Arg upperhalf = op.args[0]; 
+                    upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTF128, { upperhalf, op.args[0], argIImm(1) }));
+                    a_dest.program.push_back(Syntop(VOP_X86_VADDSS, { op.args[0], op.args[0], upperhalf }));
+                }
+                else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == TYPE_FP64)
+                {
+                    //op[0] = {op[1][0] + op[1][1], -//-, op[1][2] + op[1][3],  -//-, };
+                    a_dest.program.push_back(Syntop(VOP_X86_VHADDPD, { op.args[0], op.args[1], op.args[1] }));
+                    Arg upperhalf = op.args[0]; 
+                    upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTF128, { upperhalf, op.args[0], argIImm(1) }));
+                    a_dest.program.push_back(Syntop(VOP_X86_VADDSD, { op.args[0], op.args[0], upperhalf }));
+                }
+                else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && (op.args[0].elemtype == TYPE_I64 || op.args[0].elemtype == TYPE_U64))
+                {
+                    Arg upperhalf = op.args[1]; 
+                    upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf, op.args[1], argIImm(1) }));
+                    a_dest.program.push_back(Syntop(VOP_ADD, { upperhalf, upperhalf, op.args[1] }));
+                    Arg upperhalf32 = upperhalf; upperhalf32.elemtype = TYPE_U32;
+                    Arg arg0_32 = op.args[0]; arg0_32.elemtype = TYPE_U32;
+                    a_dest.program.push_back(Syntop(VOP_X86_VPSHUFD, { arg0_32, upperhalf32, argIImm(238) }));
+                    a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], op.args[0], upperhalf }));
+                }
+                // else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && (op.args[0].elemtype == TYPE_I32 || op.args[0].elemtype == TYPE_U32))
+                // {
+                //     Arg upperhalf = op.args[1]; 
+                //     upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                //     a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf, op.args[1], argIImm(1) }));
+                //     a_dest.program.push_back(Syntop(VOP_ADD, { upperhalf, upperhalf, op.args[1] }));
+                //     Arg upperhalf32 = upperhalf; upperhalf32.elemtype = TYPE_U32;
+                //     Arg arg0_32 = op.args[0]; arg0_32.elemtype = TYPE_U32;
+                //     a_dest.program.push_back(Syntop(VOP_X86_VPSHUFD, { arg0_32, upperhalf32, argIImm(238) }));
+                //     a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], op.args[0], upperhalf }));
+
+// inline int v_reduce_sum(const v_int32x8& a)
+// {
+//     __m256i s0 = _mm256_hadd_epi32(a.val, a.val);
+//             s0 = _mm256_hadd_epi32(s0, s0);
+//     __m128i s1 = _v256_extract_high(s0);
+//             s1 = _mm_add_epi32(_v256_extract_low(s0), s1);
+//     return _mm_cvtsi128_si32(s1);
+// }
+// v_reduce_sum(long long vector[4] const&):
+//         vmovdqa ymm0, ymmword ptr [rdi]
+//         vphaddd ymm0, ymm0, ymm0
+//         vphaddd ymm0, ymm0, ymm0
+//         vextracti128    xmm1, ymm0, 1
+//         vpaddd  xmm0, xmm0, xmm1
+//         vmovd   eax, xmm0
+//         vzeroupper
+//         ret
+// inline unsigned v_reduce_sum(const v_uint32x8& a)
+// { return v_reduce_sum(v_reinterpret_as_s32(a)); }
+                // }
+                else
+                    a_dest.program.push_back(op);
+                break;
             default:
                 a_dest.program.push_back(op);
                 break;
