@@ -1657,24 +1657,13 @@ namespace loops
         case (INTEL64_VPMOVZXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x35, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U32}),                       0,                       0);
         case (INTEL64_VCVTPS2PD):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5A, 0,     Out, In|Xmm,      0,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP32}),                       0,                       0);
         case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
-
         case (INTEL64_VPSHUFD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x70, 0, Out|Xmm, In|Xmm,      0,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}));
-// DUBUG:        
-// VPSADBW description(DUBUG: reread!!!, be sure!)
-// Sources u8 a and b:
-// a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, a31
-// b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31
-// dest_u16[0] = abs(a0-b0) + abs(a1-b1) + abs(a2-b2) + abs(a3-b3) + abs(a4-b4) + abs(a5-b5) + abs(a6-b6) + abs(a7-b7)
-// dest_u16[4] = abs(a8-b8) + abs(a9-b9) + abs(a10-b10) + abs(a11-b11) + abs(a12-b12) + abs(a13-b13) + abs(a14-b14) + abs(a15-b15)
-// dest_u16[8] = abs(a16-b16) + abs(a17-b17) + abs(a18-b18) + abs(a19-b19) + abs(a20-b20) + abs(a21-b21) + abs(a22-b22) + abs(a23-b23)
-// dest_u16[12] = abs(a24-b24) + abs(a25-b25) + abs(a26-b26) + abs(a27-b27) + abs(a28-b28) + abs(a29-b29) + abs(a30-b30) + abs(a31-b31)
         case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U32}),        bm64({TYPE_U8}),   bm64({TYPE_SAME_AS_1}));
         case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,         BM64_ALL_INTS32, bm64({TYPE_SAME_AS_0}),   bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VHADDPS):      return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
         case (INTEL64_VADDSS):       return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
         case (INTEL64_VHADDPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
         case (INTEL64_VADDSD):       return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
-
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
@@ -2194,14 +2183,19 @@ namespace loops
                index.args[2].tag == Arg::VREG && index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value < 16)
                 return SyT(INTEL64_VPALIGNR, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
             break;
-
-
         case VOP_X86_VPSHUFD:
             if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
                index.args[2].tag == Arg::IIMMEDIATE && index.args[2].value >= 0 && index.args[2].value < 256)
                 return SyT(INTEL64_VPSHUFD, { SAcop(0), SAcop(1), SAcop(2) });
             break;
         case VOP_X86_VPSADBW:
+            // Sources u8 a and b:
+            // a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, a31
+            // b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31
+            // dest_u16[0] = abs(a0-b0) + abs(a1-b1) + abs(a2-b2) + abs(a3-b3) + abs(a4-b4) + abs(a5-b5) + abs(a6-b6) + abs(a7-b7)
+            // dest_u16[4] = abs(a8-b8) + abs(a9-b9) + abs(a10-b10) + abs(a11-b11) + abs(a12-b12) + abs(a13-b13) + abs(a14-b14) + abs(a15-b15)
+            // dest_u16[8] = abs(a16-b16) + abs(a17-b17) + abs(a18-b18) + abs(a19-b19) + abs(a20-b20) + abs(a21-b21) + abs(a22-b22) + abs(a23-b23)
+            // dest_u16[12] = abs(a24-b24) + abs(a25-b25) + abs(a26-b26) + abs(a27-b27) + abs(a28-b28) + abs(a29-b29) + abs(a30-b30) + abs(a31-b31)
             if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
                 return SyT(INTEL64_VPSADBW, { SAcop(0), SAcop(1), SAcop(2) });
             break;
@@ -3282,7 +3276,7 @@ namespace loops
                 } 
                 break;
             }
-            case (VOP_REDUCE_SUM): //DUBUG: make it more compact.
+            case (VOP_REDUCE_SUM):
                 if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == TYPE_FP32)
                 {
                     //op[0] = {op[1][0] + op[1][1], op[1][2] + op[1][3], -//-, -//-, op[1][4] + op[1][5], op[1][6] + op[1][7], -//-, -//-,};
@@ -3340,8 +3334,8 @@ namespace loops
                     a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], lowerhalf, upperhalf }));
                 }
                 else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && 
-                    (op.args[0].elemtype == TYPE_U16 && op.args[1].elemtype == TYPE_U8 ||
-                     op.args[0].elemtype == TYPE_I16 && op.args[1].elemtype == TYPE_I8))
+                    ((op.args[0].elemtype == TYPE_U16 && op.args[1].elemtype == TYPE_U8) ||
+                     (op.args[0].elemtype == TYPE_I16 && op.args[1].elemtype == TYPE_I8)))
                 {
                     Arg zero = op.args[1];
                     zero.idx = a_dest.provideIdx(RB_VEC);
