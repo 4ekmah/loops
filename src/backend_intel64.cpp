@@ -1668,8 +1668,8 @@ namespace loops
 // dest_u16[4] = abs(a8-b8) + abs(a9-b9) + abs(a10-b10) + abs(a11-b11) + abs(a12-b12) + abs(a13-b13) + abs(a14-b14) + abs(a15-b15)
 // dest_u16[8] = abs(a16-b16) + abs(a17-b17) + abs(a18-b18) + abs(a19-b19) + abs(a20-b20) + abs(a21-b21) + abs(a22-b22) + abs(a23-b23)
 // dest_u16[12] = abs(a24-b24) + abs(a25-b25) + abs(a26-b26) + abs(a27-b27) + abs(a28-b28) + abs(a29-b29) + abs(a30-b30) + abs(a31-b31)
-        case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U16}),        bm64({TYPE_U8}),         bm64({TYPE_U8}));
-        case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,        bm64({TYPE_I32}),       bm64({TYPE_I32}),        bm64({TYPE_I32}));
+        case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U32}),        bm64({TYPE_U8}),   bm64({TYPE_SAME_AS_1}));
+        case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,         BM64_ALL_INTS32, bm64({TYPE_SAME_AS_0}),   bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VHADDPS):      return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
         case (INTEL64_VADDSS):       return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
         case (INTEL64_VHADDPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
@@ -2225,120 +2225,6 @@ namespace loops
             if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG)
                 return SyT(INTEL64_VADDSD, { SAcop(0), SAcop(1), SAcop(2) });
             break;
-
-
-
-
-
-
-// inline float v_reduce_sum(const v_float32x8& a)
-// {
-//     __m256 s0 = _mm256_hadd_ps(a.val, a.val);
-//            s0 = _mm256_hadd_ps(s0, s0);
-
-//     __m128 s1 = _v256_extract_high(s0);
-//            s1 = _mm_add_ps(_v256_extract_low(s0), s1);
-
-//     return _mm_cvtss_f32(s1);
-// }
-// v_reduce_sum(float vector[8] const&):
-//         vmovaps ymm0, ymmword ptr [rdi]
-//         vhaddps ymm0, ymm0, ymm0
-//         vhaddps ymm0, ymm0, ymm0
-//         vextractf128    xmm1, ymm0, 1
-//         vaddss  xmm0, xmm0, xmm1
-//         vzeroupper
-//         ret
-
-
-
-
-
-
-
-
-
-
-// INTEL64_VPSHUFD
-// INTEL64_VPSADBW
-// INTEL64_VPHADDD
-// INTEL64_VHADDPS
-// INTEL64_VADDSS
-// INTEL64_VHADDPD
-// INTEL64_VADDSD
-//         vpshufd xmm1, xmm0, 238  0b11101110 | 3 2 3 2
-//         vpsadbw ymm0, ymm0, ymm1
-//         vphaddd ymm0, ymm0, ymm0
-//         vhaddps ymm0, ymm0, ymm0
-//         vaddss  xmm0, xmm0, xmm1
-//         vhaddpd ymm0, ymm0, ymm0
-//         vaddsd  xmm0, xmm0, xmm1
-
-// inline unsigned v_reduce_sum(const v_uint8x32& a)
-// {
-//     __m256i half = _mm256_sad_epu8(a.val, _mm256_setzero_si256());
-//     __m128i quarter = _mm_add_epi32(_v256_extract_low(half), _v256_extract_high(half));
-//     return (unsigned)_mm_cvtsi128_si32(_mm_add_epi32(quarter, _mm_unpackhi_epi64(quarter, quarter)));
-// }
-// v_reduce_sum(long long vector[4] const&):
-//         vpxor   xmm0, xmm0, xmm0
-//         vpsadbw ymm0, ymm0, ymmword ptr [rdi]
-//         vextracti128    xmm1, ymm0, 1
-//         vpaddd  xmm0, xmm0, xmm1
-//         vpshufd xmm1, xmm0, 238
-//         vpaddd  xmm0, xmm0, xmm1
-//         vmovd   eax, xmm0
-//         vzeroupper
-//         ret
-
-// inline int v_reduce_sum(const v_int8x32& a)
-// {
-//     __m256i half = _mm256_sad_epu8(_mm256_xor_si256(a.val, _mm256_set1_epi8((schar)-128)), _mm256_setzero_si256());
-//     __m128i quarter = _mm_add_epi32(_v256_extract_low(half), _v256_extract_high(half));
-//     return (unsigned)_mm_cvtsi128_si32(_mm_add_epi32(quarter, _mm_unpackhi_epi64(quarter, quarter))) - 4096;
-// }         
-// v_reduce_sum(long long vector[4] const&):
-//         vmovdqa ymm0, ymmword ptr [rdi]
-//         vpxor   ymm0, ymm0, ymmword ptr [rip + .LCPI0_0]
-//         vpxor   xmm1, xmm1, xmm1
-//         vpsadbw ymm0, ymm0, ymm1
-//         vextracti128    xmm1, ymm0, 1
-//         vpaddd  xmm0, xmm0, xmm1
-//         vpshufd xmm1, xmm0, 238
-//         vpaddd  xmm0, xmm0, xmm1
-//         vmovd   eax, xmm0
-//         add     eax, -4096
-//         vzeroupper
-//         ret
-
-
-// inline int v_reduce_sum(const v_int32x8& a)
-// {
-//     __m256i s0 = _mm256_hadd_epi32(a.val, a.val);
-//             s0 = _mm256_hadd_epi32(s0, s0);
-//     __m128i s1 = _v256_extract_high(s0);
-//             s1 = _mm_add_epi32(_v256_extract_low(s0), s1);
-//     return _mm_cvtsi128_si32(s1);
-// }
-// v_reduce_sum(long long vector[4] const&):
-//         vmovdqa ymm0, ymmword ptr [rdi]
-//         vphaddd ymm0, ymm0, ymm0
-//         vphaddd ymm0, ymm0, ymm0
-//         vextracti128    xmm1, ymm0, 1
-//         vpaddd  xmm0, xmm0, xmm1
-//         vmovd   eax, xmm0
-//         vzeroupper
-//         ret
-
-// inline unsigned v_reduce_sum(const v_uint32x8& a)
-// { return v_reduce_sum(v_reinterpret_as_s32(a)); }
-
-// inline int v_reduce_sum(const v_int16x16& a)
-// { return v_reduce_sum(v_add(v_expand_low(a), v_expand_high(a))); }
-// inline unsigned v_reduce_sum(const v_uint16x16& a)
-// { return v_reduce_sum(v_add(v_expand_low(a), v_expand_high(a))); }
-
-
         case (OP_UNSPILL):
             if(index.args_size == 2)
             {
@@ -2412,6 +2298,8 @@ namespace loops
         } 
     private: 
         Intel64BRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
+        void handle_reduce_sum32(Syntfunc& a_dest, const Arg& output, const Arg& input) const;
+        void handle_mov_imm2vec(Syntfunc& a_dest, const Arg& output, int64_t input) const;
     };
 
     class Intel64ARASnippets : public CompilerPass
@@ -3165,6 +3053,28 @@ namespace loops
         return ret;
     }
 
+    void Intel64BRASnippets::handle_reduce_sum32(Syntfunc& a_dest, const Arg& output, const Arg& input) const
+    {
+        a_dest.program.push_back(Syntop(VOP_X86_VPHADDD, { output, input, input }));
+        a_dest.program.push_back(Syntop(VOP_X86_VPHADDD, { output, output, output }));
+        Arg upperhalf = input;
+        upperhalf.idx = a_dest.provideIdx(RB_VEC);
+        a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf, output, argIImm(1) }));
+        a_dest.program.push_back(Syntop(VOP_ADD, { output, output, upperhalf }));
+    }
+
+    void Intel64BRASnippets::handle_mov_imm2vec(Syntfunc& a_dest, const Arg& output, int64_t input) const
+    {
+        Assert(output.tag == Arg::VREG && input != 0);
+        Arg scalar = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+        a_dest.program.push_back(Syntop(OP_MOV, { scalar, argIImm(input) }));
+        Arg onelane = output;
+        onelane.idx = a_dest.provideIdx(RB_VEC);
+        a_dest.program.push_back(Syntop(VOP_DEF, { onelane }));
+        a_dest.program.push_back(Syntop(VOP_SETLANE, { onelane, argIImm(0), scalar }));
+        a_dest.program.push_back(Syntop(VOP_BROADCAST, { output, onelane, argIImm(0) }));
+    }
+
     void Intel64BRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         a_dest.name = a_source.name;
@@ -3184,15 +3094,7 @@ namespace loops
                 break;
             case OP_MOV:
                 if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[1].value != 0)
-                {
-                    Arg scalar = argReg(RB_INT, a_dest.provideIdx(RB_INT));
-                    a_dest.program.push_back(Syntop(OP_MOV, { scalar, op.args[1] }));
-                    Arg onelane = op.args[0];
-                    onelane.idx = a_dest.provideIdx(RB_VEC);
-                    a_dest.program.push_back(Syntop(VOP_DEF, { onelane }));
-                    a_dest.program.push_back(Syntop(VOP_SETLANE, { onelane, argIImm(0), scalar }));
-                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { op.args[0], onelane, argIImm(0) }));
-                }
+                    handle_mov_imm2vec(a_dest, op.args[0], op.args[1].value);
                 else
                     a_dest.program.push_back(op);
                 break;
@@ -3358,7 +3260,7 @@ namespace loops
             {
                 Assert(op.args_size == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::VREG &&
                        op.args[3].tag == Arg::IIMMEDIATE && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == op.args[2].elemtype);
-                int shift_in_bytes = elem_size(op.args[0].elemtype) * op.args[3].value;
+                int shift_in_bytes = elem_size(op.args[0].elemtype) * (int)op.args[3].value;
                 Assert(shift_in_bytes >= 0 && shift_in_bytes <= 32);
                 if(shift_in_bytes == 0)
                 {
@@ -3412,37 +3314,75 @@ namespace loops
                     a_dest.program.push_back(Syntop(VOP_X86_VPSHUFD, { arg0_32, upperhalf32, argIImm(238) }));
                     a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], op.args[0], upperhalf }));
                 }
-                // else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && (op.args[0].elemtype == TYPE_I32 || op.args[0].elemtype == TYPE_U32))
-                // {
-                //     Arg upperhalf = op.args[1]; 
-                //     upperhalf.idx = a_dest.provideIdx(RB_VEC);
-                //     a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf, op.args[1], argIImm(1) }));
-                //     a_dest.program.push_back(Syntop(VOP_ADD, { upperhalf, upperhalf, op.args[1] }));
-                //     Arg upperhalf32 = upperhalf; upperhalf32.elemtype = TYPE_U32;
-                //     Arg arg0_32 = op.args[0]; arg0_32.elemtype = TYPE_U32;
-                //     a_dest.program.push_back(Syntop(VOP_X86_VPSHUFD, { arg0_32, upperhalf32, argIImm(238) }));
-                //     a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], op.args[0], upperhalf }));
-
-// inline int v_reduce_sum(const v_int32x8& a)
-// {
-//     __m256i s0 = _mm256_hadd_epi32(a.val, a.val);
-//             s0 = _mm256_hadd_epi32(s0, s0);
-//     __m128i s1 = _v256_extract_high(s0);
-//             s1 = _mm_add_epi32(_v256_extract_low(s0), s1);
-//     return _mm_cvtsi128_si32(s1);
-// }
-// v_reduce_sum(long long vector[4] const&):
-//         vmovdqa ymm0, ymmword ptr [rdi]
-//         vphaddd ymm0, ymm0, ymm0
-//         vphaddd ymm0, ymm0, ymm0
-//         vextracti128    xmm1, ymm0, 1
-//         vpaddd  xmm0, xmm0, xmm1
-//         vmovd   eax, xmm0
-//         vzeroupper
-//         ret
-// inline unsigned v_reduce_sum(const v_uint32x8& a)
-// { return v_reduce_sum(v_reinterpret_as_s32(a)); }
-                // }
+                else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype && (op.args[0].elemtype == TYPE_I32 || op.args[0].elemtype == TYPE_U32))
+                {
+                    handle_reduce_sum32(a_dest, op.args[0], op.args[1]);
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
+            case (VOP_REDUCE_WSUM):
+                if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && 
+                    ((op.args[0].elemtype == TYPE_I32 && op.args[1].elemtype == TYPE_I16) || 
+                    (op.args[0].elemtype == TYPE_U32 && op.args[1].elemtype == TYPE_U16)))
+                {
+                    Arg upperhalf16 = op.args[1];
+                    upperhalf16.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf16, op.args[1], argIImm(1) }));
+                    Arg lowerhalf = op.args[0];
+                    lowerhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_CAST_LOW, { lowerhalf, op.args[1] }));
+                    handle_reduce_sum32(a_dest, lowerhalf, lowerhalf);
+                    Arg upperhalf = op.args[0];
+                    upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_CAST_LOW, { upperhalf, upperhalf16 }));
+                    handle_reduce_sum32(a_dest, upperhalf, upperhalf);
+                    a_dest.program.push_back(Syntop(VOP_ADD, { op.args[0], lowerhalf, upperhalf }));
+                }
+                else if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && 
+                    (op.args[0].elemtype == TYPE_U16 && op.args[1].elemtype == TYPE_U8 ||
+                     op.args[0].elemtype == TYPE_I16 && op.args[1].elemtype == TYPE_I8))
+                {
+                    Arg zero = op.args[1];
+                    zero.idx = a_dest.provideIdx(RB_VEC);
+                    zero.elemtype = TYPE_U8;
+                    a_dest.program.push_back(Syntop(OP_MOV, { zero, argIImm(0) }));
+                    Arg sumabs_arg = op.args[1];
+                    if(op.args[0].elemtype == TYPE_I16)
+                    {
+                        Arg m128 = zero;
+                        m128.idx = a_dest.provideIdx(RB_VEC);
+                        handle_mov_imm2vec(a_dest, m128, 0x80);
+                        sumabs_arg.idx = a_dest.provideIdx(RB_VEC);
+                        a_dest.program.push_back(Syntop(VOP_XOR, { sumabs_arg, op.args[1], m128 }));
+                        sumabs_arg.elemtype = TYPE_U8;
+                    }
+                    Arg sumabs = op.args[0];
+                    sumabs.idx = a_dest.provideIdx(RB_VEC);
+                    sumabs.elemtype = TYPE_U32;
+                    a_dest.program.push_back(Syntop(VOP_X86_VPSADBW, { sumabs, sumabs_arg, zero }));
+                    Arg upperhalf = sumabs;
+                    upperhalf.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VEXTRACTI128, { upperhalf, sumabs, argIImm(1) }));
+                    a_dest.program.push_back(Syntop(VOP_ADD, { sumabs, sumabs, upperhalf }));
+                    Arg arg0_32 = op.args[0];
+                    arg0_32.elemtype = TYPE_U32;
+                    Arg shuffled = arg0_32;
+                    shuffled.idx = a_dest.provideIdx(RB_VEC);
+                    arg0_32.elemtype = TYPE_U32;
+                    a_dest.program.push_back(Syntop(VOP_X86_VPSHUFD, { shuffled, sumabs, argIImm(238) }));
+                    a_dest.program.push_back(Syntop(VOP_ADD, { arg0_32, sumabs, shuffled }));
+                    if(op.args[0].elemtype == TYPE_I16)
+                    {
+                        Arg scalar = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                        a_dest.program.push_back(Syntop(OP_MOV, { scalar, argIImm(4096) }));
+                        Arg p4096 = arg0_32;
+                        p4096.idx = a_dest.provideIdx(RB_VEC);
+                        a_dest.program.push_back(Syntop(VOP_DEF, { p4096 }));
+                        a_dest.program.push_back(Syntop(VOP_SETLANE, { p4096, argIImm(0), scalar }));
+                        a_dest.program.push_back(Syntop(VOP_SUB, { arg0_32, arg0_32, p4096 }));
+                    }
+                }
                 else
                     a_dest.program.push_back(op);
                 break;

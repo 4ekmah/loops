@@ -3089,22 +3089,22 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_X86_VPSHUFD, { ymm15_8u,  ymm8_8u, argIImm(238) });
         newiopNoret(VOP_X86_VPSHUFD, {  ymm8_8u, ymm15_8u, argIImm(238) });
 
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm0_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm7_16u,  ymm0_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm7_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm0_32u,  ymm7_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm8_16u,  ymm0_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, { ymm15_16u,  ymm0_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm8_16u,  ymm7_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm8_16u,  ymm0_32u,  ymm7_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm8_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm7_16u,  ymm8_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u, ymm15_32u,  ymm0_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm8_32u,  ymm7_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm0_32u,  ymm8_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm7_16u,  ymm0_32u,  ymm8_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm7_32u,  ymm8_32u});
-        newiopNoret(VOP_X86_VPSADBW, {  ymm0_16u,  ymm0_32u, ymm15_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm7_8u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm8_8u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, { ymm15_8u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm8_8u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm8_8u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm7_8u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u, ymm15_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm8_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm7_8u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm7_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSADBW, {  ymm0_8u,  ymm0_32u, ymm15_32u});
 
         newiopNoret(VOP_X86_VPHADDD, {  ymm0_8s,  ymm0_8s,  ymm0_8s});
         newiopNoret(VOP_X86_VPHADDD, {  ymm7_8s,  ymm0_8s,  ymm0_8s});

@@ -186,7 +186,7 @@ LOOPS_HASHMAP_STATIC(int, suffixed_opname) suffixed_opnames_[] =
     LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_MAX       , {1, {{"reduce.max."       , 0, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_MIN       , {1, {{"reduce.min."       , 0, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_SUM       , {1, {{"reduce.sum."       , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_WSUM      , {2, {{"reduce.wmax"       , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}),
+    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}),
     LOOPS_HASHMAP_ELEM(loops::VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}),
