@@ -412,10 +412,15 @@ namespace loops
                (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))
             {
                 modRM_reg0_argnum = 2;
-                mod = 0;
                 sib_byte_present = true;
                 sib_reg0_argnum = 1;
                 modRM_reg1_argnum = sib_reg1_argnum = 0;
+                mod = ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0; //DUBUG: Check new variations!
+                if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101)
+                {
+                    postfix_static = true;
+                    ib = 0;
+                }                
             }
             else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IIMMEDIATE && index.args[2].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 && 
                (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))
@@ -587,6 +592,8 @@ namespace loops
             tokens.push_back(BTsta(sib_scale, 2));
             tokens.push_back(BTreg(sib_reg0_argnum, 3, argflags[sib_reg0_argnum])); //index
             tokens.push_back(BTreg(sib_reg1_argnum, 3, argflags[sib_reg1_argnum])); //base
+            if(postfix_static)
+                tokens.push_back(BTsta(ib, 8));
         }
         scs = true;
         return BinTranslation(tokens);
@@ -2411,9 +2418,16 @@ namespace loops
         case(OP_STORE): return std::set<int>();
             break;
         case(OP_SELECT):
-            Assert(a_op.size() == 4);
-            return (toFilter.count(2) && !regOrSpiEq(a_op[0], a_op[2])) ? std::set<int>({2}) : std::set<int>({});
+        {
+            std::set<int> res = toFilter;
+            res.erase(0);
+            if(regOrSpiEq(a_op.args[0], a_op.args[2]))
+                res.erase(2);
+            else
+                res.erase(3);
+            return res;
             break;
+        }
         case(OP_IVERSON):
             Assert(a_op.size() == 2);
             return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
@@ -3380,6 +3394,16 @@ namespace loops
                 else
                     a_dest.program.push_back(op);
                 break;
+            case (VOP_BROADCAST):
+                if(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IREG)
+                {
+                    a_dest.program.push_back(Syntop(VOP_DEF, { op.args[0] }));
+                    a_dest.program.push_back(Syntop(VOP_SETLANE, { op.args[0], argIImm(0), op.args[1] }));
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { op.args[0], op.args[0], argIImm(0) }));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
             default:
                 a_dest.program.push_back(op);
                 break;
@@ -3393,7 +3417,9 @@ namespace loops
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.reserve(2 * a_source.program.size());
-        for (const Syntop& op : a_source.program)
+        for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
+        {
+            const Syntop& op = a_source.program[opnum];
             switch (op.opcode)
             {
             case OP_MOV:
@@ -3557,7 +3583,7 @@ namespace loops
                 break;
             }
             case OP_SELECT:
-                Assert(op.size() == 4 && regOrSpi(op[0]) && op[2].tag == Arg::IREG && op[3].tag == Arg::IREG);
+                Assert(op.size() == 4 && op[0].tag == Arg::IREG && regOrSpi(op[2]) && op[3].tag == Arg::IREG);
                 if (regOrSpiEq(op[2], op[3]))
                 {
                     if (!regOrSpiEq(op[0], op[2]))
@@ -3742,6 +3768,7 @@ namespace loops
                 a_dest.program.push_back(op);
                 break;
             }
+        }
     }
 }
 #endif // __LOOPS_ARCH == __LOOPS_INTEL64
