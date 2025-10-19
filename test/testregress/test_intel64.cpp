@@ -21,31 +21,61 @@ template<typename _Tp> struct CmpElemTraits {};
 
 template<> struct CmpElemTraits<int8_t> {
     typedef uint8_t masktype;
+    typedef int8_t signedtype;
     static inline std::string typestring() { return "i8"; } 
 };
 
 template<> struct CmpElemTraits<int16_t> {
     typedef uint16_t masktype;
+    typedef int16_t signedtype;
     static inline std::string typestring() { return "i16"; } 
 };
 
 template<> struct CmpElemTraits<int32_t> {
     typedef uint32_t masktype;
+    typedef int32_t signedtype;
     static inline std::string typestring() { return "i32"; } 
 };
 
 template<> struct CmpElemTraits<int64_t> {
     typedef uint64_t masktype;
+    typedef int64_t signedtype;
     static inline std::string typestring() { return "i64"; } 
+};
+
+template<> struct CmpElemTraits<uint8_t> {
+    typedef uint8_t masktype;
+    typedef int8_t signedtype;
+    static inline std::string typestring() { return "u8"; } 
+};
+
+template<> struct CmpElemTraits<uint16_t> {
+    typedef uint16_t masktype;
+    typedef int16_t signedtype;
+    static inline std::string typestring() { return "u16"; } 
+};
+
+template<> struct CmpElemTraits<uint32_t> {
+    typedef uint32_t masktype;
+    typedef int32_t signedtype;
+    static inline std::string typestring() { return "u32"; } 
+};
+
+template<> struct CmpElemTraits<uint64_t> {
+    typedef uint64_t masktype;
+    typedef int64_t signedtype;
+    static inline std::string typestring() { return "u64"; } 
 };
 
 template<> struct CmpElemTraits<float> {
     typedef uint32_t masktype;
+    typedef float signedtype;
     static inline std::string typestring() { return "fp32"; } 
 };
 
 template<> struct CmpElemTraits<double> {
     typedef uint64_t masktype;
+    typedef double signedtype;
     static inline std::string typestring() { return "fp64"; } 
 };
 
@@ -90,12 +120,12 @@ Func make_vector_cmp_func(Context ctx, int cmptype)
 template<typename _Tp>
 void check_vector_cmp_func(int cmptype, Func tested_)
 {
-    std::vector<_Tp> a = {0, 4, 9, 0, -16, -24, 0, 22, 39, 0, -28, -55, -33, 0, 69, 48, 0, -82, -68, 0, 91, 87, 0, -98, -109, 0, 99, 127, 0, -97, -120, -63};
-    typedef void (*vector_cmp_f)(_Tp*, _Tp*, typename CmpElemTraits<_Tp>::masktype*, int64_t);
+    std::vector<typename CmpElemTraits<_Tp>::signedtype> a = {0, 4, 9, 0, -16, -24, 0, 22, 39, 0, -28, -55, -33, 0, 69, 48, 0, -82, -68, 0, 91, 87, 0, -98, -109, 0, 99, 127, 0, -97, -120, -63};
+    typedef void (*vector_cmp_f)(typename CmpElemTraits<_Tp>::signedtype*, typename CmpElemTraits<_Tp>::signedtype*, typename CmpElemTraits<_Tp>::masktype*, int64_t);
     vector_cmp_f tested = reinterpret_cast<vector_cmp_f>(tested_.ptr());
     for(int shift = 0; shift < (int)a.size() - 1; shift++)
     {
-        std::vector<_Tp> b(a.size(), 0);
+        std::vector<typename CmpElemTraits<_Tp>::signedtype> b(a.size(), 0);
         std::vector<typename CmpElemTraits<_Tp>::masktype> resvec(a.size(), 0);
         memcpy(b.data(), a.data() + shift, (a.size() - shift)*sizeof(_Tp));
         memcpy(b.data() + (a.size() - shift), a.data(), shift*sizeof(_Tp));
@@ -105,12 +135,12 @@ void check_vector_cmp_func(int cmptype, Func tested_)
             typename CmpElemTraits<_Tp>::masktype res = 0;
             switch(cmptype)
             {
-                case VCMP_EQ: res = (a[elnum] == b[elnum]); break;
-                case VCMP_NE: res = (a[elnum]!= b[elnum]); break;
-                case VCMP_LT: res = (a[elnum]< b[elnum]); break;
-                case VCMP_LE: res = (a[elnum]<= b[elnum]); break;
-                case VCMP_GT: res = (a[elnum]> b[elnum]); break;
-                case VCMP_GE: res = (a[elnum]>= b[elnum]); break;
+                case VCMP_EQ: res = ((_Tp)a[elnum] == (_Tp)b[elnum]); break;
+                case VCMP_NE: res = ((_Tp)a[elnum]!= (_Tp)b[elnum]); break;
+                case VCMP_LT: res = ((_Tp)a[elnum]< (_Tp)b[elnum]); break;
+                case VCMP_LE: res = ((_Tp)a[elnum]<= (_Tp)b[elnum]); break;
+                case VCMP_GT: res = ((_Tp)a[elnum]> (_Tp)b[elnum]); break;
+                case VCMP_GE: res = ((_Tp)a[elnum]>= (_Tp)b[elnum]); break;
             };
             res = 0 - res;
             ASSERT_EQ(res, resvec[elnum]);
@@ -132,6 +162,14 @@ TEST(intel64, all_vector_comparings)
         check_vector_cmp_func<int32_t>(cmpoperations[cnum], t);
         t = make_vector_cmp_func<int64_t>(ctx, cmpoperations[cnum]);
         check_vector_cmp_func<int64_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<uint8_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<uint8_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<uint16_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<uint16_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<uint32_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<uint32_t>(cmpoperations[cnum], t);
+        t = make_vector_cmp_func<uint64_t>(ctx, cmpoperations[cnum]);
+        check_vector_cmp_func<uint64_t>(cmpoperations[cnum], t);
         t = make_vector_cmp_func<float>(ctx, cmpoperations[cnum]);
         check_vector_cmp_func<float>(cmpoperations[cnum], t);
         t = make_vector_cmp_func<double>(ctx, cmpoperations[cnum]);

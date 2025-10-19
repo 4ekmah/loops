@@ -168,9 +168,11 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JNE         , "jne"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JE          , "je"          ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JL          , "jl"          ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_JLE         , "jle"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JG          , "jg"          ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_JGE         , "jge"         ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JA          , "ja"          ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JLE         , "jle"         ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_JBE         , "jbe"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CALL        , "call"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_RET         , "ret"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_LABEL       , ""            ),
@@ -415,7 +417,7 @@ namespace loops
                 sib_byte_present = true;
                 sib_reg0_argnum = 1;
                 modRM_reg1_argnum = sib_reg1_argnum = 0;
-                mod = ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0; //DUBUG: Check new variations!
+                mod = ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0;
                 if ((index.args[modRM_reg1_argnum].idx & 0b111) == 0b101)
                 {
                     postfix_static = true;
@@ -1675,9 +1677,11 @@ namespace loops
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
         case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BTimm(0, 32, Lab) });
-        case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BTimm(0, 32, Lab) });
         case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BTimm(0, 32, Lab) });
         case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JA):  return BiT({ BTsta(0xf87,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JLE): return BiT({ BTsta(0xf8e,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JBE): return BiT({ BTsta(0xf86,16), BTimm(0, 32, Lab) });
         case (INTEL64_CALL):
             if (index.size() == 1)
             {
@@ -2264,7 +2268,9 @@ namespace loops
                 case (OP_LT):  return SyT(INTEL64_JL,  { SAcop(1) });
                 case (OP_GT):  return SyT(INTEL64_JG,  { SAcop(1) });
                 case (OP_GE):  return SyT(INTEL64_JGE, { SAcop(1) });
+                case (OP_UGT): return SyT(INTEL64_JA,  { SAcop(1) });
                 case (OP_LE):  return SyT(INTEL64_JLE, { SAcop(1) });
+                case (OP_ULE): return SyT(INTEL64_JBE,  { SAcop(1) });
                 default:
                     break;
                 };
@@ -2301,6 +2307,7 @@ namespace loops
         Intel64BRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
         void handle_reduce_sum32(Syntfunc& a_dest, const Arg& output, const Arg& input) const;
         void handle_mov_imm2vec(Syntfunc& a_dest, const Arg& output, int64_t input) const;
+        void handle_ultugt(Syntfunc& a_dest, const Syntop& op) const;
     };
 
     class Intel64ARASnippets : public CompilerPass
@@ -3083,6 +3090,30 @@ namespace loops
         a_dest.program.push_back(Syntop(VOP_BROADCAST, { output, onelane, argIImm(0) }));
     }
 
+    void Intel64BRASnippets::handle_ultugt(Syntfunc& a_dest, const Syntop& op) const
+    {
+        int leftnum  = op.opcode == VOP_GT ? 2 : 1;
+        int rightnum = op.opcode == VOP_GT ? 1 : 2;
+        Arg sign_bit_changer = op.args[0];
+        sign_bit_changer.idx = a_dest.provideIdx(RB_VEC);
+        int64_t sign_bit_changer_val = op.args[0].elemtype == TYPE_U64 ? int64_t(0x8000000000000000) : 
+                                        op.args[0].elemtype == TYPE_U32 ? int64_t(0x80000000) :
+                                        op.args[0].elemtype == TYPE_U16 ? int64_t(0x8000) :
+                                        /*op.args[0].elemtype == TYPE_U8 ?*/int64_t(0x80);
+        handle_mov_imm2vec(a_dest, sign_bit_changer, sign_bit_changer_val);
+        a_dest.program.push_back(Syntop(VOP_SUB, { op.args[0], op.args[leftnum], sign_bit_changer }));
+        Arg altered2 = op.args[rightnum];
+        altered2.idx = a_dest.provideIdx(RB_VEC);
+        a_dest.program.push_back(Syntop(VOP_SUB, { altered2, op.args[rightnum], sign_bit_changer }));
+        altered2.elemtype =  op.args[0].elemtype == TYPE_U64 ? TYPE_I64 : 
+                                op.args[0].elemtype == TYPE_U32 ? TYPE_I32 :
+                                op.args[0].elemtype == TYPE_U16 ? TYPE_I16 :
+                            /*op.args[0].elemtype == TYPE_U8?*/ TYPE_I8;
+        Arg arg0_signed = op.args[0];
+        arg0_signed.elemtype = altered2.elemtype;
+        a_dest.program.push_back(Syntop(VOP_GT, { op.args[0], altered2, arg0_signed }));
+    }
+
     void Intel64BRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         a_dest.name = a_source.name;
@@ -3175,21 +3206,21 @@ namespace loops
                 Assert(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[1].elemtype == op.args[2].elemtype && isInteger(op.args[1].elemtype))
                 {
-                    Arg a_signed = op.args[1];
-                    Arg b_signed = op.args[2];
-                    int etype = a_signed.elemtype;
-                    if(isUnsignedInteger(etype))
-                        etype = etype == TYPE_U8  ? TYPE_I8  :
-                                etype == TYPE_U16 ? TYPE_I8  :
-                                etype == TYPE_U32 ? TYPE_I8  :
-                              /*etype == TYPE_U64?*/TYPE_I64;
-                    a_signed.elemtype = etype;
-                    b_signed.elemtype = etype;
-                    Arg lt_res = op.args[0];
-                    lt_res.idx = a_dest.provideIdx(RB_VEC);
-                    a_dest.program.push_back(Syntop(VOP_LT, { lt_res, a_signed, b_signed }));
-                    a_dest.program.push_back(Syntop(VOP_GT, { op.args[0], a_signed, b_signed }));
-                    a_dest.program.push_back(Syntop(VOP_OR, { op.args[0], op.args[0], lt_res }));
+                    a_dest.program.push_back(Syntop(VOP_EQ, { op.args[0], op.args[1], op.args[2] }));
+                    Arg zero = op.args[0];
+                    zero.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(OP_MOV, { zero, argIImm(0) }));
+                    a_dest.program.push_back(Syntop(VOP_EQ, { op.args[0], op.args[0], zero}));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
+            case (VOP_LT):
+            case (VOP_GT):
+                if (op.args_size == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::VREG &&
+                    op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == op.args[2].elemtype && isUnsignedInteger(op.args[0].elemtype))
+                {
+                    handle_ultugt(a_dest, op);
                 }
                 else
                     a_dest.program.push_back(op);
@@ -3197,13 +3228,32 @@ namespace loops
             case VOP_LE:
             case VOP_GE:
                 Assert(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
-                if(op.args[1].elemtype == op.args[2].elemtype && isSignedInteger(op.args[1].elemtype))
+                if(op.args[1].elemtype == op.args[2].elemtype && isInteger(op.args[1].elemtype))
                 {
-                    Arg eq_res = op.args[0];
-                    eq_res.idx = a_dest.provideIdx(RB_VEC);
-                    a_dest.program.push_back(Syntop(VOP_EQ, { eq_res, op.args[1], op.args[2] }));
-                    a_dest.program.push_back(Syntop(op.opcode == VOP_LE ? VOP_LT : VOP_GT, { op.args[0], op.args[1], op.args[2] }));
-                    a_dest.program.push_back(Syntop(VOP_OR, { op.args[0], op.args[0], eq_res }));
+                    if(elem_size(op.args[1].elemtype) <= 4)
+                    {
+                        int leftnum  = op.opcode == VOP_GE ? 2 : 1;
+                        int rightnum = op.opcode == VOP_GE ? 1 : 2;
+                        Arg minres = op.args[1];
+                        minres.idx = a_dest.provideIdx(RB_VEC);
+                        a_dest.program.push_back(Syntop(VOP_MIN, { minres, op.args[rightnum], op.args[leftnum] }));
+                        a_dest.program.push_back(Syntop(VOP_EQ, { op.args[0], op.args[leftnum], minres }));
+                    }
+                    else
+                    {
+                        Arg eq_res = op.args[0];
+                        eq_res.idx = a_dest.provideIdx(RB_VEC);
+                        a_dest.program.push_back(Syntop(VOP_EQ, { eq_res, op.args[1], op.args[2] }));
+                        if(op.args[1].elemtype == TYPE_U64)
+                        {
+                            Syntop strict = op;
+                            strict.opcode = op.opcode == VOP_LE ? VOP_LT : VOP_GT;
+                            handle_ultugt(a_dest, strict);
+                        }
+                        else
+                            a_dest.program.push_back(Syntop(op.opcode == VOP_LE ? VOP_LT : VOP_GT, { op.args[0], op.args[1], op.args[2] }));
+                        a_dest.program.push_back(Syntop(VOP_OR, { op.args[0], op.args[0], eq_res }));
+                    }
                 }
                 else
                     a_dest.program.push_back(op);
