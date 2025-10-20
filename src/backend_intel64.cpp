@@ -35,20 +35,24 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CQO         , "cqo"         ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_XCHG        , "xchg"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMP         , "cmp"         ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVE       , "cmove"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNE      , "cmovne"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVE       , "cmove"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVL       , "cmovl"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVG       , "cmovg"       ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVLE      , "cmovle"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVGE      , "cmovge"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVA       , "cmova"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVLE      , "cmovle"      ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVBE      , "cmovbe"      ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVS       , "cmovs"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_CMOVNS      , "cmovns"      ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETE        , "sete"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNE       , "setne"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETE        , "sete"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETL        , "setl"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETG        , "setg"        ),
-    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETLE       , "setle"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETGE       , "setge"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETA        , "seta"        ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETLE       , "setle"       ),
+    LOOPS_HASHMAP_ELEM(loops::INTEL64_SETBE       , "setbe"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETS        , "sets"        ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_SETNS       , "setns"       ),
     LOOPS_HASHMAP_ELEM(loops::INTEL64_VMOVDQU     , "vmovdqu"     ),
@@ -1433,25 +1437,29 @@ namespace loops
                     return BiT({ BTsta(0x4881bc24, 32), BTspl(0, 32), BTimm(1, 32) });
             }
             break;
-        case (INTEL64_CMOVE ):
         case (INTEL64_CMOVNE):
+        case (INTEL64_CMOVE ):
         case (INTEL64_CMOVL ):
         case (INTEL64_CMOVG ):
-        case (INTEL64_CMOVLE):
         case (INTEL64_CMOVGE):
-        case (INTEL64_CMOVS):
+        case (INTEL64_CMOVA ):
+        case (INTEL64_CMOVLE):
+        case (INTEL64_CMOVBE):
+        case (INTEL64_CMOVS ):
         case (INTEL64_CMOVNS):
             if (index.size() == 2 && index[0].tag == Arg::IREG)
             {
                 static uint64_t regbytes[4] = { 0x480f00, 0x4c0f00, 0x490f00, 0x4d0f00 };
-                uint64_t stat = index.opcode == INTEL64_CMOVE  ? 0x44 : (
-                                index.opcode == INTEL64_CMOVNE ? 0x45 : (
-                                index.opcode == INTEL64_CMOVL  ? 0x4c : (
-                                index.opcode == INTEL64_CMOVG  ? 0x4f : (
-                                index.opcode == INTEL64_CMOVLE ? 0x4e : (
-                                index.opcode == INTEL64_CMOVGE ? 0x4d : (
-                                index.opcode == INTEL64_CMOVS  ? 0x48 : (
-                              /*index.opcode == INTEL64_CMOVNS?*/0x49 /*: (*/)))))));
+                uint64_t stat = index.opcode == INTEL64_CMOVNE ? 0x45 :
+                                index.opcode == INTEL64_CMOVE  ? 0x44 :
+                                index.opcode == INTEL64_CMOVL  ? 0x4c :
+                                index.opcode == INTEL64_CMOVG  ? 0x4f :
+                                index.opcode == INTEL64_CMOVGE ? 0x4d :
+                                index.opcode == INTEL64_CMOVA  ? 0x47 :
+                                index.opcode == INTEL64_CMOVLE ? 0x4e :
+                                index.opcode == INTEL64_CMOVBE ? 0x46 :
+                                index.opcode == INTEL64_CMOVS  ? 0x48 :
+                              /*index.opcode == INTEL64_CMOVNS?*/0x49/*:*/;
                 if (index[1].tag == Arg::IREG)
                 {
                     size_t statn = ((index[0].idx < 8) ? 0 : 1) | ((index[1].idx < 8) ? 0 : 2);
@@ -1466,25 +1474,29 @@ namespace loops
                 }
             }
             break;
-        case (INTEL64_SETE ):
         case (INTEL64_SETNE):
+        case (INTEL64_SETE ):
         case (INTEL64_SETL ):
         case (INTEL64_SETG ):
-        case (INTEL64_SETLE):
         case (INTEL64_SETGE):
-        case (INTEL64_SETS):
+        case (INTEL64_SETA ):
+        case (INTEL64_SETLE):
+        case (INTEL64_SETBE):
+        case (INTEL64_SETS ):
         case (INTEL64_SETNS):
             if (index.size() == 1)
             {
                 static uint64_t regbytes[4] = { 0x0f00, 0x400f00, 0x410f00 };
-                uint64_t stat = index.opcode == INTEL64_SETE  ? 0x94 : (
-                                index.opcode == INTEL64_SETNE ? 0x95 : (
-                                index.opcode == INTEL64_SETL  ? 0x9c : (
-                                index.opcode == INTEL64_SETG  ? 0x9f : (
-                                index.opcode == INTEL64_SETLE ? 0x9e : (
-                                index.opcode == INTEL64_SETGE ? 0x9d : (
-                                index.opcode == INTEL64_SETS  ? 0x98 : (
-                              /*index.opcode == INTEL64_SETNS?*/0x99 /*: (*/)))))));
+                uint64_t stat = index.opcode == INTEL64_SETNE ? 0x95 :
+                                index.opcode == INTEL64_SETE  ? 0x94 :
+                                index.opcode == INTEL64_SETL  ? 0x9c :
+                                index.opcode == INTEL64_SETG  ? 0x9f :
+                                index.opcode == INTEL64_SETGE ? 0x9d :
+                                index.opcode == INTEL64_SETA  ? 0x97 :
+                                index.opcode == INTEL64_SETLE ? 0x9e :
+                                index.opcode == INTEL64_SETBE ? 0x96 :
+                                index.opcode == INTEL64_SETS  ? 0x98 :
+                              /*index.opcode == INTEL64_SETNS?*/0x99/*:*/;
                 if (index[0].tag == Arg::IREG)
                 {
                     size_t statn = index[0].idx < 4 ? 0 : (index[0].idx < 8 ? 1 : 2);
@@ -1792,14 +1804,16 @@ namespace loops
         case (OP_SELECT): 
             if (index.size() == 4)
             {
-                int tarcode = index[1].value == OP_NE ? INTEL64_CMOVNE : (
-                              index[1].value == OP_EQ ? INTEL64_CMOVE : (
-                              index[1].value == OP_GE ? INTEL64_CMOVGE : (
-                              index[1].value == OP_LE ? INTEL64_CMOVLE : (
-                              index[1].value == OP_GT ? INTEL64_CMOVG : (
-                              index[1].value == OP_LT ? INTEL64_CMOVL : (
-                              index[1].value == OP_S  ? INTEL64_CMOVS : (
-                              index[1].value == OP_NS ? INTEL64_CMOVNS : -1)))))));
+                int tarcode = index[1].value == OP_NE  ? INTEL64_CMOVNE :
+                              index[1].value == OP_EQ  ? INTEL64_CMOVE  :
+                              index[1].value == OP_LT  ? INTEL64_CMOVL  :
+                              index[1].value == OP_GT  ? INTEL64_CMOVG  :
+                              index[1].value == OP_GE  ? INTEL64_CMOVGE :
+                              index[1].value == OP_UGT ? INTEL64_CMOVA  :
+                              index[1].value == OP_LE  ? INTEL64_CMOVLE :
+                              index[1].value == OP_ULE ? INTEL64_CMOVBE :
+                              index[1].value == OP_S   ? INTEL64_CMOVS  :
+                              index[1].value == OP_NS  ? INTEL64_CMOVNS : -1;
                 Assert(tarcode != -1);
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
@@ -1807,14 +1821,16 @@ namespace loops
         case (OP_IVERSON): 
             if (index.size() == 2 && index[1].value >= OP_GT && index[1].value <= OP_NS)
             {
-                int tarcode = index[1].value == OP_NE ? INTEL64_SETNE : (
-                              index[1].value == OP_EQ ? INTEL64_SETE : (
-                              index[1].value == OP_GE ? INTEL64_SETGE : (
-                              index[1].value == OP_LE ? INTEL64_SETLE : (
-                              index[1].value == OP_GT ? INTEL64_SETG : (
-                              index[1].value == OP_LT ? INTEL64_SETL : (
-                              index[1].value == OP_S  ? INTEL64_SETS : (
-                              index[1].value == OP_NS ? INTEL64_SETNS : -1)))))));
+                int tarcode = index[1].value == OP_NE  ? INTEL64_SETNE :
+                              index[1].value == OP_EQ  ? INTEL64_SETE  :
+                              index[1].value == OP_LT  ? INTEL64_SETL  :
+                              index[1].value == OP_GT  ? INTEL64_SETG  :
+                              index[1].value == OP_GE  ? INTEL64_SETGE :
+                              index[1].value == OP_UGT ? INTEL64_SETA :
+                              index[1].value == OP_LE  ? INTEL64_SETLE :
+                              index[1].value == OP_ULE ? INTEL64_SETBE :
+                              index[1].value == OP_S   ? INTEL64_SETS  :
+                              index[1].value == OP_NS  ? INTEL64_SETNS : -1;
                 Assert(tarcode != -1);
                 return SyT(tarcode, { SAcopelt(0, TYPE_U8) });
             }

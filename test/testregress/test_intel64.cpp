@@ -942,14 +942,16 @@ TEST(intel64, instruction_set_test)
 
         newiopNoret(OP_XOR, { spilled32, spilled32, argIImm(257) });
 
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_EQ), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_NE), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_LT), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_GT), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_LE), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_GE), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_S ), rax, rax });
-        newiopNoret(OP_SELECT, { rax, argIImm(OP_NS), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_NE ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_EQ ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_LT ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_GT ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_GE ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_UGT), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_LE ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_ULE), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_S  ), rax, rax });
+        newiopNoret(OP_SELECT, { rax, argIImm(OP_NS ), rax, rax });
 
         newiopNoret(OP_SELECT, { rdi, OP_EQ, rax, rdi });
         newiopNoret(OP_SELECT, { rax, OP_EQ, rdi, rax });
@@ -962,14 +964,16 @@ TEST(intel64, instruction_set_test)
         newiopNoret(OP_SELECT, { rdi, OP_EQ, spilled32, rdi });
         newiopNoret(OP_SELECT, { r8,  OP_EQ, spilled32, r8 });
 
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_EQ)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NE)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LT)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GT)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LE)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GE)});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_S )});
-        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NS)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NE )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_EQ )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LT )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GT )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_GE )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_UGT)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_LE )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_ULE)});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_S  )});
+        newiopNoret(OP_IVERSON, { rax, argIImm(OP_NS )});
 
         newiopNoret(OP_IVERSON, { rdi, argIImm(OP_EQ) });
         newiopNoret(OP_IVERSON, { r8 , argIImm(OP_EQ) });

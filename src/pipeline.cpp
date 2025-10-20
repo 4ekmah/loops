@@ -286,8 +286,9 @@ namespace loops
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.reserve(2 * a_source.program.size());
-        for (const Syntop &op : a_source.program)
+        for (size_t opnum = 0; opnum < a_source.program.size(); opnum++)
         {
+            const Syntop &op = a_source.program[opnum];
             size_t curr_tar_op = a_dest.program.size();
             switch (op.opcode)
             {
