@@ -2093,14 +2093,14 @@ namespace loops
             break;
         case (VOP_SELECT):
             if (index.args_size == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::VREG &&
-                index.args[3].tag == Arg::VREG && index.args[0].elemtype == index.args[1].elemtype && index.args[0].elemtype == index.args[2].elemtype && 
-                elem_size(index.args[0].elemtype) == elem_size(index.args[3].elemtype) && isUnsignedInteger(index.args[3].elemtype))
+                index.args[3].tag == Arg::VREG && index.args[0].elemtype == index.args[2].elemtype && index.args[0].elemtype == index.args[3].elemtype && 
+                elem_size(index.args[0].elemtype) == elem_size(index.args[1].elemtype) && isUnsignedInteger(index.args[1].elemtype))
             {
                 switch(index.args[0].elemtype)
                 {
-                    case(TYPE_FP32):  return SyT(INTEL64_VBLENDVPS, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
-                    case(TYPE_FP64):  return SyT(INTEL64_VBLENDVPD, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
-                    default: return SyT(INTEL64_VPBLENDVB, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                    case(TYPE_FP32):  return SyT(INTEL64_VBLENDVPS, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
+                    case(TYPE_FP64):  return SyT(INTEL64_VBLENDVPD, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
+                    default: return SyT(INTEL64_VPBLENDVB, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
                 }
             }
             break;
@@ -3706,7 +3706,6 @@ namespace loops
                 break;
             }
             case VOP_FMA:
-            case VOP_SELECT:
             {
                 Syntop op_= op;
                 Assert(op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG);
