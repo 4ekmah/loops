@@ -533,7 +533,7 @@ namespace loops
                     {
                         regReassignment[basketNum][interval->idx] = regReassignment[basketNum][lastactive->idx];
                         RegIdx keepidx = regReassignment[basketNum][lastactive->idx].idx; //We need to know appointed target architecture register for spilled parameters.
-                        stackParameterSpilled = stackParamLayout->count(lastactive->idx);
+                        stackParameterSpilled = stackParamLayout[basketNum].count(lastactive->idx);
                         regReassignment[basketNum][lastactive->idx] = argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]);
                         regReassignment[basketNum][lastactive->idx].idx = keepidx;
                         active.erase(--(active.end()));
@@ -542,7 +542,7 @@ namespace loops
                     else
                     {
                         RegIdx keepidx = regReassignment[basketNum][interval->idx].idx; //We need to know appointed target architecture register for spilled parameters.
-                        stackParameterSpilled = stackParamLayout->count(interval->idx);
+                        stackParameterSpilled = stackParamLayout[basketNum].count(interval->idx);
                         regReassignment[basketNum][interval->idx] = argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]);
                         regReassignment[basketNum][interval->idx].idx = keepidx;
                     }
