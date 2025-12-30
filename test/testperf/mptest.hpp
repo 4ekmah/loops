@@ -7,7 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_MPTEST_HPP__
 #include "loops/loops.hpp"
 #include "loopslayers/loopslayers.h"
-#if __LOOPS_ARCH ==  __LOOPS_AARCH64
+#if __LOOPS_ARCH ==  __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64
 namespace loops
 {
 
@@ -23,5 +23,5 @@ protected:
 };
 }
 
-#endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
+#endif //__LOOPS_ARCH ==  __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64
 #endif //__LOOPS_MPTEST_HPP__

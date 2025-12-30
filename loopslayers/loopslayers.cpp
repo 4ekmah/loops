@@ -6,14 +6,14 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "loops/loops.hpp"
 #include "loopslayers/loopslayers.h"
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64
+#if (__LOOPS_ARCH == __LOOPS_AARCH64) || (__LOOPS_ARCH == __LOOPS_INTEL64)
 #include "generators/depthwiseconv.hpp" 
 #include "generators/maxpool.hpp"
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64
+#endif //(__LOOPS_ARCH == __LOOPS_AARCH64) || (__LOOPS_ARCH == __LOOPS_INTEL64)
 
 loops_context create_context()
 {
-#if __LOOPS_ARCH != __LOOPS_AARCH64
+#if __LOOPS_ARCH != __LOOPS_AARCH64 && __LOOPS_ARCH != __LOOPS_INTEL64
     return 0;
 #else
     return (void*)(new loops::Context);
@@ -25,7 +25,7 @@ void free_context(loops_context ctx)
     delete ((loops::Context*)(ctx));
 }
 
-#if __LOOPS_ARCH != __LOOPS_AARCH64
+#if __LOOPS_ARCH != __LOOPS_AARCH64 && __LOOPS_ARCH != __LOOPS_INTEL64
 dwconv_f32_t generate_dwc_f32(loops_context /*ctx*/, int /*kh*/, int /*kw*/, int /*padding_top*/, int /*padding_left*/, int /*padding_bottom*/, int /*padding_right*/, int /*stride_y*/, int /*stride_x*/, int /*dilation_y*/, int /*dilation_x*/, int /*activation_type*/, float /*alpha*/)
 {
     return 0;
@@ -260,4 +260,3 @@ bool good_alg_limits(struct dwc_algs_limits* out)
     return out->Cms != 0 || out->Cme != 0 || out->Cis != 0 || out->Cie != 0 || out->Yms != 0 ||
            out->Yme != 0 || out->Yis != 0 || out->Yie != 0 || out->Xis != 0 || out->Xie != 0;
 }
-

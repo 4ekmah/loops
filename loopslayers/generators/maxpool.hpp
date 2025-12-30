@@ -7,7 +7,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #ifndef __LOOPS_MAXPOOL_HPP__
 #define __LOOPS_MAXPOOL_HPP__
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64
+#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "loopslayers/loopslayers.h"
 #include <algorithm>
@@ -15,7 +15,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <vector>
 #include <iostream>
 #include <iomanip>
-#include "arm_neon.h"
 #include "test/tests.hpp"
 //TODO(ch): There must not be Exprs in user code.
 namespace loops
@@ -916,5 +915,5 @@ IExpr MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
         return m1*m2;
 }
 }
-#endif //__LOOPS_ARCH ==  __LOOPS_AARCH64
+#endif //__LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 #endif //__LOOPS_MAXPOOL_HPP__
