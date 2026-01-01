@@ -901,7 +901,6 @@ VReg<_Tp> MaxpoolGenerator<_Tp>::activationFunction(VReg<_Tp>& res)
         case(ACT_LRELU): return static_cast<VReg<_Tp>&&>(alpha < 1 ? max(res,res * valpha) : min(res,res * valpha) ); break;
         default: throw std::runtime_error("Unknown activation");
     };
-    return VReg<_Tp>();
 }
 
 template<typename _Tp>
