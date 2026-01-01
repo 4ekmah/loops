@@ -16,6 +16,14 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iostream>
 #include <iomanip>
 #include "test/tests.hpp"
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min
+#undef max
+#pragma warning(push)
+#pragma warning(disable:4458)
+#pragma warning(disable:4456)
+#endif 
+
 //TODO(ch): There must not be Exprs in user code.
 namespace loops
 {
@@ -915,5 +923,9 @@ IExpr MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
         return m1*m2;
 }
 }
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#pragma warning(pop)
+#endif 
+
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 #endif //__LOOPS_MAXPOOL_HPP__

@@ -16,6 +16,13 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iostream>
 #include <thread>
 #include "tests.hpp"
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min
+#undef max
+//MSVC is strange, I cannot make this compile without warning: "const _Tp empty_value = static_cast<const _Tp>(kh * kw * 2000 + 1);"
+#pragma warning(push)
+#pragma warning(disable:4244)
+#endif 
 
 namespace loops
 {
@@ -374,13 +381,13 @@ bool MaxpoolTestImpl::handleFixture(const std::vector<int>& fxt)
     const int stride_y = fxt[10];
     const int stride_x = fxt[11];
     const int activation = fxt[12];
-    const float alpha = fxt[13] == BIG_ALPHA ? 1.25 : 0.25;
+    const float alpha = fxt[13] == BIG_ALPHA ? 1.25f : 0.25f;
     bool perf = (fxt[14] == PERF);
     const int H0 = (H + padding_top + padding_bottom - kh) / stride_y + 1;
     const int W0 = (W + padding_left + padding_right - kw) / stride_x + 1;
 
     (*out) << "Maxpooling "<<(fxt[0]==TYPE_FP16?"FP16 ":"FP32 ")<<kh<<"x"<<kw<<", C = "<< NC << ", H = "<< H << ", W = "<< W << ", pt = "<< padding_top << ", pl = "<< padding_left << ", pb = "<< padding_bottom << ", pr = "<< padding_right << ", stride_y = " << stride_y << ", stride_x = " << stride_x  << std::endl;
-    const _Tp empty_value(kh * kw * 2000 + 1);
+    const _Tp empty_value = static_cast<const _Tp>(kh * kw * 2000 + 1);
     dwc_algs_limits algs_limits;
     const dwc_algs_limits ref_limits = ref_calc_algs_limits<_Tp>(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
     MPTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits, NC, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
@@ -478,13 +485,13 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
     const int stride_y = fxt[11];
     const int stride_x = fxt[12];
     const int activation = fxt[13];
-    const float alpha = fxt[14] == BIG_ALPHA ? 1.25 : 0.25;
+    const float alpha = fxt[14] == BIG_ALPHA ? 1.25f : 0.25f;
     int threads = fxt[15];
     
     const int H0 = (H + padding_top + padding_bottom - kh) / stride_y + 1;
     const int W0 = (W + padding_left + padding_right - kw) / stride_x + 1;
 
-    const _Tp empty_value(kh * kw * 2000 + 1);
+    const _Tp empty_value = static_cast<const _Tp>(kh * kw * 2000 + 1);
     int NCtask_ = NC / threads;
     int tailTaskNum = NC % threads;
 
@@ -837,4 +844,7 @@ void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
     (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 }
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#pragma warning(pop)
+#endif 
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64
