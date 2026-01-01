@@ -43,11 +43,6 @@ namespace loops
             case (OP_JMP):
             case (OP_JCC):
             case (OP_LABEL):
-            case (VOP_GETLANE):
-            case (VOP_SETLANE):
-            case (VOP_EXT): //DUBUG!!! CHECK IT BETTER!
-                a_dest.program.push_back(op);
-                break;
             case (VOP_FMA):
             {
                 //This case is handled separately due to non-standard index encoding on Arm. It can be better on Intel.
@@ -67,10 +62,25 @@ namespace loops
                 for (int arnum = 0; arnum < op_probe.size(); arnum++)
                     if (op_probe[arnum].tag == Arg::IIMMEDIATE)
                         arnums.push_back(arnum);
-                if (op.opcode == OP_SELECT || op.opcode == OP_IVERSON) //TODO(ch): create universal mechanism(probably based on encoding attempt?) //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+                //Exceptions section, created for cases, when some immmediates cannot be moved to registers.
+                //TODO(ch): create universal mechanism(probably based on encoding attempt?)
+                switch (op.opcode) 
                 {
+                case (OP_SELECT):
+                case (OP_IVERSON): // TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+                case (VOP_SETLANE):
                     Assert(arnums[0] == 1);
                     arnums.erase(arnums.begin());
+                break;
+                case (VOP_GETLANE):
+                    Assert(arnums[0] == 2);
+                    arnums.erase(arnums.begin());
+                break;
+                case (VOP_EXT):
+                    Assert(arnums[0] == 3);
+                    arnums.erase(arnums.begin());
+                break;
+                default: break;
                 }
                 std::set<RegIdx> usedRegs;
                 for (const Arg &ar : op_probe)

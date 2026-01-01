@@ -56,15 +56,6 @@ static void loops_initialize();
 #endif
 static void finalize(void)
 {
-#if __LOOPS_ARCH == __LOOPS_AARCH64
-    backend_aarch64_h_deinitialize();
-#elif __LOOPS_ARCH == __LOOPS_INTEL64
-    backend_intel64_h_deinitialize();
-#elif __LOOPS_ARCH == __LOOPS_RISCV
-    backend_riscv_h_deinitialize();
-#else
-#error Unknown CPU
-#endif
     printer_h_deinitialize();
     loops_hashmap_destruct(errstrings);
 }
@@ -76,17 +67,6 @@ static void loops_initialize()
     err = loops_hashmap_construct_static(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(errstrings_[0]));
     if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
     printer_h_initialize(); if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-
-#if __LOOPS_ARCH == __LOOPS_AARCH64
-    err = backend_aarch64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-#elif __LOOPS_ARCH == __LOOPS_INTEL64
-    err = backend_intel64_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-#elif __LOOPS_ARCH == __LOOPS_RISCV
-    err = backend_riscv_h_initialize();  if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-#else
-#error Unknown CPU
-#endif
-
     atexit(finalize);
 }
 

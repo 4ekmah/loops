@@ -10,69 +10,66 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
+static inline loops_cstring opstrings_getter_(int opcode)
 {
-                  /*  |       enum_id       |string_id|    */
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LB   , "lb"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LBU  , "lbu"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LH   , "lh"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LHU  , "lhu"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LW   , "lw"   ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LWU  , "lwu"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LD   , "ld"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SB   , "sb"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SH   , "sh"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SW   , "sw"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SD   , "sd"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_MV   , "mv"   ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LUI  , "lui"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ADD  , "add"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SUB  , "sub"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ADDI , "addi" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_MUL  , "mul"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_DIV  , "div"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_REM  , "rem"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_NEG  , "neg"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SLL  , "sll"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SLLI , "slli" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SRL  , "srl"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SRLI , "srli" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SRA  , "sra"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SRAI , "srai" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_XOR  , "xor"  ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_XORI , "xori" ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_OR   , "or"   ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ORI  , "ori"  ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_AND  , "and"  ), 
-    LOOPS_HASHMAP_ELEM(loops::RISCV_ANDI , "andi" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_NOT  , "not"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SLT  , "slt"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SLTU , "sltu" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SEQZ , "seqz" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_SNEZ , "snez" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BEQ  , "beq"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BNE  , "bne"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BLT  , "blt"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BGE  , "bge"  ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BLTU , "bltu" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_BGEU , "bgeu" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_J    , "j"    ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_JALR , "jalr" ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_LABEL, ""     ),
-    LOOPS_HASHMAP_ELEM(loops::RISCV_RET  , "ret"  ),
+    switch (opcode)
+    {
+     /*  |enum_id                    |string_id|    */
+    case (loops::RISCV_LB   ): return "lb"   ;
+    case (loops::RISCV_LBU  ): return "lbu"  ;
+    case (loops::RISCV_LH   ): return "lh"   ;
+    case (loops::RISCV_LHU  ): return "lhu"  ;
+    case (loops::RISCV_LW   ): return "lw"   ;
+    case (loops::RISCV_LWU  ): return "lwu"  ;
+    case (loops::RISCV_LD   ): return "ld"   ;
+    case (loops::RISCV_SB   ): return "sb"   ;
+    case (loops::RISCV_SH   ): return "sh"   ;
+    case (loops::RISCV_SW   ): return "sw"   ;
+    case (loops::RISCV_SD   ): return "sd"   ;
+    case (loops::RISCV_MV   ): return "mv"   ;
+    case (loops::RISCV_LUI  ): return "lui"  ;
+    case (loops::RISCV_ADD  ): return "add"  ;
+    case (loops::RISCV_SUB  ): return "sub"  ;
+    case (loops::RISCV_ADDI ): return "addi" ;
+    case (loops::RISCV_MUL  ): return "mul"  ;
+    case (loops::RISCV_DIV  ): return "div"  ;
+    case (loops::RISCV_REM  ): return "rem"  ;
+    case (loops::RISCV_NEG  ): return "neg"  ;
+    case (loops::RISCV_SLL  ): return "sll"  ;
+    case (loops::RISCV_SLLI ): return "slli" ;
+    case (loops::RISCV_SRL  ): return "srl"  ;
+    case (loops::RISCV_SRLI ): return "srli" ;
+    case (loops::RISCV_SRA  ): return "sra"  ;
+    case (loops::RISCV_SRAI ): return "srai" ;
+    case (loops::RISCV_XOR  ): return "xor"  ;
+    case (loops::RISCV_XORI ): return "xori" ;
+    case (loops::RISCV_OR   ): return "or"   ;
+    case (loops::RISCV_ORI  ): return "ori"  ;
+    case (loops::RISCV_AND  ): return "and"  ;
+    case (loops::RISCV_ANDI ): return "andi" ;
+    case (loops::RISCV_NOT  ): return "not"  ;
+    case (loops::RISCV_SLT  ): return "slt"  ;
+    case (loops::RISCV_SLTU ): return "sltu" ;
+    case (loops::RISCV_SEQZ ): return "seqz" ;
+    case (loops::RISCV_SNEZ ): return "snez" ;
+    case (loops::RISCV_BEQ  ): return "beq"  ;
+    case (loops::RISCV_BNE  ): return "bne"  ;
+    case (loops::RISCV_BLT  ): return "blt"  ;
+    case (loops::RISCV_BGE  ): return "bge"  ;
+    case (loops::RISCV_BLTU ): return "bltu" ;
+    case (loops::RISCV_BGEU ): return "bgeu" ;
+    case (loops::RISCV_J    ): return "j"    ;
+    case (loops::RISCV_JALR ): return "jalr" ;
+    case (loops::RISCV_LABEL): return ""     ;
+    case (loops::RISCV_RET  ): return "ret"  ;
+    };
+    return nullptr;
 };
 
-static LOOPS_HASHMAP(int, loops_cstring) opstrings = NULL;
-
-int backend_riscv_h_initialize()
+static int opstrings_getter(int opcode, loops_cstring* found_name)
 {
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&opstrings, opstrings_, sizeof(opstrings_) / sizeof(opstrings_[0])));
-    return LOOPS_ERR_SUCCESS;
-}
-
-void backend_riscv_h_deinitialize()
-{
-    loops_hashmap_destruct(opstrings);
+    *found_name = opstrings_getter_(opcode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_UNPRINTABLE_OPERATION : LOOPS_ERR_SUCCESS;
 }
 
 namespace loops
@@ -931,7 +928,7 @@ namespace loops
 
     column_printer RiscVBackend::get_opname_printer() const
     {
-        column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ opstrings , /*free_func = */ NULL };
+        column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ (void*)&opstrings_getter, /*free_func = */ NULL };
         return ret;
     }
 

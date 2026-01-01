@@ -8,7 +8,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include "mptest.hpp"
-#include "dwctest.hpp"
 #include "loopslayers/loopslayers.h"
 #include <algorithm>
 #include <cstddef>
@@ -18,21 +17,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <thread>
 #include "tests.hpp"
 
-bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference, std::ostream* out) //DUBUG: delete, it is already defined in 
-{
-    bool res = true;
-    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
-    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
-    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
-    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
-    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
-    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
-    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
-    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
-    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
-    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
-    return res;
-}
 namespace loops
 {
 class MaxpoolTestImpl : public MaxpoolTest
@@ -363,7 +347,7 @@ bool MaxpoolTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W, _Tp e
 bool MaxpoolTestImpl::isFixtureSupported(const std::vector<int>& fxt)
 {
     (void)fxt;
-#if __LOOPS_ARCH == __LOOPS_INTEL64 //DUBUG
+#if __LOOPS_ARCH == __LOOPS_INTEL64
     const int typ = fxt[0];
     const int stride_x = fxt[11];
     return (typ == TYPE_FP32) && stride_x == 1;
@@ -821,6 +805,36 @@ void MaxpoolTestImpl::run()
                 return;
         }
     }
+}
+
+bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference, std::ostream* out)
+{
+    bool res = true;
+    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
+    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
+    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
+    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
+    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
+    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
+    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
+    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
+    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
+    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
+    return res;
+}
+
+void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
+{
+    (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
+    (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
+    (*out)<<"    Cis: = " << toprint.Cis<<std::endl;
+    (*out)<<"    Cie: = " << toprint.Cie<<std::endl;
+    (*out)<<"    Yms: = " << toprint.Yms<<std::endl;
+    (*out)<<"    Yme: = " << toprint.Yme<<std::endl;
+    (*out)<<"    Yis: = " << toprint.Yis<<std::endl;
+    (*out)<<"    Yie: = " << toprint.Yie<<std::endl;
+    (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
+    (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 }
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64

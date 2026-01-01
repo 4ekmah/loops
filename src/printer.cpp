@@ -90,10 +90,8 @@ LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] =
     LOOPS_HASHMAP_ELEM(loops::VOP_NOT             , "not"                   ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_X86_ADC          , "x86_adc"               ) ,
     LOOPS_HASHMAP_ELEM(loops::OP_X86_CQO          , "x86_cqo"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VEXTRACTI128, "x86_vextracti128"      ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VEXTRACTF128, "x86_vextractf128"      ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VINSERTI128 , "x86_vinserti128"       ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VINSERTF128 , "x86_vinsertf128"       ) ,
+    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VEXTRACT128 , "x86_vextract128"       ) ,
+    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VINSERT128  , "x86_vinsert128"        ) ,
     LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPERM2I128  , "x86_vperm2i128"        ) ,
     LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPALIGNR    , "x86_vpalignr"          ) ,
     LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPSHUFD     , "x86_vpshufd"           ) ,
@@ -593,13 +591,11 @@ int col_opname_table_printer(program_printer* printer, column_printer* colprinte
     loops_cstring found_name = NULL;
     loops::Syntop* op = func->program->data;
     op += row;
-    err = loops_hashmap_get((LOOPS_HASHMAP(int, loops_cstring))colprinter->auxdata, op->opcode, &found_name);
-    if(err != LOOPS_ERR_ELEMENT_NOT_FOUND && err != LOOPS_ERR_SUCCESS )
+    err = ((table_opname_getter)colprinter->auxdata)(op->opcode, &found_name);
+    if(err != LOOPS_ERR_SUCCESS )
         LOOPS_THROW(err);
     else if(err == LOOPS_ERR_SUCCESS)
         LOOPS_CALL_THROW(loops_printf(printer, "%s", found_name));
-    else
-        LOOPS_THROW(LOOPS_ERR_UNPRINTABLE_OPERATION);
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }

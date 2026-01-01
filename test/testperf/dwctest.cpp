@@ -4,6 +4,7 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 #include "dwctest.hpp"
+#include "mptest.hpp"
 #if __LOOPS_ARCH == __LOOPS_AARCH64
 
 #include "loops/loops.hpp"
@@ -38,8 +39,6 @@ private:
     dwc_algs_limits ref_calc_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int dilation_y, int dilation_x);
     template<typename _Tp>
     bool compare(_Tp* tocheck, _Tp* ref, int C, int H, int W, _Tp empty_value);
-    bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference);
-    void print_algs_limits(const dwc_algs_limits& tocheck);
     template<typename _Tp>
     bool handleFixture(const std::vector<int>& fxt);
     template<typename _Tp>
@@ -388,36 +387,6 @@ bool DepthwiseconvTestImpl::compare(_Tp* tocheck, _Tp* ref, int C, int H, int W,
     return true;
 }
 
-bool DepthwiseconvTestImpl::compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference)
-{
-    bool res = true;
-    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
-    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
-    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
-    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
-    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
-    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
-    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
-    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
-    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
-    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
-    return res;
-}
-
-void DepthwiseconvTestImpl::print_algs_limits(const dwc_algs_limits& toprint)
-{
-    (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
-    (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
-    (*out)<<"    Cis: = " << toprint.Cis<<std::endl;
-    (*out)<<"    Cie: = " << toprint.Cie<<std::endl;
-    (*out)<<"    Yms: = " << toprint.Yms<<std::endl;
-    (*out)<<"    Yme: = " << toprint.Yme<<std::endl;
-    (*out)<<"    Yis: = " << toprint.Yis<<std::endl;
-    (*out)<<"    Yie: = " << toprint.Yie<<std::endl;
-    (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
-    (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
-}
-
 template<typename _Tp>
 bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
 {
@@ -447,7 +416,7 @@ bool DepthwiseconvTestImpl::handleFixture(const std::vector<int>& fxt)
     const dwc_algs_limits ref_limits = ref_calc_algs_limits<_Tp>(NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
     DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits, NC, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
 
-    if(!compare_algs_limits(algs_limits, ref_limits))
+    if(!compare_algs_limits(algs_limits, ref_limits, out))
     {
         (*out)<<"    ALGS_LIMITS CHECK FAILED!"<<std::endl;
         return false;
@@ -558,7 +527,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     dwc_algs_limits algs_limits_;
     DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits_, tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
     const dwc_algs_limits ref_algs_limits_ = ref_calc_algs_limits<_Tp>(tailTaskNum ? NCtask_ + 1 : NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
-    if(!compare_algs_limits(algs_limits_, ref_algs_limits_))
+    if(!compare_algs_limits(algs_limits_, ref_algs_limits_, out))
     {
         (*out)<<"    ALGS_LIMITS CHECK FAILED!"<<std::endl;
         return false;
@@ -568,7 +537,7 @@ bool DepthwiseconvTestImpl::handleFixtureMultithread(const std::vector<int>& fxt
     {
         DWCTestTraits<_Tp>::calc_dwc_algs_limits(CTX, &algs_limits_tail, NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x);
         const dwc_algs_limits ref_algs_limits_tail = ref_calc_algs_limits<_Tp>(NCtask_, W, H, kw, kh, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
-        if(!compare_algs_limits(algs_limits_tail, ref_algs_limits_tail))
+        if(!compare_algs_limits(algs_limits_tail, ref_algs_limits_tail, out))
         {
             (*out)<<"    ALGS_LIMITS CHECK FAILED!"<<std::endl;
             return false;
@@ -715,7 +684,7 @@ void DepthwiseconvTestImpl::run()
         dwc_algs_limits tocheck;
 
         calc_dwc_algs_limits_f32(CTX, &tocheck, NC, H, W, kh, kw, H0, W0, padding_top, padding_left, padding_bottom, padding_right, stride_y, stride_x, 1, 1);
-        if(!compare_algs_limits(tocheck, ref))
+        if(!compare_algs_limits(tocheck, ref, out))
             return;
     }
     std::cout << "=================================================  SINGLETHREAD TESTS  =============================================================="<<std::endl;
@@ -932,36 +901,6 @@ void DepthwiseconvTestImpl::run()
                 return;
         }
     };
-}
-
-bool compare_algs_limits(const dwc_algs_limits& tocheck, const dwc_algs_limits& reference, std::ostream* out)
-{
-    bool res = true;
-    if(tocheck.Cms != reference.Cms) {(*out)<<"    Cms:ref = " << reference.Cms << " | checked =  " << tocheck.Cms<<std::endl; res = false;}
-    if(tocheck.Cme != reference.Cme) {(*out)<<"    Cme:ref = " << reference.Cme << " | checked =  " << tocheck.Cme<<std::endl; res = false;}
-    if(tocheck.Cis != reference.Cis) {(*out)<<"    Cis:ref = " << reference.Cis << " | checked =  " << tocheck.Cis<<std::endl; res = false;}
-    if(tocheck.Cie != reference.Cie) {(*out)<<"    Cie:ref = " << reference.Cie << " | checked =  " << tocheck.Cie<<std::endl; res = false;}
-    if(tocheck.Yms != reference.Yms) {(*out)<<"    Yms:ref = " << reference.Yms << " | checked =  " << tocheck.Yms<<std::endl; res = false;}
-    if(tocheck.Yme != reference.Yme) {(*out)<<"    Yme:ref = " << reference.Yme << " | checked =  " << tocheck.Yme<<std::endl; res = false;}
-    if(tocheck.Yis != reference.Yis) {(*out)<<"    Yis:ref = " << reference.Yis << " | checked =  " << tocheck.Yis<<std::endl; res = false;}
-    if(tocheck.Yie != reference.Yie) {(*out)<<"    Yie:ref = " << reference.Yie << " | checked =  " << tocheck.Yie<<std::endl; res = false;}
-    if(tocheck.Xis != reference.Xis) {(*out)<<"    Xis:ref = " << reference.Xis << " | checked =  " << tocheck.Xis<<std::endl; res = false;}
-    if(tocheck.Xie != reference.Xie) {(*out)<<"    Xie:ref = " << reference.Xie << " | checked =  " << tocheck.Xie<<std::endl; res = false;}
-    return res;
-}
-
-void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
-{
-    (*out)<<"    Cms: = " << toprint.Cms<<std::endl;
-    (*out)<<"    Cme: = " << toprint.Cme<<std::endl;
-    (*out)<<"    Cis: = " << toprint.Cis<<std::endl;
-    (*out)<<"    Cie: = " << toprint.Cie<<std::endl;
-    (*out)<<"    Yms: = " << toprint.Yms<<std::endl;
-    (*out)<<"    Yme: = " << toprint.Yme<<std::endl;
-    (*out)<<"    Yis: = " << toprint.Yis<<std::endl;
-    (*out)<<"    Yie: = " << toprint.Yie<<std::endl;
-    (*out)<<"    Xis: = " << toprint.Xis<<std::endl;
-    (*out)<<"    Xie: = " << toprint.Xie<<std::endl;
 }
 }
 #endif //__LOOPS_ARCH ==  __LOOPS_AARCH64

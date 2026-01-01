@@ -153,40 +153,38 @@ enum {
 //Intel-only operations:
     OP_X86_ADC           = 101, //Add with carry flag.
     OP_X86_CQO           = 102,
-    VOP_X86_VEXTRACTI128 = 103,  //DUBUG: well, it's possible to combine these two instructions into one VOP_X86_VEXTRACT128. We control IR.
-    VOP_X86_VEXTRACTF128 = 104,
-    VOP_X86_VINSERTI128  = 105,
-    VOP_X86_VINSERTF128  = 106,
-    VOP_X86_VPERM2I128   = 107,
-    VOP_X86_VPALIGNR     = 108,
-    VOP_X86_VPSHUFD      = 109,
-    VOP_X86_VPSADBW      = 110,
-    VOP_X86_VPHADDD      = 111,
-    VOP_X86_VHADDPS      = 112,
-    VOP_X86_VADDSS       = 113,
-    VOP_X86_VHADDPD      = 114,
-    VOP_X86_VADDSD       = 115,
+    VOP_X86_VEXTRACT128  = 103,
+    VOP_X86_VINSERT128   = 104,
+    VOP_X86_VPERM2I128   = 105,
+    VOP_X86_VPALIGNR     = 106,
+    VOP_X86_VPSHUFD      = 107,
+    VOP_X86_VPSADBW      = 108,
+    VOP_X86_VPHADDD      = 109,
+    VOP_X86_VHADDPS      = 110,
+    VOP_X86_VADDSS       = 111,
+    VOP_X86_VHADDPD      = 112,
+    VOP_X86_VADDSD       = 113,
     
 //Aarch64-only operations:
-    OP_ARM_CINC          = 116, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
-    OP_ARM_CNEG          = 117,
-    OP_ARM_MOVK          = 118, //Move bytes to shifted byte position of register and keep other bits unchanged.
-    OP_ARM_LDP           = 119,
-    OP_ARM_STP           = 120,
-    VOP_ARM_LD1          = 121,
-    VOP_ARM_ST1          = 122,
-    VOP_ARM_LD2          = 123,
-    VOP_ARM_SHRINK_LOW   = 124, //Note: don't use these two directly, use VOP_SHRINK instead.
-    VOP_ARM_SHRINK_HIGH  = 125,
-    VOP_GETLANE          = 126,
-    VOP_SETLANE          = 127, //TODO(ch): Setlane must have ssa form.
+    OP_ARM_CINC          = 114, //TODO(ch) : check if there exists analogues on Intel and try to move it to common block.
+    OP_ARM_CNEG          = 115,
+    OP_ARM_MOVK          = 116, //Move bytes to shifted byte position of register and keep other bits unchanged.
+    OP_ARM_LDP           = 117,
+    OP_ARM_STP           = 118,
+    VOP_ARM_LD1          = 119,
+    VOP_ARM_ST1          = 120,
+    VOP_ARM_LD2          = 121,
+    VOP_ARM_SHRINK_LOW   = 122, //Note: don't use these two directly, use VOP_SHRINK instead.
+    VOP_ARM_SHRINK_HIGH  = 123,
+    VOP_GETLANE          = 124,
+    VOP_SETLANE          = 125, //TODO(ch): Setlane must have ssa form.
 //RiscV-only operations:
-    OP_RV_LUI            = 128,
+    OP_RV_LUI            = 126,
 
-    OP_DEF               = 129,
-    VOP_DEF              = 130,
+    OP_DEF               = 127,
+    VOP_DEF              = 128,
 
-    OP_NOINIT            = 131,
+    OP_NOINIT            = 129,
 };
 
 enum

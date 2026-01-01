@@ -37,6 +37,7 @@ struct column_printer;
 struct program_printer;
 typedef int (*print_column_t)(struct program_printer* printer, struct column_printer* colprinter, syntfunc2print* func, int row);
 typedef void (*free_column_printer_t)(struct column_printer* colprinter);
+typedef int (*table_opname_getter)(int opcode, loops_cstring* found_name);
 
 typedef struct column_printer
 {

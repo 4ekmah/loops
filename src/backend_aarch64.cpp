@@ -15,122 +15,119 @@ The file uses bits (related to ARM machine code encoding) from LLVM project, lic
 Apache 2 license. Please, see https://github.com/llvm/llvm-project/blob/main/llvm/LICENSE.TXT for details.
 */
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
+static inline loops_cstring opstrings_getter_(int opcode)
 {
-                  /*  |       enum_id       |string_id|    */
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDR   , "ldr"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDRSW , "ldrsw" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDRH  , "ldrh"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDRSH , "ldrsh" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDRB  , "ldrb"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDRSB , "ldrsb" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LDP   , "ldp"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_STR   , "str"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_STRH  , "strh"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_STRB  , "strb"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_STP   , "stp"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MOV   , "mov"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MOVN  , "movn"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MOVK  , "movk"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ADD   , "add"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SUB   , "sub"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MUL   , "mul"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SDIV  , "sdiv"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LSL   , "lsl"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LSR   , "lsr"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ASR   , "asr"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_AND   , "and"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ORR   , "orr"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_EOR   , "eor"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_NEG   , "neg"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MVN   , "mvn"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_BSL   , "bsl"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMP   , "cmp"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CSEL  , "csel"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CSET  , "cset"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CINC  , "cinc"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CNEG  , "cneg"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FADD  , "fadd"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FSUB  , "fsub"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMUL  , "fmul"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FDIV  , "fdiv"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FNEG  , "fneg"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMLA  , "fmla"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SHL   , "shl"   ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_USHL  , "ushl"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SSHL  , "sshl"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_USHR  , "ushr"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SSHR  , "sshr"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MOVI  , "movi"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_MVNI  , "mvni"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMHI  , "cmhi"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMHS  , "cmhs"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMEQ  , "cmeq"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMGE  , "cmge"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMGT  , "cmgt"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMLE  , "cmle"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CMLT  , "cmlt"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCMGT , "fcmgt" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCMGE , "fcmge" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCMEQ , "fcmeq" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMIN  , "fmin"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMAX  , "fmax"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SMINV , "sminv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SMAXV , "smaxv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_UMINV , "uminv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_UMAXV , "umaxv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMINV , "fminv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FMAXV , "fmaxv" ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ADDV  , "addv"  ),
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SADDLV, "saddlv"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_UADDLV, "uaddlv"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCVTZS, "fcvtzs"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCVTZU, "fcvtzu"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCVTMS, "fcvtms"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_FCVTMU, "fcvtmu"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SCVTF , "scvtf" ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_UCVTF , "ucvtf" ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LD1   , "ld1"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LD2   , "ld2"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LD4   , "ld4"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ST1   , "st1"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_ST4   , "st4"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_EXT   , "ext"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_DUP   , "dup"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_UMOV  , "umov"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_INS   , "ins"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SSHLL , "sshll" ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_SSHLL2, "sshll2"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_USHLL , "ushll" ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_USHLL2, "ushll2"), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_XTN   , "xtn"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_XTN2  , "xtn2"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_CNT   , "cnt"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B     , "b"     ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_NE  , "b.ne"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_EQ  , "b.eq"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_LT  , "b.lt"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_GT  , "b.gt"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_HI  , "b.hi"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_GE  , "b.ge"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_LE  , "b.le"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_B_LS  , "b.ls"  ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_BLR   , "blr"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_RET   , "ret"   ), 
-    LOOPS_HASHMAP_ELEM(loops::AARCH64_LABEL , ""      ),
-};
-
-static LOOPS_HASHMAP(int, loops_cstring) opstrings = NULL;
-
-int backend_aarch64_h_initialize()
-{
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&opstrings, opstrings_, sizeof(opstrings_) / sizeof(opstrings_[0])));
-    return LOOPS_ERR_SUCCESS;
+    switch (opcode)
+    {
+     /*  |       enum_id                |string_id|    */
+    case (loops::AARCH64_LDR   ): return "ldr"   ;
+    case (loops::AARCH64_LDRSW ): return "ldrsw" ;
+    case (loops::AARCH64_LDRH  ): return "ldrh"  ;
+    case (loops::AARCH64_LDRSH ): return "ldrsh" ;
+    case (loops::AARCH64_LDRB  ): return "ldrb"  ;
+    case (loops::AARCH64_LDRSB ): return "ldrsb" ;
+    case (loops::AARCH64_LDP   ): return "ldp"   ;
+    case (loops::AARCH64_STR   ): return "str"   ;
+    case (loops::AARCH64_STRH  ): return "strh"  ;
+    case (loops::AARCH64_STRB  ): return "strb"  ;
+    case (loops::AARCH64_STP   ): return "stp"   ;
+    case (loops::AARCH64_MOV   ): return "mov"   ;
+    case (loops::AARCH64_MOVN  ): return "movn"  ;
+    case (loops::AARCH64_MOVK  ): return "movk"  ;
+    case (loops::AARCH64_ADD   ): return "add"   ;
+    case (loops::AARCH64_SUB   ): return "sub"   ;
+    case (loops::AARCH64_MUL   ): return "mul"   ;
+    case (loops::AARCH64_SDIV  ): return "sdiv"  ;
+    case (loops::AARCH64_LSL   ): return "lsl"   ;
+    case (loops::AARCH64_LSR   ): return "lsr"   ;
+    case (loops::AARCH64_ASR   ): return "asr"   ;
+    case (loops::AARCH64_AND   ): return "and"   ;
+    case (loops::AARCH64_ORR   ): return "orr"   ;
+    case (loops::AARCH64_EOR   ): return "eor"   ;
+    case (loops::AARCH64_NEG   ): return "neg"   ;
+    case (loops::AARCH64_MVN   ): return "mvn"   ;
+    case (loops::AARCH64_BSL   ): return "bsl"   ;
+    case (loops::AARCH64_CMP   ): return "cmp"   ;
+    case (loops::AARCH64_CSEL  ): return "csel"  ;
+    case (loops::AARCH64_CSET  ): return "cset"  ;
+    case (loops::AARCH64_CINC  ): return "cinc"  ;
+    case (loops::AARCH64_CNEG  ): return "cneg"  ;
+    case (loops::AARCH64_FADD  ): return "fadd"  ;
+    case (loops::AARCH64_FSUB  ): return "fsub"  ;
+    case (loops::AARCH64_FMUL  ): return "fmul"  ;
+    case (loops::AARCH64_FDIV  ): return "fdiv"  ;
+    case (loops::AARCH64_FNEG  ): return "fneg"  ;
+    case (loops::AARCH64_FMLA  ): return "fmla"  ;
+    case (loops::AARCH64_SHL   ): return "shl"   ;
+    case (loops::AARCH64_USHL  ): return "ushl"  ;
+    case (loops::AARCH64_SSHL  ): return "sshl"  ;
+    case (loops::AARCH64_USHR  ): return "ushr"  ;
+    case (loops::AARCH64_SSHR  ): return "sshr"  ;
+    case (loops::AARCH64_MOVI  ): return "movi"  ;
+    case (loops::AARCH64_MVNI  ): return "mvni"  ;
+    case (loops::AARCH64_CMHI  ): return "cmhi"  ;
+    case (loops::AARCH64_CMHS  ): return "cmhs"  ;
+    case (loops::AARCH64_CMEQ  ): return "cmeq"  ;
+    case (loops::AARCH64_CMGE  ): return "cmge"  ;
+    case (loops::AARCH64_CMGT  ): return "cmgt"  ;
+    case (loops::AARCH64_CMLE  ): return "cmle"  ;
+    case (loops::AARCH64_CMLT  ): return "cmlt"  ;
+    case (loops::AARCH64_FCMGT ): return "fcmgt" ;
+    case (loops::AARCH64_FCMGE ): return "fcmge" ;
+    case (loops::AARCH64_FCMEQ ): return "fcmeq" ;
+    case (loops::AARCH64_FMIN  ): return "fmin"  ;
+    case (loops::AARCH64_FMAX  ): return "fmax"  ;
+    case (loops::AARCH64_SMINV ): return "sminv" ;
+    case (loops::AARCH64_SMAXV ): return "smaxv" ;
+    case (loops::AARCH64_UMINV ): return "uminv" ;
+    case (loops::AARCH64_UMAXV ): return "umaxv" ;
+    case (loops::AARCH64_FMINV ): return "fminv" ;
+    case (loops::AARCH64_FMAXV ): return "fmaxv" ;
+    case (loops::AARCH64_ADDV  ): return "addv"  ;
+    case (loops::AARCH64_SADDLV): return "saddlv";
+    case (loops::AARCH64_UADDLV): return "uaddlv";
+    case (loops::AARCH64_FCVTZS): return "fcvtzs";
+    case (loops::AARCH64_FCVTZU): return "fcvtzu";
+    case (loops::AARCH64_FCVTMS): return "fcvtms";
+    case (loops::AARCH64_FCVTMU): return "fcvtmu";
+    case (loops::AARCH64_SCVTF ): return "scvtf" ;
+    case (loops::AARCH64_UCVTF ): return "ucvtf" ;
+    case (loops::AARCH64_LD1   ): return "ld1"   ;
+    case (loops::AARCH64_LD2   ): return "ld2"   ;
+    case (loops::AARCH64_LD4   ): return "ld4"   ;
+    case (loops::AARCH64_ST1   ): return "st1"   ;
+    case (loops::AARCH64_ST4   ): return "st4"   ;
+    case (loops::AARCH64_EXT   ): return "ext"   ;
+    case (loops::AARCH64_DUP   ): return "dup"   ;
+    case (loops::AARCH64_UMOV  ): return "umov"  ;
+    case (loops::AARCH64_INS   ): return "ins"   ;
+    case (loops::AARCH64_SSHLL ): return "sshll" ;
+    case (loops::AARCH64_SSHLL2): return "sshll2";
+    case (loops::AARCH64_USHLL ): return "ushll" ;
+    case (loops::AARCH64_USHLL2): return "ushll2";
+    case (loops::AARCH64_XTN   ): return "xtn"   ;
+    case (loops::AARCH64_XTN2  ): return "xtn2"  ;
+    case (loops::AARCH64_CNT   ): return "cnt"   ;
+    case (loops::AARCH64_B     ): return "b"     ;
+    case (loops::AARCH64_B_NE  ): return "b.ne"  ;
+    case (loops::AARCH64_B_EQ  ): return "b.eq"  ;
+    case (loops::AARCH64_B_LT  ): return "b.lt"  ;
+    case (loops::AARCH64_B_GT  ): return "b.gt"  ;
+    case (loops::AARCH64_B_HI  ): return "b.hi"  ;
+    case (loops::AARCH64_B_GE  ): return "b.ge"  ;
+    case (loops::AARCH64_B_LE  ): return "b.le"  ;
+    case (loops::AARCH64_B_LS  ): return "b.ls"  ;
+    case (loops::AARCH64_BLR   ): return "blr"   ;
+    case (loops::AARCH64_RET   ): return "ret"   ;
+    case (loops::AARCH64_LABEL ): return ""      ;
+    }
+    return nullptr;
 }
 
-void backend_aarch64_h_deinitialize()
+static int opstrings_getter(int opcode, loops_cstring* found_name)
 {
-    loops_hashmap_destruct(opstrings);
+    *found_name = opstrings_getter_(opcode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_UNPRINTABLE_OPERATION : LOOPS_ERR_SUCCESS;
 }
 
 namespace loops
@@ -2287,7 +2284,7 @@ Arg Aarch64Backend::getSParg() const
 
 column_printer Aarch64Backend::get_opname_printer() const
 {
-    column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ opstrings , /*free_func = */ NULL };
+    column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ (void*)&opstrings_getter, /*free_func = */ NULL };
     return ret;
 }
 

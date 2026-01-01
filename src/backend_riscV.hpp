@@ -11,9 +11,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "backend.hpp"
 #include "pipeline.hpp"
 
-int backend_riscv_h_initialize();
-void backend_riscv_h_deinitialize();
-
 namespace loops
 {
     enum
