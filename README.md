@@ -4,7 +4,7 @@ Loops is minimalistic, fast, cross-platform C++ JIT engine with register allocat
 
 ## Compatibility 
 Supported architectures: 
-* Aarch64. Neon vectors.
+* Aarch64. NEON vectors.
 * x86_64. AVX2 vectors.
 * Risc-V64. No vectors yet.
 
@@ -43,7 +43,7 @@ make -j8
 
 ### Windows 
 
-You will need installed VSCode, CMake and separate Visual Studio Toolkit. Also add CMake extansion to VSCode. 
+You will need installed VSCode, CMake and Visual Studio or separate Visual Studio Build Tools(https://aka.ms/vs/stable/vs_BuildTools.exe) . Also add CMake extension to VSCode. 
 1. Download from git in Git Bash:
 ```
 git clone https://github.com/4ekmah/loops
@@ -53,7 +53,7 @@ git clone https://github.com/4ekmah/loops
 ## Samples and tests
 
 There is two runnable examples:
-1. minmaxloc - get position and value of minimal elemant in array of integers.  
+1. minmaxloc - get position and value of minimal element in array of integers.  
 2. bresenham - implements line drawing algorithm by Bresenham.
 
 Both examples uses only scalar instructions, so if you need SIMD examples, look in tests:  
@@ -80,4 +80,4 @@ Library built can be linked to other project via:
 
 ## Manual 
 
-Look more information about basic concepts, interfaces, usage and approaches in reference manual "docs/Loops_Manual_en.md"
+Look more information about basic concepts, interfaces, usage and approaches in reference manual "docs/Loops_Manual_en.md" //DUBUG: rename to "doc/" != "docs/"
