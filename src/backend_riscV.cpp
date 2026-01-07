@@ -413,7 +413,7 @@ namespace loops
         return BinTranslation();
     }
 
-    BinTranslation i64BTLookup(const Syntop& index, bool& scs)
+    BinTranslation r64BTLookup(const Syntop& index, bool& scs)
     {
         using namespace BinTranslationConstruction;
         scs = true;
@@ -494,7 +494,7 @@ namespace loops
         return BinTranslation();
     }
 
-    SyntopTranslation i64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
+    SyntopTranslation r64STLookup(const Backend* /*backend*/, const Syntop& index, bool& scs)
     {
         using namespace SyntopTranslationConstruction;
         scs = true;
@@ -767,9 +767,9 @@ namespace loops
 
     RiscVBackend::RiscVBackend()
     {
-        m_s2blookup = i64BTLookup;
-        m_s2slookup = i64STLookup;
-        m_vectorRegisterBits = 256; // AVX2???
+        m_s2blookup = r64BTLookup;
+        m_s2slookup = r64STLookup;
+        m_vectorRegisterBits = 256; // TODO: ???
         m_isLittleEndianInstructions = true;
         m_isLittleEndianOperands = false;
         m_isMonowidthInstruction = false;

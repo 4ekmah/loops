@@ -80,4 +80,4 @@ Library built can be linked to other project via:
 
 ## Manual 
 
-Look more information about basic concepts, interfaces, usage and approaches in reference manual "docs/Loops_Manual_en.md" //DUBUG: rename to "doc/" != "docs/"
+Look more information about basic concepts, interfaces, usage and approaches in reference manual "docs/Loops_Manual_en.md"
