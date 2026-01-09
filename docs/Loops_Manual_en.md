@@ -198,17 +198,17 @@ List of all loops macro:
 * **VOID_CALL_(funcptr, arg0, arg1, ...)** - call outer function from generated code. Function doesn't return value. See **CALL_** about types and amount of arguments.
 
 ### IReg/VReg
-**IReg** репрезентирует скалярный регистр или, в более общем смысле, переменную. В основном, работа с ними происходит, как как с обычными переменными: над ними можно производить арифметические действия, их можно сравнивать, и производить множество других действий. IReg хранит в себе информацию о той функции, к которой он приписан. Это необходимо для того, чтобы при метапрограммировании инструкции попадали в буфер создающейся функции. Однако, когда объект IReg конструируется без помощи других IReg, взять информацию о функции приписки неоткуда, поэтому конструирование обычно происходит с помощью макроса **CONST_**. Рассмотрим пример:
+**IReg** represents general purpose register, or, in a broader sense, scalar variable. Mostly, you can work with it, like with usual varibale: make arithmetical or bitwise actions, compare and so on. IReg keeps information about function it rely to. This the neccessry so that during metaprogramming, instructions are adding to buffer of function being created. But, when **IReg** are constructing without other **IReg** in right side expression, it's nowhere to get information about home function. **CONST_** macro help with it. So, let's consider example:
 ```cpp
     loops::IReg a = CONST_(1); 
     loops::IReg b = CONST_(2); 
     loops::IReg c = a + b; 
     loops::IReg d = с + 2; 
 ```
-Для переменных **a** и **b** приходится использовать макрос CONST_ чтобы передать им информацию о текущей функции, в буфер которой надо добавлять инструкции, а для **с** и **d** эту информацию loops выведет из выражений справа.
+We have to use **CONST_** macro for **a** and **b** variables to provide information about current function. For **с** and **d** loops can infer information from the right side.
 <br/><br/>
-В случае, если нет необходимости сразу задавать какое то значение, можно воспользоваться макросом **DEF_**(**VDEF_(type)** для **VReg**).
-**IReg**, как и **VReg** должен конструироваться только внутри блока **STARTFUNC_**. Единственное исключение - это создание аргументов самой создаваемой функции:
+Sometimes, there is no need to set some initial value, so you can use **DEF_** macro (**VDEF_(type)** for **VReg**).
+**IReg** as well as **VReg** must be constructed inside **STARTFUNC_** block. Only exception - definition of function's arguments:
 ```cpp
     USE_CONTEXT_(CTX);
     loops::IReg ptr, n, minpos_addr, maxpos_addr;
@@ -217,7 +217,7 @@ List of all loops macro:
         //... 
     }
 ```
-Вызывать из **STARTFUNC_** генерирующие функции тоже, конечно, можно, но там необходимо инициализировать контекст для правильной работы макросов:
+Of course, you can call some generation functions from **STARTFUNC_**, but you have to initialize context there for correct work of macros:
 ```cpp
     loops::IReg pow(const loops::IReg& a, int power, loops::Context CTX)
     {
@@ -235,9 +235,10 @@ List of all loops macro:
         //... 
     }
 ```
-У **IReg** формально нет типа, но обычно подразумевается, что это int64_t.
+Formally, variables, descripted by **IReg** haven't type, but in most cases it's assumed, that this is int64_t.
 <br/><br/>
-Первое исключение - это операции с памятью - загрузки и выгрузки. Стоит учитывать, что **IReg** располагается на регистрах(примерно, как переменные с ключевым словом **register** в старом Си) и память для этих переменных - внешняя среда. Следовательно, загрузка/выгрузка из памяти должна быть ручной. loops позволяет грузить в регистры данные разных типов и размеров. При загрузке целых, верхняя часть будет дополнена нулями или битом знака, в зависимости от типа. Список типов такой же, как список доступных типов **VReg** ниже. В качестве примера рассмотрим преобразование элементов массива из **int32_t** в **int64_t**:
+First exception is work with memory - loads and stores. 
+Первое исключение - это операции с памятью - загрузки и выгрузки. Basically, **IReg** is located on registers(like variables with **register** keyword in good old C), so memory for this variables is external environment. Therefore, load/store from/to memory have to be manual. loops allows to load to registers data of different types and sizes. If you are loading integers, smaller than 64 bit, higher part of register will be padded by zero bits of sign bits, depending on the type. List of types is same like list of types, allowed for **VReg** below. Let's consider example transforms element of array from **int32_t** to **int64_t**:
 ```cpp
     IReg inptr, outptr, size;
     STARTFUNC_("transform", &inptr, &outptr, &size)
@@ -251,19 +252,19 @@ List of all loops macro:
         } 
     }
 ```
-Обратите внимание на адресную арифметику. Она везде в loops измеряется в байтах, а не в размерах типов.
+Look at address arithmetics. In loops it is always measured in bytes, not elements.
 <br/>
-Второе исключение - это беззнаковые операции сравнения, в которых IReg воспринимается, как uint64_t. Список таких команд:
-* **ule** - меньше или равно
-* **uge** - больше или равно
-* **ugt** - больше
-* **ult** - меньше
+Second exception is unsigned comparisson operations, where **IReg** is considered, like **uint64_t**. List of such a commands:
+* **ule** - less or equal
+* **uge** - greater or equal
+* **ugt** - greater
+* **ult** - less
 ####
-**VReg<_Tp>** репрезентирует векторные регистры и соотвествует 256-битным **ymm** на Intel AVX2, либо 128-битным **q**-регистрам Arm NEON. На Risc-V поддержки векторных регистров пока нет.  
+**VReg<_Tp>** represent SIMD registers and corresponds to 256-bit **ymm** on AVX2 by Intel, or 128-bit **q**-registers on NEON by Arm. Risc-V doesn't have support of vector registers yet.
 <br/>
-В отличии от **IReg**, **VReg** типизированны, благодаря чему для всех совершаемых с ними арифметических и иных операций автоматически подбираются соответсвующие инструкции.
+Unlike **IReg**, **VReg** is typed, so it's always appropriate instructions are choosen for all arithmetical or other operations over them.
 <br/><br/>
-Список поддерживемых типов:
+List of supported types:
 * **int8_t**
 * **uint8_t**
 * **int16_t**
@@ -276,28 +277,29 @@ List of all loops macro:
 * **float**
 * **double**
 ####
-Для инициализации используются **VCONST_(type, val)**, либо **VDEF(type)**.
+**VCONST_(type, val)** or **VDEF(type)** are used for initialization.
 <br/>
-В качестве примера рассмотрим векторизованное поэлементное применение функции **exp(x+y)** к двум **float** массивам в предположении кратности размера этих массивов количеству элементов в векторном регистре:
+Let's consider as example vectorized elementwise application of function **exp(x+y)** to two equal **float** arrays. It's assumed, that their size is multiple of amount of lanes in SIMD array.
 ```cpp
     USE_CONTEXT_(CTX);
     IReg xptr, yptr, outptr, size;
     STARTFUNC_("transform", &xptr, &yptr, &outptr, &size)
     {
         loops::IReg i = CONST_(0);
+        auto expc = expInit(ctx);
         WHILE_(i < size)
         {
             loops::VReg<float> x_in = loops::loadvec<float>(xptr, i * sizeof(float));
             loops::VReg<float> y_in = loops::loadvec<float>(yptr, i * sizeof(float));
-            loops::VReg<float> res = exp(x_in + y_in);
+            loops::VReg<float> res = exp(x_in + y_in, expc);
             loops::storevec(outptr, i * sizeof(float), res);
             i = i + CTX.vlanes<float>();
         }
     }
 ```
-Обратите внимание, что шаг по массиву делается на количество lane'ов, которое платформо-независимо добывается с помощью конструкции **CTX.vlanes<float>()**.
+Note, that step over array is made by amount of lanes which can be taken in platform independent manner with **CTX.vlanes<float>()**.
 <br/><br/>
-Отдельного упоминания стоят маски сравнений. Это распространенная техника при работе с векторными регистрами, когда вам нужно сделать какие-то действия с элементами, в зависимости от условий. Вместо того, чтобы извлекать элементы векторного регистра по одному и работать с ними по отдельности, с помощью условных операторов генерируются маски, которые представляют собой векторный регистр, где в каждый элемент результата сравнения, где условие было верно - битовое поле, заполненное единицами, и нулями - где оно было неверно. Дальше достаточно только применить эту маску к протестированному регистру и все ненужные элементы занулятся. Здесь на этом акцентируется внимание, потому что маски в loops - по определению целового беззнакового типа, а значит для их примениния нужна операция **reinterpret**. Рассмотрим в качестве примера получения суммы всех положительных целых чисел в массиве **int32_t**.
+Comparison masks deserve a special mention. This is common technique for SIMD registers, when you need to do something with elements depending on the conditions.Instead of extraction elements from SIMD register and independent processing, there generated SIMD masks, made by comparisson operations. This mask have one-only fields in corresponding elements, where condition is right, and zero-only fields otherwise. Further it is easy to apply this mask by usual binary AND to tested register and all unneccessary elements will be zeroed. I'm focusing attention on this, because masks in loops are SIMD unsigned integers by default, thus there needed **reinterpret** operations for applying. Let's consider as example sum of all positive elements in **int32_t** array.
 ```cpp
     USE_CONTEXT_(CTX);
     IReg ptr, size;
@@ -317,9 +319,9 @@ List of all loops macro:
         RETURN_(sum);
     }
 ```
-Для более сложных случаев предусмотрен векторный аналог тернарного оператора, функция **select**. Полный список векторных операций смотрите далее в документе. 
-#### Отложенная или массовая инициализация регистров
-В принципе, регистры должны инициализироваться сразу, как появляются в метапрограмме, но это не всегда возможно, например, когда если есть необходимость объявить целый контейнер регистров, что может осложняться тем, что неизвестно, сколько их будет надо и все ли они будут вообще нужны. Для этой цели используется отложенная инициализация. К сожалению, на операцию присваивания или конструктор копирования в loops завязан другой функционал, благодаря которому меатпрограммирование хорошо маскируется под обычное программирование и присваивание значит, что в генерируемой программе нужно присвоить что-то регистру, поэтому для отложенной инициализации используется метод **copyidx**. При этом создаётся пустышка IReg или VReg, а потом, в зависимости от ситуации, ей либо назначается, либо не назначается настоящий номер регистра. В моей практике встречалась ситуация, в которой в зависимости от параметров была нужна, либо не нужна маска: 
+There is more powerful operation for more heavy cases - **select** function, which is analog of well-known ternary operator. See full list of SIMD operation below.
+#### Deferred and massive register initialization
+The rule is to initialize registers, when they appears in the metaprogram, but sometimes it's impossible, like you need to define container of registers. It can be even worse if you don't know, how much registers you will need and which of them will be used. But you can initialized register after it's definition. Unfortunately, **IReg/VReg** assigment operator in loops used for other purpose - metaprogramming imitates usula programming, so assignment means addition **mov** instruction to function buffer. That is the reason why it is used **copyidx** method for deferred initialization. First, you define empty **IReg** or **VReg**, than, depending on the situation you are assign or not assign to it real register index. I had a situation in a practice , when, depending on compilation parameters, mask was neccessary or not:
 ```cpp
     loops::VReg<int32_t> x;
     //...
@@ -327,16 +329,16 @@ List of all loops macro:
     if(horizontal_padding)
          mask.copyidx((x - VCONST_(int32_t, padding_size)) > VCONST_(int32_t, 0));
 ```
-Аргументом **copyidx** является выражение, которое к моменту копирования индекса регистра его уже приобретёт и этот индекс инициализирует переменную **mask**, привязав её к функции. 
+**copyidx** argument is expression, which will have register index until call and method will copy it and initialize **mask** variable by attaching it to function.
 <br/><br/>
-Инициализация массивов регистров:
+Register array initialization:
 ```cpp
     std::vector<loops::IReg> reg_arr;
     for(int i = 0; i < (int)reg_arr.size(); i++)
         reg.copyidx(CONST_(i)); 
 ```
-## IExpr, VExpr. Как писать свои генерирующие функции
-Если вы начнёте внимательно изучать интерфейс loops, вы обнаружите, что большинство объявленных операций работают не c **IReg/VReg**, а с **IExpr/VExpr**. Это специальные классы, которые хранят в себе дерево выражений вплоть до присваивания его какому-либо регистру или использования в качестве условия в **IF_**, **ELIF_** или **WHILE_**. Присваивания и управлющие конструкции представляют из себя некие точки синхронизации, гарантированно добавляющие код буфер генерируемой функции. В большинстве случаев, пользователю нет необходимости взаимодействовать с этими классами, но есть важное исключение - ситуации, когда вы хотите создать небольшой генератор, который вы будете многократно переиспользовать, например, свою версию вычислительной функции вроде **sin**, **pow** и.т.п. В качестве примера приведём операцию умного умножения на константу, которая автоматически заменяет умножения на степень двойки сдвигом:
+## IExpr, VExpr. How to write your own generator functions
+If you will examine loops interface with attention, you'll find, that most of defined operation works with **IExpr/VExpr**, not with **IReg/VReg**. This is special classe, which keeps expression tree until it is assigned to some register or used as condition in **IF_**, **ELIF_** or **WHILE_**. Assignment and management constructions are kind of synchronization points, which appends code to function buffer. Mostly, user don't have to interact with these classes, but there is important exception: situations, when he want to create small generator for multiple usage, e.g., his own variation of computational function like **sin**, **pow** and so on. Let's consider as example function of smart constant multiplication, which will automatically substitute multiplication with shift, when multiplier is a power of 2:
 ```cpp
 loops::IExpr effective_const_mul(const loops::IReg& m1, int m2)
 {
@@ -356,9 +358,9 @@ loops::IExpr effective_const_mul(const loops::IReg& m1, int m2)
         return m1*m2;
 }
 ```
-В целом, это более правильный подход при написании подгенераторов, чем работа с **IReg/VReg**, как в примере с функцией **pow** в разделе про **IReg/VReg**, однако, есть ограничения. В таких генераторах не должно быть присваиваний **IReg**, **IF_**, **ELIF_** или **WHILE_**, потому что при этом произойдёт добавление кода в буфер и весь смысл **IExpr/VExpr** будет утерян.
+Generally, it is more correct way to write subgenerators, than direct usage fo **IReg/VReg**, like it was in **pow** example in **IReg/VReg** section, but there is restrictions. **IReg** assignments are not allowed in **IF_**, **ELIF_** or **WHILE_**, because it will cause adding code to buffer and the whole idea of **IExpr/VExpr** will be lost.
 <br/><br/>
-Как следствие, **loops::Context** и **USE_CONTEXT_** в таком коде вам может понадобиться, только если вы создаёте константы. На этот случай сущестует специальная функция **ExtractContext**, которая получает контекст из выражения. Стандартное её применение выглядит так:
+That mean, that only reason to use **loops::Context** and **USE_CONTEXT_** in subgenerator code is to create constants. B.t.w, there is special function **ExtractContext**, which takes context from expression. Standart usage looks like this:
 ```cpp
 IExpr pow(const IExpr& a, int p)
 {
@@ -369,29 +371,29 @@ IExpr pow(const IExpr& a, int p)
     //...
 }
 ```
-**VExpr**, также как и **VReg** параметризуется типом.
+**VExpr** is parameterized by type as well as **VReg**.
 <br/>
-## Как добавить инструкцию
-На данный момент не существует специализрованного интерфейса для добавления кастомных инструкций, но если вам необходимо добавить что-то из репертуара какой-то конкретной архитектуры, можно поменять исходный код библиотеки. 
+## How to append instuction.
+There is not special interface for appending custom instructions yet. So, if you need to add something from the repertoire of a particular architecture, you can change the source code of the library. 
 <br/><br/>
-В общем случае, это непростая процедура, но в _подавляющем большинстве_ случаев, когда инструкция имеет один выходной регистр, несколько входных, энкодинг сводится к простым полям и нет никаких ограничений на распределение регистров это действительно делается в несколько простых шагов. 
-1. Вам надо добавить IR-версию инструкции в большой *enum* с инструкциями, в заголовочном файле loops.hpp, желательно с каким-нибудь отдельным диапазоном, чтобы не вступать в конфликт с обновлениями loops:
+In general, this is not so easy, but in _most cases_, when instruction have one output register, multiple input register, enconding can be reduced to sequence of simple fields and there is register allocation limitations, it can be done with few simple steps.
+1. You need to append IR version of instruction to big *enum* with instructions in loops.hpp header file. It's good to use some separate number range for avoid possible conflicts with loops updates.
 ```cpp
     OP_MYOP            = 1000,
 ``` 
-2. Присвоить строку IR-инструкции в файле printer.cpp в большой карте имён opstrings_.
+2. Assign printing string to IR instruction in printer.cpp source file in big **opstrings_** name map.
 ```cpp
     LOOPS_HASHMAP_ELEM(loops::OP_MYOP             , "myop"                  ) ,
 ```
-3. Добавить Assembly-версию в большой *enum* с инструкциями, в заголовочном файле целевой платформы(backend_aarch64.hpp, backend_intel64.hpp, backend_riscV.hpp). Пусть, для примера, речь идёт про ARM:
+3. Append assembly version of instruction to header file of target platform(backend_aarch64.hpp, backend_intel64.hpp, backend_riscV.hpp). E.g., let's consider Arm:
 ```cpp
-    AARCH64_MYOP       = 164
+    AARCH64_MYOP       = 1000
 ``` 
-4. Присвоить строку IR-инструкции в функции opstrings_getter_ в исходном файле целевой платформы(backend_aarch64.cpp, backend_intel64.cpp, backend_riscV.cpp).
+4. Assign printing string to assembly instruction in source file of target platform(backend_aarch64.cpp, backend_intel64.cpp, backend_riscV.cpp) to function opstrings_getter_:
 ```cpp
     case (loops::AARCH64_MYOP        ) : return "myop"        ;
 ```
-5. В исходном файле целевой платформы добавить правило преобразования инструкции из IR в ассемблерную. На Intel это функция i64STLookup, на Arm это функция a64STLookup, на Risc-V это функция r64STLookup. Положим, наша инструкция имеет один векторный выход, один векторный и один скалярный вход. В правиле SyT указывается тип целевой ассемблерной инструкции и список аргументов. **SAcop** просто копирует аргументы, но есть и другие описатели аргументов, например **SAimm** порождает _immediate_ аргумент. Наше правило с проверками корректности будет выглядеть примерно так:
+5. Add IR to assembly transformation rule in source file of target platform. You need i64STLookup function on Intel, a64STLookup on Arm, r64STLookup on Risc-V. Let's pretend, that our instruction have one vector output, one vector input and one scalar input. SyT rule is consist of target assembly instruction, and the list of argument. **SAcop** just copies arguments from IR, but there are different argument descriptors, e.g. **SAimm** just adds immediate argument. Our rule with consistency check will looks approximately like this:
 ```cpp
     case (OP_MYOP):
         if (index.size() == 3 &&
@@ -402,7 +404,7 @@ IExpr pow(const IExpr& a, int p)
                 return SyT(AARCH64_MYOP, { SAcop(0), SAcop(1), SAcop(2) });
         break;
 ```
-6. В исходном файле целевой платформы добавить _encoding_ ассемблерной инструкции. На Intel это функция i64BTLookup, на Arm это функция a64BTLookup, на Risc-V это функция r64BTLookup. Также как и в пятом пункте, сначала проводится проверка корректности аргументов, а затем создаётся _encoding_-правило. Оно состоит из деталей, которые превращаются в битовые поля, либо из тела аргументов, либо константные. **BTreg(n, f, fl)** использует **f** бит **n**-го аргумента, проверяя, что это _регистр_, **BTimm(n, f, fl)** использует **f** бит **n**-го аргумента, проверяя, что это _immediate_, **BTsta(s, f)** использует **f** бит входного неизменяемого поля **s**. Очень важно расставить также флаги **fl**, которые указывают компилятору, какие аргументы входные, а какие выходные, это необходимо для работы _аллокатора регистров_. Наше правило с проверками корректности будет выглядеть примерно так:
+6.  Add assembly instruction _encoding_ transformation rule in source file of target platform. You need i64BTLookup function on Intel, a64BTLookup on Arm, r64BTLookup on Risc-V. Like in point five, first you need to check arguments consistency and, second to create _encoding_-rule. It consists of details, which are transfromed to bitfields, extracted from argument body or constant. **BTreg(n, f, fl)** uses **f** bit  of **n** argument, checking this argument is _register_,**BTimm(n, f, fl)** uses **f** bit of **n** argument, checking this register is _immediate_, **BTsta(s, f)** uses **f** bits of input  входного static field **s**. ALso, it is very important to set **fl** flags, which point to compiler, which arguments are input, and which are output, it is critical information for _register allocator_. Our rule with consistency check will looks approximately like this:
 ```cpp
     case (AARCH64_MYOP):
         if (index.size() == 3 &&
@@ -414,7 +416,7 @@ IExpr pow(const IExpr& a, int p)
                          BTreg(1, 5, In), BTreg(0, 5, Out) });
         break;
 ```
-7. Чтобы всё заработало, остаётся только добавить функцию интерфейса в файл loops.hpp, которая позволит вам использоввать вашу инструкцию в работе. В нашем прмиере она будет выглядеть примерно так: 
+7. Last step to make it work, you need to append function to user interface, which will allow you to use this instruction in your code. In our cse it will look like this:
 ```cpp
 template<typename _Tp>
 VExpr<_Tp> myop(const VExpr<_Tp>& a, const IExpr& b)
@@ -422,72 +424,70 @@ VExpr<_Tp> myop(const VExpr<_Tp>& a, const IExpr& b)
     return VExpr<_Tp>(OP_MYOP, {r.notype(), b.notype()});
 }
 ```
-## Список векторных операций
-В этом разделе приведены все векторные операции, доступные программситу на loops. Все эти операции гарантированно работают на Arm и почти все на Intel. Если операция не работает на Intel, это должно быть указано, но советую проверять.
+## List of SIMD operations
+This section contain all SIMD operation available for loops programmer.All this operations works on Arm, and almost all works on Intel. If operation is not supported on Intel, it have to be mentioned, but I advice to check all operation.
 
-### Операции с памятью
-* **loadvec(ptr, offset)/loadvec(ptr)** - загрузить вектор из памяти по адресу **ptr + offset**  
-* **loadlane(ptr, lane_index)** - загрузить в элемент номер **lane_index** вектора из указанного по адресу **ptr** участка памяти. Только Arm
-* **loadvec_deinterleave2(res1, res2, ptr)** - загрузить с инициализацией два вектора - все четные элементы(с 0) заполнят **res1**, все нечетные - **res2**, адрес источника - **ptr**. Только Arm
-* **storevec(ptr, offset, v)/storevec(ptr, v)** - сохранить вектор **v** в память по адресу **ptr + offset**
-* **storelane(ptr, v, lane_index)** - сохранить элемент номер **lane_index** из вектора **v** в память по адресу **ptr**. Только Arm
+### Memory operations
+* **loadvec(ptr, offset)/loadvec(ptr)** - load vector from memory by address **ptr + offset**  
+* **loadlane(ptr, lane_index)** - load to element number **lane_index** of vector register from address **ptr**. Arm only
+* **loadvec_deinterleave2(res1, res2, ptr)** - load with initialization two vectors - all even(from 0) element will fill **res1**, all odd will fill **res2**, source address is **ptr**. Arm only
+* **storevec(ptr, offset, v)/storevec(ptr, v)** - store vector **v** to memory by **ptr + offset** address
+* **storelane(ptr, v, lane_index)** - save element number **lane_index** from vector **v** to memory by address **ptr**. Arm only
 
-### Преобразования типов
-* **cast(v)** - поэлементное преобразование типа
-* **reinterpret(v)** - замена типа вектора, без преобразования. Операция не порождает никаких реальных действий 
-* **trunc(v)**  - преобразование к целому(знаковому или беззнаковому) с округлением в сторону нуля. Поддерживаемые типы данных - **float16_t**, **float**, **double**
-* **floor(v)**  - преобразование к целому(знаковому или беззнаковому) с округлением в сторону минус бесконечности.
-* **broadcast(s)/broadcast(v, lane_index)** - заполнение векторного регистра значением из скалярного регистра **s** или элемента **lane_index** векторного регистра **v**. Второй вариант работает только на Arm.
-* **cast_low(v)** - преобразование, увеличивающее размер элемента вдвое, например, **int16_t** в **int32_t**. В целевом регистре уложится только половина значений, данная инструкция порождает нижнюю половину
-* **cast_high(v)** - преобразование, увеличивающее размер элемента вдвое, например, **int16_t** в **int32_t**. В целевом регистре уложится только половина значений, данная инструкция порождает верхнюю половину
-* **shrink(v0, v1)** - преобразование, уменьшающее размер элемента вдвое, например, **int32_t** в **int16_t**. В целевом регистре уложится вдвое больше значений, поэтому требуется два входных регистра. Только Arm
+### Type casts
+* **cast(v)** - elementwise type cast
+* **reinterpret(v)** - replacing type of vector with no cast. Operation doesn't cause any real actions in target program
+* **trunc(v)**  - cast to integer(signed or unsigned) with rounding to zero. Supported types - **float16_t**, **float**, **double**
+* **floor(v)**  - cast to integer(signed or unsigned) with rounding to minus infinity.
+* **broadcast(s)/broadcast(v, lane_index)** - filling vector register with elements from scalar register **s** or element number **lane_index** from vector register **v**. Second variation works only on Arm.
+* **cast_low(v)** - widening cast, doubling size of element, e.g. **int16_t** to **int32_t**. Target register can keep only half of values, this instruction create register with lower half.
+* **cast_high(v)** - widening cast, doubling size of element, e.g. **int16_t** to **int32_t**. Target register can keep only half of values, this instruction create register with higher half.
+* **shrink(v0, v1)** - shrinikng cast, halfing size of element, e.g. **int32_t** to **int16_t**. Target register can keep double set of values, so instruction need two input regsiters. Arm only
 
-### Манипуляции с элементами
+### Element manipulations
 
-* **getlane(v, lane_index)** - извлекает в скалярный регистр элемент номер **lane_index** из вектора **v**
-* **setlane(v, lane_index, s)/setlane(v, lane_index_v, vi, lane_index_vi)** - устанавливает элемент номер **lane_index_v** из вектора **v** значение, хранящимся либо в скалярном регистре **s**, либо в элементе номер **lane_index_vi** из вектора **vi**. Вторая вариация работает только на Arm
-* **ext(v0, v1, lane_index)** - склейка двух векторов и извлечение из неё подвектора начиная с элемента **lane_index** 
+* **getlane(v, lane_index)** - extracts elemnt number **lane_index** from vector **v** to scalar register
+* **setlane(v, lane_index, s)/setlane(v, lane_index_v, vi, lane_index_vi)** - sets element number **lane_index_v** in vector **v** to value from scalar register **s** or from element number **lane_index_vi** of vector **vi**. Second variation is Arm-only
+* **ext(v0, v1, lane_index)** - concatenation of two vector an extraction subvector starts from **lane_index**
 
-### Арифметические операции
-* **operator+(v0, v1)** - поэлементное сложение
-* **operator-(v0, v1)** - поэлементное вычитание
-* **operator*(v0, v1)** - поэлементное умножение
-* **operator/(v0, v1)** - поэлементное деление
-* **operator-(v0)** - поэлементный унарный минус
-* **fma(v0,v1,v2)/fma(v0,v1,v2,lane_index)** - поэлементное **v0+v1*v2** либо **v0+v1*v2[lane_index]**. Вторая вариация работает только на Arm
-* **pow(v,p)** - поэлементное возведение в степень **p**
-* **expInit(CTX)** - инициализация констант, необходимых для быстрой поэлементной экспоненты
-* **exp(v, expt)** - быстрая поэлементная экспонента
-* **max(v0, v1)** - поэлементный максимум
-* **min(v0, v1)** - поэлементный минимум
+### Arithmetical operations
+* **operator+(v0, v1)** - elementwise addition
+* **operator-(v0, v1)** - elementwise subtraction
+* **operator*(v0, v1)** - elementwise multiplication
+* **operator/(v0, v1)** - elementwise division
+* **operator-(v0)** - elementwise unary minus
+* **fma(v0,v1,v2)/fma(v0,v1,v2,lane_index)** - elementwise **v0+v1*v2** or **v0+v1*v2[lane_index]**. Second variation is Arm only
+* **pow(v,p)** - elementwise **p** power
+* **expInit(CTX)** - initialization of constants neccessary for fast elementwise exponent
+* **exp(v, expt)** - fast elementwise exponent
+* **max(v0, v1)** - elementwise maximum
+* **min(v0, v1)** - elementwise minimum
 
-* **reduce_max(v)** - укладывает максимальный элемент вектора в нулевой элемент целевого вектора. Только Arm
-* **reduce_min(v)** - укладывает минимальный элемент вектора в нулевой элемент целевого вектора. Только Arm
-* **reduce_sum(v)** - укладывает сумму элементов вектора в нулевой элемент целевого вектора 
-* **reduce_wsum(v)** - укладывает сумму элементов вектора в нулевой элемент целевого вектора c элементами большего размера. Позволяет бороться с переполнением
+* **reduce_max(v)** - set zero element of target to maximum element of source. Arm only
+* **reduce_min(v)** - set zero element of target to minimum element of source. Arm only
+* **reduce_sum(v)** - set zero element of target to sum of elements of source
+* **reduce_wsum(v)** - set zero element of target, which have double size elements to sum of elements of source. Helps against overflow
 
-### Побитовые операции
+ 
+### Bitwise operation
 
-* **operator>>(v, s)** - поэлементный битовый сдвиг вправо
-* **ushift_right(v, s)** - поэлементный беззнаковый битовый сдвиг вправо
-* **operator<<(v, s)** - поэлементный битовый сдвиг влево
-* **ushift_left(v, s)** - поэлементный беззнаковый битовый сдвиг влево
-* **ushift_left(v, s)** - поэлементный беззнаковый битовый сдвиг влево
-* **ushift_left(v, s)** - поэлементный беззнаковый битовый сдвиг влево
-* **ushift_left(v, s)** - поэлементный беззнаковый битовый сдвиг влево
+* **operator>>(v, s)** - elementwise bit shift to right
+* **ushift_right(v, s)** - elementwise unsigned bit shift to right
+* **operator<<(v, s)** - elementwise bit shift to left 
+* **ushift_left(v, s)** - elementwise  unsigned bit shift to left
 
-* **operator&(v0, v1)** - побитовое И
-* **operator|(v0, v1)** - побитовое ИЛИ
-* **operator^(v0, v1)** - побитовое ИСКЛЮЧАЮЩЕЕ ИЛИ 
-* **operator~(v)** - побитовое НЕ
-* **popcount(v)** - побайтовый подсчёт ненулевых битов
+* **operator&(v0, v1)** - bitwise AND
+* **operator|(v0, v1)** - bitwise OR
+* **operator^(v0, v1)** - bitwise EXCLUSIVE OR
+* **operator~(v)** - bitwise NOT
+* **popcount(v)** - bytewise non-zero bits count. Arm only
 
 ### Операции сравнения и маскирования
 
-* **operator==(v0, v1)** - поэлементное равенство, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **operator!=(v0, v1)** - поэлементное неравенство, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **operator>=(v0, v1)** - поэлементное больше или равно, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **operator<=(v0, v1)** - поэлементное меньше или равно, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **operator>(v0, v1)** - поэлементное больше, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **operator<(v0, v1)** - поэлементное меньше, выходной вектор - маска, заполненная единицами для тех элементов, где условие верно и нулями - где неверно
-* **select(mask, v0, v1)** - поэлементный тернарный оператор, выбирающий по маске элементы векторов из **v0** для верных элементов и из **v1** для ложных элементов
+* **operator==(v0, v1)** - elementwise equal, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **operator!=(v0, v1)** - elementwise inequal, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **operator>=(v0, v1)** - elementwise greater or equal, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **operator<=(v0, v1)** - elementwise less or equal, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **operator>(v0, v1)** - elementwise greatee, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **operator<(v0, v1)** - elementwise less, output is mask, filled with ones for element condition was right, zeroes condition was wrong
+* **select(mask, v0, v1)** - elementwise ternary operator, choosing by mask elements from **v0** for right elements and from **v1** for wrong elements
