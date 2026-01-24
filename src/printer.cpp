@@ -10,11 +10,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstdio>
 #include <sstream>
 #include <iomanip>
+#include <unordered_map>
+//DUBUG: don't forget to work with namespaces correctly!
 
 LOOPS_LIST_DEFINE(loops_span_char)
-LOOPS_SPAN_DEFINE(loops_Syntop)
-LOOPS_SPAN_DEFINE(loops_Arg)
-LOOPS_SPAN_DEFINE(column_printer)
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -22,7 +21,7 @@ typedef struct one_name_one_suffix
     char prefix[30];
     int argnum;
     int suffix_type;
-    int fracture_size; /*If op->arg_size >= fracture_size, argnum converts to (argnum + 1). Ignored if fracture_size == 0*/
+    int fracture_size; //If op->arg_size >= fracture_size, argnum converts to (argnum + 1). Ignored if fracture_size == 0
 } one_name_one_suffix;
 
 typedef struct suffixed_opname
@@ -31,192 +30,200 @@ typedef struct suffixed_opname
     one_name_one_suffix pieces[3];
 } suffixed_opname;
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) opstrings_[] = 
-{
-                  /*  |       enum_id             |         string_id       |    */
-    LOOPS_HASHMAP_ELEM(loops::OP_MOV              , "mov"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_XCHG             , "xchg"                  ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ADD              , "add"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SUB              , "sub"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_MUL              , "mul"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_DIV              , "div"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_MOD              , "mod"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SHL              , "shl"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SHR              , "shr"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SAR              , "sar"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_AND              , "and"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_OR               , "or"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_XOR              , "xor"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_NOT              , "not"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_NEG              , "neg"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_CMP              , "cmp"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_MIN              , "min"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_MAX              , "max"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ABS              , "abs"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SIGN             , "sign"                  ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_SPILL            , "spill"                 ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_UNSPILL          , "unspill"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_GT               , "gt"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_UGT              , "ugt"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_GE               , "ge"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_LT               , "lt"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_LE               , "le"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ULE              , "ule"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_NE               , "ne"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_EQ               , "eq"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_S                , "s"                     ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_NS               , "ns"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_LOGICAL_AND      , "log_and"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_LOGICAL_OR       , "log_or"                ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_LOGICAL_NOT      , "log_not"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_JMP              , "jmp"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_RET              , "ret"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_CALL             , "call"                  ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_CALL_NORET       , "call_noret"            ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_STEM_CSTART      , "annotation:stemcstart" ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_IF_CSTART        , "annotation:ifcstart"   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ELIF_CSTART      , "annotation:elif"       ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_IF_CEND          , "annotation:ifcend"     ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ELSE             , "annotation:else"       ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ENDIF            , "annotation:endif"      ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_WHILE_CSTART     , "annotation:whilecstart") ,
-    LOOPS_HASHMAP_ELEM(loops::OP_WHILE_CEND       , "annotation:whilecend"  ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ENDWHILE         , "annotation:endwhile"   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_BREAK            , "annotation:break"      ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_CONTINUE         , "annotation:continue"   ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_AND             , "and"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_OR              , "or"                    ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_XOR             , "xor"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_NOT             , "not"                   ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_X86_ADC          , "x86_adc"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_X86_CQO          , "x86_cqo"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VEXTRACT128 , "x86_vextract128"       ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VINSERT128  , "x86_vinsert128"        ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPERM2I128  , "x86_vperm2i128"        ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPALIGNR    , "x86_vpalignr"          ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPSHUFD     , "x86_vpshufd"           ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPSADBW     , "x86_vpsadbw"           ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VPHADDD     , "x86_vphaddd"           ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VHADDPS     , "x86_vhaddps"           ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VADDSS      , "x86_vaddss"            ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VHADDPD     , "x86_vhaddpd"           ) ,
-    LOOPS_HASHMAP_ELEM(loops::VOP_X86_VADDSD      , "x86_vaddsd"            ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ARM_CINC         , "arm_cinc"              ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ARM_CNEG         , "arm_cneg"              ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ARM_MOVK         , "arm_movk"              ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ARM_LDP          , "arm_ldp"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_ARM_STP          , "arm_stp"               ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_RV_LUI           , "rv_lui"                ) ,
-    LOOPS_HASHMAP_ELEM(loops::OP_DEF              , "def"                   ) ,
-};
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) cond_suffixes_[] =
+static inline loops_cstring opstrings_getter_(int opcode)
 {
-/*  |   enum_id   | string_id|   */
-    LOOPS_HASHMAP_ELEM(loops::OP_EQ ,     "eq" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_NE ,     "ne" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_GE ,     "ge" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_LE ,     "le" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_ULE,     "ule"),
-    LOOPS_HASHMAP_ELEM(loops::OP_GT ,     "gt" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_UGT,     "ugt"),
-    LOOPS_HASHMAP_ELEM(loops::OP_LT ,     "gt" ),
-    LOOPS_HASHMAP_ELEM(loops::OP_S  ,     "s"  ),
-    LOOPS_HASHMAP_ELEM(loops::OP_NS ,     "ns" ),
-};
+    switch (opcode)
+    {
+    /*   |         enum_id          |              string_id           |*/
+    case (loops::OP_MOV             ) : return "mov"                   ;
+    case (loops::OP_XCHG            ) : return "xchg"                  ;
+    case (loops::OP_ADD             ) : return "add"                   ;
+    case (loops::OP_SUB             ) : return "sub"                   ;
+    case (loops::OP_MUL             ) : return "mul"                   ;
+    case (loops::OP_DIV             ) : return "div"                   ;
+    case (loops::OP_MOD             ) : return "mod"                   ;
+    case (loops::OP_SHL             ) : return "shl"                   ;
+    case (loops::OP_SHR             ) : return "shr"                   ;
+    case (loops::OP_SAR             ) : return "sar"                   ;
+    case (loops::OP_AND             ) : return "and"                   ;
+    case (loops::OP_OR              ) : return "or"                    ;
+    case (loops::OP_XOR             ) : return "xor"                   ;
+    case (loops::OP_NOT             ) : return "not"                   ;
+    case (loops::OP_NEG             ) : return "neg"                   ;
+    case (loops::OP_CMP             ) : return "cmp"                   ;
+    case (loops::OP_MIN             ) : return "min"                   ;
+    case (loops::OP_MAX             ) : return "max"                   ;
+    case (loops::OP_ABS             ) : return "abs"                   ;
+    case (loops::OP_SIGN            ) : return "sign"                  ;
+    case (loops::OP_SPILL           ) : return "spill"                 ;
+    case (loops::OP_UNSPILL         ) : return "unspill"               ;
+    case (loops::OP_GT              ) : return "gt"                    ;
+    case (loops::OP_UGT             ) : return "ugt"                   ;
+    case (loops::OP_GE              ) : return "ge"                    ;
+    case (loops::OP_LT              ) : return "lt"                    ;
+    case (loops::OP_LE              ) : return "le"                    ;
+    case (loops::OP_ULE             ) : return "ule"                   ;
+    case (loops::OP_NE              ) : return "ne"                    ;
+    case (loops::OP_EQ              ) : return "eq"                    ;
+    case (loops::OP_S               ) : return "s"                     ;
+    case (loops::OP_NS              ) : return "ns"                    ;
+    case (loops::OP_LOGICAL_AND     ) : return "log_and"               ;
+    case (loops::OP_LOGICAL_OR      ) : return "log_or"                ;
+    case (loops::OP_LOGICAL_NOT     ) : return "log_not"               ;
+    case (loops::OP_JMP             ) : return "jmp"                   ;
+    case (loops::OP_RET             ) : return "ret"                   ;
+    case (loops::OP_CALL            ) : return "call"                  ;
+    case (loops::OP_CALL_NORET      ) : return "call_noret"            ;
+    case (loops::OP_STEM_CSTART     ) : return "annotation:stemcstart" ;
+    case (loops::OP_IF_CSTART       ) : return "annotation:ifcstart"   ;
+    case (loops::OP_ELIF_CSTART     ) : return "annotation:elif"       ;
+    case (loops::OP_IF_CEND         ) : return "annotation:ifcend"     ;
+    case (loops::OP_ELSE            ) : return "annotation:else"       ;
+    case (loops::OP_ENDIF           ) : return "annotation:endif"      ;
+    case (loops::OP_WHILE_CSTART    ) : return "annotation:whilecstart";
+    case (loops::OP_WHILE_CEND      ) : return "annotation:whilecend"  ;
+    case (loops::OP_ENDWHILE        ) : return "annotation:endwhile"   ;
+    case (loops::OP_BREAK           ) : return "annotation:break"      ;
+    case (loops::OP_CONTINUE        ) : return "annotation:continue"   ;
+    case (loops::VOP_AND            ) : return "and"                   ;
+    case (loops::VOP_OR             ) : return "or"                    ;
+    case (loops::VOP_XOR            ) : return "xor"                   ;
+    case (loops::VOP_NOT            ) : return "not"                   ;
+    case (loops::OP_X86_ADC         ) : return "x86_adc"               ;
+    case (loops::OP_X86_CQO         ) : return "x86_cqo"               ;
+    case (loops::VOP_X86_VEXTRACT128) : return "x86_vextract128"       ;
+    case (loops::VOP_X86_VINSERT128 ) : return "x86_vinsert128"        ;
+    case (loops::VOP_X86_VPERM2I128 ) : return "x86_vperm2i128"        ;
+    case (loops::VOP_X86_VPALIGNR   ) : return "x86_vpalignr"          ;
+    case (loops::VOP_X86_VPSHUFD    ) : return "x86_vpshufd"           ;
+    case (loops::VOP_X86_VPSADBW    ) : return "x86_vpsadbw"           ;
+    case (loops::VOP_X86_VPHADDD    ) : return "x86_vphaddd"           ;
+    case (loops::VOP_X86_VHADDPS    ) : return "x86_vhaddps"           ;
+    case (loops::VOP_X86_VADDSS     ) : return "x86_vaddss"            ;
+    case (loops::VOP_X86_VHADDPD    ) : return "x86_vhaddpd"           ;
+    case (loops::VOP_X86_VADDSD     ) : return "x86_vaddsd"            ;
+    case (loops::OP_ARM_CINC        ) : return "arm_cinc"              ;
+    case (loops::OP_ARM_CNEG        ) : return "arm_cneg"              ;
+    case (loops::OP_ARM_MOVK        ) : return "arm_movk"              ;
+    case (loops::OP_ARM_LDP         ) : return "arm_ldp"               ;
+    case (loops::OP_ARM_STP         ) : return "arm_stp"               ;
+    case (loops::OP_RV_LUI          ) : return "rv_lui"                ;
+    case (loops::OP_DEF             ) : return "def"                   ;
+    };
+    return nullptr;
+}
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) type_suffixes_[] =
+static int opstrings_getter(int opcode, loops_cstring* found_name)
 {
-                  /*  |    enum_id     |string_id|  */
-    LOOPS_HASHMAP_ELEM(loops::TYPE_U8  , "u8"  ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_I8  , "i8"  ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_U16 , "u16" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_I16 , "i16" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_U32 , "u32" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_I32 , "i32" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_U64 , "u64" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_I64 , "i64" ),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_FP16, "fp16"),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_BF16, "bf16"),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_FP32, "fp32"),
-    LOOPS_HASHMAP_ELEM(loops::TYPE_FP64, "fp64"),
-};
+    *found_name = opstrings_getter_(opcode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS; //DUBUG: not sure it's okay, but we need better scheme at all.
+}
 
-LOOPS_HASHMAP_DECLARE(int, suffixed_opname);
-LOOPS_HASHMAP_DEFINE(int, suffixed_opname)
-LOOPS_HASHMAP_STATIC(int, suffixed_opname) suffixed_opnames_[] = 
+static inline loops_cstring cond_suffixes_getter_(int condcode)
 {
-/*  |         enum_id        |pieces_size|                pieces                    |          */
+    switch (condcode)
+    {
+/*       |   enum_id   |   string_id   |   */
+    case (loops::OP_EQ ) : return "eq" ;
+    case (loops::OP_NE ) : return "ne" ;
+    case (loops::OP_GE ) : return "ge" ;
+    case (loops::OP_LE ) : return "le" ;
+    case (loops::OP_ULE) : return "ule";
+    case (loops::OP_GT ) : return "gt" ;
+    case (loops::OP_UGT) : return "ugt";
+    case (loops::OP_LT ) : return "gt" ;
+    case (loops::OP_S  ) : return "s"  ;
+    case (loops::OP_NS ) : return "ns" ;
+    };
+    return nullptr;
+}
+
+static int cond_suffixes_getter(int condcode, loops_cstring* found_name)
+{
+    *found_name = cond_suffixes_getter_(condcode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
+}
+
+static inline loops_cstring type_suffixes_getter_(int typecode)
+{
+    switch (typecode)
+    {
+/*       |    enum_id     |   string_id    |   */
+    case (loops::TYPE_U8  ) : return "u8"  ;
+    case (loops::TYPE_I8  ) : return "i8"  ;
+    case (loops::TYPE_U16 ) : return "u16" ;
+    case (loops::TYPE_I16 ) : return "i16" ;
+    case (loops::TYPE_U32 ) : return "u32" ;
+    case (loops::TYPE_I32 ) : return "i32" ;
+    case (loops::TYPE_U64 ) : return "u64" ;
+    case (loops::TYPE_I64 ) : return "i64" ;
+    case (loops::TYPE_FP16) : return "fp16";
+    case (loops::TYPE_BF16) : return "bf16";
+    case (loops::TYPE_FP32) : return "fp32";
+    case (loops::TYPE_FP64) : return "fp64";
+    };
+    return nullptr;
+}
+
+static int type_suffixes_getter(int typecode, loops_cstring* found_name)
+{
+    *found_name = type_suffixes_getter_(typecode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
+}
+
+std::unordered_map<int, suffixed_opname> suffixed_opnames = 
+{
+/*  |         enum_id            |pieces_size|                pieces                    |      */
 /*                                     |        prefix    |argnum|suffix_type|fracture_size|...*/
-    LOOPS_HASHMAP_ELEM(loops::OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}),	
-    LOOPS_HASHMAP_ELEM(loops::OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}),
-    LOOPS_HASHMAP_ELEM(loops::OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}),
-    LOOPS_HASHMAP_ELEM(loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SUB              , {1, {{"sub."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_MUL              , {1, {{"mul."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_DIV              , {1, {{"div."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_FMA              , {1, {{"fma."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SAL              , {1, {{"sal."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SHL              , {1, {{"shl."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SAR              , {1, {{"sar."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SHR              , {1, {{"shr."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_NEG              , {1, {{"neg."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_MIN              , {1, {{"min."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_MAX              , {1, {{"max."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_GT               , {1, {{"gt."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_GE               , {1, {{"ge."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_LT               , {1, {{"lt."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_LE               , {1, {{"le."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_NE               , {1, {{"ne."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_EQ               , {1, {{"eq."               , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SELECT           , {1, {{"select."           , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_TRUNC            , {2, {{"trunc."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_FLOOR            , {2, {{"floor."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_CAST             , {2, {{"cast."             , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_BROADCAST        , {1, {{"broadcast."        , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_CAST_LOW         , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_CAST_HIGH        , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SHRINK           , {2, {{"shrink."           , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_POPCOUNT         , {1, {{"popcount."         , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_MAX       , {1, {{"reduce.max."       , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_MIN       , {1, {{"reduce.min."       , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_SUM       , {1, {{"reduce.sum."       , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_EXT              , {1, {{"ext."              , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ARM_SHRINK_LOW   , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_ARM_SHRINK_HIGH  , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_GETLANE          , {1, {{"getlane."          , 1, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_SETLANE          , {1, {{"setlane."          , 0, SUFFIX_ELEMTYPE, 0}}}),
-    LOOPS_HASHMAP_ELEM(loops::VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}),
+
+    {loops::OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}},
+    {loops::OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}},
+    {loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}},
+    {loops::VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}},
+    {loops::VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SUB              , {1, {{"sub."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_MUL              , {1, {{"mul."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_DIV              , {1, {{"div."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_FMA              , {1, {{"fma."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SAL              , {1, {{"sal."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SHL              , {1, {{"shl."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SAR              , {1, {{"sar."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SHR              , {1, {{"shr."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_NEG              , {1, {{"neg."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_MIN              , {1, {{"min."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_MAX              , {1, {{"max."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_GT               , {1, {{"gt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_GE               , {1, {{"ge."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_LT               , {1, {{"lt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_LE               , {1, {{"le."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_NE               , {1, {{"ne."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_EQ               , {1, {{"eq."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SELECT           , {1, {{"select."           , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_TRUNC            , {2, {{"trunc."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_FLOOR            , {2, {{"floor."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_CAST             , {2, {{"cast."             , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_BROADCAST        , {1, {{"broadcast."        , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_CAST_LOW         , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
+    {loops::VOP_CAST_HIGH        , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
+    {loops::VOP_SHRINK           , {2, {{"shrink."           , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_POPCOUNT         , {1, {{"popcount."         , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_REDUCE_MAX       , {1, {{"reduce.max."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_REDUCE_MIN       , {1, {{"reduce.min."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_REDUCE_SUM       , {1, {{"reduce.sum."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_EXT              , {1, {{"ext."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_ARM_SHRINK_LOW   , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
+    {loops::VOP_ARM_SHRINK_HIGH  , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
+    {loops::VOP_GETLANE          , {1, {{"getlane."          , 1, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_SETLANE          , {1, {{"setlane."          , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {loops::VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}}, 
 };
-
-static LOOPS_HASHMAP(int, loops_cstring) opstrings = NULL;
-static LOOPS_HASHMAP(int, loops_cstring) cond_suffixes = NULL;
-static LOOPS_HASHMAP(int, loops_cstring) type_suffixes = NULL;
-static LOOPS_HASHMAP(int, suffixed_opname) suffixed_opnames = NULL;
-
-int printer_h_initialize()
-{
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&opstrings, opstrings_, sizeof(opstrings_) / sizeof(opstrings_[0])));
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&cond_suffixes, cond_suffixes_, sizeof(cond_suffixes_) / sizeof(cond_suffixes_[0])));
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&type_suffixes, type_suffixes_, sizeof(type_suffixes_) / sizeof(type_suffixes_[0])));
-    LOOPS_CALL_THROW(loops_hashmap_construct_static(&suffixed_opnames, suffixed_opnames_, sizeof(suffixed_opnames_) / sizeof(suffixed_opnames_[0])));
-    return LOOPS_ERR_SUCCESS;
-}
-
-void printer_h_deinitialize()
-{
-    loops_hashmap_destruct(opstrings);
-    loops_hashmap_destruct(cond_suffixes);
-    loops_hashmap_destruct(type_suffixes);
-    loops_hashmap_destruct(suffixed_opnames);
-}
 
 static int augment_buffer(LOOPS_LIST(loops_span_char) head, int buffer_size)
 {
@@ -319,34 +326,30 @@ int close_printer_cell(program_printer* printer)
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int row)
+static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int row)
 {
     LOOPS_CALL_THROW(loops_printf(printer, "%6d :", row));
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* /*func*/, int /*row*/)
+static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int /*row*/)
 {
     LOOPS_CALL_THROW(loops_printf(printer, ";"));
     LOOPS_CALL_THROW(close_printer_cell(printer));
     return LOOPS_ERR_SUCCESS;
 }
 
-static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
 {
     int err;
     loops_cstring found_name = NULL;
-    loops::Syntop* op = func->program->data;
+    const loops::Syntop* op = func.program.data();
     op += row;
-    err = loops_hashmap_get(opstrings, op->opcode, &found_name);
+    err = opstrings_getter(op->opcode, &found_name);
     if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
     {
-        suffixed_opname found_suffixed_name;
-        err = loops_hashmap_get(suffixed_opnames, op->opcode, &found_suffixed_name);
-        if(err != LOOPS_ERR_ELEMENT_NOT_FOUND && err != LOOPS_ERR_SUCCESS)
-            LOOPS_THROW(err);
-        else if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+        if(suffixed_opnames.count(op->opcode) == 0)
         {
             switch(op->opcode)
             {
@@ -359,7 +362,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
 #endif
                         LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                 }
-                err = loops_hashmap_get(cond_suffixes, (int)op->args[0].value, &found_name);
+                err = cond_suffixes_getter((int)op->args[0].value, &found_name);
                 if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                     LOOPS_THROW(LOOPS_ERR_UNKNOWN_CONDITION);
                 else if(err != LOOPS_ERR_SUCCESS)
@@ -380,6 +383,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
         }
         else 
         {
+            suffixed_opname found_suffixed_name = suffixed_opnames.at(op->opcode);
             int i = 0;
             for(; i < found_suffixed_name.pieces_size; i++) 
             {
@@ -398,7 +402,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
                     case SUFFIX_CONDITION:
                         if(op->args[argnum].tag != loops::Arg::IIMMEDIATE)
                             LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = loops_hashmap_get(cond_suffixes, (int)op->args[argnum].value, &found_name);
+                        err = cond_suffixes_getter((int)op->args[argnum].value, &found_name);
                         if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                             LOOPS_THROW(LOOPS_ERR_UNKNOWN_TYPE);
                         else if(err != LOOPS_ERR_SUCCESS)
@@ -407,7 +411,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
                     case SUFFIX_ELEMTYPE:
                         if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG && op->args[argnum].tag != loops::Arg::IIMMEDIATE)
                             LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = loops_hashmap_get(type_suffixes, op->args[argnum].elemtype, &found_name);
+                        err = type_suffixes_getter(op->args[argnum].elemtype, &found_name);
                         if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
                             LOOPS_THROW(LOOPS_ERR_UNKNOWN_TYPE);
                         else if(err != LOOPS_ERR_SUCCESS)
@@ -427,7 +431,7 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
     return LOOPS_ERR_SUCCESS;
 }
 
-static int basic_arg_printer(program_printer* printer, loops::Arg* arg)
+static int basic_arg_printer(program_printer* printer, const loops::Arg* arg)
 {
     switch (arg->tag)
     {
@@ -444,9 +448,9 @@ static int basic_arg_printer(program_printer* printer, loops::Arg* arg)
     };
 }
 
-static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, syntfunc2print* func, int row)
+static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
 {
-    loops::Syntop* op = func->program->data;
+    const loops::Syntop* op = func.program.data();
     op += row;
     switch(op->opcode)
     {
@@ -560,14 +564,14 @@ int create_ir_printer(int columnflags, program_printer** res)
     int colprinters_size = 0; 
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    err = loops_span_construct_alloc(&((*res)->colprinters), colprinters_size);
-    if(err != LOOPS_ERR_SUCCESS)
+    (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
+    if((*res)->colprinters == nullptr)
     {
         loops_list_destruct((*res)->buffers);
         free(*res);
-        LOOPS_THROW(err);
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
-    column_printer* curcolprinter = (*res)->colprinters->data;
+    column_printer* curcolprinter = (*res)->colprinters->data();
     memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
     if(columnflags & loops::Func::PC_OPNUM)
     {
@@ -585,11 +589,11 @@ int create_ir_printer(int columnflags, program_printer** res)
     return LOOPS_ERR_SUCCESS;
 }
 
-int col_opname_table_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+int col_opname_table_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
     int err;
     loops_cstring found_name = NULL;
-    loops::Syntop* op = func->program->data;
+    const loops::Syntop* op = func.program.data();
     op += row;
     err = ((table_opname_getter)colprinter->auxdata)(op->opcode, &found_name);
     if(err != LOOPS_ERR_SUCCESS )
@@ -622,14 +626,14 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
-    err = loops_span_construct_alloc(&((*res)->colprinters), colprinters_size);
-    if(err != LOOPS_ERR_SUCCESS)
+    (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
+    if((*res)->colprinters == nullptr)
     {
         loops_list_destruct((*res)->buffers);
         free(*res);
-        LOOPS_THROW(err);
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
-    column_printer* curcolprinter = (*res)->colprinters->data;
+    column_printer* curcolprinter = (*res)->colprinters->data();
     memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
     if(columnflags & loops::Func::PC_OPNUM)
     {
@@ -660,10 +664,10 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
 void free_printer(program_printer* tofree)
 {
     int prnum = 0;
-    for (; prnum < tofree->colprinters->size; prnum++)
-        if (tofree->colprinters->data[prnum].free_func != NULL)
-            tofree->colprinters->data[prnum].free_func(tofree->colprinters->data + prnum);
-    loops_span_destruct(tofree->colprinters);
+    for (; prnum < (int)tofree->colprinters->size(); prnum++)
+        if ((*(tofree->colprinters))[prnum].free_func != NULL)
+            (*(tofree->colprinters))[prnum].free_func(tofree->colprinters->data() + prnum);
+    delete tofree->colprinters;
     free(tofree);
 }
 
@@ -673,16 +677,16 @@ static void printer_buffer_destruct(void* pb)
 }
 
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
-static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int outtype, syntfunc2print* func)
+static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int outtype, const loops::Syntfunc& func)
 {
-    int params_size = func->params->size;
-    loops::Arg* params = func->params->data;
+    int params_size = (int)func.params.size();
+    const loops::Arg* params = func.params.data();
 
     int err = 0;
     int cells = 0;
     static int MAX_LINE_SIZE = 82; //taken from statistics
-    int cols = printer->colprinters->size;
-    int rows = func->program->size;
+    int cols = (int)printer->colprinters->size();
+    int rows = (int)func.program.size();
     int row;
     int col;
 
@@ -713,7 +717,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
     {
         for (col = 0; col < cols; col++)
         {
-            err = printer->colprinters->data[col].func(printer, printer->colprinters->data + col, func, row);
+            err = (*(printer->colprinters))[col].func(printer, printer->colprinters->data() + col, func, row);
             if (err != 0)
             {
                 fout = stderr;
@@ -739,7 +743,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
     {
         int parnum;
         int cell;
-        fprintf(fout, "%s(", func->name);
+        fprintf(fout, "%s(", func.name.c_str());
         for (parnum = 0; parnum < params_size - 1; parnum++)
             fprintf(fout, "i%d, ", (params + parnum)->idx);
         if (params_size)
@@ -758,7 +762,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
     else if (outtype == PRINT_TO_STRING)
     {
         //Let's calculate out buffer size and allocate it
-        int bufferleft = (int)strlen(func->name) + 6;
+        int bufferleft = (int)func.name.size() + 6;
         int parnum;
         int cell;
         for (parnum = 0; parnum < params_size; parnum++)
@@ -790,7 +794,7 @@ do {                                                                            
 } while (0)
 
         //Write header:
-        PRINT_SYNTFUNC_SPRINT("%s(", func->name);
+        PRINT_SYNTFUNC_SPRINT("%s(", func.name.c_str());
         for (parnum = 0; parnum < params_size - 1; parnum++)
             PRINT_SYNTFUNC_SPRINT("i%d, ", (params + parnum)->idx);
         if (params_size)
@@ -820,12 +824,12 @@ print_syntfunc_end:
     return err;
 }
 
-int fprint_syntfunc(program_printer* printer, FILE* out, syntfunc2print* func)
+int fprint_syntfunc(program_printer* printer, FILE* out, const loops::Syntfunc& func)
 {
     return print_syntfunc(printer, out, NULL, PRINT_TO_FILE, func);
 }
 
-int sprint_syntfunc(program_printer* printer, char** out, syntfunc2print* func)
+int sprint_syntfunc(program_printer* printer, char** out, const loops::Syntfunc& func)
 {
     return print_syntfunc(printer, NULL, out, PRINT_TO_STRING, func);
 }
@@ -835,17 +839,10 @@ std::string IR_instruction2string(const loops::Syntop& op)
     const int columns = loops::Func::PC_OP;
     program_printer* _printer;
     Assert(create_ir_printer(columns, &_printer) == 0);
-    syntfunc2print s2p;
-    std::string name = "";
-    s2p.name = const_cast<char*>(name.c_str());
-    int err = loops_span_construct(&(s2p.program), const_cast<loops::Syntop*>(&op), 1);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
-    err = loops_span_construct(&(s2p.params), nullptr, 0);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
+    loops::Syntfunc s2p;
+    s2p.program[0] = op;
     char* printed_str;
-    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    int err = sprint_syntfunc(_printer, &printed_str, s2p);
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
     free_printer(_printer);
@@ -861,17 +858,10 @@ std::string assembly_instruction2string(const loops::Syntop& op, const loops::Ba
     const int columns = loops::Func::PC_OP;
     program_printer* _printer;
     Assert(create_assembly_printer(columns, const_cast<loops::Backend*>(&backend), &_printer) == 0);
-    syntfunc2print s2p;
-    std::string name = "";
-    s2p.name = const_cast<char*>(name.c_str());
-    int err = loops_span_construct(&(s2p.program), const_cast<loops::Syntop*>(&op), 1);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
-    err = loops_span_construct(&(s2p.params), nullptr, 0);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
+    loops::Syntfunc s2p;
+    s2p.program[0] = op;
     char* printed_str;
-    err = sprint_syntfunc(_printer, &printed_str, &s2p);
+    int err = sprint_syntfunc(_printer, &printed_str, s2p);
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
     free_printer(_printer);

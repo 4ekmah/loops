@@ -2290,14 +2290,14 @@ column_printer Aarch64Backend::get_opname_printer() const
 
 typedef struct aarch64_opargs_printer_aux
 {
-    LOOPS_HASHMAP(int, int) pos2opnum;
+    std::unordered_map<int, int>* pos2opnum;
     LOOPS_SPAN(int) positions;
 } aarch64_opargs_printer_aux;
 
-static int aarch64_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+static int aarch64_opargs_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
-    int program_size = func->program->size;
-    loops::Syntop* program = func->program->data;
+    int program_size = (int)func.program.size();
+    const loops::Syntop* program = func.program.data();
     int err;
     aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
     if (argaux == NULL)
@@ -2308,16 +2308,11 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
         if (argaux == NULL)
             LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         memset(argaux, 0, sizeof(aarch64_opargs_printer_aux));
-        err = loops_hashmap_construct(&(argaux->pos2opnum));
-        if(err != LOOPS_ERR_SUCCESS)
-        {
-            free(argaux);
-            LOOPS_THROW(err);
-        }
+        argaux->pos2opnum = new std::unordered_map<int, int>();
         err = loops_span_construct_alloc(&(argaux->positions), program_size);
         if(err != LOOPS_ERR_SUCCESS) 
         {
-            loops_hashmap_destruct(argaux->pos2opnum);
+            delete argaux->pos2opnum;
             free(argaux);
             LOOPS_THROW(err);
         }
@@ -2327,13 +2322,13 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             int opsize = (opcode == AARCH64_LABEL ? 0 : 4);
             argaux->positions->data[opnum] = oppos;
             if(opcode == AARCH64_LABEL)
-                loops_hashmap_add(argaux->pos2opnum, oppos, opnum);
+                (*(argaux->pos2opnum))[oppos] = opnum;
             oppos += opsize;
         }
         colprinter->auxdata = argaux;
     }
     
-    Syntop* op = program + row;
+    const Syntop* op = program + row;
     uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
     printer->backend->fill_native_operand_flags(op, operand_flags);
     int aamount = op->args_size;
@@ -2354,13 +2349,12 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             if (arg.tag != Arg::IIMMEDIATE)
                 LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
             int offset2find = argaux->positions->data[row + 1] + (int)arg.value - 4;
-            err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
-            if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+            if (argaux->pos2opnum->count(offset2find) == 0)
                 LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
-            else if(err != LOOPS_ERR_SUCCESS)
-                LOOPS_THROW(err);
+            else
+                targetline = argaux->pos2opnum->at(offset2find);
             Assert(targetline >= 0);
-            Syntop* labelop = program + targetline;
+            const Syntop* labelop = program + targetline;
             Assert(labelop->opcode == AARCH64_LABEL);
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
@@ -2524,7 +2518,7 @@ static void free_aarch64_opargs_printer(column_printer* colprinter)
     if (colprinter->auxdata != NULL)
     {
         aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
-        loops_hashmap_destruct(argaux->pos2opnum);
+        delete argaux->pos2opnum;
         loops_span_destruct(argaux->positions);
         free(argaux);
         colprinter->auxdata = NULL;
@@ -2543,13 +2537,13 @@ typedef struct aarch64_hex_printer_aux
     LOOPS_SPAN(uint8_t) binary;
 } aarch64_hex_printer_aux;
 
-static int aarch64_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+static int aarch64_hex_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
     int err;
-    int program_size = func->program->size;
-    loops::Syntop* program = func->program->data;
-    int params_size = func->params->size;
-    loops::Arg* params = func->params->data;
+    int program_size = (int)func.program.size();
+    const loops::Syntop* program = func.program.data();
+    int params_size = (int)func.params.size();
+    const loops::Arg* params = func.params.data();
 
     aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)colprinter->auxdata;
     if (argaux == NULL)
@@ -2572,7 +2566,7 @@ static int aarch64_hex_printer(program_printer* printer, column_printer* colprin
             argaux->positions->data[opnum] = oppos;
             oppos += opsize;
         }
-        {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.
+        {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.//DUBUG: well, you don't need it !
             Syntfunc tmpfunc;
             tmpfunc.program.resize(program_size);
             memcpy((void*)tmpfunc.program.data(), (void*)program, program_size * sizeof(Syntop));

@@ -9,7 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "collections.hpp"
 #include <algorithm>
 #include <iomanip>
-
+#include <unordered_map>
 
 static inline loops_cstring opstrings_getter_(int opcode)
 {
@@ -2787,14 +2787,14 @@ namespace loops
 
     typedef struct intel64_opargs_printer_aux
     {
-        LOOPS_HASHMAP(int, int) pos2opnum;
+        std::unordered_map<int, int>* pos2opnum;
         LOOPS_SPAN(int) positions;
     } intel64_opargs_printer_aux;
 
-    static int intel64_opargs_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int intel64_opargs_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
-        int program_size = func->program->size;
-        loops::Syntop* program = func->program->data;
+        int program_size = (int)func.program.size();
+        const loops::Syntop* program = func.program.data();
         int err;
         intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
@@ -2805,16 +2805,11 @@ namespace loops
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
             memset(argaux, 0, sizeof(intel64_opargs_printer_aux));
-            err = loops_hashmap_construct(&(argaux->pos2opnum));
-            if(err != LOOPS_ERR_SUCCESS)
-            {
-                free(argaux);
-                LOOPS_THROW(err);
-            }
+            argaux->pos2opnum = new std::unordered_map<int, int>();
             err = loops_span_construct_alloc(&(argaux->positions), program_size);
             if(err != LOOPS_ERR_SUCCESS) 
             {
-                loops_hashmap_destruct(argaux->pos2opnum);
+                delete argaux->pos2opnum;
                 free(argaux);
                 LOOPS_THROW(err);
             }
@@ -2823,7 +2818,7 @@ namespace loops
                 int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
                 argaux->positions->data[opnum] = oppos;
                 if(program[opnum].opcode == INTEL64_LABEL)
-                    loops_hashmap_add(argaux->pos2opnum, oppos, opnum);
+                    (*(argaux->pos2opnum))[oppos] = opnum;
                 oppos += opsize;
             }
             colprinter->auxdata = argaux;
@@ -2835,7 +2830,7 @@ namespace loops
             { "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",  "r9", "r10", "r11" , "r12" , "r13" , "r14" , "r15" },
             };
 
-        Syntop* op = program + row;
+        const Syntop* op = program + row;
         
         uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
         printer->backend->fill_native_operand_flags(op, operand_flags);
@@ -2850,13 +2845,12 @@ namespace loops
                 if (arg.tag != Arg::IIMMEDIATE)
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = argaux->positions->data[row + 1] + (int)arg.value;
-                err = loops_hashmap_get(argaux->pos2opnum, offset2find, &targetline);
-                if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                if (argaux->pos2opnum->count(offset2find) == 0)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
-                else if(err != LOOPS_ERR_SUCCESS)
-                    LOOPS_THROW(err);
+                else
+                    targetline = argaux->pos2opnum->at(offset2find);
                 Assert(targetline >= 0);
-                Syntop* labelop = program + targetline;
+                const Syntop* labelop = program + targetline;
                 Assert(labelop->opcode == INTEL64_LABEL);
                 Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
                 Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
@@ -2975,7 +2969,7 @@ namespace loops
         if (colprinter->auxdata != NULL)
         {
             intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
-            loops_hashmap_destruct(argaux->pos2opnum);
+            delete argaux->pos2opnum;
             loops_span_destruct(argaux->positions);
             free(argaux);
             colprinter->auxdata = NULL;
@@ -3003,13 +2997,13 @@ namespace loops
         LOOPS_SPAN(uint8_t) binary;
     } intel64_hex_printer_aux;
 
-    static int intel64_hex_printer(program_printer* printer, column_printer* colprinter, syntfunc2print* func, int row)
+    static int intel64_hex_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
         int err;
-        int program_size = func->program->size;
-        loops::Syntop* program = func->program->data;
-        int params_size = func->params->size;
-        loops::Arg* params = func->params->data;
+        int program_size = (int)func.program.size();
+        const loops::Syntop* program = func.program.data();
+        int params_size = func.params.size();
+        const loops::Arg* params = func.params.data();
 
         intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
@@ -3032,7 +3026,7 @@ namespace loops
                 argaux->pos_n_sizes->data[opnum] = {/*position = */oppos, /*size = */opsize};
                 oppos += opsize;
             }
-            {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.
+            {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.//DUBUG: well, you don't need it !
                 Syntfunc tmpfunc;
                 tmpfunc.program.resize(program_size);
                 memcpy((void*)tmpfunc.program.data(), (void*)program, program_size * sizeof(Syntop));

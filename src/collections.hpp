@@ -7,128 +7,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #ifndef __LOOPS_COLLECTIONS_HPP__
 #define __LOOPS_COLLECTIONS_HPP__
 #include "runtime.hpp"
-#include <uthash.h>
 #include <utlist.h>
 typedef const char* loops_cstring;
 
 // TODO[CPP2ANSIC]: pure C, even newest standarts don't have function overriding, so 'class methods' cannot have same names.
-// ===================================================== HASHMAP =====================================================
-
-#define LOOPS_HASHMAP(K, V) loops_hashmap_ ## K ## _ ## V
-#define LOOPS_HASHMAP_STATIC(K, V) static loops_hashmap_static_ ## K ## _ ## V
-#define LOOPS_HASHMAP_ELEM(K, ...) {K, __VA_ARGS__, {}}
-
-#define LOOPS_HASHMAP_DECLARE(K, V)                                                                                              \
-    typedef struct loops_hashmap_static_ ## K ## _ ## V                                                                          \
-    {                                                                                                                            \
-        K key;                                                                                                                   \
-        V val;                                                                                                                   \
-        UT_hash_handle hh;                                                                                                       \
-    } loops_hashmap_static_ ## K ## _ ## V;                                                                                      \
-    typedef struct loops_hashmap_ ## K ## _ ## V ## _                                                                            \
-    {                                                                                                                            \
-        int _static;                                                                                                             \
-        loops_hashmap_static_ ## K ## _ ## V* impl;                                                                              \
-    } loops_hashmap_ ## K ## _ ## V ## _;                                                                                        \
-    typedef struct loops_hashmap_ ## K ## _ ## V ## _* loops_hashmap_ ## K ## _ ## V;                                            \
-int loops_hashmap_construct(loops_hashmap_ ## K ## _ ## V* result);                                                              \
-int loops_hashmap_construct_static(loops_hashmap_ ## K ## _ ## V* result, loops_hashmap_static_ ## K ## _ ## V* input, int size);\
-void loops_hashmap_destruct(loops_hashmap_ ## K ## _ ## V to_del);                                                               \
-int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val);                                                           \
-int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, int* res);                                                        \
-int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)                                     
-
-//TODO[CPP2ANSIC]: loops_hashmap_get have to return pointer, not value.
-
-#define LOOPS_HASHMAP_DEFINE(K, V)                                                                                              \
-int loops_hashmap_construct(loops_hashmap_ ## K ## _ ## V* result)                                                              \
-{                                                                                                                               \
-    *result = (loops_hashmap_ ## K ## _ ## V)malloc(sizeof(loops_hashmap_ ## K ## _ ## V ## _));                                \
-    if(*result == NULL)                                                                                                         \
-        return LOOPS_ERR_OUT_OF_MEMORY;                                                                                         \
-    (*result)->_static = 0;                                                                                                     \
-    (*result)->impl = NULL;                                                                                                     \
-    return LOOPS_ERR_SUCCESS;                                                                                                   \
-}                                                                                                                               \
-int loops_hashmap_construct_static(loops_hashmap_ ## K ## _ ## V* result, loops_hashmap_static_ ## K ## _ ## V* input, int size)\
-{                                                                                                                               \
-    int elnum;                                                                                                                  \
-    *result = (loops_hashmap_ ## K ## _ ## V)malloc(sizeof(loops_hashmap_ ## K ## _ ## V ## _));                                \
-    if(*result == NULL)                                                                                                         \
-        return LOOPS_ERR_OUT_OF_MEMORY;                                                                                         \
-    (*result)->_static = 1;                                                                                                     \
-    (*result)->impl = NULL;                                                                                                     \
-    loops_hashmap_static_ ## K ## _ ## V* utcontainer = (*result)->impl;                                                        \
-    for(elnum = 0; elnum < size; elnum++)                                                                                       \
-        HASH_ADD(hh, utcontainer, key, sizeof(K), input + elnum);                                                               \
-    (*result)->impl = utcontainer;                                                                                              \
-    return LOOPS_ERR_SUCCESS;                                                                                                   \
-}                                                                                                                               \
-void loops_hashmap_destruct(loops_hashmap_ ## K ## _ ## V to_del)                                                               \
-{                                                                                                                               \
-    if(to_del)                                                                                                                  \
-    {                                                                                                                           \
-        if(to_del->impl != NULL)                                                                                                \
-        {                                                                                                                       \
-            loops_hashmap_static_ ## K ## _ ## V*  map_to_free = to_del->impl;                                                  \
-            loops_hashmap_static_ ## K ## _ ## V* current;                                                                      \
-            loops_hashmap_static_ ## K ## _ ## V* tmp;                                                                          \
-            HASH_ITER(hh, map_to_free, current, tmp)                                                                            \
-            {                                                                                                                   \
-                HASH_DEL(map_to_free, current);                                                                                 \
-                if(!to_del->_static)                                                                                            \
-                    free(current);                                                                                              \
-            }                                                                                                                   \
-        }                                                                                                                       \
-        free(to_del);                                                                                                           \
-    }                                                                                                                           \
-}                                                                                                                               \
-int loops_hashmap_add(loops_hashmap_ ## K ## _ ## V lm, K key, V val)                                                           \
-{                                                                                                                               \
-    if(lm == NULL)                                                                                                              \
-        return LOOPS_ERR_NULL_POINTER;                                                                                          \
-    loops_hashmap_static_ ## K ## _ ## V* to_add =                                                                              \
-        (loops_hashmap_static_ ## K ## _ ## V*)malloc(sizeof(loops_hashmap_static_ ## K ## _ ## V));                            \
-    to_add->key = key;                                                                                                          \
-    to_add->val = val;                                                                                                          \
-    if(to_add == NULL)                                                                                                          \
-        return LOOPS_ERR_OUT_OF_MEMORY;                                                                                         \
-    loops_hashmap_static_ ## K ## _ ## V* utcontainer = lm->impl;                                                               \
-    HASH_ADD(hh, utcontainer, key, sizeof(K), to_add);                                                                          \
-    if(lm->impl == NULL)                                                                                                        \
-        lm->impl = utcontainer;                                                                                                 \
-    return LOOPS_ERR_SUCCESS;                                                                                                   \
-}                                                                                                                               \
-int loops_hashmap_has(loops_hashmap_ ## K ## _ ## V lm, K key, int* res)                                                        \
-{                                                                                                                               \
-    if(lm == NULL)                                                                                                              \
-        return LOOPS_ERR_NULL_POINTER;                                                                                          \
-    loops_hashmap_static_ ## K ## _ ## V* impl = lm->impl;                                                                      \
-    if(impl == NULL)                                                                                                            \
-    {                                                                                                                           \
-        *res = 0;                                                                                                               \
-        return LOOPS_ERR_SUCCESS;                                                                                               \
-    }                                                                                                                           \
-    loops_hashmap_static_ ## K ## _ ## V* found;                                                                                \
-    HASH_FIND(hh, impl, &key, sizeof(K), found);                                                                                \
-    *res = (found != NULL);                                                                                                     \
-    return LOOPS_ERR_SUCCESS;                                                                                                   \
-}                                                                                                                               \
-int loops_hashmap_get(loops_hashmap_ ## K ## _ ## V lm, K key, V* res)                                                          \
-{                                                                                                                               \
-    if(lm == NULL)                                                                                                              \
-        return LOOPS_ERR_NULL_POINTER;                                                                                          \
-    loops_hashmap_static_ ## K ## _ ## V* impl = lm->impl;                                                                      \
-    if(impl == NULL)                                                                                                            \
-        return LOOPS_ERR_ELEMENT_NOT_FOUND;                                                                                     \
-    loops_hashmap_static_ ## K ## _ ## V* found;                                                                                \
-    HASH_FIND(hh, impl, &key, sizeof(K), found);                                                                                \
-    if(found == NULL)                                                                                                           \
-        return LOOPS_ERR_ELEMENT_NOT_FOUND;                                                                                     \
-    *res = found->val;                                                                                                          \
-    return LOOPS_ERR_SUCCESS;                                                                                                   \
-}
-
 // ===================================================== LIST =====================================================
 
 #define LOOPS_LIST(T) loops_list_ ##T
@@ -211,7 +93,6 @@ int loops_list_head(loops_list_ ## T ll, T* res)                                
 }
 
 // ====================================================== SPAN ======================================================
-
 #define LOOPS_SPAN(T) loops_span_ ##T
 
 #define LOOPS_SPAN_DECLARE(T)                                          \
@@ -222,21 +103,10 @@ typedef struct loops_span_ ## T ## _                                   \
     int managed;                                                       \
 } loops_span_ ## T ## _;                                               \
 typedef struct loops_span_ ## T ## _* loops_span_ ## T;                \
-int loops_span_construct(loops_span_ ## T* result, T* data, int size); \
 int loops_span_construct_alloc(loops_span_ ## T* result, int size);    \
 void loops_span_destruct(loops_span_ ## T to_del)
 
 #define LOOPS_SPAN_DEFINE(T)                                             \
-int loops_span_construct(loops_span_ ## T* result, T* data, int size)    \
-{                                                                        \
-    (*result) = (loops_span_ ## T)malloc(sizeof(loops_span_ ## T ##_));  \
-    if(*result == NULL)                                                  \
-        return LOOPS_ERR_OUT_OF_MEMORY;                                  \
-    (*result)->data = data;                                              \
-    (*result)->size = size;                                              \
-    (*result)->managed = 0;                                              \
-    return LOOPS_ERR_SUCCESS;                                            \
-}                                                                        \
 int loops_span_construct_alloc(loops_span_ ## T* result, int size)       \
 {                                                                        \
     if(size <= 0)                                                        \
@@ -265,8 +135,6 @@ void loops_span_destruct(loops_span_ ## T to_del)                        \
     }                                                                    \
 }
 
-LOOPS_HASHMAP_DECLARE(int, loops_cstring);
-LOOPS_HASHMAP_DECLARE(int, int);
 LOOPS_SPAN_DECLARE(int);
 LOOPS_SPAN_DECLARE(char);
 LOOPS_SPAN_DECLARE(uint8_t);

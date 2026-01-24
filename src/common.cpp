@@ -20,54 +20,37 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 
 
-LOOPS_HASHMAP_STATIC(int, loops_cstring) errstrings_[] = 
+static inline loops_cstring errstrings_getter_(int errcode)
 {
+    switch (errcode)
+    {
                   /*  |                   enum_id                   |                                    string_id                                   |   */
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_SUCCESS                            , "Loops: Success."                                                              ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_NULL_POINTER                       , "Loops: Null pointer."                                                         ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POINTER_ARITHMETIC_ERROR           , "Loops: Pointer arithmetic error."                                             ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_OUT_OF_MEMORY                      , "Loops: Out of memory."                                                        ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_FLAG                       , "Loops: Unknown flag."                                                         ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_POSITIVE_SIZE_NEEDED               , "Loops: Negative size."                                                        ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNIMAGINARY_BIG_STRING             , "Loops: Unpredicted very big string."                                          ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNPRINTABLE_OPERATION              , "Loops: Unprintable operation."                                                ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_TYPE                       , "Loops: Unknown type."                                                         ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_CONDITION                  , "Loops: Unknown condition type."                                               ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_OPERATION_FORMAT         , "Loops: Incorrect operation format."                                           ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_ARGUMENT                 , "Loops: Incorrect argument."                                                   ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              , "Loops: Unknown argument type."                                                ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION , "Loops: Internal error: unknown type of output stream."                        ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION, "Loops: Internal error: printer output buffer size was calculated incorrectly."),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          , "Loops: Internal error: incorrect operation offset."                           ),
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_ELEMENT_NOT_FOUND                  , "Loops: Element not found."                                                    ), 
-    LOOPS_HASHMAP_ELEM(LOOPS_ERR_INCORRECT_LANE_INDEX               , "Loops: Negative or to big lane index."                                        ), 
-};
-LOOPS_HASHMAP(int, loops_cstring) errstrings = NULL;
-
-static void loops_initialize();
-#if defined(_MSC_VER) && defined(_WIN64)
-    #pragma section(".CRT$XCT",read)
-    __declspec(allocate(".CRT$XCT")) void (*loops_initialize_)(void) = loops_initialize;
-#elif defined(_MSC_VER) && !defined(_WIN64)
-    #error Win32 is not supported.
-#else
-    static void loops_initialize_(void) __attribute__((constructor));
-    static void loops_initialize_(void) { loops_initialize(); }
-#endif
-static void finalize(void)
-{
-    printer_h_deinitialize();
-    loops_hashmap_destruct(errstrings);
+    case (LOOPS_ERR_SUCCESS                            ) : return "Loops: Success."                                                              ;
+    case (LOOPS_ERR_NULL_POINTER                       ) : return "Loops: Null pointer."                                                         ;
+    case (LOOPS_ERR_POINTER_ARITHMETIC_ERROR           ) : return "Loops: Pointer arithmetic error."                                             ;
+    case (LOOPS_ERR_OUT_OF_MEMORY                      ) : return "Loops: Out of memory."                                                        ;
+    case (LOOPS_ERR_UNKNOWN_FLAG                       ) : return "Loops: Unknown flag."                                                         ;
+    case (LOOPS_ERR_POSITIVE_SIZE_NEEDED               ) : return "Loops: Negative size."                                                        ;
+    case (LOOPS_ERR_UNIMAGINARY_BIG_STRING             ) : return "Loops: Unpredicted very big string."                                          ;
+    case (LOOPS_ERR_UNPRINTABLE_OPERATION              ) : return "Loops: Unprintable operation."                                                ;
+    case (LOOPS_ERR_UNKNOWN_TYPE                       ) : return "Loops: Unknown type."                                                         ;
+    case (LOOPS_ERR_UNKNOWN_CONDITION                  ) : return "Loops: Unknown condition type."                                               ;
+    case (LOOPS_ERR_INCORRECT_OPERATION_FORMAT         ) : return "Loops: Incorrect operation format."                                           ;
+    case (LOOPS_ERR_INCORRECT_ARGUMENT                 ) : return "Loops: Incorrect argument."                                                   ;
+    case (LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE              ) : return "Loops: Unknown argument type."                                                ;
+    case (LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION ) : return "Loops: Internal error: unknown type of output stream."                        ;
+    case (LOOPS_ERR_INTERNAL_BUFFER_SIZE_MISCALCULATION) : return "Loops: Internal error: printer output buffer size was calculated incorrectly.";
+    case (LOOPS_ERR_INTERNAL_INCORRECT_OFFSET          ) : return "Loops: Internal error: incorrect operation offset."                           ;
+    case (LOOPS_ERR_ELEMENT_NOT_FOUND                  ) : return "Loops: Element not found."                                                    ;
+    case (LOOPS_ERR_INCORRECT_LANE_INDEX               ) : return "Loops: Negative or to big lane index."                                        ;
+    };
+    return nullptr;
 }
 
-static void loops_initialize()
+static int errstrings_getter(int errcode, loops_cstring* found_name)
 {
-    int err;
-    const char* init_error_msg = "Loops: Initialization error. Code: %d\n";
-    err = loops_hashmap_construct_static(&errstrings, errstrings_, sizeof(errstrings_) / sizeof(errstrings_[0]));
-    if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-    printer_h_initialize(); if(err != LOOPS_ERR_SUCCESS) printf(init_error_msg, err);
-    atexit(finalize);
+    *found_name = errstrings_getter_(errcode);
+    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
 }
 
 char* loops_strncpy(char* dest, const char* src, std::size_t count)
@@ -84,7 +67,7 @@ const char* get_errstring(int errid)
 {
     static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
     const char* result = NULL; 
-    int err = loops_hashmap_get(errstrings, errid, &result);
+    int err = errstrings_getter(errid, &result);
     if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
         return unknown_err;
     else 
