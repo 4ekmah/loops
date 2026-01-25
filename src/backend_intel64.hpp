@@ -195,9 +195,9 @@ namespace loops
         virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
         virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;
         virtual Arg getSParg() const override final;
-        virtual column_printer get_opname_printer() const override final;
-        virtual column_printer get_opargs_printer() const override final;
-        virtual column_printer get_hex_printer() const override final;
+        virtual column_printer_ptr get_opname_printer() const override final;
+        virtual column_printer_ptr get_opargs_printer() const override final;
+        virtual column_printer_ptr get_hex_printer() const override final;
     };
 
 }

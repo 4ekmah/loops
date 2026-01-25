@@ -2778,19 +2778,18 @@ namespace loops
         return argReg(RB_INT, RSP);
     }
 
-    column_printer Intel64Backend::get_opname_printer() const
+    column_printer_ptr Intel64Backend::get_opname_printer() const
     {
-        column_printer ret = { /*func = */ &col_opname_table_printer, /*auxdata = */ (void*)&opstrings_getter, /*free_func = */ NULL };
-        return ret;
+        return std::make_shared<column_printer>(&col_opname_table_printer, (void*)&opstrings_getter);
     }
 
     typedef struct intel64_opargs_printer_aux
     {
-        std::unordered_map<int, int>* pos2opnum;
-        std::vector<int>* positions;
+        std::unordered_map<int, int> pos2opnum;
+        std::vector<int> positions;
     } intel64_opargs_printer_aux;
 
-    static int intel64_opargs_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    static int intel64_opargs_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
         const loops::Syntop* program = func.program.data();
@@ -2799,24 +2798,16 @@ namespace loops
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = (intel64_opargs_printer_aux*)malloc(sizeof(intel64_opargs_printer_aux));
+            argaux = new intel64_opargs_printer_aux();
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            memset(argaux, 0, sizeof(intel64_opargs_printer_aux));
-            argaux->pos2opnum = new std::unordered_map<int, int>();
-            argaux->positions = new std::vector<int>(program_size);
-            if(argaux->positions == nullptr) 
-            {
-                delete argaux->pos2opnum;
-                free(argaux);
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            }
+            argaux->positions.resize(program_size);
             for (; opnum < program_size; opnum++)
             {
                 int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
-                (*(argaux->positions))[opnum] = oppos;
+                argaux->positions[opnum] = oppos;
                 if(program[opnum].opcode == INTEL64_LABEL)
-                    (*(argaux->pos2opnum))[oppos] = opnum;
+                    argaux->pos2opnum[oppos] = opnum;
                 oppos += opsize;
             }
             colprinter->auxdata = argaux;
@@ -2842,11 +2833,11 @@ namespace loops
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-                int offset2find = (*(argaux->positions))[row + 1] + (int)arg.value;
-                if (argaux->pos2opnum->count(offset2find) == 0)
+                int offset2find = argaux->positions[row + 1] + (int)arg.value;
+                if (argaux->pos2opnum.count(offset2find) == 0)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
-                    targetline = argaux->pos2opnum->at(offset2find);
+                    targetline = argaux->pos2opnum.at(offset2find);
                 Assert(targetline >= 0);
                 const Syntop* labelop = program + targetline;
                 Assert(labelop->opcode == INTEL64_LABEL);
@@ -2962,22 +2953,24 @@ namespace loops
         return LOOPS_ERR_SUCCESS;
     }
     
-    static void free_intel64_oparg_printer(column_printer* colprinter)
+    class intel64_opargs_printer : public column_printer
     {
-        if (colprinter->auxdata != NULL)
+    public:
+        intel64_opargs_printer() : column_printer(&intel64_opargs_printer_func) {}
+        virtual ~intel64_opargs_printer()
         {
-            intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
-            delete argaux->pos2opnum;
-            delete argaux->positions;
-            free(argaux);
-            colprinter->auxdata = NULL;
+            if (auxdata != NULL)
+            {
+                intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)auxdata;
+                delete argaux;
+                auxdata = NULL;
+            }
         }
-    }
+    };
 
-    column_printer Intel64Backend::get_opargs_printer() const
+    column_printer_ptr Intel64Backend::get_opargs_printer() const
     {
-        column_printer ret = { /*func = */ &intel64_opargs_printer, /*auxdata = */ NULL, /*free_func = */ &free_intel64_oparg_printer };
-        return ret;
+        return std::make_shared<intel64_opargs_printer>();
     }
 
     typedef struct pos_size_pair
@@ -2988,81 +2981,59 @@ namespace loops
 
     typedef struct intel64_hex_printer_aux
     {
-        std::vector<pos_size_pair>* pos_n_sizes;
-        std::vector<uint8_t>* binary;
+        std::vector<pos_size_pair> pos_n_sizes;
+        FuncBodyBuf binary;
     } intel64_hex_printer_aux;
 
-    static int intel64_hex_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    static int intel64_hex_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
         const loops::Syntop* program = func.program.data();
-        int params_size = func.params.size();
-        const loops::Arg* params = func.params.data();
-
         intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
         if (argaux == NULL)
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = (intel64_hex_printer_aux*)malloc(sizeof(intel64_hex_printer_aux));
+            argaux = new intel64_hex_printer_aux();
             if (argaux == NULL)
                 LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            memset(argaux, 0, sizeof(intel64_hex_printer_aux));
-            argaux->pos_n_sizes = new std::vector<pos_size_pair>(program_size);
-            if (argaux->pos_n_sizes == nullptr)
-            {
-                free(argaux);
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            }
+            argaux->pos_n_sizes.resize(program_size);
             for (; opnum < program_size; opnum++)
             {
                 int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
-                (*(argaux->pos_n_sizes))[opnum] = {/*position = */oppos, /*size = */opsize};
+                argaux->pos_n_sizes[opnum] = {/*position = */oppos, /*size = */opsize};
                 oppos += opsize;
             }
-            {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.//DUBUG: well, you don't need it !
-                Syntfunc tmpfunc;
-                tmpfunc.program.resize(program_size);
-                memcpy((void*)tmpfunc.program.data(), (void*)program, program_size * sizeof(Syntop));
-                tmpfunc.params.resize(params_size);
-                memcpy((void*)tmpfunc.params.data(), (void*)params, params_size * sizeof(Arg));
-                Assembly2Hex a2hPass(printer->backend);
-                a2hPass.process(*((Syntfunc*)(nullptr)), tmpfunc);
-                const FuncBodyBuf buffer = a2hPass.result_buffer();
-                argaux->binary = new std::vector<uint8_t>(buffer->size());
-                if(argaux->binary == nullptr)
-                {
-                    delete argaux->pos_n_sizes;
-                    free(argaux);
-                    LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-                }
-                memcpy(argaux->binary->data(), buffer->data(), argaux->binary->size());
-            }
+            Assembly2Hex a2hPass(printer->backend);
+            a2hPass.process(*((Syntfunc*)(nullptr)), func);
+            argaux->binary = a2hPass.result_buffer();
             colprinter->auxdata = argaux;
         }
-        unsigned char* hexfield = argaux->binary->data() + (*(argaux->pos_n_sizes))[row].position;
-        for (int pos = 0; pos < (*(argaux->pos_n_sizes))[row].size; pos++)
+        const unsigned char* hexfield = argaux->binary->data() + argaux->pos_n_sizes[row].position;
+        for (int pos = 0; pos < argaux->pos_n_sizes[row].size; pos++)
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
         LOOPS_CALL_THROW(close_printer_cell(printer));
         return LOOPS_ERR_SUCCESS;
     }
 
-    static void free_intel64_hex_printer(column_printer* colprinter)
+    class intel64_hex_printer : public column_printer
     {
-        if (colprinter->auxdata != NULL)
+    public:
+        intel64_hex_printer() : column_printer(&intel64_hex_printer_func) {}
+        virtual ~intel64_hex_printer()
         {
-            intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
-            delete argaux->pos_n_sizes;
-            delete argaux->binary;
-            free(argaux);
-            colprinter->auxdata = NULL;
+            if (auxdata != NULL)
+            {
+                intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)auxdata;
+                delete argaux;
+                auxdata = NULL;
+            }
         }
-    }
+    };
 
-    column_printer Intel64Backend::get_hex_printer() const
+    column_printer_ptr Intel64Backend::get_hex_printer() const
     {
-        column_printer ret = { /*func = */ &intel64_hex_printer, /*auxdata = */ NULL, /*free_func = */ &free_intel64_hex_printer };
-        return ret;
+        return std::make_shared<intel64_hex_printer>();
     }
 
     void Intel64BRASnippets::handle_reduce_sum32(Syntfunc& a_dest, const Arg& output, const Arg& input) const

@@ -224,19 +224,19 @@ std::unordered_map<int, suffixed_opname> suffixed_opnames =
     {loops::VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}}, 
 };
 
-static int augment_buffer(std::list<std::vector<char>>* head, int buffer_size)
+static int augment_buffer(std::list<std::vector<char>>& head, int buffer_size)
 {
-    if(head->size())
+    if(head.size())
     {
-        buffer_size = head->front().size();
+        buffer_size = head.front().size();
     }
-    head->emplace_back(std::vector<char>(buffer_size));
+    head.emplace_back(std::vector<char>(buffer_size));
     return LOOPS_ERR_SUCCESS;
 }
 
 int loops_printf(program_printer* printer, const char *__restrict __format,...)
 {
-    std::vector<char>& buffers_tail = printer->buffers->back();
+    std::vector<char>& buffers_tail = printer->buffers.back();
     int chars_left = (int)buffers_tail.size() - printer->current_offset;
     char* nextcharpos = buffers_tail.data() + printer->current_offset;
     va_list var_args;
@@ -254,7 +254,7 @@ int loops_printf(program_printer* printer, const char *__restrict __format,...)
         if(current_cell_size + written >= (int)buffers_tail.size())
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         LOOPS_CALL_THROW(augment_buffer(printer->buffers, 0));
-        std::vector<char>& newtail = printer->buffers->back();
+        std::vector<char>& newtail = printer->buffers.back();
         if(current_cell_size > 0)
             memcpy(newtail.data(), current_cell_start, current_cell_size);
         buffers_tail = newtail;
@@ -285,7 +285,7 @@ int new_print_address(program_printer* printer, int64_t addr)
 
 int close_printer_cell(program_printer* printer)
 {
-    std::vector<char>& buffers_tail = printer->buffers->back();
+    std::vector<char>& buffers_tail = printer->buffers.back();
     int buffers_tail_size = (int)buffers_tail.size();
     char* buffers_tail_data = buffers_tail.data();
     char* newcell = buffers_tail_data;
@@ -534,42 +534,20 @@ int create_ir_printer(int columnflags, program_printer** res)
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
         LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
 
-    *res = (program_printer*)malloc(sizeof(program_printer));
+    *res = new program_printer();
     if(*res == NULL)
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    if(*res == NULL)
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    memset(*res, 0, sizeof(program_printer));
-    (*res)->buffers = new std::list<std::vector<char>>();
-    if((*res)->buffers == nullptr)
-    {
-        free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    }
     int colprinters_size = 0; 
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
-    if((*res)->colprinters == nullptr)
-    {
-        delete (*res)->buffers;
-        free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    }
-    column_printer* curcolprinter = (*res)->colprinters->data();
-    memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
+    (*res)->colprinters.reserve(colprinters_size);
     if(columnflags & loops::Func::PC_OPNUM)
-    {
-        curcolprinter->func = &col_num_printer;
-        curcolprinter++;
-    }
+        (*res)->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
 
     if(columnflags & loops::Func::PC_OP)
     {
-        curcolprinter->func = &col_ir_opname_printer;
-        curcolprinter++;
-        curcolprinter->func = &col_ir_opargs_printer;
-        curcolprinter++;
+        (*res)->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opname_printer));
+        (*res)->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opargs_printer));
     }
     return LOOPS_ERR_SUCCESS;
 }
@@ -596,50 +574,28 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
         LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
 
-    *res = (program_printer*)malloc(sizeof(program_printer));
+    *res = new program_printer();
     if(*res == NULL) 
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    memset(*res, 0, sizeof(program_printer));
-    (*res)->buffers = new std::list<std::vector<char>>();
-    if((*res)->buffers == nullptr)
-    {
-        free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    }
     int colprinters_size = 0;
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
     colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
-    (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
-    if((*res)->colprinters == nullptr)
-    {
-        delete (*res)->buffers;
-        free(*res);
-        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-    }
-    column_printer* curcolprinter = (*res)->colprinters->data();
-    memset(curcolprinter, 0, colprinters_size * sizeof(column_printer));
+    (*res)->colprinters.reserve(colprinters_size);
     if(columnflags & loops::Func::PC_OPNUM)
-    {
-        curcolprinter->func = &col_num_printer;
-        curcolprinter++;
-    }
+        (*res)->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
     (*res)->backend = backend;
 
     if(columnflags & loops::Func::PC_OP)
     {
-        *curcolprinter = backend->get_opname_printer();
-        curcolprinter++;
-        *curcolprinter = backend->get_opargs_printer();
-        curcolprinter++;
+        (*res)->colprinters.push_back(backend->get_opname_printer());
+        (*res)->colprinters.push_back(backend->get_opargs_printer());
     }
 
     if(columnflags & loops::Func::PC_HEX)
     {
-        curcolprinter->func = &col_delimeter_printer;
-        curcolprinter++;
-        *curcolprinter = backend->get_hex_printer();
-        curcolprinter++;
+        (*res)->colprinters.push_back(std::make_shared<column_printer>(&col_delimeter_printer));
+        (*res)->colprinters.push_back(backend->get_hex_printer());
     }
 
     return LOOPS_ERR_SUCCESS;
@@ -648,11 +604,10 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
 void free_printer(program_printer* tofree)
 {
     int prnum = 0;
-    for (; prnum < (int)tofree->colprinters->size(); prnum++)
-        if ((*(tofree->colprinters))[prnum].free_func != NULL)
-            (*(tofree->colprinters))[prnum].free_func(tofree->colprinters->data() + prnum);
-    delete tofree->colprinters;
-    free(tofree);
+    for (; prnum < (int)tofree->colprinters.size(); prnum++)
+        if (tofree->colprinters[prnum]->free_func != NULL)
+            tofree->colprinters[prnum]->free_func(tofree->colprinters[prnum].get());
+    delete tofree;
 }
 
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
@@ -664,7 +619,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
     int err = 0;
     int cells = 0;
     static int MAX_LINE_SIZE = 82; //taken from statistics
-    int cols = (int)printer->colprinters->size();
+    int cols = (int)printer->colprinters.size();
     int rows = (int)func.program.size();
     int row;
     int col;
@@ -673,14 +628,11 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
 
     printer->cells = NULL; 
     printer->cell_sizes = NULL; 
-    int* max_widthes = NULL;
-    char** printtasks = NULL;
-    char* printtasksbuf = NULL;
-    printer->cells = (char**)malloc(cols * rows * sizeof(char*)); 
-    printer->cell_sizes = (int*)malloc(cols * rows * sizeof(int)); 
-    max_widthes = (int*)malloc(cols * sizeof(int));
-    printtasks = (char**)malloc(cols * sizeof(char*));
-    printtasksbuf = (char*)malloc(cols * 10);
+    int* max_widthes = new int[cols];
+    char** printtasks = new char*[cols];
+    char* printtasksbuf = new char[cols * 10];
+    printer->cells = new char*[cols*rows];
+    printer->cell_sizes = new int[cols*rows];
     memset(max_widthes, 0, cols * sizeof(int));
     memset(printtasksbuf, 0, cols * 10);
 
@@ -696,7 +648,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
     {
         for (col = 0; col < cols; col++)
         {
-            err = (*(printer->colprinters))[col].func(printer, printer->colprinters->data() + col, func, row);
+            err = printer->colprinters[col]->func(printer, printer->colprinters[col].get(), func, row);
             if (err != 0)
             {
                 fout = stderr;
@@ -755,7 +707,7 @@ static int print_syntfunc(program_printer* printer, FILE* fout, char** sout, int
                 lensize += max_widthes[col];
             bufferleft += lensize * rows;
         }
-        *sout = (char*)malloc(bufferleft);
+        *sout = new char[bufferleft];
         if (*sout == NULL)
             LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         char* currentout = *sout;
@@ -765,7 +717,7 @@ do {                                                                            
     int __print_syntfunc_sprint_written__ = snprintf(currentout, bufferleft, __VA_ARGS__);        \
     if (__print_syntfunc_sprint_written__ < 0 || __print_syntfunc_sprint_written__ >= bufferleft) \
     {                                                                                             \
-        free(*sout);                                                                              \
+        delete(*sout);                                                                            \
         goto print_syntfunc_end;                                                                  \
     }                                                                                             \
     currentout += __print_syntfunc_sprint_written__;                                              \
@@ -794,12 +746,11 @@ do {                                                                            
     else
         err = LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION;
 print_syntfunc_end:
-    delete printer->buffers;
-    free(max_widthes);
-    free(printtasks);
-    free(printtasksbuf);
-    free(printer->cell_sizes);
-    free(printer->cells);
+    delete [] max_widthes;
+    delete [] printtasks;
+    delete [] printtasksbuf;
+    delete printer->cell_sizes;
+    delete printer->cells;
     return err;
 }
 
@@ -828,7 +779,7 @@ std::string IR_instruction2string(const loops::Syntop& op)
     std::string result = printed_str + 3;
     if(result.size()) 
         result.resize(result.size()-1);
-    free(printed_str);
+    delete [] printed_str;
     return result;
 }
 
@@ -847,6 +798,6 @@ std::string assembly_instruction2string(const loops::Syntop& op, const loops::Ba
     std::string result = printed_str + 3;
     if(result.size()) 
         result.resize(result.size()-1);
-    free(printed_str);
+    delete [] printed_str;
     return result;
 }

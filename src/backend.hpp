@@ -133,9 +133,9 @@ public:
 
     virtual Arg getSParg() const = 0;
 
-    virtual column_printer get_opname_printer() const = 0;
-    virtual column_printer get_opargs_printer() const = 0;
-    virtual column_printer get_hex_printer() const = 0;
+    virtual column_printer_ptr get_opname_printer() const = 0;
+    virtual column_printer_ptr get_opargs_printer() const = 0;
+    virtual column_printer_ptr get_hex_printer() const = 0;
     
     Allocator* getAllocator() { return &m_exeAlloc; }
     inline std::vector<int> getStackBasketOrder() const { return {RB_VEC, RB_INT};}

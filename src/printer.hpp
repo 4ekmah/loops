@@ -26,17 +26,22 @@ typedef int (*print_column_t)(struct program_printer* printer, struct column_pri
 typedef void (*free_column_printer_t)(struct column_printer* colprinter);
 typedef int (*table_opname_getter)(int opcode, loops_cstring* found_name);
 
-typedef struct column_printer
+class column_printer
 {
+public:
+    column_printer(){}
+    column_printer(print_column_t a_func, void* a_auxdata = nullptr): func(a_func), auxdata(a_auxdata), free_func(nullptr) {}
+    virtual ~column_printer() {}; 
     print_column_t func;
-    void* auxdata;
-    free_column_printer_t free_func;
-} column_printer;
+    void* auxdata;                   //DUBUG:delete!
+    free_column_printer_t free_func; //DUBUG:delete!
+};
+typedef std::shared_ptr<column_printer> column_printer_ptr;
 
 typedef struct program_printer
 {
-    std::vector<column_printer>* colprinters;
-    std::list<std::vector<char>>* buffers;
+    std::vector<column_printer_ptr> colprinters;
+    std::list<std::vector<char>> buffers;
     int columnflags;
     char** cells;     //TODO[CPP2ANSIC]: This 3 fields have to be loops_vector(struct{char* cell_data, int cell_size}), when this container will be created.
     int* cell_sizes;  //

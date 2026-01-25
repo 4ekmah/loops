@@ -74,7 +74,7 @@ void FuncImpl::printIR(std::ostream& out, int columns, const std::string& uptoPa
         throw std::runtime_error(get_errstring(err));
     free_printer(_printer);
     out << printed_str;
-    free(printed_str);
+    delete [] printed_str;
 }
 
 void FuncImpl::printAssembly(std::ostream& out, int columns)
@@ -89,7 +89,7 @@ void FuncImpl::printAssembly(std::ostream& out, int columns)
         throw std::runtime_error(get_errstring(err));
     free_printer(_printer);
     out << printed_str;
-    free(printed_str);
+    delete [] printed_str;
 }
 
 const Syntfunc& FuncImpl::get_data() const
