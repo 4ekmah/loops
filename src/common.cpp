@@ -5,7 +5,6 @@ See https://github.com/4ekmah/loops/LICENSE
 */
 
 #include "loops/loops.hpp"
-#include "collections.hpp"
 #include "printer.hpp"
 #include "backend_aarch64.hpp"
 #include "backend_intel64.hpp"

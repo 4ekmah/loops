@@ -2291,14 +2291,13 @@ column_printer Aarch64Backend::get_opname_printer() const
 typedef struct aarch64_opargs_printer_aux
 {
     std::unordered_map<int, int>* pos2opnum;
-    LOOPS_SPAN(int) positions;
+    std::vector<int>* positions;
 } aarch64_opargs_printer_aux;
 
 static int aarch64_opargs_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
     int program_size = (int)func.program.size();
     const loops::Syntop* program = func.program.data();
-    int err;
     aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
     if (argaux == NULL)
     {
@@ -2309,18 +2308,18 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         memset(argaux, 0, sizeof(aarch64_opargs_printer_aux));
         argaux->pos2opnum = new std::unordered_map<int, int>();
-        err = loops_span_construct_alloc(&(argaux->positions), program_size);
-        if(err != LOOPS_ERR_SUCCESS) 
+        argaux->positions = new std::vector<int>(program_size);
+        if (argaux->positions == nullptr)
         {
             delete argaux->pos2opnum;
             free(argaux);
-            LOOPS_THROW(err);
+            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         }
         for (; opnum < program_size; opnum++)
         {
             int opcode = program[opnum].opcode;
             int opsize = (opcode == AARCH64_LABEL ? 0 : 4);
-            argaux->positions->data[opnum] = oppos;
+            (*(argaux->positions))[opnum] = oppos;
             if(opcode == AARCH64_LABEL)
                 (*(argaux->pos2opnum))[oppos] = opnum;
             oppos += opsize;
@@ -2348,7 +2347,7 @@ static int aarch64_opargs_printer(program_printer* printer, column_printer* colp
             int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
                 LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-            int offset2find = argaux->positions->data[row + 1] + (int)arg.value - 4;
+            int offset2find = (*(argaux->positions))[row + 1] + (int)arg.value - 4;
             if (argaux->pos2opnum->count(offset2find) == 0)
                 LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
             else
@@ -2519,7 +2518,7 @@ static void free_aarch64_opargs_printer(column_printer* colprinter)
     {
         aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
         delete argaux->pos2opnum;
-        loops_span_destruct(argaux->positions);
+        delete argaux->positions;
         free(argaux);
         colprinter->auxdata = NULL;
     }
@@ -2533,13 +2532,12 @@ column_printer Aarch64Backend::get_opargs_printer() const
 
 typedef struct aarch64_hex_printer_aux
 {
-    LOOPS_SPAN(int) positions;
-    LOOPS_SPAN(uint8_t) binary;
+    std::vector<int>* positions;
+    std::vector<uint8_t>* binary;
 } aarch64_hex_printer_aux;
 
 static int aarch64_hex_printer(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
-    int err;
     int program_size = (int)func.program.size();
     const loops::Syntop* program = func.program.data();
     int params_size = (int)func.params.size();
@@ -2554,16 +2552,16 @@ static int aarch64_hex_printer(program_printer* printer, column_printer* colprin
         if (argaux == NULL)
             LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         memset(argaux, 0, sizeof(aarch64_hex_printer_aux));
-        err = loops_span_construct_alloc(&(argaux->positions), program_size);
-        if (err != LOOPS_ERR_SUCCESS)
+        argaux->positions = new std::vector<int>(program_size);
+        if(argaux->positions == nullptr)
         {
             free(argaux);
-            LOOPS_THROW(err);
+            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
         }
         for (; opnum < program_size; opnum++)
         {
             int opsize = (program[opnum].opcode == AARCH64_LABEL ? 0 : 4);
-            argaux->positions->data[opnum] = oppos;
+            (*(argaux->positions))[opnum] = oppos;
             oppos += opsize;
         }
         {//TODO[CPP2ANSIC]: This ugly code have to disappear, when syntop, syntfunc and other stuff will be implemented, as C entities.//DUBUG: well, you don't need it !
@@ -2576,20 +2574,20 @@ static int aarch64_hex_printer(program_printer* printer, column_printer* colprin
             Syntfunc dummy;
             a2hPass.process(dummy, tmpfunc);
             const FuncBodyBuf buffer = a2hPass.result_buffer();
-            err = loops_span_construct_alloc(&(argaux->binary), (int)buffer->size());
-            if (err != LOOPS_ERR_SUCCESS)
+            argaux->binary = new std::vector<uint8_t>(buffer->size());
+            if(argaux->binary == nullptr)
             {
-                loops_span_destruct(argaux->positions);
+                delete argaux->positions;
                 free(argaux);
-                LOOPS_THROW(err);
+                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
             }
-            memcpy(argaux->binary->data, buffer->data(), argaux->binary->size);
+            memcpy(argaux->binary->data(), buffer->data(), argaux->binary->size());
         }
         colprinter->auxdata = argaux;
     }
     if(program[row].opcode != AARCH64_LABEL)
     {
-        unsigned char* hexfield = argaux->binary->data + argaux->positions->data[row];
+        unsigned char* hexfield = argaux->binary->data() + (*(argaux->positions))[row];
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
     }
@@ -2602,8 +2600,8 @@ static void free_aarch64_hex_printer(column_printer* colprinter)
     if (colprinter->auxdata != NULL)
     {
         aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)colprinter->auxdata;
-        loops_span_destruct(argaux->positions);
-        loops_span_destruct(argaux->binary);
+        delete argaux->positions;
+        delete argaux->binary;
         free(argaux);
         colprinter->auxdata = NULL;
     }

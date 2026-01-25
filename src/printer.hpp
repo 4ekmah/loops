@@ -8,18 +8,17 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_PRINTER_HPP__
 
 #include "loops/loops.hpp"
-#include "collections.hpp"
 #include "common.hpp"
 #include <functional>
 #include <ostream>
 #include <vector>
+#include <list>
 #include <unordered_map>
 #include <stdlib.h>
 #include <string.h>
 
 typedef loops::Syntop loops_Syntop; //TODO[CPP2ANSIC]: Delete, Syntop will be out of loops namespace.
 typedef loops::Arg loops_Arg;       //TODO[CPP2ANSIC]: Delete, Arg will be out of loops namespace.
-LOOPS_LIST_DECLARE(loops_span_char);
 
 struct column_printer;
 struct program_printer;
@@ -37,7 +36,7 @@ typedef struct column_printer
 typedef struct program_printer
 {
     std::vector<column_printer>* colprinters;
-    LOOPS_LIST(loops_span_char) buffers;
+    std::list<std::vector<char>>* buffers;
     int columnflags;
     char** cells;     //TODO[CPP2ANSIC]: This 3 fields have to be loops_vector(struct{char* cell_data, int cell_size}), when this container will be created.
     int* cell_sizes;  //

@@ -8,12 +8,11 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "printer.hpp"
 #include <stdarg.h>
 #include <cstdio>
+#include <cassert>
 #include <sstream>
 #include <iomanip>
 #include <unordered_map>
 //DUBUG: don't forget to work with namespaces correctly!
-
-LOOPS_LIST_DEFINE(loops_span_char)
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -225,32 +224,21 @@ std::unordered_map<int, suffixed_opname> suffixed_opnames =
     {loops::VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}}, 
 };
 
-static int augment_buffer(LOOPS_LIST(loops_span_char) head, int buffer_size)
+static int augment_buffer(std::list<std::vector<char>>* head, int buffer_size)
 {
-    int err;
-    loops_span_char first;
-    err = loops_list_head(head, &first);
-    if(err == LOOPS_ERR_SUCCESS)
-        buffer_size = first->size;
-    loops_span_char to_add;
-    LOOPS_CALL_THROW(loops_span_construct_alloc(&to_add, buffer_size));
-    err = loops_list_push_back(head, to_add);
-    if(err != LOOPS_ERR_SUCCESS)
+    if(head->size())
     {
-        loops_span_destruct(to_add);
-        LOOPS_THROW(err);
+        buffer_size = head->front().size();
     }
+    head->emplace_back(std::vector<char>(buffer_size));
     return LOOPS_ERR_SUCCESS;
 }
 
 int loops_printf(program_printer* printer, const char *__restrict __format,...)
 {
-    LOOPS_SPAN(char) buffers_tail;
-    LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
-    if(buffers_tail->size == 0 || buffers_tail->data == NULL)
-        LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
-    int chars_left = buffers_tail->size - printer->current_offset;
-    char* nextcharpos = buffers_tail->data + printer->current_offset;
+    std::vector<char>& buffers_tail = printer->buffers->back();
+    int chars_left = (int)buffers_tail.size() - printer->current_offset;
+    char* nextcharpos = buffers_tail.data() + printer->current_offset;
     va_list var_args;
     va_start(var_args, __format);
     int written = vsnprintf(nextcharpos, chars_left, __format, var_args);
@@ -260,20 +248,19 @@ int loops_printf(program_printer* printer, const char *__restrict __format,...)
         if(printer->current_cell == 0)
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         char* current_cell_start = printer->cells[printer->current_cell - 1] + printer->cell_sizes[printer->current_cell - 1] + 1;
-        int current_cell_size = (int)(buffers_tail->data + printer->current_offset - current_cell_start);
+        int current_cell_size = (int)(buffers_tail.data() + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
             LOOPS_THROW(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
-        if(current_cell_size + written >= buffers_tail->size)
+        if(current_cell_size + written >= (int)buffers_tail.size())
             LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         LOOPS_CALL_THROW(augment_buffer(printer->buffers, 0));
-        LOOPS_SPAN(char) newtail;
-        LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &newtail));
+        std::vector<char>& newtail = printer->buffers->back();
         if(current_cell_size > 0)
-            memcpy(newtail->data, current_cell_start, current_cell_size);
+            memcpy(newtail.data(), current_cell_start, current_cell_size);
         buffers_tail = newtail;
         printer->current_offset = current_cell_size;
-        chars_left = buffers_tail->size;
-        nextcharpos = buffers_tail->data + printer->current_offset;
+        chars_left = (int)buffers_tail.size();
+        nextcharpos = buffers_tail.data() + printer->current_offset;
         va_list var_args2;
         va_start(var_args2, __format);
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
@@ -298,10 +285,9 @@ int new_print_address(program_printer* printer, int64_t addr)
 
 int close_printer_cell(program_printer* printer)
 {
-    LOOPS_SPAN(char) buffers_tail;
-    LOOPS_CALL_THROW(loops_list_tail(printer->buffers, &buffers_tail));
-    int buffers_tail_size = buffers_tail->size;
-    char* buffers_tail_data = buffers_tail->data;
+    std::vector<char>& buffers_tail = printer->buffers->back();
+    int buffers_tail_size = (int)buffers_tail.size();
+    char* buffers_tail_data = buffers_tail.data();
     char* newcell = buffers_tail_data;
     bool newbuffer = printer->current_cell == 0; 
     buffers_tail_data[printer->current_offset] = 0;
@@ -543,7 +529,6 @@ static int col_ir_opargs_printer(program_printer* printer, column_printer* /*col
 
 int create_ir_printer(int columnflags, program_printer** res)
 {
-    int err;
     if(res == NULL) 
         LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
@@ -555,11 +540,11 @@ int create_ir_printer(int columnflags, program_printer** res)
     if(*res == NULL)
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     memset(*res, 0, sizeof(program_printer));
-    err = loops_list_construct(&((*res)->buffers));
-    if(err != LOOPS_ERR_SUCCESS)
+    (*res)->buffers = new std::list<std::vector<char>>();
+    if((*res)->buffers == nullptr)
     {
         free(*res);
-        LOOPS_THROW(err);
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
     int colprinters_size = 0; 
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
@@ -567,7 +552,7 @@ int create_ir_printer(int columnflags, program_printer** res)
     (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
     if((*res)->colprinters == nullptr)
     {
-        loops_list_destruct((*res)->buffers);
+        delete (*res)->buffers;
         free(*res);
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
@@ -606,7 +591,6 @@ int col_opname_table_printer(program_printer* printer, column_printer* colprinte
 
 int create_assembly_printer(int columnflags, loops::Backend* backend, program_printer** res)
 {
-    int err; 
     if(res == NULL) 
         LOOPS_THROW(LOOPS_ERR_NULL_POINTER);
     if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
@@ -616,11 +600,11 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
     if(*res == NULL) 
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     memset(*res, 0, sizeof(program_printer));
-    err = loops_list_construct(&((*res)->buffers));
-    if(err != LOOPS_ERR_SUCCESS)
+    (*res)->buffers = new std::list<std::vector<char>>();
+    if((*res)->buffers == nullptr)
     {
         free(*res);
-        LOOPS_THROW(err);
+        LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
     int colprinters_size = 0;
     colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
@@ -629,7 +613,7 @@ int create_assembly_printer(int columnflags, loops::Backend* backend, program_pr
     (*res)->colprinters = new std::vector<column_printer>(colprinters_size);
     if((*res)->colprinters == nullptr)
     {
-        loops_list_destruct((*res)->buffers);
+        delete (*res)->buffers;
         free(*res);
         LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
     }
@@ -669,11 +653,6 @@ void free_printer(program_printer* tofree)
             (*(tofree->colprinters))[prnum].free_func(tofree->colprinters->data() + prnum);
     delete tofree->colprinters;
     free(tofree);
-}
-
-static void printer_buffer_destruct(void* pb)
-{
-    loops_span_destruct((LOOPS_SPAN(char))pb);
 }
 
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
@@ -815,7 +794,7 @@ do {                                                                            
     else
         err = LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION;
 print_syntfunc_end:
-    loops_list_destruct(printer->buffers, printer_buffer_destruct);
+    delete printer->buffers;
     free(max_widthes);
     free(printtasks);
     free(printtasksbuf);
@@ -840,7 +819,7 @@ std::string IR_instruction2string(const loops::Syntop& op)
     program_printer* _printer;
     Assert(create_ir_printer(columns, &_printer) == 0);
     loops::Syntfunc s2p;
-    s2p.program[0] = op;
+    s2p.program.push_back(op);
     char* printed_str;
     int err = sprint_syntfunc(_printer, &printed_str, s2p);
     if(err != LOOPS_ERR_SUCCESS)
@@ -859,7 +838,7 @@ std::string assembly_instruction2string(const loops::Syntop& op, const loops::Ba
     program_printer* _printer;
     Assert(create_assembly_printer(columns, const_cast<loops::Backend*>(&backend), &_printer) == 0);
     loops::Syntfunc s2p;
-    s2p.program[0] = op;
+    s2p.program.push_back(op);
     char* printed_str;
     int err = sprint_syntfunc(_printer, &printed_str, s2p);
     if(err != LOOPS_ERR_SUCCESS)
