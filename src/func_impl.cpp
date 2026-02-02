@@ -66,30 +66,24 @@ void FuncImpl::printIR(std::ostream& out, int columns, const std::string& uptoPa
         uptoPass = *(found - 1);
     }
     l_pipeline.run_until(uptoPass);
-    program_printer* _printer;
-    Assert(create_ir_printer(columns, &_printer) == 0);
-    char* printed_str;
-    int err = sprint_syntfunc(_printer, &printed_str, l_pipeline.get_data());
+    program_printer_ptr _printer = program_printer::create_ir_printer(columns);
+    std::string printed_str;
+    int err = sprint_syntfunc(_printer, printed_str, l_pipeline.get_data());
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
-    free_printer(_printer);
     out << printed_str;
-    delete [] printed_str;
 }
 
 void FuncImpl::printAssembly(std::ostream& out, int columns)
 {
     Pipeline l_pipeline(*(m_context->debug_mode() ? m_debug_pipeline.get(): m_pipeline.get()));
     l_pipeline.run_until("CP_IR_TO_ASSEMBLY");
-    program_printer* _printer;
-    Assert(create_assembly_printer(columns, m_context->getBackend(), &_printer) == 0);
-    char* printed_str;
-    int err = sprint_syntfunc(_printer, &printed_str, l_pipeline.get_data());
+    program_printer_ptr _printer = program_printer::create_assembly_printer(columns, m_context->getBackend());
+    std::string printed_str;
+    int err = sprint_syntfunc(_printer, printed_str, l_pipeline.get_data());
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
-    free_printer(_printer);
     out << printed_str;
-    delete [] printed_str;
 }
 
 const Syntfunc& FuncImpl::get_data() const

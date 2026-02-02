@@ -2284,38 +2284,39 @@ Arg Aarch64Backend::getSParg() const
 
 column_printer_ptr Aarch64Backend::get_opname_printer() const
 {
-    return std::make_shared<column_printer>(&col_opname_table_printer, (void*)&opstrings_getter);
+    return std::static_pointer_cast<column_printer>(std::make_shared<col_opname_table_printer>(&opstrings_getter));
 }
 
-typedef struct aarch64_opargs_printer_aux
+class aarch64_opargs_printer : public column_printer
 {
+public:
+    aarch64_opargs_printer() : column_printer(&aarch64_opargs_printer::print) {}
+    virtual ~aarch64_opargs_printer() {}
+private:
+    static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
     std::unordered_map<int, int> pos2opnum;
     std::vector<int> positions;
-} aarch64_opargs_printer_aux;
+};
 
-static int aarch64_opargs_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+int aarch64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
     int program_size = (int)func.program.size();
     const loops::Syntop* program = func.program.data();
-    aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)colprinter->auxdata;
-    if (argaux == NULL)
+    aarch64_opargs_printer* opargs_printer = (aarch64_opargs_printer*)colprinter;
+    if (opargs_printer->positions.empty())
     {
         int oppos = 0;
         int opnum = 0;
-        argaux = new aarch64_opargs_printer_aux();
-        if (argaux == NULL)
-            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-        argaux->positions.resize(program_size);
+        opargs_printer->positions.resize(program_size);
         for (; opnum < program_size; opnum++)
         {
             int opcode = program[opnum].opcode;
             int opsize = (opcode == AARCH64_LABEL ? 0 : 4);
-            argaux->positions[opnum] = oppos;
+            opargs_printer->positions[opnum] = oppos;
             if(opcode == AARCH64_LABEL)
-                argaux->pos2opnum[oppos] = opnum;
+                opargs_printer->pos2opnum[oppos] = opnum;
             oppos += opsize;
         }
-        colprinter->auxdata = argaux;
     }
     
     const Syntop* op = program + row;
@@ -2338,11 +2339,11 @@ static int aarch64_opargs_printer_func(program_printer* printer, column_printer*
             int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
                 LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-            int offset2find = argaux->positions[row + 1] + (int)arg.value - 4;
-            if (argaux->pos2opnum.count(offset2find) == 0)
+            int offset2find = opargs_printer->positions[row + 1] + (int)arg.value - 4;
+            if (opargs_printer->pos2opnum.count(offset2find) == 0)
                 LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
             else
-                targetline = argaux->pos2opnum.at(offset2find);
+                targetline = opargs_printer->pos2opnum.at(offset2find);
             Assert(targetline >= 0);
             const Syntop* labelop = program + targetline;
             Assert(labelop->opcode == AARCH64_LABEL);
@@ -2500,85 +2501,55 @@ static int aarch64_opargs_printer_func(program_printer* printer, column_printer*
         if (anum < aamount - 1 && !indexed_vreg)
             LOOPS_CALL_THROW(loops_printf(printer, ", "));
     }
-    LOOPS_CALL_THROW(close_printer_cell(printer));
+    LOOPS_CALL_THROW(printer->close_printer_cell());
     return LOOPS_ERR_SUCCESS;
 }
-class aarch64_opargs_printer : public column_printer
-{
-public:
-    aarch64_opargs_printer() : column_printer(&aarch64_opargs_printer_func) {}
-    virtual ~aarch64_opargs_printer()
-    {
-        if (auxdata != NULL)
-        {
-            aarch64_opargs_printer_aux* argaux = (aarch64_opargs_printer_aux*)auxdata;
-            delete argaux;
-            auxdata = NULL;
-        }
-    }
-};
-
 
 column_printer_ptr Aarch64Backend::get_opargs_printer() const
 {
     return std::make_shared<aarch64_opargs_printer>();
 }
 
-typedef struct aarch64_hex_printer_aux
+class aarch64_hex_printer : public column_printer
 {
+public:
+    aarch64_hex_printer() : column_printer(&aarch64_hex_printer::print) {}
+    virtual ~aarch64_hex_printer() {}
+private:
+    static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
     std::vector<int> positions;
     FuncBodyBuf binary;
-} aarch64_hex_printer_aux;
+};
 
-static int aarch64_hex_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+int aarch64_hex_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
 {
     int program_size = (int)func.program.size();
     const loops::Syntop* program = func.program.data();
-    aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)colprinter->auxdata;
-    if (argaux == NULL)
+    aarch64_hex_printer* hex_printer = (aarch64_hex_printer*)colprinter;
+    if (hex_printer->positions.empty())
     {
         int oppos = 0;
         int opnum = 0;
-        argaux = new aarch64_hex_printer_aux();
-        if (argaux == NULL)
-            LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-        argaux->positions.resize(program_size);
+        hex_printer->positions.resize(program_size);
         for (; opnum < program_size; opnum++)
         {
             int opsize = (program[opnum].opcode == AARCH64_LABEL ? 0 : 4);
-            argaux->positions[opnum] = oppos;
+            hex_printer->positions[opnum] = oppos;
             oppos += opsize;
         }
         Assembly2Hex a2hPass(printer->backend);
         a2hPass.process(*((Syntfunc*)(nullptr)), func);
-        argaux->binary = a2hPass.result_buffer();
-        colprinter->auxdata = argaux;
+        hex_printer->binary = a2hPass.result_buffer();
     }
     if(program[row].opcode != AARCH64_LABEL)
     {
-        const unsigned char* hexfield = argaux->binary->data() + argaux->positions[row];
+        const unsigned char* hexfield = hex_printer->binary->data() + hex_printer->positions[row];
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
     }
-    LOOPS_CALL_THROW(close_printer_cell(printer));
+    LOOPS_CALL_THROW(printer->close_printer_cell());
     return LOOPS_ERR_SUCCESS;
 }
-
-class aarch64_hex_printer : public column_printer
-{
-public:
-    aarch64_hex_printer() : column_printer(&aarch64_hex_printer_func) {}
-    virtual ~aarch64_hex_printer()
-    {
-        if (auxdata != NULL)
-        {
-            aarch64_hex_printer_aux* argaux = (aarch64_hex_printer_aux*)auxdata;
-            delete argaux;
-            auxdata = NULL;
-        }
-    }
-};
-
 
 column_printer_ptr Aarch64Backend::get_hex_printer() const
 {

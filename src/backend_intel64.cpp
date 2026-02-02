@@ -2780,37 +2780,38 @@ namespace loops
 
     column_printer_ptr Intel64Backend::get_opname_printer() const
     {
-        return std::make_shared<column_printer>(&col_opname_table_printer, (void*)&opstrings_getter);
+        return std::static_pointer_cast<column_printer>(std::make_shared<col_opname_table_printer>(&opstrings_getter));
     }
 
-    typedef struct intel64_opargs_printer_aux
+    class intel64_opargs_printer : public column_printer
     {
+    public:
+        intel64_opargs_printer() : column_printer(&intel64_opargs_printer::print) {}
+        virtual ~intel64_opargs_printer() {}
+    private:
+        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
         std::unordered_map<int, int> pos2opnum;
         std::vector<int> positions;
-    } intel64_opargs_printer_aux;
+    };
 
-    static int intel64_opargs_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    int intel64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
         const loops::Syntop* program = func.program.data();
-        intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)colprinter->auxdata;
-        if (argaux == NULL)
+        intel64_opargs_printer* opargs_printer = (intel64_opargs_printer*)colprinter;
+        if (opargs_printer->positions.empty())
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = new intel64_opargs_printer_aux();
-            if (argaux == NULL)
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            argaux->positions.resize(program_size);
+            opargs_printer->positions.resize(program_size);
             for (; opnum < program_size; opnum++)
             {
                 int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
-                argaux->positions[opnum] = oppos;
+                opargs_printer->positions[opnum] = oppos;
                 if(program[opnum].opcode == INTEL64_LABEL)
-                    argaux->pos2opnum[oppos] = opnum;
+                    opargs_printer->pos2opnum[oppos] = opnum;
                 oppos += opsize;
             }
-            colprinter->auxdata = argaux;
         }
 
         static const char* rnames[4][16] = { { "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b",  "r9b", "r10b", "r11b" , "r12b" , "r13b" , "r14b" , "r15b" },
@@ -2833,11 +2834,11 @@ namespace loops
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
                     LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-                int offset2find = argaux->positions[row + 1] + (int)arg.value;
-                if (argaux->pos2opnum.count(offset2find) == 0)
+                int offset2find = opargs_printer->positions[row + 1] + (int)arg.value;
+                if (opargs_printer->pos2opnum.count(offset2find) == 0)
                     LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
-                    targetline = argaux->pos2opnum.at(offset2find);
+                    targetline = opargs_printer->pos2opnum.at(offset2find);
                 Assert(targetline >= 0);
                 const Syntop* labelop = program + targetline;
                 Assert(labelop->opcode == INTEL64_LABEL);
@@ -2949,24 +2950,9 @@ namespace loops
             if (anum < aamount - 1 && !(address && !address_end))
                 LOOPS_CALL_THROW(loops_printf(printer, ", "));
         }
-        LOOPS_CALL_THROW(close_printer_cell(printer));
+        LOOPS_CALL_THROW(printer->close_printer_cell());
         return LOOPS_ERR_SUCCESS;
     }
-    
-    class intel64_opargs_printer : public column_printer
-    {
-    public:
-        intel64_opargs_printer() : column_printer(&intel64_opargs_printer_func) {}
-        virtual ~intel64_opargs_printer()
-        {
-            if (auxdata != NULL)
-            {
-                intel64_opargs_printer_aux* argaux = (intel64_opargs_printer_aux*)auxdata;
-                delete argaux;
-                auxdata = NULL;
-            }
-        }
-    };
 
     column_printer_ptr Intel64Backend::get_opargs_printer() const
     {
@@ -2979,57 +2965,43 @@ namespace loops
         int size;
     } pos_size_pair;
 
-    typedef struct intel64_hex_printer_aux
+    class intel64_hex_printer : public column_printer
     {
+    public:
+        intel64_hex_printer() : column_printer(&intel64_hex_printer::print) {}
+        virtual ~intel64_hex_printer() {}
+    private:
+        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
         std::vector<pos_size_pair> pos_n_sizes;
         FuncBodyBuf binary;
-    } intel64_hex_printer_aux;
+    };
 
-    static int intel64_hex_printer_func(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    int intel64_hex_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
         const loops::Syntop* program = func.program.data();
-        intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)colprinter->auxdata;
-        if (argaux == NULL)
+        intel64_hex_printer* hex_printer = (intel64_hex_printer*)colprinter;
+        if (hex_printer->pos_n_sizes.empty())
         {
             int oppos = 0;
             int opnum = 0;
-            argaux = new intel64_hex_printer_aux();
-            if (argaux == NULL)
-                LOOPS_THROW(LOOPS_ERR_OUT_OF_MEMORY);
-            argaux->pos_n_sizes.resize(program_size);
+            hex_printer->pos_n_sizes.resize(program_size);
             for (; opnum < program_size; opnum++)
             {
                 int opsize = (int)printer->backend->lookS2b(program[opnum]).size();
-                argaux->pos_n_sizes[opnum] = {/*position = */oppos, /*size = */opsize};
+                hex_printer->pos_n_sizes[opnum] = {/*position = */oppos, /*size = */opsize};
                 oppos += opsize;
             }
             Assembly2Hex a2hPass(printer->backend);
             a2hPass.process(*((Syntfunc*)(nullptr)), func);
-            argaux->binary = a2hPass.result_buffer();
-            colprinter->auxdata = argaux;
+            hex_printer->binary = a2hPass.result_buffer();
         }
-        const unsigned char* hexfield = argaux->binary->data() + argaux->pos_n_sizes[row].position;
-        for (int pos = 0; pos < argaux->pos_n_sizes[row].size; pos++)
+        const unsigned char* hexfield = hex_printer->binary->data() + hex_printer->pos_n_sizes[row].position;
+        for (int pos = 0; pos < hex_printer->pos_n_sizes[row].size; pos++)
             LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
-        LOOPS_CALL_THROW(close_printer_cell(printer));
+        LOOPS_CALL_THROW(printer->close_printer_cell());
         return LOOPS_ERR_SUCCESS;
     }
-
-    class intel64_hex_printer : public column_printer
-    {
-    public:
-        intel64_hex_printer() : column_printer(&intel64_hex_printer_func) {}
-        virtual ~intel64_hex_printer()
-        {
-            if (auxdata != NULL)
-            {
-                intel64_hex_printer_aux* argaux = (intel64_hex_printer_aux*)auxdata;
-                delete argaux;
-                auxdata = NULL;
-            }
-        }
-    };
 
     column_printer_ptr Intel64Backend::get_hex_printer() const
     {
