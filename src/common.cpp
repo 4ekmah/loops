@@ -65,7 +65,7 @@ char* loops_strncpy(char* dest, const char* src, std::size_t count)
 const char* get_errstring(int errid)
 {
     static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
-    const char* result = NULL; 
+    const char* result = nullptr; 
     int err = errstrings_getter(errid, &result);
     if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
         return unknown_err;

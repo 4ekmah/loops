@@ -30,7 +30,7 @@ typedef struct suffixed_opname
 } suffixed_opname;
 
 
-static inline loops_cstring opstrings_getter_(int opcode)
+static inline loops_cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
@@ -111,12 +111,6 @@ static inline loops_cstring opstrings_getter_(int opcode)
     case (loops::OP_DEF             ) : return "def"                   ;
     };
     return nullptr;
-}
-
-static int opstrings_getter(int opcode, loops_cstring* found_name)
-{
-    *found_name = opstrings_getter_(opcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS; //DUBUG: not sure it's okay, but we need better scheme at all.
 }
 
 static inline loops_cstring cond_suffixes_getter_(int condcode)
@@ -226,7 +220,7 @@ std::unordered_map<int, suffixed_opname> suffixed_opnames =
 
 
 
-int loops_printf(program_printer* printer, const char *__restrict __format,...)
+void loops_printf(program_printer* printer, const char *__restrict __format,...)
 {
     std::vector<char>& buffers_tail = printer->buffers.back();
     int chars_left = (int)buffers_tail.size() - printer->current_offset;
@@ -238,14 +232,14 @@ int loops_printf(program_printer* printer, const char *__restrict __format,...)
     if(written < 0 || written >= chars_left)
     {
         if(printer->cells.empty())
-            LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         char* current_cell_start = printer->cells.back().ptr + printer->cells.back().size + 1;
         int current_cell_size = (int)(buffers_tail.data() + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
-            LOOPS_THROW(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
+            throw loops_exception(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
         if(current_cell_size + written >= (int)buffers_tail.size())
-            LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
-        printer->augment_buffer();
+            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+        printer->augment_buffer(0);
         std::vector<char>& newtail = printer->buffers.back();
         if(current_cell_size > 0)
             memcpy(newtail.data(), current_cell_start, current_cell_size);
@@ -258,24 +252,23 @@ int loops_printf(program_printer* printer, const char *__restrict __format,...)
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
         va_end(var_args2);
         if(written < 0 || written >= chars_left)
-            LOOPS_THROW(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
     }
     printer->current_offset += written;
     va_end ( var_args );
-    return LOOPS_ERR_SUCCESS;    
 }
 
 int print_address(program_printer* printer, int64_t addr)
 {
     static char hexsymb[] = "0123456789ABCDEF";
     char* bytes = (char*)(&addr);
-    LOOPS_CALL_THROW(loops_printf(printer, "0x")); 
+    loops_printf(printer, "0x");
     for (int i = 0; i < 8; i++)
-        LOOPS_CALL_THROW(loops_printf(printer, "%c%c", hexsymb[(bytes[7 - i] & 0xF0) >> 4], hexsymb[bytes[7 - i] & 0x0F]));
+        loops_printf(printer, "%c%c", hexsymb[(bytes[7 - i] & 0xF0) >> 4], hexsymb[bytes[7 - i] & 0x0F]);
     return LOOPS_ERR_SUCCESS;
 }
 
-int program_printer::close_printer_cell()
+void program_printer::close_printer_cell()
 {
     std::vector<char>& buffers_tail = buffers.back();
     int buffers_tail_size = (int)buffers_tail.size();
@@ -298,7 +291,6 @@ int program_printer::close_printer_cell()
     else 
         current_offset++;
     cells.push_back({newcell, len});
-    return LOOPS_ERR_SUCCESS;
 }
 
 void program_printer::augment_buffer(int buffer_size)
@@ -310,312 +302,33 @@ void program_printer::augment_buffer(int buffer_size)
     buffers.emplace_back(std::vector<char>(buffer_size));
 }
 
-static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int row)
-{
-    LOOPS_CALL_THROW(loops_printf(printer, "%6d :", row));
-    LOOPS_CALL_THROW(printer->close_printer_cell());
-    return LOOPS_ERR_SUCCESS;
-}
-
-static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int /*row*/)
-{
-    LOOPS_CALL_THROW(loops_printf(printer, ";"));
-    LOOPS_CALL_THROW(printer->close_printer_cell());
-    return LOOPS_ERR_SUCCESS;
-}
-
-static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
-{
-    int err;
-    loops_cstring found_name = NULL;
-    const loops::Syntop* op = func.program.data();
-    op += row;
-    err = opstrings_getter(op->opcode, &found_name);
-    if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
-    {
-        if(suffixed_opnames.count(op->opcode) == 0)
-        {
-            switch(op->opcode)
-            {
-            case loops::OP_JCC:
-            {
-                if (!(op->args_size == 2 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IIMMEDIATE))
-                {//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
-#if __LOOPS_ARCH == __LOOPS_RISCV
-                    if (!(op->args_size == 4 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IREG && op->args[2].tag == loops::Arg::IREG && op->args[3].tag == loops::Arg::IIMMEDIATE))
-#endif
-                        LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                }
-                err = cond_suffixes_getter((int)op->args[0].value, &found_name);
-                if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
-                    LOOPS_THROW(LOOPS_ERR_UNKNOWN_CONDITION);
-                else if(err != LOOPS_ERR_SUCCESS)
-                    LOOPS_THROW(err);
-                LOOPS_CALL_THROW(loops_printf(printer, "jmp_%s", found_name));
-                break;
-            }
-            case loops::OP_LABEL:
-            {
-                if (!(op->args_size == 1 && op->args[0].tag == loops::Arg::IIMMEDIATE))
-                    LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", op->args[0].value));
-                break;
-            }
-            default:
-                LOOPS_THROW(LOOPS_ERR_UNPRINTABLE_OPERATION);
-            }; 
-        }
-        else 
-        {
-            suffixed_opname found_suffixed_name = suffixed_opnames.at(op->opcode);
-            int i = 0;
-            for(; i < found_suffixed_name.pieces_size; i++) 
-            {
-                one_name_one_suffix* onam_osuf= found_suffixed_name.pieces + i;
-                char dummy[] = "";
-                found_name = dummy;
-                if(onam_osuf->suffix_type != SUFFIX_VOID)
-                {
-                    int argnum = onam_osuf->argnum;
-                    if(onam_osuf->fracture_size > 0 && op->args_size >= onam_osuf->fracture_size) 
-                        argnum++;
-                    if(op->args_size <= argnum)
-                        LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                    switch (onam_osuf->suffix_type)
-                    {
-                    case SUFFIX_CONDITION:
-                        if(op->args[argnum].tag != loops::Arg::IIMMEDIATE)
-                            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = cond_suffixes_getter((int)op->args[argnum].value, &found_name);
-                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
-                            LOOPS_THROW(LOOPS_ERR_UNKNOWN_TYPE);
-                        else if(err != LOOPS_ERR_SUCCESS)
-                            LOOPS_THROW(err);
-                        break;
-                    case SUFFIX_ELEMTYPE:
-                        if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG && op->args[argnum].tag != loops::Arg::IIMMEDIATE)
-                            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = type_suffixes_getter(op->args[argnum].elemtype, &found_name);
-                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
-                            LOOPS_THROW(LOOPS_ERR_UNKNOWN_TYPE);
-                        else if(err != LOOPS_ERR_SUCCESS)
-                            LOOPS_THROW(err);
-                        break;
-                    default: 
-                        LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
-                    }
-                }
-                LOOPS_CALL_THROW(loops_printf(printer, "%s%s", onam_osuf->prefix, found_name));
-            }
-        }
-    }
-    else
-        LOOPS_CALL_THROW(loops_printf(printer, "%s", found_name));
-    LOOPS_CALL_THROW(printer->close_printer_cell());
-    return LOOPS_ERR_SUCCESS;
-}
-
-static int basic_arg_printer(program_printer* printer, const loops::Arg* arg)
-{
-    switch (arg->tag)
-    {
-    case loops::Arg::IREG:
-        if(arg->idx == loops::Syntfunc::RETREG)
-            return loops_printf(printer, "iR");
-        else
-            return loops_printf(printer, "i%d", arg->idx);
-    case loops::Arg::ISPILLED: return loops_printf(printer, "s%d", arg->value);  //TODO(ch): Can we avoid spilled registers in IR?
-    case loops::Arg::IIMMEDIATE: return loops_printf(printer, "%d", arg->value);
-    case loops::Arg::VREG: return loops_printf(printer, "v%d", arg->idx);
-    default:
-        return LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE;
-    };
-}
-
-static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
-{
-    const loops::Syntop* op = func.program.data();
-    op += row;
-    switch(op->opcode)
-    {
-    case loops::OP_LABEL:
-        break;
-    case loops::OP_JCC:
-        if(op->args_size != 2  //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
-#if __LOOPS_ARCH == __LOOPS_RISCV 
-            && op->args_size != 4 
-#endif
-            )
-            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-        if(op->args[op->args_size - 1].tag != loops::Arg::IIMMEDIATE)
-            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-        for(int anum = 1; anum < op->args_size - 1; anum++)
-        {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-        }
-        LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", op->args[op->args_size - 1].value));
-        break;
-    case loops::VOP_DEF:
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
-        break;
-    case loops::OP_CALL:
-        if (op->args_size < 2 || op->args[0].tag == loops::Arg::VREG)
-            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-        LOOPS_CALL_THROW(loops_printf(printer, "["));
-        if(op->args[1].tag == loops::Arg::IIMMEDIATE)
-            LOOPS_CALL_THROW(print_address(printer, op->args[1].value));
-        else
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 1));
-        LOOPS_CALL_THROW(loops_printf(printer, "]("));
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
-        for(int anum = 2; anum < op->args_size; anum++)
-        {
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
-        }
-        LOOPS_CALL_THROW(loops_printf(printer, ")"));
-        break;
-    case loops::OP_CALL_NORET:
-        if (op->args_size < 1 || op->args[0].tag == loops::Arg::VREG)
-            LOOPS_THROW(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-        LOOPS_CALL_THROW(loops_printf(printer, "["));
-        if(op->args[0].tag == loops::Arg::IIMMEDIATE)
-            LOOPS_CALL_THROW(print_address(printer, op->args[0].value));
-        else
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
-        LOOPS_CALL_THROW(loops_printf(printer, "]("));
-        for(int anum = 1; anum < op->args_size - 1; anum++)
-        {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-        }
-        if(op->args_size > 1)
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
-        LOOPS_CALL_THROW(loops_printf(printer, ")"));
-        break;
-    case loops::OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
-        if(op->args_size > 2)
-        {
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
-        }
-        break;
-    case loops::OP_SELECT:
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
-        LOOPS_CALL_THROW(loops_printf(printer, ", "));
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
-        LOOPS_CALL_THROW(loops_printf(printer, ", "));
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
-        break;
-    default:
-        for(int anum = 0; anum < op->args_size - 1; anum++)
-        {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
-        }
-        if(op->args_size > 0)
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
-        break;
-    }
-    LOOPS_CALL_THROW(printer->close_printer_cell());
-    return LOOPS_ERR_SUCCESS;
-}
-
-program_printer_ptr program_printer::create_ir_printer(int columnflags)
-{
-    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
-        LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG); //DUBUG: not exactly LOOPS_THROW
-    program_printer_ptr res = std::make_shared<program_printer>();
-    int colprinters_size = 0; 
-    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    res->colprinters.reserve(colprinters_size);
-    if(columnflags & loops::Func::PC_OPNUM)
-        res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
-
-    if(columnflags & loops::Func::PC_OP)
-    {
-        res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opname_printer));
-        res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opargs_printer));
-    }
-    return res;
-}
-
-int col_opname_table_printer::print(struct program_printer* printer, struct column_printer* colprinter, const loops::Syntfunc& func, int row)
-{
-    int err;
-    loops_cstring found_name = NULL;
-    const loops::Syntop* op = func.program.data();
-    op += row;
-    err = ((col_opname_table_printer*)colprinter)->name_getter(op->opcode, &found_name);
-    if(err != LOOPS_ERR_SUCCESS )
-        LOOPS_THROW(err);
-    else if(err == LOOPS_ERR_SUCCESS)
-        LOOPS_CALL_THROW(loops_printf(printer, "%s", found_name));
-    LOOPS_CALL_THROW(printer->close_printer_cell());
-    return LOOPS_ERR_SUCCESS;
-}
-
-program_printer_ptr program_printer::create_assembly_printer(int columnflags, loops::Backend* backend)
-{
-    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
-        LOOPS_THROW(LOOPS_ERR_UNKNOWN_FLAG);
-    program_printer_ptr res = std::make_shared<program_printer>();
-    int colprinters_size = 0;
-    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
-    res->colprinters.reserve(colprinters_size);
-    if(columnflags & loops::Func::PC_OPNUM)
-        res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
-    res->backend = backend;
-
-    if(columnflags & loops::Func::PC_OP)
-    {
-        res->colprinters.push_back(backend->get_opname_printer());
-        res->colprinters.push_back(backend->get_opargs_printer());
-    }
-
-    if(columnflags & loops::Func::PC_HEX)
-    {
-        res->colprinters.push_back(std::make_shared<column_printer>(&col_delimeter_printer));
-        res->colprinters.push_back(backend->get_hex_printer());
-    }
-
-    return res;
-}
-
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
-static int print_syntfunc(program_printer_ptr printer, FILE* fout, std::string& sout, int outtype, const loops::Syntfunc& func)
+int program_printer::print_syntfunc(FILE* fout, std::string& sout, int outtype, const loops::Syntfunc& func)
 {
     int params_size = (int)func.params.size();
     const loops::Arg* params = func.params.data();
 
     int err = 0;
-    int cells = 0;
+    int cells_amount = 0;
     static int MAX_LINE_SIZE = 82; //taken from statistics
-    int cols = (int)printer->colprinters.size();
+    int cols = (int)colprinters.size();
     int rows = (int)func.program.size();
     int row;
     int col;
 
-    printer->augment_buffer(MAX_LINE_SIZE * rows);
+    augment_buffer(MAX_LINE_SIZE * rows);
 
     std::vector<int> max_widthes(cols, 0);
     std::vector<char*> printtasks(cols, nullptr);
     std::vector<char> printtasksbuf(cols *10);
-    printer->cells.reserve(cols*rows);
-    printer->current_offset = 0;
+    cells.reserve(cols*rows);
+    current_offset = 0;
 
     for (row = 0; row < rows; row++)
     {
         for (col = 0; col < cols; col++)
         {
-            err = printer->colprinters[col]->func(printer.get(), printer->colprinters[col].get(), func, row);
+            err = colprinters[col]->func(this, colprinters[col].get(), func, row);
             if (err != 0)
             {
                 fout = stderr;
@@ -623,9 +336,9 @@ static int print_syntfunc(program_printer_ptr printer, FILE* fout, std::string& 
                 outtype = PRINT_TO_FILE;
                 break;
             }
-            int collen = printer->cells[row * cols + col].size + 1;
+            int collen = cells[row * cols + col].size + 1;
             max_widthes[col] = (max_widthes[col] < collen ? collen : max_widthes[col]);
-            cells++;
+            cells_amount++;
         }
         if (err != 0)
             break;
@@ -647,10 +360,10 @@ static int print_syntfunc(program_printer_ptr printer, FILE* fout, std::string& 
         if (params_size)
             fprintf(fout, "i%d", (params + params_size - 1)->idx);
         fprintf(fout, ")\n");
-        for(col = 0, cell = 0; cell < cells; cell++)
+        for(col = 0, cell = 0; cell < cells_amount; cell++)
         {
-            fprintf(fout, printtasks[col], printer->cells[cell]);
-            if(col == cols - 1 || cell == cells - 1)
+            fprintf(fout, printtasks[col], cells[cell]);
+            if(col == cols - 1 || cell == cells_amount - 1)
                 fprintf(fout, "\n");
             col++;
             if (col == cols)
@@ -696,10 +409,10 @@ do {                                                                            
             PRINT_SYNTFUNC_SPRINT("i%d", (params + params_size - 1)->idx);
         PRINT_SYNTFUNC_SPRINT(")\n");
         //Write instructions:
-        for (col = 0, cell = 0; cell < cells; cell++)
+        for (col = 0, cell = 0; cell < cells_amount; cell++)
         {
-            PRINT_SYNTFUNC_SPRINT(printtasks[col], printer->cells[cell]);
-            if (col == cols - 1 || cell == cells - 1)
+            PRINT_SYNTFUNC_SPRINT(printtasks[col], cells[cell]);
+            if (col == cols - 1 || cell == cells_amount - 1)
                 PRINT_SYNTFUNC_SPRINT("\n");
             col++;
             if (col == cols)
@@ -714,15 +427,311 @@ print_syntfunc_end:
     return err;
 }
 
-int fprint_syntfunc(program_printer_ptr printer, FILE* out, const loops::Syntfunc& func)
+int program_printer::fprint_syntfunc(FILE* out, const loops::Syntfunc& func)
 {
     std::string dummy;
-    return print_syntfunc(printer, out, dummy, PRINT_TO_FILE, func);
+    return print_syntfunc(out, dummy, PRINT_TO_FILE, func);
 }
 
-int sprint_syntfunc(program_printer_ptr printer, std::string& out, const loops::Syntfunc& func)
+int program_printer::sprint_syntfunc(std::string& out, const loops::Syntfunc& func)
 {
-    return print_syntfunc(printer, nullptr, out, PRINT_TO_STRING, func);
+    return print_syntfunc(nullptr, out, PRINT_TO_STRING, func);
+}
+
+static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int row)
+{
+    loops_printf(printer, "%6d :", row);
+    printer->close_printer_cell();
+    return LOOPS_ERR_SUCCESS;
+}
+
+static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int /*row*/)
+{
+    loops_printf(printer, ";");
+    printer->close_printer_cell();
+    return LOOPS_ERR_SUCCESS;
+}
+
+static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
+{
+    int err;
+    const loops::Syntop* op = func.program.data();
+    op += row;
+    loops_cstring found_name = opstrings_getter(op->opcode);
+    if(found_name == nullptr)
+    {
+        if(suffixed_opnames.count(op->opcode) == 0)
+        {
+            switch(op->opcode)
+            {
+            case loops::OP_JCC:
+            {
+                if (!(op->args_size == 2 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IIMMEDIATE))
+                {//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV
+                    if (!(op->args_size == 4 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IREG && op->args[2].tag == loops::Arg::IREG && op->args[3].tag == loops::Arg::IIMMEDIATE))
+#endif
+                        throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                }
+                err = cond_suffixes_getter((int)op->args[0].value, &found_name);
+                if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                    throw loops_exception(LOOPS_ERR_UNKNOWN_CONDITION);
+                else if(err != LOOPS_ERR_SUCCESS)
+                    throw loops_exception(err);
+                loops_printf(printer, "jmp_%s", found_name);
+                break;
+            }
+            case loops::OP_LABEL:
+            {
+                if (!(op->args_size == 1 && op->args[0].tag == loops::Arg::IIMMEDIATE))
+                    throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                loops_printf(printer, "__loops_label_%d:", op->args[0].value);
+                break;
+            }
+            default:
+                throw loops_exception(LOOPS_ERR_UNPRINTABLE_OPERATION);
+            }; 
+        }
+        else 
+        {
+            suffixed_opname found_suffixed_name = suffixed_opnames.at(op->opcode);
+            int i = 0;
+            for(; i < found_suffixed_name.pieces_size; i++) 
+            {
+                one_name_one_suffix* onam_osuf= found_suffixed_name.pieces + i;
+                char dummy[] = "";
+                found_name = dummy;
+                if(onam_osuf->suffix_type != SUFFIX_VOID)
+                {
+                    int argnum = onam_osuf->argnum;
+                    if(onam_osuf->fracture_size > 0 && op->args_size >= onam_osuf->fracture_size) 
+                        argnum++;
+                    if(op->args_size <= argnum)
+                        throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                    switch (onam_osuf->suffix_type)
+                    {
+                    case SUFFIX_CONDITION:
+                        if(op->args[argnum].tag != loops::Arg::IIMMEDIATE)
+                            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                        err = cond_suffixes_getter((int)op->args[argnum].value, &found_name);
+                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                            throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
+                        else if(err != LOOPS_ERR_SUCCESS)
+                            throw loops_exception(err);
+                        break;
+                    case SUFFIX_ELEMTYPE:
+                        if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG && op->args[argnum].tag != loops::Arg::IIMMEDIATE)
+                            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                        err = type_suffixes_getter(op->args[argnum].elemtype, &found_name);
+                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                            throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
+                        else if(err != LOOPS_ERR_SUCCESS)
+                            throw loops_exception(err);
+                        break;
+                    default: 
+                        throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    }
+                }
+                loops_printf(printer, "%s%s", onam_osuf->prefix, found_name);
+            }
+        }
+    }
+    else
+        loops_printf(printer, "%s", found_name);
+    printer->close_printer_cell();
+    return LOOPS_ERR_SUCCESS;
+}
+
+static int basic_arg_printer(program_printer* printer, const loops::Arg* arg)
+{
+    switch (arg->tag)
+    {
+    case loops::Arg::IREG:
+        if(arg->idx == loops::Syntfunc::RETREG)
+        {
+            loops_printf(printer, "iR");
+            return LOOPS_ERR_SUCCESS;
+        }
+        else
+        {
+            loops_printf(printer, "i%d", arg->idx);
+            return LOOPS_ERR_SUCCESS;
+        }
+    case loops::Arg::ISPILLED:
+    {
+        loops_printf(printer, "s%d", arg->value);  //TODO(ch): Can we avoid spilled registers in IR?
+        return LOOPS_ERR_SUCCESS;
+    }
+    case loops::Arg::IIMMEDIATE:
+    {
+        loops_printf(printer, "%d", arg->value);
+        return LOOPS_ERR_SUCCESS;
+    }
+    case loops::Arg::VREG:
+    {
+        loops_printf(printer, "v%d", arg->idx);
+        return LOOPS_ERR_SUCCESS;
+    }
+    default:
+        return LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE;
+    };
+}
+
+static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
+{
+    const loops::Syntop* op = func.program.data();
+    op += row;
+    switch(op->opcode)
+    {
+    case loops::OP_LABEL:
+        break;
+    case loops::OP_JCC:
+        if(op->args_size != 2  //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+#if __LOOPS_ARCH == __LOOPS_RISCV 
+            && op->args_size != 4 
+#endif
+            )
+            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        if(op->args[op->args_size - 1].tag != loops::Arg::IIMMEDIATE)
+            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        for(int anum = 1; anum < op->args_size - 1; anum++)
+        {
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            loops_printf(printer, ", ");
+        }
+        loops_printf(printer, "__loops_label_%d", op->args[op->args_size - 1].value);
+        break;
+    case loops::VOP_DEF:
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        break;
+    case loops::OP_CALL:
+        if (op->args_size < 2 || op->args[0].tag == loops::Arg::VREG)
+            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        loops_printf(printer, "[");
+        if(op->args[1].tag == loops::Arg::IIMMEDIATE)
+            LOOPS_CALL_THROW(print_address(printer, op->args[1].value));
+        else
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 1));
+        loops_printf(printer, "](");
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        for(int anum = 2; anum < op->args_size; anum++)
+        {
+            loops_printf(printer, ", ");
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+        }
+        loops_printf(printer, ")");
+        break;
+    case loops::OP_CALL_NORET:
+        if (op->args_size < 1 || op->args[0].tag == loops::Arg::VREG)
+            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+        loops_printf(printer, "[");
+        if(op->args[0].tag == loops::Arg::IIMMEDIATE)
+            LOOPS_CALL_THROW(print_address(printer, op->args[0].value));
+        else
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        loops_printf(printer, "](");
+        for(int anum = 1; anum < op->args_size - 1; anum++)
+        {
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            loops_printf(printer, ", ");
+        }
+        if(op->args_size > 1)
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
+        loops_printf(printer, ")");
+        break;
+    case loops::OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        if(op->args_size > 2)
+        {
+            loops_printf(printer, ", ");
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+            loops_printf(printer, ", ");
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+        }
+        break;
+    case loops::OP_SELECT:
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        loops_printf(printer, ", ");
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+        loops_printf(printer, ", ");
+        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+        break;
+    default:
+        for(int anum = 0; anum < op->args_size - 1; anum++)
+        {
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            loops_printf(printer, ", ");
+        }
+        if(op->args_size > 0)
+            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
+        break;
+    }
+    printer->close_printer_cell();
+    return LOOPS_ERR_SUCCESS;
+}
+
+program_printer_ptr program_printer::create_ir_printer(int columnflags)
+{
+    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
+        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG); //DUBUG: not exactly LOOPS_THROW
+    program_printer_ptr res;
+    res.reset(new program_printer());
+    int colprinters_size = 0; 
+    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
+    res->colprinters.reserve(colprinters_size);
+    if(columnflags & loops::Func::PC_OPNUM)
+        res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
+
+    if(columnflags & loops::Func::PC_OP)
+    {
+        res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opname_printer));
+        res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opargs_printer));
+    }
+    return res;
+}
+
+int col_opname_table_printer::print(struct program_printer* printer, struct column_printer* colprinter, const loops::Syntfunc& func, int row)//DUBUG: really need int at return?
+{
+    const loops::Syntop* op = func.program.data();
+    op += row;
+    loops_cstring found_name = ((col_opname_table_printer*)colprinter)->name_getter(op->opcode);
+    if(found_name == nullptr)
+        throw loops_exception(LOOPS_ERR_ELEMENT_NOT_FOUND);
+    else
+        loops_printf(printer, "%s", found_name);
+    printer->close_printer_cell();
+    return LOOPS_ERR_SUCCESS;
+}
+
+program_printer_ptr program_printer::create_assembly_printer(int columnflags, loops::Backend* backend)
+{
+    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
+        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG);
+    program_printer_ptr res;
+    res.reset(new program_printer());
+    int colprinters_size = 0;
+    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
+    colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
+    res->colprinters.reserve(colprinters_size);
+    if(columnflags & loops::Func::PC_OPNUM)
+        res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
+    res->backend = backend;
+
+    if(columnflags & loops::Func::PC_OP)
+    {
+        res->colprinters.push_back(backend->get_opname_printer());
+        res->colprinters.push_back(backend->get_opargs_printer());
+    }
+
+    if(columnflags & loops::Func::PC_HEX)
+    {
+        res->colprinters.push_back(std::make_shared<column_printer>(&col_delimeter_printer));
+        res->colprinters.push_back(backend->get_hex_printer());
+    }
+
+    return res;
 }
 
 std::string IR_instruction2string(const loops::Syntop& op)
@@ -732,7 +741,7 @@ std::string IR_instruction2string(const loops::Syntop& op)
     loops::Syntfunc s2p;
     s2p.program.push_back(op);
     std::string result;
-    int err = sprint_syntfunc(_printer, result, s2p);
+    int err = _printer->sprint_syntfunc(result, s2p);
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
     result.erase(result.begin(), result.begin() + 3);
@@ -748,7 +757,7 @@ std::string assembly_instruction2string(const loops::Syntop& op, const loops::Ba
     loops::Syntfunc s2p;
     s2p.program.push_back(op);
     std::string result;
-    int err = sprint_syntfunc(_printer, result, s2p);
+    int err = _printer->sprint_syntfunc(result, s2p);
     if(err != LOOPS_ERR_SUCCESS)
         throw std::runtime_error(get_errstring(err));
     result.erase(result.begin(), result.begin() + 3);

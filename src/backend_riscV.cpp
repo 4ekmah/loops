@@ -10,7 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include <unordered_map>
 
-static inline loops_cstring opstrings_getter_(int opcode)
+static inline loops_cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
@@ -65,12 +65,6 @@ static inline loops_cstring opstrings_getter_(int opcode)
     };
     return nullptr;
 };
-
-static int opstrings_getter(int opcode, loops_cstring* found_name)
-{
-    *found_name = opstrings_getter_(opcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_UNPRINTABLE_OPERATION : LOOPS_ERR_SUCCESS;
-}
 
 namespace loops
 {
@@ -976,10 +970,10 @@ namespace loops
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
-                    LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = opargs_printer->positions[row + 1] + (int)arg.value - 4;
                 if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                    LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                    throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
                     targetline = opargs_printer->pos2opnum.at(offset2find);
                 Assert(targetline >= 0);
@@ -987,7 +981,7 @@ namespace loops
                 Assert(labelop->opcode == RISCV_LABEL);
                 Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1);
                 Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
-                LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
+                loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
                 continue;
             }
             uint64_t argflags = operand_flags[anum];
@@ -998,22 +992,22 @@ namespace loops
                 case Arg::IREG:
                 {
                     if(address)
-                        LOOPS_CALL_THROW(loops_printf(printer, "("));
+                        loops_printf(printer, "(");
                     static const char* rnames[32] = { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" };
-                    LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[arg.idx]));
+                    loops_printf(printer, "%s", rnames[arg.idx]);
                     if(address)
-                        LOOPS_CALL_THROW(loops_printf(printer, ")"));
+                        loops_printf(printer, ")");
                     break;
                 }
                 case Arg::IIMMEDIATE:
                     if(op->opcode == RISCV_LABEL)
                     {
-                        LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                        loops_printf(printer, "__loops_label_%d:", arg.value);
                     }
                     else
                     {
                         if(arg.value == 0)
-                            LOOPS_CALL_THROW(loops_printf(printer, "0"));
+                            loops_printf(printer, "0");
                         else
                         {
                             bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
@@ -1032,21 +1026,21 @@ namespace loops
                                 lower32 = ((uint64_t)arg.value) & 0xffffffff;
                             }
                             if (upper32 > 0)
-                                LOOPS_CALL_THROW(loops_printf(printer, "%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
+                                loops_printf(printer, "%s0x%x%08x", (negative ? "-": ""), upper32, lower32);
                             else
-                                LOOPS_CALL_THROW(loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32));
+                                loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32);
                         }
                         if(address)
                             inhibit_comma = true;
                     }
                     break;
                 default:
-                    LOOPS_THROW(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
+                    throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
             };
             if (anum < aamount - 1 && !inhibit_comma)
-                LOOPS_CALL_THROW(loops_printf(printer, ", "));
+                loops_printf(printer, ", ");
         }
-        LOOPS_CALL_THROW(printer->close_printer_cell());
+        printer->close_printer_cell();
         return LOOPS_ERR_SUCCESS;
     }
 
@@ -1090,9 +1084,9 @@ namespace loops
         {
             unsigned char* hexfield = hex_printer->binary->data() + hex_printer->positions[row];
             for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
-                LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
+                loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
         }
-        LOOPS_CALL_THROW(printer->close_printer_cell());
+        printer->close_printer_cell();
         return LOOPS_ERR_SUCCESS;
     }
 

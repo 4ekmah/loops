@@ -15,7 +15,7 @@ The file uses bits (related to ARM machine code encoding) from LLVM project, lic
 Apache 2 license. Please, see https://github.com/llvm/llvm-project/blob/main/llvm/LICENSE.TXT for details.
 */
 
-static inline loops_cstring opstrings_getter_(int opcode)
+static inline loops_cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
@@ -122,12 +122,6 @@ static inline loops_cstring opstrings_getter_(int opcode)
     case (loops::AARCH64_LABEL ): return ""      ;
     }
     return nullptr;
-}
-
-static int opstrings_getter(int opcode, loops_cstring* found_name)
-{
-    *found_name = opstrings_getter_(opcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_UNPRINTABLE_OPERATION : LOOPS_ERR_SUCCESS;
 }
 
 namespace loops
@@ -2331,17 +2325,17 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
         if(op->opcode == AARCH64_MOVK && anum == 2)
         {
             Assert(arg.tag == Arg::IIMMEDIATE);
-            LOOPS_CALL_THROW(loops_printf(printer, "lsl #%d", (int)(arg.value)));
+            loops_printf(printer, "lsl #%d", (int)(arg.value));
             continue;
         }
         if (operand_flags[anum] & AF_PRINTOFFSET)
         {
             int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
-                LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+                throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
             int offset2find = opargs_printer->positions[row + 1] + (int)arg.value - 4;
             if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
             else
                 targetline = opargs_printer->pos2opnum.at(offset2find);
             Assert(targetline >= 0);
@@ -2350,9 +2344,9 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
             Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
 #if __LOOPS_OS == __LOOPS_MAC
-            LOOPS_CALL_THROW(loops_printf(printer, "Loops_label_%d", (int)(labelop->args[0].value))); //Clang have some label naming convention.
+            loops_printf(printer, "Loops_label_%d", (int)(labelop->args[0].value)); //Clang have some label naming convention.
 #elif __LOOPS_OS == __LOOPS_LINUX
-            LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
+            loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
 #else
 #error Unknown OS
 #endif
@@ -2368,16 +2362,16 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
         bool indexed_vreg = false;
         Assert(!(address && vrange));
         if (vrange_start)
-            LOOPS_CALL_THROW(loops_printf(printer, "{"));
+            loops_printf(printer, "{");
         else if (address_start)
-            LOOPS_CALL_THROW(loops_printf(printer, "["));
+            loops_printf(printer, "[");
         switch (arg.tag)
         {
             case Arg::IREG:
                 if(arg.idx == (int)Syntfunc::RETREG)
-                    LOOPS_CALL_THROW(loops_printf(printer, "xR"));
+                    loops_printf(printer, "xR");
                 else if(arg.idx == 31)
-                    LOOPS_CALL_THROW(loops_printf(printer, "sp"));
+                    loops_printf(printer, "sp");
                 else
                 {
                     bool w32 = false;
@@ -2385,14 +2379,14 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                     w32 = (arg.elemtype == TYPE_FP32) || (arg.elemtype == TYPE_U32) || (arg.elemtype == TYPE_I32)  ||
                           (arg.elemtype == TYPE_FP16) || (arg.elemtype == TYPE_U16) || (arg.elemtype == TYPE_I16)  ||
                                                          (arg.elemtype == TYPE_U8)  || (arg.elemtype == TYPE_I8);
-                    LOOPS_CALL_THROW(loops_printf(printer, "%s%d", (w32 ? "w" : "x"), arg.idx));
+                    loops_printf(printer, "%s%d", (w32 ? "w" : "x"), arg.idx);
                 }
                 break;
             case Arg::VREG:
             {
                 if(argflags & AF_NOTYPE) 
                 {
-                    LOOPS_CALL_THROW(loops_printf(printer, "q%d", arg.idx));
+                    loops_printf(printer, "q%d", arg.idx);
                 }
                 else
                 {
@@ -2401,7 +2395,7 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                     if(indexed_vreg)
                     {
                         static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
-                        LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                        loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]);
                     }
                     else
                     {
@@ -2414,10 +2408,10 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                         if(argflags & AF_REDUCED)
                         {
                             Vsuffixes = Vsuffixes_reduced;
-                            LOOPS_CALL_THROW(loops_printf(printer, "%s%d", Vsuffixes[elem_size(arg.elemtype)], arg.idx));
+                            loops_printf(printer, "%s%d", Vsuffixes[elem_size(arg.elemtype)], arg.idx);
                         }
                         else
-                            LOOPS_CALL_THROW(loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]));
+                            loops_printf(printer, "v%d.%s", arg.idx, Vsuffixes[elem_size(arg.elemtype)]);
                     }
                 }
                 break;
@@ -2427,9 +2421,9 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                 {
                     Assert(op->args_size == 1);
 #if __LOOPS_OS == __LOOPS_MAC
-                    LOOPS_CALL_THROW(loops_printf(printer, "Loops_label_%d:", arg.value)); //Clang have some label naming convention.
+                    loops_printf(printer, "Loops_label_%d:", arg.value); //Clang have some label naming convention.
 #elif __LOOPS_OS == __LOOPS_LINUX
-                    LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    loops_printf(printer, "__loops_label_%d:", arg.value);
 #else
 #error Unknown OS
 #endif
@@ -2455,18 +2449,18 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                         break;
                     }
                     if(cond_ind == -1)
-                        LOOPS_THROW(LOOPS_ERR_UNKNOWN_CONDITION);
-                    LOOPS_CALL_THROW(loops_printf(printer, conds[cond_ind]));
+                        throw loops_exception(LOOPS_ERR_UNKNOWN_CONDITION);
+                    loops_printf(printer, conds[cond_ind]);
                 }
                 else if(argflags & AF_LANEINDEX)
                 {
                     Assert(argflags == AF_LANEINDEX && anum > 0 && op->args[anum-1].tag == Arg::VREG);
                     if(arg.value < 0 || arg.value >= printer->backend->vlanes(op->args[anum-1].elemtype))
-                        LOOPS_THROW(LOOPS_ERR_INCORRECT_LANE_INDEX);
-                    LOOPS_CALL_THROW(loops_printf(printer, "[%d]", arg.value));
+                        throw loops_exception(LOOPS_ERR_INCORRECT_LANE_INDEX);
+                    loops_printf(printer, "[%d]", arg.value);
                 }
                 else if(arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "#0"));
+                    loops_printf(printer, "#0");
                 else
                 {
                     bool negative = (!(argflags & AF_UNSIGNED) && arg.value < 0);
@@ -2486,22 +2480,22 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
                     }
 
                     if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "#%s0x%x%08x", (negative ? "-": ""), upper32, lower32));
+                        loops_printf(printer, "#%s0x%x%08x", (negative ? "-": ""), upper32, lower32);
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "#%s0x%02x", (negative ? "-": ""), lower32));
+                        loops_printf(printer, "#%s0x%02x", (negative ? "-": ""), lower32);
                 }
                 break;
             default:
-                LOOPS_THROW(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
+                throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
         };
         if (vrange_end)
-            LOOPS_CALL_THROW(loops_printf(printer, "}"));
+            loops_printf(printer, "}");
         else if (address_end)
-            LOOPS_CALL_THROW(loops_printf(printer, "]"));
+            loops_printf(printer, "]");
         if (anum < aamount - 1 && !indexed_vreg)
-            LOOPS_CALL_THROW(loops_printf(printer, ", "));
+            loops_printf(printer, ", ");
     }
-    LOOPS_CALL_THROW(printer->close_printer_cell());
+    printer->close_printer_cell();
     return LOOPS_ERR_SUCCESS;
 }
 
@@ -2545,9 +2539,9 @@ int aarch64_hex_printer::print(program_printer* printer, column_printer* colprin
     {
         const unsigned char* hexfield = hex_printer->binary->data() + hex_printer->positions[row];
         for(size_t pos = 0; pos < 4; pos++) //TODO(ch): Print variants (direct or reverse order).
-            LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
+            loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
     }
-    LOOPS_CALL_THROW(printer->close_printer_cell());
+    printer->close_printer_cell();
     return LOOPS_ERR_SUCCESS;
 }
 

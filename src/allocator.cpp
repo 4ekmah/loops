@@ -42,7 +42,7 @@ uint8_t* Allocator::allocate(size_t size)
 #error "not supported"
 #endif
     mode |= MAP_JIT;
-    void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, mode, -1, 0);
+    void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE, mode, -1, 0);
     if (p == MAP_FAILED)
       throw std::runtime_error("Memory allocation failure.");
     assert(p);
@@ -120,7 +120,7 @@ uint8_t* Allocator::allocate(size_t size)
 #error "not supported"
 #endif
     // mode |= MAP_JIT;
-    void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, mode, -1, 0);
+    void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE, mode, -1, 0);
     if (p == MAP_FAILED)
       throw std::runtime_error("Memory allocation failure.");
     assert(p);

@@ -181,7 +181,7 @@ struct __loops_ExprStr_
     __loops_ExprStr_():refcounter(0), func(nullptr) {}
 };
 
-Expr::Expr(): pointee(NULL) {}
+Expr::Expr(): pointee(nullptr) {}
 Expr::Expr(const Expr& fromwho):pointee(fromwho.pointee) { if(pointee) pointee->refcounter++; }
 Expr& Expr::operator=(const Expr& fromwho)
 {

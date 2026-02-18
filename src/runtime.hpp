@@ -72,7 +72,8 @@ enum
         throw std::runtime_error(msg)
 
 const char* get_errstring(int errid);
-#if __LOOPS_LANGUAGE  == __LOOPS_CPP
+
+//DUBUG: replace everywhere std::runtime_error with loops_exception. And rename Assert to LOOPS_ASSERT, check other asserts everywhere.
 class loops_exception : public std::exception
 {
 private:
@@ -81,12 +82,8 @@ public:
     loops_exception(int a_errid) : std::exception(), errid(a_errid) {}
     virtual const char* what() const noexcept override { return get_errstring(errid); };
 };
-#define LOOPS_THROW(x) throw loops_exception(x)
-#else
-#define LOOPS_THROW(x) do { return (x); } while(0)
-#endif
 
 /*Macro for calling functions, which are able to throw exceptions. Rethrow them even if there is no exception support in language.*/
-#define LOOPS_CALL_THROW(x) do { int __loops_err__ = x; if(__loops_err__ != LOOPS_ERR_SUCCESS) LOOPS_THROW(__loops_err__); } while(0)
+#define LOOPS_CALL_THROW(x) do { int __loops_err__ = x; if(__loops_err__ != LOOPS_ERR_SUCCESS) throw loops_exception(__loops_err__); } while(0)
 
 #endif //__LOOPS_RUNTIME_HPP__

@@ -10,7 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include <unordered_map>
 
-static inline loops_cstring opstrings_getter_(int opcode)
+static inline loops_cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
@@ -181,12 +181,6 @@ static inline loops_cstring opstrings_getter_(int opcode)
     case (loops::INTEL64_LABEL       ) : return ""            ;
     };
     return nullptr;
-}
-
-static int opstrings_getter(int opcode, loops_cstring* found_name)
-{
-    *found_name = opstrings_getter_(opcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_UNPRINTABLE_OPERATION : LOOPS_ERR_SUCCESS;
 }
 
 namespace loops
@@ -2833,10 +2827,10 @@ namespace loops
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
-                    LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = opargs_printer->positions[row + 1] + (int)arg.value;
                 if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                    LOOPS_THROW(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                    throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
                     targetline = opargs_printer->pos2opnum.at(offset2find);
                 Assert(targetline >= 0);
@@ -2844,7 +2838,7 @@ namespace loops
                 Assert(labelop->opcode == INTEL64_LABEL);
                 Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
                 Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
-                LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value)));
+                loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
                 continue;
             }
             uint64_t argflags = operand_flags[anum];
@@ -2859,7 +2853,7 @@ namespace loops
                                  (argflags & AF_ADDRESS) == AF_ADDRESS32  ? 2 : 
                                  (argflags & AF_ADDRESS) == AF_ADDRESS64  ? 3 :
                                /*(argflags & AF_ADDRESS) == AF_ADDRESSVEC ?*/ 4 /*: */;
-                LOOPS_CALL_THROW(loops_printf(printer, "%s", address_opener_brackets[opener_idx]));
+                loops_printf(printer, "%s", address_opener_brackets[opener_idx]);
             }
             switch (arg.tag)
             {
@@ -2873,47 +2867,47 @@ namespace loops
                                     (elem_size(arg.elemtype) == 2 ? 1 : 
                                     (elem_size(arg.elemtype) == 4 ? 2 : 
                                   /*(elem_size(arg.elemtype) == 8*/ 3));
-                LOOPS_CALL_THROW(loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]));
+                loops_printf(printer, "%s", rnames[regsize_idx][arg.idx]);
                 break;
             }
             case Arg::VREG:
             {
                 if(argflags & AF_HALFLANES) 
-                    LOOPS_CALL_THROW(loops_printf(printer, "xmm%d", arg.idx));
+                    loops_printf(printer, "xmm%d", arg.idx);
                 else
-                    LOOPS_CALL_THROW(loops_printf(printer, "ymm%d", arg.idx));
+                    loops_printf(printer, "ymm%d", arg.idx);
                 break;
             }
             case Arg::IIMMEDIATE:
                 if(op->opcode == INTEL64_LABEL)
                 {
                     Assert(op->args_size == 1);
-                    LOOPS_CALL_THROW(loops_printf(printer, "__loops_label_%d:", arg.value));
+                    loops_printf(printer, "__loops_label_%d:", arg.value);
                     break;
                 }
 #if __LOOPS_OS == __LOOPS_WINDOWS
                 if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "0h"));
+                    loops_printf(printer, "0h");
                 else
                 {
                     uint32_t upper32 = ((uint64_t)arg.value) >> 32;
                     uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
                     if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "0%x%08xh", upper32, lower32));
+                        loops_printf(printer, "0%x%08xh", upper32, lower32);
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "0%02xh", lower32));
+                        loops_printf(printer, "0%02xh", lower32);
                 }
 #elif __LOOPS_OS == __LOOPS_LINUX
                 if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "0"));
+                    loops_printf(printer, "0");
                 else
                 {
                     uint32_t upper32 = ((uint64_t)arg.value) >> 32;
                     uint32_t lower32 = ((uint64_t)arg.value) & 0xffffffff;
                     if (upper32 > 0)
-                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%x%08x", upper32, lower32));
+                        loops_printf(printer, "0x0%x%08x", upper32, lower32);
                     else
-                        LOOPS_CALL_THROW(loops_printf(printer, "0x0%02x", lower32));
+                        loops_printf(printer, "0x0%02x", lower32);
                 }
 #else 
 #error Unknown OS.
@@ -2926,31 +2920,31 @@ namespace loops
                     op->opcode == INTEL64_SETG  || op->opcode == INTEL64_SETL || op->opcode == INTEL64_SETS  || op->opcode == INTEL64_SETNS) 
                     opener_idx = 0;
                 if (arg.value == 0)
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp]", address_opener_brackets[opener_idx]));
+                    loops_printf(printer, "%srsp]", address_opener_brackets[opener_idx]);
                 else
 #if __LOOPS_OS == __LOOPS_WINDOWS
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0%02xh]", address_opener_brackets[opener_idx], arg.value * 8));
+                    loops_printf(printer, "%srsp + 0%02xh]", address_opener_brackets[opener_idx], arg.value * 8);
 #elif __LOOPS_OS == __LOOPS_LINUX
-                    LOOPS_CALL_THROW(loops_printf(printer, "%srsp + 0x0%02x]", address_opener_brackets[opener_idx], arg.value * 8));
+                    loops_printf(printer, "%srsp + 0x0%02x]", address_opener_brackets[opener_idx], arg.value * 8);
 #else 
 #error Unknown OS.
 #endif
                 break;
             }
             default:
-                LOOPS_THROW(LOOPS_ERR_INCORRECT_ARGUMENT);
+                throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
             };
             if(address)
             {
                 if (address_end)
-                    LOOPS_CALL_THROW(loops_printf(printer, "]"));
+                    loops_printf(printer, "]");
                 else
-                    LOOPS_CALL_THROW(loops_printf(printer, " + "));
+                    loops_printf(printer, " + ");
             }
             if (anum < aamount - 1 && !(address && !address_end))
-                LOOPS_CALL_THROW(loops_printf(printer, ", "));
+                loops_printf(printer, ", ");
         }
-        LOOPS_CALL_THROW(printer->close_printer_cell());
+        printer->close_printer_cell();
         return LOOPS_ERR_SUCCESS;
     }
 
@@ -2998,8 +2992,8 @@ namespace loops
         }
         const unsigned char* hexfield = hex_printer->binary->data() + hex_printer->pos_n_sizes[row].position;
         for (int pos = 0; pos < hex_printer->pos_n_sizes[row].size; pos++)
-            LOOPS_CALL_THROW(loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos))));
-        LOOPS_CALL_THROW(printer->close_printer_cell());
+            loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
+        printer->close_printer_cell();
         return LOOPS_ERR_SUCCESS;
     }
 

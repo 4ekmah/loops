@@ -17,28 +17,24 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stdlib.h>
 #include <string.h>
 
-typedef loops::Syntop loops_Syntop; //TODO[CPP2ANSIC]: Delete, Syntop will be out of loops namespace.
-typedef loops::Arg loops_Arg;       //TODO[CPP2ANSIC]: Delete, Arg will be out of loops namespace.
-
 struct column_printer;
 class program_printer;
 typedef std::shared_ptr<program_printer> program_printer_ptr;
-typedef int (*print_column_t)(program_printer* printer, struct column_printer* colprinter, const loops::Syntfunc& func, int row);
-typedef void (*free_column_printer_t)(struct column_printer* colprinter);
-typedef int (*table_opname_getter)(int opcode, loops_cstring* found_name);
-
+//DUBUG: review all this strange int returning functions. Most of them don't need to throw anything.
 class column_printer
 {
 public:
+    typedef int (*print_t)(program_printer* printer, struct column_printer* colprinter, const loops::Syntfunc& func, int row);
     column_printer(){}
     virtual ~column_printer() {}
-    column_printer(print_column_t a_func): func(a_func) {}
-    print_column_t func;
+    column_printer(print_t a_func): func(a_func) {}
+    print_t func;
 };
 
 class col_opname_table_printer : public column_printer
 {
 public:
+    typedef loops_cstring (*table_opname_getter)(int opcode);
     col_opname_table_printer(table_opname_getter a_name_getter): column_printer(&col_opname_table_printer::print), name_getter(a_name_getter) {}
     virtual ~col_opname_table_printer() override {}
 private:
@@ -54,29 +50,27 @@ public:
     static program_printer_ptr create_assembly_printer(int columnflags, loops::Backend* backend);
     std::vector<column_printer_ptr> colprinters;
     int columnflags;
-    typedef struct cell  
+    loops::Backend* backend;
+    void close_printer_cell();
+    int fprint_syntfunc(FILE* out, const loops::Syntfunc& func);
+    int sprint_syntfunc(std::string& out, const loops::Syntfunc& func);
+private:
+    program_printer(){};
+    typedef struct cell
     {
         char* ptr;
         int size;
     } cell;
     std::vector<cell> cells;
     int current_offset;
-    loops::Backend* backend;
-    int close_printer_cell();
-    void augment_buffer(int buffer_size = 0);
-private:
-    friend int loops_printf(program_printer* printer, const char *__restrict __format, ...);
+    void augment_buffer(int buffer_size);
+    friend void loops_printf(program_printer* printer, const char *__restrict __format, ...);
+    int print_syntfunc(FILE* fout, std::string& sout, int outtype, const loops::Syntfunc& func);
     std::list<std::vector<char>> buffers;
 };
 
-int loops_printf(program_printer* printer, const char *__restrict __format, ...);
-int print_address(program_printer* printer, int64_t addr);
-
-int fprint_syntfunc(program_printer_ptr printer, FILE* out, const loops::Syntfunc& func);
-/*
-* Allocate with new enough data for out string. Allocated out have to be deleted by user.
-*/
-int sprint_syntfunc(program_printer_ptr printer, std::string& out, const loops::Syntfunc& func);
+void loops_printf(program_printer* printer, const char *__restrict __format, ...);
+int print_address(program_printer* printer, int64_t addr); //DUBUG: Now: continue making functions void...
 
 std::string IR_instruction2string(const loops::Syntop& op);
 std::string assembly_instruction2string(const loops::Syntop& op, const loops::Backend& backend);
