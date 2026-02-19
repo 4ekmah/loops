@@ -138,7 +138,7 @@ int Backend::spillSpaceNeeded(const Syntop& /*a_op*/, int /*basketNum*/) const
     return 0;
 }
 
-std::set<int> Backend::getUsedRegistersIdxs(const loops::Syntop &a_op, int basketNum, uint64_t flagmask) const
+std::set<int> Backend::getUsedRegistersIdxs(const Syntop &a_op, int basketNum, uint64_t flagmask) const
 {
     std::set<int> result;
     if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
@@ -207,7 +207,7 @@ std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) cons
     return getUsedRegisters(a_op, basketNum, AF_INPUT);
 }
 
-void Backend::fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const
+void Backend::fill_native_operand_flags(const Syntop* a_op, uint64_t* result) const
 {
     memset(result, 0, sizeof(uint64_t) * Syntop::SYNTOP_ARGS_MAX);
     const BinTranslation& s2b = lookS2b(*a_op);

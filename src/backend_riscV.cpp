@@ -10,64 +10,64 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include <unordered_map>
 
-static inline loops_cstring opstrings_getter(int opcode)
-{
-    switch (opcode)
-    {
-     /*  |enum_id                    |string_id|    */
-    case (loops::RISCV_LB   ): return "lb"   ;
-    case (loops::RISCV_LBU  ): return "lbu"  ;
-    case (loops::RISCV_LH   ): return "lh"   ;
-    case (loops::RISCV_LHU  ): return "lhu"  ;
-    case (loops::RISCV_LW   ): return "lw"   ;
-    case (loops::RISCV_LWU  ): return "lwu"  ;
-    case (loops::RISCV_LD   ): return "ld"   ;
-    case (loops::RISCV_SB   ): return "sb"   ;
-    case (loops::RISCV_SH   ): return "sh"   ;
-    case (loops::RISCV_SW   ): return "sw"   ;
-    case (loops::RISCV_SD   ): return "sd"   ;
-    case (loops::RISCV_MV   ): return "mv"   ;
-    case (loops::RISCV_LUI  ): return "lui"  ;
-    case (loops::RISCV_ADD  ): return "add"  ;
-    case (loops::RISCV_SUB  ): return "sub"  ;
-    case (loops::RISCV_ADDI ): return "addi" ;
-    case (loops::RISCV_MUL  ): return "mul"  ;
-    case (loops::RISCV_DIV  ): return "div"  ;
-    case (loops::RISCV_REM  ): return "rem"  ;
-    case (loops::RISCV_NEG  ): return "neg"  ;
-    case (loops::RISCV_SLL  ): return "sll"  ;
-    case (loops::RISCV_SLLI ): return "slli" ;
-    case (loops::RISCV_SRL  ): return "srl"  ;
-    case (loops::RISCV_SRLI ): return "srli" ;
-    case (loops::RISCV_SRA  ): return "sra"  ;
-    case (loops::RISCV_SRAI ): return "srai" ;
-    case (loops::RISCV_XOR  ): return "xor"  ;
-    case (loops::RISCV_XORI ): return "xori" ;
-    case (loops::RISCV_OR   ): return "or"   ;
-    case (loops::RISCV_ORI  ): return "ori"  ;
-    case (loops::RISCV_AND  ): return "and"  ;
-    case (loops::RISCV_ANDI ): return "andi" ;
-    case (loops::RISCV_NOT  ): return "not"  ;
-    case (loops::RISCV_SLT  ): return "slt"  ;
-    case (loops::RISCV_SLTU ): return "sltu" ;
-    case (loops::RISCV_SEQZ ): return "seqz" ;
-    case (loops::RISCV_SNEZ ): return "snez" ;
-    case (loops::RISCV_BEQ  ): return "beq"  ;
-    case (loops::RISCV_BNE  ): return "bne"  ;
-    case (loops::RISCV_BLT  ): return "blt"  ;
-    case (loops::RISCV_BGE  ): return "bge"  ;
-    case (loops::RISCV_BLTU ): return "bltu" ;
-    case (loops::RISCV_BGEU ): return "bgeu" ;
-    case (loops::RISCV_J    ): return "j"    ;
-    case (loops::RISCV_JALR ): return "jalr" ;
-    case (loops::RISCV_LABEL): return ""     ;
-    case (loops::RISCV_RET  ): return "ret"  ;
-    };
-    return nullptr;
-};
-
 namespace loops
 {
+    inline cstring opstrings_getter(int opcode)
+    {
+        switch (opcode)
+        {
+        //  |enum_id               |string_id|    
+        case (RISCV_LB   ): return "lb"   ;
+        case (RISCV_LBU  ): return "lbu"  ;
+        case (RISCV_LH   ): return "lh"   ;
+        case (RISCV_LHU  ): return "lhu"  ;
+        case (RISCV_LW   ): return "lw"   ;
+        case (RISCV_LWU  ): return "lwu"  ;
+        case (RISCV_LD   ): return "ld"   ;
+        case (RISCV_SB   ): return "sb"   ;
+        case (RISCV_SH   ): return "sh"   ;
+        case (RISCV_SW   ): return "sw"   ;
+        case (RISCV_SD   ): return "sd"   ;
+        case (RISCV_MV   ): return "mv"   ;
+        case (RISCV_LUI  ): return "lui"  ;
+        case (RISCV_ADD  ): return "add"  ;
+        case (RISCV_SUB  ): return "sub"  ;
+        case (RISCV_ADDI ): return "addi" ;
+        case (RISCV_MUL  ): return "mul"  ;
+        case (RISCV_DIV  ): return "div"  ;
+        case (RISCV_REM  ): return "rem"  ;
+        case (RISCV_NEG  ): return "neg"  ;
+        case (RISCV_SLL  ): return "sll"  ;
+        case (RISCV_SLLI ): return "slli" ;
+        case (RISCV_SRL  ): return "srl"  ;
+        case (RISCV_SRLI ): return "srli" ;
+        case (RISCV_SRA  ): return "sra"  ;
+        case (RISCV_SRAI ): return "srai" ;
+        case (RISCV_XOR  ): return "xor"  ;
+        case (RISCV_XORI ): return "xori" ;
+        case (RISCV_OR   ): return "or"   ;
+        case (RISCV_ORI  ): return "ori"  ;
+        case (RISCV_AND  ): return "and"  ;
+        case (RISCV_ANDI ): return "andi" ;
+        case (RISCV_NOT  ): return "not"  ;
+        case (RISCV_SLT  ): return "slt"  ;
+        case (RISCV_SLTU ): return "sltu" ;
+        case (RISCV_SEQZ ): return "seqz" ;
+        case (RISCV_SNEZ ): return "snez" ;
+        case (RISCV_BEQ  ): return "beq"  ;
+        case (RISCV_BNE  ): return "bne"  ;
+        case (RISCV_BLT  ): return "blt"  ;
+        case (RISCV_BGE  ): return "bge"  ;
+        case (RISCV_BLTU ): return "bltu" ;
+        case (RISCV_BGEU ): return "bgeu" ;
+        case (RISCV_J    ): return "j"    ;
+        case (RISCV_JALR ): return "jalr" ;
+        case (RISCV_LABEL): return ""     ;
+        case (RISCV_RET  ): return "ret"  ;
+        };
+        return nullptr;
+    };
+
     enum RiscVReg
     {
         ZERO =  0,
@@ -931,15 +931,15 @@ namespace loops
         riscV_opargs_printer() : column_printer(&riscV_opargs_printer::print) {}
         virtual ~riscV_opargs_printer() {}
     private:
-        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+        static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
         std::unordered_map<int, int> pos2opnum;
         std::vector<int> positions;
     };
 
-    int riscV_opargs_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    void riscV_opargs_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
-        const loops::Syntop* program = func.program.data();
+        const Syntop* program = func.program.data();
         riscV_opargs_printer* opargs_printer = (riscV_opargs_printer*)colprinter;
         if (opargs_printer->positions.empty())
         {
@@ -1041,7 +1041,6 @@ namespace loops
                 loops_printf(printer, ", ");
         }
         printer->close_printer_cell();
-        return LOOPS_ERR_SUCCESS;
     }
 
     column_printer_ptr RiscVBackend::get_opargs_printer() const
@@ -1055,15 +1054,15 @@ namespace loops
         riscV_hex_printer() : column_printer(&riscV_hex_printer::print) {}
         virtual ~riscV_hex_printer() {}
     private:
-        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+        static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
         std::vector<int> positions;
         FuncBodyBuf binary;
     };
 
-    int riscV_hex_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    void riscV_hex_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
-        const loops::Syntop* program = func.program.data();
+        const Syntop* program = func.program.data();
         riscV_hex_printer* hex_printer = (riscV_hex_printer*)colprinter;
         if (hex_printer->positions.empty())
         {
@@ -1087,7 +1086,6 @@ namespace loops
                 loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
         }
         printer->close_printer_cell();
-        return LOOPS_ERR_SUCCESS;
     }
 
     column_printer_ptr RiscVBackend::get_hex_printer() const

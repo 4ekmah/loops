@@ -10,181 +10,182 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <iomanip>
 #include <unordered_map>
 
-static inline loops_cstring opstrings_getter(int opcode)
-{
-    switch (opcode)
-    {
-    case (loops::INTEL64_MOV         ) : return "mov"         ;
-    case (loops::INTEL64_MOVSX       ) : return "movsx"       ;
-    case (loops::INTEL64_MOVSXD      ) : return "movsxd"      ;
-    case (loops::INTEL64_MOVZX       ) : return "movzx"       ;
-    case (loops::INTEL64_ADC         ) : return "adc"         ;
-    case (loops::INTEL64_ADD         ) : return "add"         ;
-    case (loops::INTEL64_SUB         ) : return "sub"         ;
-    case (loops::INTEL64_IMUL        ) : return "imul"        ;
-    case (loops::INTEL64_IDIV        ) : return "idiv"        ;
-    case (loops::INTEL64_SHL         ) : return "shl"         ;
-    case (loops::INTEL64_SHR         ) : return "shr"         ;
-    case (loops::INTEL64_SAR         ) : return "sar"         ;
-    case (loops::INTEL64_AND         ) : return "and"         ;
-    case (loops::INTEL64_OR          ) : return "or"          ;
-    case (loops::INTEL64_XOR         ) : return "xor"         ;
-    case (loops::INTEL64_NOT         ) : return "not"         ;
-    case (loops::INTEL64_NEG         ) : return "neg"         ;
-    case (loops::INTEL64_CQO         ) : return "cqo"         ;
-    case (loops::INTEL64_XCHG        ) : return "xchg"        ;
-    case (loops::INTEL64_CMP         ) : return "cmp"         ;
-    case (loops::INTEL64_CMOVNE      ) : return "cmovne"      ;
-    case (loops::INTEL64_CMOVE       ) : return "cmove"       ;
-    case (loops::INTEL64_CMOVL       ) : return "cmovl"       ;
-    case (loops::INTEL64_CMOVG       ) : return "cmovg"       ;
-    case (loops::INTEL64_CMOVGE      ) : return "cmovge"      ;
-    case (loops::INTEL64_CMOVA       ) : return "cmova"       ;
-    case (loops::INTEL64_CMOVLE      ) : return "cmovle"      ;
-    case (loops::INTEL64_CMOVBE      ) : return "cmovbe"      ;
-    case (loops::INTEL64_CMOVS       ) : return "cmovs"       ;
-    case (loops::INTEL64_CMOVNS      ) : return "cmovns"      ;
-    case (loops::INTEL64_SETNE       ) : return "setne"       ;
-    case (loops::INTEL64_SETE        ) : return "sete"        ;
-    case (loops::INTEL64_SETL        ) : return "setl"        ;
-    case (loops::INTEL64_SETG        ) : return "setg"        ;
-    case (loops::INTEL64_SETGE       ) : return "setge"       ;
-    case (loops::INTEL64_SETA        ) : return "seta"        ;
-    case (loops::INTEL64_SETLE       ) : return "setle"       ;
-    case (loops::INTEL64_SETBE       ) : return "setbe"       ;
-    case (loops::INTEL64_SETS        ) : return "sets"        ;
-    case (loops::INTEL64_SETNS       ) : return "setns"       ;
-    case (loops::INTEL64_VMOVDQU     ) : return "vmovdqu"     ;
-    case (loops::INTEL64_VMOVUPS     ) : return "vmovups"     ;
-    case (loops::INTEL64_VMOVUPD     ) : return "vmovupd"     ;
-    case (loops::INTEL64_VEXTRACTI128) : return "vextracti128";
-    case (loops::INTEL64_VEXTRACTF128) : return "vextractf128";
-    case (loops::INTEL64_VINSERTI128 ) : return "vinserti128" ;
-    case (loops::INTEL64_VINSERTF128 ) : return "vinsertf128" ;
-    case (loops::INTEL64_VPERM2I128  ) : return "vperm2i128"  ;
-    case (loops::INTEL64_VPEXTRB     ) : return "vpextrb"     ;
-    case (loops::INTEL64_VPEXTRW     ) : return "vpextrw"     ;
-    case (loops::INTEL64_VPEXTRD     ) : return "vpextrd"     ;
-    case (loops::INTEL64_VPEXTRQ     ) : return "vpextrq"     ;
-    case (loops::INTEL64_VPINSRB     ) : return "vpinsrb"     ;
-    case (loops::INTEL64_VPINSRW     ) : return "vpinsrw"     ;
-    case (loops::INTEL64_VPINSRD     ) : return "vpinsrd"     ;
-    case (loops::INTEL64_VPINSRQ     ) : return "vpinsrq"     ;
-    case (loops::INTEL64_VMOVD       ) : return "vmovd"       ;
-    case (loops::INTEL64_VMOVQ       ) : return "vmovq"       ;
-    case (loops::INTEL64_VPBROADCASTB) : return "vpbroadcastb";
-    case (loops::INTEL64_VPBROADCASTW) : return "vpbroadcastw";
-    case (loops::INTEL64_VPBROADCASTD) : return "vpbroadcastd";
-    case (loops::INTEL64_VPBROADCASTQ) : return "vpbroadcastq";
-    case (loops::INTEL64_VPADDB      ) : return "vpaddb"      ;
-    case (loops::INTEL64_VPADDW      ) : return "vpaddw"      ;
-    case (loops::INTEL64_VPADDD      ) : return "vpaddd"      ;
-    case (loops::INTEL64_VPADDQ      ) : return "vpaddq"      ;
-    case (loops::INTEL64_VADDPS      ) : return "vaddps"      ;
-    case (loops::INTEL64_VADDPD      ) : return "vaddpd"      ;
-    case (loops::INTEL64_VPSUBB      ) : return "vpsubb"      ;
-    case (loops::INTEL64_VPSUBW      ) : return "vpsubw"      ;
-    case (loops::INTEL64_VPSUBD      ) : return "vpsubd"      ;
-    case (loops::INTEL64_VPSUBQ      ) : return "vpsubq"      ;
-    case (loops::INTEL64_VSUBPS      ) : return "vsubps"      ;
-    case (loops::INTEL64_VSUBPD      ) : return "vsubpd"      ;
-    case (loops::INTEL64_VPMULLW     ) : return "vpmullw"     ;
-    case (loops::INTEL64_VPMULLD     ) : return "vpmulld"     ;
-    case (loops::INTEL64_VMULPS      ) : return "vmulps"      ;
-    case (loops::INTEL64_VMULPD      ) : return "vmulpd"      ;
-    case (loops::INTEL64_VDIVPS      ) : return "vdivps"      ;
-    case (loops::INTEL64_VDIVPD      ) : return "vdivpd"      ;
-    case (loops::INTEL64_VFMADD231PS ) : return "vfmadd231ps" ;
-    case (loops::INTEL64_VFMADD231PD ) : return "vfmadd231pd" ;
-    case (loops::INTEL64_VPMINUB     ) : return "vpminub"     ;
-    case (loops::INTEL64_VPMINSB     ) : return "vpminsb"     ;
-    case (loops::INTEL64_VPMINUW     ) : return "vpminuw"     ;
-    case (loops::INTEL64_VPMINSW     ) : return "vpminsw"     ;
-    case (loops::INTEL64_VPMINUD     ) : return "vpminud"     ;
-    case (loops::INTEL64_VPMINSD     ) : return "vpminsd"     ;
-    case (loops::INTEL64_VMINPS      ) : return "vminps"      ;
-    case (loops::INTEL64_VMINPD      ) : return "vminpd"      ;
-    case (loops::INTEL64_VPMAXUB     ) : return "vpmaxub"     ;
-    case (loops::INTEL64_VPMAXSB     ) : return "vpmaxsb"     ;
-    case (loops::INTEL64_VPMAXUW     ) : return "vpmaxuw"     ;
-    case (loops::INTEL64_VPMAXSW     ) : return "vpmaxsw"     ;
-    case (loops::INTEL64_VPMAXUD     ) : return "vpmaxud"     ;
-    case (loops::INTEL64_VPMAXSD     ) : return "vpmaxsd"     ;
-    case (loops::INTEL64_VMAXPS      ) : return "vmaxps"      ;
-    case (loops::INTEL64_VMAXPD      ) : return "vmaxpd"      ;
-    case (loops::INTEL64_VPCMPEQB    ) : return "vpcmpeqb"    ;
-    case (loops::INTEL64_VPCMPEQW    ) : return "vpcmpeqw"    ;
-    case (loops::INTEL64_VPCMPEQD    ) : return "vpcmpeqd"    ;
-    case (loops::INTEL64_VPCMPEQQ    ) : return "vpcmpeqq"    ;
-    case (loops::INTEL64_VPCMPGTB    ) : return "vpcmpgtb"    ;
-    case (loops::INTEL64_VPCMPGTW    ) : return "vpcmpgtw"    ;
-    case (loops::INTEL64_VPCMPGTD    ) : return "vpcmpgtd"    ;
-    case (loops::INTEL64_VPCMPGTQ    ) : return "vpcmpgtq"    ;
-    case (loops::INTEL64_VCMPEQPS    ) : return "vcmpeqps"    ;
-    case (loops::INTEL64_VCMPNEQPS   ) : return "vcmpneqps"   ;
-    case (loops::INTEL64_VCMPLTPS    ) : return "vcmpltps"    ;
-    case (loops::INTEL64_VCMPLEPS    ) : return "vcmpleps"    ;
-    case (loops::INTEL64_VCMPEQPD    ) : return "vcmpeqpd"    ;
-    case (loops::INTEL64_VCMPNEQPD   ) : return "vcmpneqpd"   ;
-    case (loops::INTEL64_VCMPLTPD    ) : return "vcmpltpd"    ;
-    case (loops::INTEL64_VCMPLEPD    ) : return "vcmplepd"    ;
-    case (loops::INTEL64_VPBLENDVB   ) : return "vpblendvb"   ;
-    case (loops::INTEL64_VBLENDVPS   ) : return "vblendvps"   ;
-    case (loops::INTEL64_VBLENDVPD   ) : return "vblendvpd"   ;
-    case (loops::INTEL64_VPAND       ) : return "vpand"       ;
-    case (loops::INTEL64_VPOR        ) : return "vpor"        ;
-    case (loops::INTEL64_VPXOR       ) : return "vpxor"       ;
-    case (loops::INTEL64_VPSLLW      ) : return "vpsllw"      ;
-    case (loops::INTEL64_VPSLLD      ) : return "vpslld"      ;
-    case (loops::INTEL64_VPSLLQ      ) : return "vpsllq"      ;
-    case (loops::INTEL64_VPSLLVD     ) : return "vpsllvd"     ;
-    case (loops::INTEL64_VPSLLVQ     ) : return "vpsllvq"     ;
-    case (loops::INTEL64_VPSRAW      ) : return "vpsraw"      ;
-    case (loops::INTEL64_VPSRAD      ) : return "vpsrad"      ;
-    case (loops::INTEL64_VPSRAVD     ) : return "vpsravd"     ;
-    case (loops::INTEL64_VPSRLW      ) : return "vpsrlw"      ;
-    case (loops::INTEL64_VPSRLD      ) : return "vpsrld"      ;
-    case (loops::INTEL64_VPSRLQ      ) : return "vpsrlq"      ;
-    case (loops::INTEL64_VPSRLVD     ) : return "vpsrlvd"     ;
-    case (loops::INTEL64_VPSRLVQ     ) : return "vpsrlvq"     ;
-    case (loops::INTEL64_VROUNDPS    ) : return "vroundps"    ;
-    case (loops::INTEL64_VROUNDPD    ) : return "vroundpd"    ;
-    case (loops::INTEL64_VCVTPS2DQ   ) : return "vcvtps2dq"   ;
-    case (loops::INTEL64_VCVTPD2DQ   ) : return "vcvtpd2dq"   ;
-    case (loops::INTEL64_VCVTDQ2PS   ) : return "vcvtdq2ps"   ;
-    case (loops::INTEL64_VPMOVSXBW   ) : return "vpmovsxbw"   ;
-    case (loops::INTEL64_VPMOVSXWD   ) : return "vpmovsxwd"   ;
-    case (loops::INTEL64_VPMOVSXDQ   ) : return "vpmovsxdq"   ;
-    case (loops::INTEL64_VPMOVZXBW   ) : return "vpmovzxbw"   ;
-    case (loops::INTEL64_VPMOVZXWD   ) : return "vpmovzxwd"   ;
-    case (loops::INTEL64_VPMOVZXDQ   ) : return "vpmovzxdq"   ;
-    case (loops::INTEL64_VCVTPS2PD   ) : return "vcvtps2pd"   ;
-    case (loops::INTEL64_VPALIGNR    ) : return "vpalignr"    ;
-    case (loops::INTEL64_VPSHUFD     ) : return "vpshufd"     ;
-    case (loops::INTEL64_VPSADBW     ) : return "vpsadbw"     ;
-    case (loops::INTEL64_VPHADDD     ) : return "vphaddd"     ;
-    case (loops::INTEL64_VHADDPS     ) : return "vhaddps"     ;
-    case (loops::INTEL64_VADDSS      ) : return "vaddss"      ;
-    case (loops::INTEL64_VHADDPD     ) : return "vhaddpd"     ;
-    case (loops::INTEL64_VADDSD      ) : return "vaddsd"      ;
-    case (loops::INTEL64_JMP         ) : return "jmp"         ;
-    case (loops::INTEL64_JNE         ) : return "jne"         ;
-    case (loops::INTEL64_JE          ) : return "je"          ;
-    case (loops::INTEL64_JL          ) : return "jl"          ;
-    case (loops::INTEL64_JG          ) : return "jg"          ;
-    case (loops::INTEL64_JGE         ) : return "jge"         ;
-    case (loops::INTEL64_JA          ) : return "ja"          ;
-    case (loops::INTEL64_JLE         ) : return "jle"         ;
-    case (loops::INTEL64_JBE         ) : return "jbe"         ;
-    case (loops::INTEL64_CALL        ) : return "call"        ;
-    case (loops::INTEL64_RET         ) : return "ret"         ;
-    case (loops::INTEL64_LABEL       ) : return ""            ;
-    };
-    return nullptr;
-}
-
 namespace loops
 {
+    inline cstring opstrings_getter(int opcode)
+    {
+        switch (opcode)
+        {
+        //  |enum_id                         |string_id|
+        case (INTEL64_MOV         ) : return "mov"         ;
+        case (INTEL64_MOVSX       ) : return "movsx"       ;
+        case (INTEL64_MOVSXD      ) : return "movsxd"      ;
+        case (INTEL64_MOVZX       ) : return "movzx"       ;
+        case (INTEL64_ADC         ) : return "adc"         ;
+        case (INTEL64_ADD         ) : return "add"         ;
+        case (INTEL64_SUB         ) : return "sub"         ;
+        case (INTEL64_IMUL        ) : return "imul"        ;
+        case (INTEL64_IDIV        ) : return "idiv"        ;
+        case (INTEL64_SHL         ) : return "shl"         ;
+        case (INTEL64_SHR         ) : return "shr"         ;
+        case (INTEL64_SAR         ) : return "sar"         ;
+        case (INTEL64_AND         ) : return "and"         ;
+        case (INTEL64_OR          ) : return "or"          ;
+        case (INTEL64_XOR         ) : return "xor"         ;
+        case (INTEL64_NOT         ) : return "not"         ;
+        case (INTEL64_NEG         ) : return "neg"         ;
+        case (INTEL64_CQO         ) : return "cqo"         ;
+        case (INTEL64_XCHG        ) : return "xchg"        ;
+        case (INTEL64_CMP         ) : return "cmp"         ;
+        case (INTEL64_CMOVNE      ) : return "cmovne"      ;
+        case (INTEL64_CMOVE       ) : return "cmove"       ;
+        case (INTEL64_CMOVL       ) : return "cmovl"       ;
+        case (INTEL64_CMOVG       ) : return "cmovg"       ;
+        case (INTEL64_CMOVGE      ) : return "cmovge"      ;
+        case (INTEL64_CMOVA       ) : return "cmova"       ;
+        case (INTEL64_CMOVLE      ) : return "cmovle"      ;
+        case (INTEL64_CMOVBE      ) : return "cmovbe"      ;
+        case (INTEL64_CMOVS       ) : return "cmovs"       ;
+        case (INTEL64_CMOVNS      ) : return "cmovns"      ;
+        case (INTEL64_SETNE       ) : return "setne"       ;
+        case (INTEL64_SETE        ) : return "sete"        ;
+        case (INTEL64_SETL        ) : return "setl"        ;
+        case (INTEL64_SETG        ) : return "setg"        ;
+        case (INTEL64_SETGE       ) : return "setge"       ;
+        case (INTEL64_SETA        ) : return "seta"        ;
+        case (INTEL64_SETLE       ) : return "setle"       ;
+        case (INTEL64_SETBE       ) : return "setbe"       ;
+        case (INTEL64_SETS        ) : return "sets"        ;
+        case (INTEL64_SETNS       ) : return "setns"       ;
+        case (INTEL64_VMOVDQU     ) : return "vmovdqu"     ;
+        case (INTEL64_VMOVUPS     ) : return "vmovups"     ;
+        case (INTEL64_VMOVUPD     ) : return "vmovupd"     ;
+        case (INTEL64_VEXTRACTI128) : return "vextracti128";
+        case (INTEL64_VEXTRACTF128) : return "vextractf128";
+        case (INTEL64_VINSERTI128 ) : return "vinserti128" ;
+        case (INTEL64_VINSERTF128 ) : return "vinsertf128" ;
+        case (INTEL64_VPERM2I128  ) : return "vperm2i128"  ;
+        case (INTEL64_VPEXTRB     ) : return "vpextrb"     ;
+        case (INTEL64_VPEXTRW     ) : return "vpextrw"     ;
+        case (INTEL64_VPEXTRD     ) : return "vpextrd"     ;
+        case (INTEL64_VPEXTRQ     ) : return "vpextrq"     ;
+        case (INTEL64_VPINSRB     ) : return "vpinsrb"     ;
+        case (INTEL64_VPINSRW     ) : return "vpinsrw"     ;
+        case (INTEL64_VPINSRD     ) : return "vpinsrd"     ;
+        case (INTEL64_VPINSRQ     ) : return "vpinsrq"     ;
+        case (INTEL64_VMOVD       ) : return "vmovd"       ;
+        case (INTEL64_VMOVQ       ) : return "vmovq"       ;
+        case (INTEL64_VPBROADCASTB) : return "vpbroadcastb";
+        case (INTEL64_VPBROADCASTW) : return "vpbroadcastw";
+        case (INTEL64_VPBROADCASTD) : return "vpbroadcastd";
+        case (INTEL64_VPBROADCASTQ) : return "vpbroadcastq";
+        case (INTEL64_VPADDB      ) : return "vpaddb"      ;
+        case (INTEL64_VPADDW      ) : return "vpaddw"      ;
+        case (INTEL64_VPADDD      ) : return "vpaddd"      ;
+        case (INTEL64_VPADDQ      ) : return "vpaddq"      ;
+        case (INTEL64_VADDPS      ) : return "vaddps"      ;
+        case (INTEL64_VADDPD      ) : return "vaddpd"      ;
+        case (INTEL64_VPSUBB      ) : return "vpsubb"      ;
+        case (INTEL64_VPSUBW      ) : return "vpsubw"      ;
+        case (INTEL64_VPSUBD      ) : return "vpsubd"      ;
+        case (INTEL64_VPSUBQ      ) : return "vpsubq"      ;
+        case (INTEL64_VSUBPS      ) : return "vsubps"      ;
+        case (INTEL64_VSUBPD      ) : return "vsubpd"      ;
+        case (INTEL64_VPMULLW     ) : return "vpmullw"     ;
+        case (INTEL64_VPMULLD     ) : return "vpmulld"     ;
+        case (INTEL64_VMULPS      ) : return "vmulps"      ;
+        case (INTEL64_VMULPD      ) : return "vmulpd"      ;
+        case (INTEL64_VDIVPS      ) : return "vdivps"      ;
+        case (INTEL64_VDIVPD      ) : return "vdivpd"      ;
+        case (INTEL64_VFMADD231PS ) : return "vfmadd231ps" ;
+        case (INTEL64_VFMADD231PD ) : return "vfmadd231pd" ;
+        case (INTEL64_VPMINUB     ) : return "vpminub"     ;
+        case (INTEL64_VPMINSB     ) : return "vpminsb"     ;
+        case (INTEL64_VPMINUW     ) : return "vpminuw"     ;
+        case (INTEL64_VPMINSW     ) : return "vpminsw"     ;
+        case (INTEL64_VPMINUD     ) : return "vpminud"     ;
+        case (INTEL64_VPMINSD     ) : return "vpminsd"     ;
+        case (INTEL64_VMINPS      ) : return "vminps"      ;
+        case (INTEL64_VMINPD      ) : return "vminpd"      ;
+        case (INTEL64_VPMAXUB     ) : return "vpmaxub"     ;
+        case (INTEL64_VPMAXSB     ) : return "vpmaxsb"     ;
+        case (INTEL64_VPMAXUW     ) : return "vpmaxuw"     ;
+        case (INTEL64_VPMAXSW     ) : return "vpmaxsw"     ;
+        case (INTEL64_VPMAXUD     ) : return "vpmaxud"     ;
+        case (INTEL64_VPMAXSD     ) : return "vpmaxsd"     ;
+        case (INTEL64_VMAXPS      ) : return "vmaxps"      ;
+        case (INTEL64_VMAXPD      ) : return "vmaxpd"      ;
+        case (INTEL64_VPCMPEQB    ) : return "vpcmpeqb"    ;
+        case (INTEL64_VPCMPEQW    ) : return "vpcmpeqw"    ;
+        case (INTEL64_VPCMPEQD    ) : return "vpcmpeqd"    ;
+        case (INTEL64_VPCMPEQQ    ) : return "vpcmpeqq"    ;
+        case (INTEL64_VPCMPGTB    ) : return "vpcmpgtb"    ;
+        case (INTEL64_VPCMPGTW    ) : return "vpcmpgtw"    ;
+        case (INTEL64_VPCMPGTD    ) : return "vpcmpgtd"    ;
+        case (INTEL64_VPCMPGTQ    ) : return "vpcmpgtq"    ;
+        case (INTEL64_VCMPEQPS    ) : return "vcmpeqps"    ;
+        case (INTEL64_VCMPNEQPS   ) : return "vcmpneqps"   ;
+        case (INTEL64_VCMPLTPS    ) : return "vcmpltps"    ;
+        case (INTEL64_VCMPLEPS    ) : return "vcmpleps"    ;
+        case (INTEL64_VCMPEQPD    ) : return "vcmpeqpd"    ;
+        case (INTEL64_VCMPNEQPD   ) : return "vcmpneqpd"   ;
+        case (INTEL64_VCMPLTPD    ) : return "vcmpltpd"    ;
+        case (INTEL64_VCMPLEPD    ) : return "vcmplepd"    ;
+        case (INTEL64_VPBLENDVB   ) : return "vpblendvb"   ;
+        case (INTEL64_VBLENDVPS   ) : return "vblendvps"   ;
+        case (INTEL64_VBLENDVPD   ) : return "vblendvpd"   ;
+        case (INTEL64_VPAND       ) : return "vpand"       ;
+        case (INTEL64_VPOR        ) : return "vpor"        ;
+        case (INTEL64_VPXOR       ) : return "vpxor"       ;
+        case (INTEL64_VPSLLW      ) : return "vpsllw"      ;
+        case (INTEL64_VPSLLD      ) : return "vpslld"      ;
+        case (INTEL64_VPSLLQ      ) : return "vpsllq"      ;
+        case (INTEL64_VPSLLVD     ) : return "vpsllvd"     ;
+        case (INTEL64_VPSLLVQ     ) : return "vpsllvq"     ;
+        case (INTEL64_VPSRAW      ) : return "vpsraw"      ;
+        case (INTEL64_VPSRAD      ) : return "vpsrad"      ;
+        case (INTEL64_VPSRAVD     ) : return "vpsravd"     ;
+        case (INTEL64_VPSRLW      ) : return "vpsrlw"      ;
+        case (INTEL64_VPSRLD      ) : return "vpsrld"      ;
+        case (INTEL64_VPSRLQ      ) : return "vpsrlq"      ;
+        case (INTEL64_VPSRLVD     ) : return "vpsrlvd"     ;
+        case (INTEL64_VPSRLVQ     ) : return "vpsrlvq"     ;
+        case (INTEL64_VROUNDPS    ) : return "vroundps"    ;
+        case (INTEL64_VROUNDPD    ) : return "vroundpd"    ;
+        case (INTEL64_VCVTPS2DQ   ) : return "vcvtps2dq"   ;
+        case (INTEL64_VCVTPD2DQ   ) : return "vcvtpd2dq"   ;
+        case (INTEL64_VCVTDQ2PS   ) : return "vcvtdq2ps"   ;
+        case (INTEL64_VPMOVSXBW   ) : return "vpmovsxbw"   ;
+        case (INTEL64_VPMOVSXWD   ) : return "vpmovsxwd"   ;
+        case (INTEL64_VPMOVSXDQ   ) : return "vpmovsxdq"   ;
+        case (INTEL64_VPMOVZXBW   ) : return "vpmovzxbw"   ;
+        case (INTEL64_VPMOVZXWD   ) : return "vpmovzxwd"   ;
+        case (INTEL64_VPMOVZXDQ   ) : return "vpmovzxdq"   ;
+        case (INTEL64_VCVTPS2PD   ) : return "vcvtps2pd"   ;
+        case (INTEL64_VPALIGNR    ) : return "vpalignr"    ;
+        case (INTEL64_VPSHUFD     ) : return "vpshufd"     ;
+        case (INTEL64_VPSADBW     ) : return "vpsadbw"     ;
+        case (INTEL64_VPHADDD     ) : return "vphaddd"     ;
+        case (INTEL64_VHADDPS     ) : return "vhaddps"     ;
+        case (INTEL64_VADDSS      ) : return "vaddss"      ;
+        case (INTEL64_VHADDPD     ) : return "vhaddpd"     ;
+        case (INTEL64_VADDSD      ) : return "vaddsd"      ;
+        case (INTEL64_JMP         ) : return "jmp"         ;
+        case (INTEL64_JNE         ) : return "jne"         ;
+        case (INTEL64_JE          ) : return "je"          ;
+        case (INTEL64_JL          ) : return "jl"          ;
+        case (INTEL64_JG          ) : return "jg"          ;
+        case (INTEL64_JGE         ) : return "jge"         ;
+        case (INTEL64_JA          ) : return "ja"          ;
+        case (INTEL64_JLE         ) : return "jle"         ;
+        case (INTEL64_JBE         ) : return "jbe"         ;
+        case (INTEL64_CALL        ) : return "call"        ;
+        case (INTEL64_RET         ) : return "ret"         ;
+        case (INTEL64_LABEL       ) : return ""            ;
+        };
+        return nullptr;
+    }
+
     enum Intel64Reg
     {
         RAX =  0,
@@ -1764,8 +1765,8 @@ namespace loops
                     return SyT(INTEL64_XOR,  { SAcop(0), SAcop(0) });
                 else if(index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype)
                 {
-                    int opcode = index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
-                                 index[0].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                    int opcode = index[0].elemtype == TYPE_FP32 ? INTEL64_VMOVUPS :
+                                 index[0].elemtype == TYPE_FP64 ? INTEL64_VMOVUPD : INTEL64_VMOVDQU;
                     return SyT(opcode,  { SAcop(0), SAcop(1) });
                 }
                 else
@@ -1826,8 +1827,8 @@ namespace loops
         case (VOP_LOAD):
             if (index.args_size >= 2 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG)
             {
-                int opcode = index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
-                             index[0].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                int opcode = index[0].elemtype == TYPE_FP32 ? INTEL64_VMOVUPS :
+                             index[0].elemtype == TYPE_FP64 ? INTEL64_VMOVUPD : INTEL64_VMOVDQU;
                 if (index.args_size == 2)
                     return SyT(opcode, { SAcop(0), SAcop(1, AF_ADDRESS) });
                 else if (index.args_size == 3 && (index.args[2].tag == Arg::IREG || index.args[2].tag == Arg::IIMMEDIATE))
@@ -1837,8 +1838,8 @@ namespace loops
         case (VOP_STORE):
             if (index.args_size >= 2 && index.args[index.args_size-1].tag == Arg::VREG && index.args[0].tag == Arg::IREG)
             {
-                int opcode = index[index.args_size-1].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS :
-                             index[index.args_size-1].elemtype == TYPE_FP64 ? loops::INTEL64_VMOVUPD : INTEL64_VMOVDQU;
+                int opcode = index[index.args_size-1].elemtype == TYPE_FP32 ? INTEL64_VMOVUPS :
+                             index[index.args_size-1].elemtype == TYPE_FP64 ? INTEL64_VMOVUPD : INTEL64_VMOVDQU;
                 if (index.args_size == 2)
                     return SyT(opcode, { SAcop(0, AF_ADDRESS), SAcop(1) });
                 else if (index.args_size == 3 && (index.args[1].tag == Arg::IREG || index.args[1].tag == Arg::IIMMEDIATE))
@@ -1885,10 +1886,10 @@ namespace loops
             if(index.args_size == 3 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::IIMMEDIATE)
             {
                 int elemsize = elem_size(index.args[1].elemtype);
-                int opcode = elemsize == 1 ? loops::INTEL64_VPEXTRB :
-                             elemsize == 2 ? loops::INTEL64_VPEXTRW :
-                             elemsize == 4 ? loops::INTEL64_VPEXTRD :
-                             elemsize == 8 ? loops::INTEL64_VPEXTRQ : -1;
+                int opcode = elemsize == 1 ? INTEL64_VPEXTRB :
+                             elemsize == 2 ? INTEL64_VPEXTRW :
+                             elemsize == 4 ? INTEL64_VPEXTRD :
+                             elemsize == 8 ? INTEL64_VPEXTRQ : -1;
                 if(opcode!=-1 && index.args[2].value < backend->vlanes(index.args[1].elemtype)/2)
                     return SyT(opcode, { elemsize == 4 ? SAcopelt(0, TYPE_I32) : SAcop(0) , SAcop(1), SAcop(2) });
             }
@@ -1897,10 +1898,10 @@ namespace loops
             if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
             { 
                 int elemsize = elem_size(index.args[0].elemtype);
-                int opcode = elemsize == 1 ? loops::INTEL64_VPINSRB :
-                             elemsize == 2 ? loops::INTEL64_VPINSRW :
-                             elemsize == 4 ? loops::INTEL64_VPINSRD :
-                             elemsize == 8 ? loops::INTEL64_VPINSRQ : -1;
+                int opcode = elemsize == 1 ? INTEL64_VPINSRB :
+                             elemsize == 2 ? INTEL64_VPINSRW :
+                             elemsize == 4 ? INTEL64_VPINSRD :
+                             elemsize == 8 ? INTEL64_VPINSRQ : -1;
                 if(opcode!=-1 && index.args[1].value < backend->vlanes(index.args[0].elemtype)/2)
                     return SyT(opcode, { SAcop(0), SAcop(0), elemsize == 8 ? SAcop(2) : SAcopelt(2, TYPE_I32), SAcop(1) });
             }
@@ -2240,7 +2241,7 @@ namespace loops
                 else if(index[0].tag == Arg::VREG)
                 {
                     if(index[0].elemtype == TYPE_FP32 || index[0].elemtype == TYPE_FP64)
-                        return SyT(index[0].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS : loops::INTEL64_VMOVUPD, { SAcop(0), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
+                        return SyT(index[0].elemtype == TYPE_FP32 ? INTEL64_VMOVUPS : INTEL64_VMOVUPD, { SAcop(0), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
                     else
                         return SyT(INTEL64_VMOVDQU, { SAcopelt(0, TYPE_I64), SAreg(RSP, AF_ADDRESS), SAcopsar(1, -3, AF_ADDRESS) });
                 }
@@ -2254,7 +2255,7 @@ namespace loops
                 else if(index[1].tag == Arg::VREG)
                 {
                     if(index[1].elemtype == TYPE_FP32 || index[1].elemtype == TYPE_FP64)
-                        return SyT(index[1].elemtype == TYPE_FP32 ? loops::INTEL64_VMOVUPS : loops::INTEL64_VMOVUPD, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcop(1) });
+                        return SyT(index[1].elemtype == TYPE_FP32 ? INTEL64_VMOVUPS : INTEL64_VMOVUPD, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcop(1) });
                     else
                         return SyT(INTEL64_VMOVDQU, { SAreg(RSP, AF_ADDRESS), SAcopsar(0, -3, AF_ADDRESS), SAcopelt(1, TYPE_I64) });
                 }
@@ -2783,15 +2784,15 @@ namespace loops
         intel64_opargs_printer() : column_printer(&intel64_opargs_printer::print) {}
         virtual ~intel64_opargs_printer() {}
     private:
-        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+        static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
         std::unordered_map<int, int> pos2opnum;
         std::vector<int> positions;
     };
 
-    int intel64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    void intel64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
-        const loops::Syntop* program = func.program.data();
+        const Syntop* program = func.program.data();
         intel64_opargs_printer* opargs_printer = (intel64_opargs_printer*)colprinter;
         if (opargs_printer->positions.empty())
         {
@@ -2945,7 +2946,6 @@ namespace loops
                 loops_printf(printer, ", ");
         }
         printer->close_printer_cell();
-        return LOOPS_ERR_SUCCESS;
     }
 
     column_printer_ptr Intel64Backend::get_opargs_printer() const
@@ -2965,15 +2965,15 @@ namespace loops
         intel64_hex_printer() : column_printer(&intel64_hex_printer::print) {}
         virtual ~intel64_hex_printer() {}
     private:
-        static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+        static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
         std::vector<pos_size_pair> pos_n_sizes;
         FuncBodyBuf binary;
     };
 
-    int intel64_hex_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+    void intel64_hex_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
     {
         int program_size = (int)func.program.size();
-        const loops::Syntop* program = func.program.data();
+        const Syntop* program = func.program.data();
         intel64_hex_printer* hex_printer = (intel64_hex_printer*)colprinter;
         if (hex_printer->pos_n_sizes.empty())
         {
@@ -2994,7 +2994,6 @@ namespace loops
         for (int pos = 0; pos < hex_printer->pos_n_sizes[row].size; pos++)
             loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
         printer->close_printer_cell();
-        return LOOPS_ERR_SUCCESS;
     }
 
     column_printer_ptr Intel64Backend::get_hex_printer() const

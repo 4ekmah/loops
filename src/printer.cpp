@@ -12,7 +12,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <sstream>
 #include <iomanip>
 #include <unordered_map>
-//DUBUG: don't forget to work with namespaces correctly!
+
+namespace loops
+{
 
 enum {SUFFIX_ELEMTYPE, SUFFIX_CONDITION, SUFFIX_VOID};
 typedef struct one_name_one_suffix
@@ -30,192 +32,180 @@ typedef struct suffixed_opname
 } suffixed_opname;
 
 
-static inline loops_cstring opstrings_getter(int opcode)
+inline cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
-    /*   |         enum_id          |              string_id           |*/
-    case (loops::OP_MOV             ) : return "mov"                   ;
-    case (loops::OP_XCHG            ) : return "xchg"                  ;
-    case (loops::OP_ADD             ) : return "add"                   ;
-    case (loops::OP_SUB             ) : return "sub"                   ;
-    case (loops::OP_MUL             ) : return "mul"                   ;
-    case (loops::OP_DIV             ) : return "div"                   ;
-    case (loops::OP_MOD             ) : return "mod"                   ;
-    case (loops::OP_SHL             ) : return "shl"                   ;
-    case (loops::OP_SHR             ) : return "shr"                   ;
-    case (loops::OP_SAR             ) : return "sar"                   ;
-    case (loops::OP_AND             ) : return "and"                   ;
-    case (loops::OP_OR              ) : return "or"                    ;
-    case (loops::OP_XOR             ) : return "xor"                   ;
-    case (loops::OP_NOT             ) : return "not"                   ;
-    case (loops::OP_NEG             ) : return "neg"                   ;
-    case (loops::OP_CMP             ) : return "cmp"                   ;
-    case (loops::OP_MIN             ) : return "min"                   ;
-    case (loops::OP_MAX             ) : return "max"                   ;
-    case (loops::OP_ABS             ) : return "abs"                   ;
-    case (loops::OP_SIGN            ) : return "sign"                  ;
-    case (loops::OP_SPILL           ) : return "spill"                 ;
-    case (loops::OP_UNSPILL         ) : return "unspill"               ;
-    case (loops::OP_GT              ) : return "gt"                    ;
-    case (loops::OP_UGT             ) : return "ugt"                   ;
-    case (loops::OP_GE              ) : return "ge"                    ;
-    case (loops::OP_LT              ) : return "lt"                    ;
-    case (loops::OP_LE              ) : return "le"                    ;
-    case (loops::OP_ULE             ) : return "ule"                   ;
-    case (loops::OP_NE              ) : return "ne"                    ;
-    case (loops::OP_EQ              ) : return "eq"                    ;
-    case (loops::OP_S               ) : return "s"                     ;
-    case (loops::OP_NS              ) : return "ns"                    ;
-    case (loops::OP_LOGICAL_AND     ) : return "log_and"               ;
-    case (loops::OP_LOGICAL_OR      ) : return "log_or"                ;
-    case (loops::OP_LOGICAL_NOT     ) : return "log_not"               ;
-    case (loops::OP_JMP             ) : return "jmp"                   ;
-    case (loops::OP_RET             ) : return "ret"                   ;
-    case (loops::OP_CALL            ) : return "call"                  ;
-    case (loops::OP_CALL_NORET      ) : return "call_noret"            ;
-    case (loops::OP_STEM_CSTART     ) : return "annotation:stemcstart" ;
-    case (loops::OP_IF_CSTART       ) : return "annotation:ifcstart"   ;
-    case (loops::OP_ELIF_CSTART     ) : return "annotation:elif"       ;
-    case (loops::OP_IF_CEND         ) : return "annotation:ifcend"     ;
-    case (loops::OP_ELSE            ) : return "annotation:else"       ;
-    case (loops::OP_ENDIF           ) : return "annotation:endif"      ;
-    case (loops::OP_WHILE_CSTART    ) : return "annotation:whilecstart";
-    case (loops::OP_WHILE_CEND      ) : return "annotation:whilecend"  ;
-    case (loops::OP_ENDWHILE        ) : return "annotation:endwhile"   ;
-    case (loops::OP_BREAK           ) : return "annotation:break"      ;
-    case (loops::OP_CONTINUE        ) : return "annotation:continue"   ;
-    case (loops::VOP_AND            ) : return "and"                   ;
-    case (loops::VOP_OR             ) : return "or"                    ;
-    case (loops::VOP_XOR            ) : return "xor"                   ;
-    case (loops::VOP_NOT            ) : return "not"                   ;
-    case (loops::OP_X86_ADC         ) : return "x86_adc"               ;
-    case (loops::OP_X86_CQO         ) : return "x86_cqo"               ;
-    case (loops::VOP_X86_VEXTRACT128) : return "x86_vextract128"       ;
-    case (loops::VOP_X86_VINSERT128 ) : return "x86_vinsert128"        ;
-    case (loops::VOP_X86_VPERM2I128 ) : return "x86_vperm2i128"        ;
-    case (loops::VOP_X86_VPALIGNR   ) : return "x86_vpalignr"          ;
-    case (loops::VOP_X86_VPSHUFD    ) : return "x86_vpshufd"           ;
-    case (loops::VOP_X86_VPSADBW    ) : return "x86_vpsadbw"           ;
-    case (loops::VOP_X86_VPHADDD    ) : return "x86_vphaddd"           ;
-    case (loops::VOP_X86_VHADDPS    ) : return "x86_vhaddps"           ;
-    case (loops::VOP_X86_VADDSS     ) : return "x86_vaddss"            ;
-    case (loops::VOP_X86_VHADDPD    ) : return "x86_vhaddpd"           ;
-    case (loops::VOP_X86_VADDSD     ) : return "x86_vaddsd"            ;
-    case (loops::OP_ARM_CINC        ) : return "arm_cinc"              ;
-    case (loops::OP_ARM_CNEG        ) : return "arm_cneg"              ;
-    case (loops::OP_ARM_MOVK        ) : return "arm_movk"              ;
-    case (loops::OP_ARM_LDP         ) : return "arm_ldp"               ;
-    case (loops::OP_ARM_STP         ) : return "arm_stp"               ;
-    case (loops::OP_RV_LUI          ) : return "rv_lui"                ;
-    case (loops::OP_DEF             ) : return "def"                   ;
+    //   |         enum_id          |              string_id           |
+    case (OP_MOV             ) : return "mov"                   ;
+    case (OP_XCHG            ) : return "xchg"                  ;
+    case (OP_ADD             ) : return "add"                   ;
+    case (OP_SUB             ) : return "sub"                   ;
+    case (OP_MUL             ) : return "mul"                   ;
+    case (OP_DIV             ) : return "div"                   ;
+    case (OP_MOD             ) : return "mod"                   ;
+    case (OP_SHL             ) : return "shl"                   ;
+    case (OP_SHR             ) : return "shr"                   ;
+    case (OP_SAR             ) : return "sar"                   ;
+    case (OP_AND             ) : return "and"                   ;
+    case (OP_OR              ) : return "or"                    ;
+    case (OP_XOR             ) : return "xor"                   ;
+    case (OP_NOT             ) : return "not"                   ;
+    case (OP_NEG             ) : return "neg"                   ;
+    case (OP_CMP             ) : return "cmp"                   ;
+    case (OP_MIN             ) : return "min"                   ;
+    case (OP_MAX             ) : return "max"                   ;
+    case (OP_ABS             ) : return "abs"                   ;
+    case (OP_SIGN            ) : return "sign"                  ;
+    case (OP_SPILL           ) : return "spill"                 ;
+    case (OP_UNSPILL         ) : return "unspill"               ;
+    case (OP_GT              ) : return "gt"                    ;
+    case (OP_UGT             ) : return "ugt"                   ;
+    case (OP_GE              ) : return "ge"                    ;
+    case (OP_LT              ) : return "lt"                    ;
+    case (OP_LE              ) : return "le"                    ;
+    case (OP_ULE             ) : return "ule"                   ;
+    case (OP_NE              ) : return "ne"                    ;
+    case (OP_EQ              ) : return "eq"                    ;
+    case (OP_S               ) : return "s"                     ;
+    case (OP_NS              ) : return "ns"                    ;
+    case (OP_LOGICAL_AND     ) : return "log_and"               ;
+    case (OP_LOGICAL_OR      ) : return "log_or"                ;
+    case (OP_LOGICAL_NOT     ) : return "log_not"               ;
+    case (OP_JMP             ) : return "jmp"                   ;
+    case (OP_RET             ) : return "ret"                   ;
+    case (OP_CALL            ) : return "call"                  ;
+    case (OP_CALL_NORET      ) : return "call_noret"            ;
+    case (OP_STEM_CSTART     ) : return "annotation:stemcstart" ;
+    case (OP_IF_CSTART       ) : return "annotation:ifcstart"   ;
+    case (OP_ELIF_CSTART     ) : return "annotation:elif"       ;
+    case (OP_IF_CEND         ) : return "annotation:ifcend"     ;
+    case (OP_ELSE            ) : return "annotation:else"       ;
+    case (OP_ENDIF           ) : return "annotation:endif"      ;
+    case (OP_WHILE_CSTART    ) : return "annotation:whilecstart";
+    case (OP_WHILE_CEND      ) : return "annotation:whilecend"  ;
+    case (OP_ENDWHILE        ) : return "annotation:endwhile"   ;
+    case (OP_BREAK           ) : return "annotation:break"      ;
+    case (OP_CONTINUE        ) : return "annotation:continue"   ;
+    case (VOP_AND            ) : return "and"                   ;
+    case (VOP_OR             ) : return "or"                    ;
+    case (VOP_XOR            ) : return "xor"                   ;
+    case (VOP_NOT            ) : return "not"                   ;
+    case (OP_X86_ADC         ) : return "x86_adc"               ;
+    case (OP_X86_CQO         ) : return "x86_cqo"               ;
+    case (VOP_X86_VEXTRACT128) : return "x86_vextract128"       ;
+    case (VOP_X86_VINSERT128 ) : return "x86_vinsert128"        ;
+    case (VOP_X86_VPERM2I128 ) : return "x86_vperm2i128"        ;
+    case (VOP_X86_VPALIGNR   ) : return "x86_vpalignr"          ;
+    case (VOP_X86_VPSHUFD    ) : return "x86_vpshufd"           ;
+    case (VOP_X86_VPSADBW    ) : return "x86_vpsadbw"           ;
+    case (VOP_X86_VPHADDD    ) : return "x86_vphaddd"           ;
+    case (VOP_X86_VHADDPS    ) : return "x86_vhaddps"           ;
+    case (VOP_X86_VADDSS     ) : return "x86_vaddss"            ;
+    case (VOP_X86_VHADDPD    ) : return "x86_vhaddpd"           ;
+    case (VOP_X86_VADDSD     ) : return "x86_vaddsd"            ;
+    case (OP_ARM_CINC        ) : return "arm_cinc"              ;
+    case (OP_ARM_CNEG        ) : return "arm_cneg"              ;
+    case (OP_ARM_MOVK        ) : return "arm_movk"              ;
+    case (OP_ARM_LDP         ) : return "arm_ldp"               ;
+    case (OP_ARM_STP         ) : return "arm_stp"               ;
+    case (OP_RV_LUI          ) : return "rv_lui"                ;
+    case (OP_DEF             ) : return "def"                   ;
     };
     return nullptr;
 }
 
-static inline loops_cstring cond_suffixes_getter_(int condcode)
+inline cstring cond_suffixes_getter(int condcode)
 {
     switch (condcode)
     {
-/*       |   enum_id   |   string_id   |   */
-    case (loops::OP_EQ ) : return "eq" ;
-    case (loops::OP_NE ) : return "ne" ;
-    case (loops::OP_GE ) : return "ge" ;
-    case (loops::OP_LE ) : return "le" ;
-    case (loops::OP_ULE) : return "ule";
-    case (loops::OP_GT ) : return "gt" ;
-    case (loops::OP_UGT) : return "ugt";
-    case (loops::OP_LT ) : return "gt" ;
-    case (loops::OP_S  ) : return "s"  ;
-    case (loops::OP_NS ) : return "ns" ;
+//       |   enum_id   |   string_id   |   
+    case (OP_EQ ) : return "eq" ;
+    case (OP_NE ) : return "ne" ;
+    case (OP_GE ) : return "ge" ;
+    case (OP_LE ) : return "le" ;
+    case (OP_ULE) : return "ule";
+    case (OP_GT ) : return "gt" ;
+    case (OP_UGT) : return "ugt";
+    case (OP_LT ) : return "gt" ;
+    case (OP_S  ) : return "s"  ;
+    case (OP_NS ) : return "ns" ;
     };
     return nullptr;
 }
 
-static int cond_suffixes_getter(int condcode, loops_cstring* found_name)
-{
-    *found_name = cond_suffixes_getter_(condcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
-}
-
-static inline loops_cstring type_suffixes_getter_(int typecode)
+inline cstring type_suffixes_getter(int typecode)
 {
     switch (typecode)
     {
-/*       |    enum_id     |   string_id    |   */
-    case (loops::TYPE_U8  ) : return "u8"  ;
-    case (loops::TYPE_I8  ) : return "i8"  ;
-    case (loops::TYPE_U16 ) : return "u16" ;
-    case (loops::TYPE_I16 ) : return "i16" ;
-    case (loops::TYPE_U32 ) : return "u32" ;
-    case (loops::TYPE_I32 ) : return "i32" ;
-    case (loops::TYPE_U64 ) : return "u64" ;
-    case (loops::TYPE_I64 ) : return "i64" ;
-    case (loops::TYPE_FP16) : return "fp16";
-    case (loops::TYPE_BF16) : return "bf16";
-    case (loops::TYPE_FP32) : return "fp32";
-    case (loops::TYPE_FP64) : return "fp64";
+//       |    enum_id     |   string_id    |   
+    case (TYPE_U8  ) : return "u8"  ;
+    case (TYPE_I8  ) : return "i8"  ;
+    case (TYPE_U16 ) : return "u16" ;
+    case (TYPE_I16 ) : return "i16" ;
+    case (TYPE_U32 ) : return "u32" ;
+    case (TYPE_I32 ) : return "i32" ;
+    case (TYPE_U64 ) : return "u64" ;
+    case (TYPE_I64 ) : return "i64" ;
+    case (TYPE_FP16) : return "fp16";
+    case (TYPE_BF16) : return "bf16";
+    case (TYPE_FP32) : return "fp32";
+    case (TYPE_FP64) : return "fp64";
     };
     return nullptr;
-}
-
-static int type_suffixes_getter(int typecode, loops_cstring* found_name)
-{
-    *found_name = type_suffixes_getter_(typecode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
 }
 
 std::unordered_map<int, suffixed_opname> suffixed_opnames = 
 {
-/*  |         enum_id            |pieces_size|                pieces                    |      */
-/*                                     |        prefix    |argnum|suffix_type|fracture_size|...*/
+//  |         enum_id            |pieces_size|                pieces                    |      
+//                                     |        prefix    |argnum|suffix_type|fracture_size|...
 
-    {loops::OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}},
-    {loops::OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}},
-    {loops::OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}},
-    {loops::VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}},
-    {loops::VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SUB              , {1, {{"sub."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_MUL              , {1, {{"mul."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_DIV              , {1, {{"div."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_FMA              , {1, {{"fma."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SAL              , {1, {{"sal."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SHL              , {1, {{"shl."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SAR              , {1, {{"sar."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SHR              , {1, {{"shr."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_NEG              , {1, {{"neg."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_MIN              , {1, {{"min."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_MAX              , {1, {{"max."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_GT               , {1, {{"gt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_GE               , {1, {{"ge."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_LT               , {1, {{"lt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_LE               , {1, {{"le."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_NE               , {1, {{"ne."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_EQ               , {1, {{"eq."               , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SELECT           , {1, {{"select."           , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_TRUNC            , {2, {{"trunc."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_FLOOR            , {2, {{"floor."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_CAST             , {2, {{"cast."             , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_BROADCAST        , {1, {{"broadcast."        , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_CAST_LOW         , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
-    {loops::VOP_CAST_HIGH        , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
-    {loops::VOP_SHRINK           , {2, {{"shrink."           , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_POPCOUNT         , {1, {{"popcount."         , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_REDUCE_MAX       , {1, {{"reduce.max."       , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_REDUCE_MIN       , {1, {{"reduce.min."       , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_REDUCE_SUM       , {1, {{"reduce.sum."       , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_EXT              , {1, {{"ext."              , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_ARM_SHRINK_LOW   , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
-    {loops::VOP_ARM_SHRINK_HIGH  , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
-    {loops::VOP_GETLANE          , {1, {{"getlane."          , 1, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_SETLANE          , {1, {{"setlane."          , 0, SUFFIX_ELEMTYPE, 0}}}},
-    {loops::VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}}, 
+    {OP_LOAD              , {1, {{"load."             , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {OP_STORE             , {1, {{"store."            , 1, SUFFIX_ELEMTYPE, 3}}}},
+    {OP_SELECT            , {1, {{"select_"           , 1, SUFFIX_CONDITION,0}}}},
+    {OP_IVERSON           , {1, {{"iverson_"          , 1, SUFFIX_CONDITION,0}}}},
+    {VOP_LOAD             , {1, {{"vld."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_STORE            , {1, {{"vst."              , 1, SUFFIX_ELEMTYPE, 3}}}},
+    {VOP_ADD              , {1, {{"add."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SUB              , {1, {{"sub."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_MUL              , {1, {{"mul."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_DIV              , {1, {{"div."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_FMA              , {1, {{"fma."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SAL              , {1, {{"sal."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SHL              , {1, {{"shl."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SAR              , {1, {{"sar."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SHR              , {1, {{"shr."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_NEG              , {1, {{"neg."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_MIN              , {1, {{"min."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_MAX              , {1, {{"max."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_GT               , {1, {{"gt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_GE               , {1, {{"ge."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_LT               , {1, {{"lt."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_LE               , {1, {{"le."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_NE               , {1, {{"ne."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_EQ               , {1, {{"eq."               , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SELECT           , {1, {{"select."           , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_TRUNC            , {2, {{"trunc."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_FLOOR            , {2, {{"floor."            , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_CAST             , {2, {{"cast."             , 1, SUFFIX_ELEMTYPE, 0}, {"_"     , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_BROADCAST        , {1, {{"broadcast."        , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_CAST_LOW         , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
+    {VOP_CAST_HIGH        , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
+    {VOP_SHRINK           , {2, {{"shrink."           , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_POPCOUNT         , {1, {{"popcount."         , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_REDUCE_MAX       , {1, {{"reduce.max."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_REDUCE_MIN       , {1, {{"reduce.min."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_REDUCE_SUM       , {1, {{"reduce.sum."       , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_EXT              , {1, {{"ext."              , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_ARM_SHRINK_LOW   , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
+    {VOP_ARM_SHRINK_HIGH  , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},
+    {VOP_GETLANE          , {1, {{"getlane."          , 1, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_SETLANE          , {1, {{"setlane."          , 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_DEF              , {1, {{"vdef."             , 0, SUFFIX_ELEMTYPE, 0}}}}, 
 };
 
 
@@ -258,14 +248,13 @@ void loops_printf(program_printer* printer, const char *__restrict __format,...)
     va_end ( var_args );
 }
 
-int print_address(program_printer* printer, int64_t addr)
+void print_address(program_printer* printer, int64_t addr)
 {
     static char hexsymb[] = "0123456789ABCDEF";
     char* bytes = (char*)(&addr);
     loops_printf(printer, "0x");
     for (int i = 0; i < 8; i++)
         loops_printf(printer, "%c%c", hexsymb[(bytes[7 - i] & 0xF0) >> 4], hexsymb[bytes[7 - i] & 0x0F]);
-    return LOOPS_ERR_SUCCESS;
 }
 
 void program_printer::close_printer_cell()
@@ -279,7 +268,7 @@ void program_printer::close_printer_cell()
     if (!newbuffer)
     {
         char* prevcell = cells.back().ptr;
-        if (prevcell < buffers_tail_data || /*Buffer augmentation happened*/
+        if (prevcell < buffers_tail_data || //Buffer augmentation happened
             prevcell >= (buffers_tail_data + buffers_tail_size))
             newbuffer = true;
         else
@@ -303,18 +292,39 @@ void program_printer::augment_buffer(int buffer_size)
 }
 
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
-int program_printer::print_syntfunc(FILE* fout, std::string& sout, int outtype, const loops::Syntfunc& func)
+class fixing_string_len_RAII
 {
-    int params_size = (int)func.params.size();
-    const loops::Arg* params = func.params.data();
+public:
+    fixing_string_len_RAII(std::string& a_keeped) : keeped(a_keeped) {}
+    ~fixing_string_len_RAII()
+    {
+        keeped.resize(strlen(keeped.data()));
+    }
+private: 
+    std::string& keeped; 
+};
 
-    int err = 0;
+inline void snprintf_wrapped(char*& currentout, int& bufferleft, const char *__restrict __format,...)
+{
+    va_list var_args;
+    va_start(var_args, __format);
+    int written = vsnprintf(currentout, bufferleft, __format, var_args);
+    va_end ( var_args );
+    currentout += written;
+    bufferleft -= written;
+}
+
+std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntfunc& func)
+{
+    std::string sout;
+    fixing_string_len_RAII stringkeeper(sout);
+    int params_size = (int)func.params.size();
+    const Arg* params = func.params.data();
+
     int cells_amount = 0;
     static int MAX_LINE_SIZE = 82; //taken from statistics
     int cols = (int)colprinters.size();
     int rows = (int)func.program.size();
-    int row;
-    int col;
 
     augment_buffer(MAX_LINE_SIZE * rows);
 
@@ -324,27 +334,27 @@ int program_printer::print_syntfunc(FILE* fout, std::string& sout, int outtype, 
     cells.reserve(cols*rows);
     current_offset = 0;
 
-    for (row = 0; row < rows; row++)
+    try
     {
-        for (col = 0; col < cols; col++)
+        for (int row = 0; row < rows; row++)
         {
-            err = colprinters[col]->func(this, colprinters[col].get(), func, row);
-            if (err != 0)
+            for (int col = 0; col < cols; col++)
             {
-                fout = stderr;
-                fprintf(fout, "Loops: printing error. Currently printed:\n");
-                outtype = PRINT_TO_FILE;
-                break;
+                colprinters[col]->func(this, colprinters[col].get(), func, row);
+                int collen = cells[row * cols + col].size + 1;
+                max_widthes[col] = (max_widthes[col] < collen ? collen : max_widthes[col]);
+                cells_amount++;
             }
-            int collen = cells[row * cols + col].size + 1;
-            max_widthes[col] = (max_widthes[col] < collen ? collen : max_widthes[col]);
-            cells_amount++;
         }
-        if (err != 0)
-            break;
+    }
+    catch(const std::exception& e)
+    {
+        fout = stderr;
+        fprintf(fout, "Loops: printing error. Currently printed:\n");
+        outtype = PRINT_TO_FILE;
     }
 
-    for(col = 0; col < cols; col++)
+    for(int col = 0; col < cols; col++)
     {
         printtasks[col] = &printtasksbuf[10 * col]; 
         snprintf(printtasks[col], 10, "%%-%ds", max_widthes[col]); 
@@ -352,15 +362,13 @@ int program_printer::print_syntfunc(FILE* fout, std::string& sout, int outtype, 
 
     if (outtype == PRINT_TO_FILE)
     {
-        int parnum;
-        int cell;
         fprintf(fout, "%s(", func.name.c_str());
-        for (parnum = 0; parnum < params_size - 1; parnum++)
+        for (int parnum = 0; parnum < params_size - 1; parnum++)
             fprintf(fout, "i%d, ", (params + parnum)->idx);
         if (params_size)
             fprintf(fout, "i%d", (params + params_size - 1)->idx);
         fprintf(fout, ")\n");
-        for(col = 0, cell = 0; cell < cells_amount; cell++)
+        for(int col = 0, cell = 0; cell < cells_amount; cell++)
         {
             fprintf(fout, printtasks[col], cells[cell]);
             if(col == cols - 1 || cell == cells_amount - 1)
@@ -374,116 +382,93 @@ int program_printer::print_syntfunc(FILE* fout, std::string& sout, int outtype, 
     {
         //Let's calculate out buffer size and allocate it
         int bufferleft = (int)func.name.size() + 6;
-        int parnum;
-        int cell;
-        for (parnum = 0; parnum < params_size; parnum++)
+        for (int parnum = 0; parnum < params_size; parnum++)
         {
             assert((params + parnum)->idx < 100);
             bufferleft += ((params + parnum)->idx > 10 ? 2 : 1) + 3;
         }
         {
             int lensize = 2;
-            for (col = 0; col < cols; col++)
+            for (int col = 0; col < cols; col++)
                 lensize += max_widthes[col];
             bufferleft += lensize * rows;
         }
         sout.resize(bufferleft+1, 0);
         char* currentout = sout.data();
-
-#define PRINT_SYNTFUNC_SPRINT(...)                                                                \
-do {                                                                                              \
-    int __print_syntfunc_sprint_written__ = snprintf(currentout, bufferleft, __VA_ARGS__);        \
-    if (__print_syntfunc_sprint_written__ < 0 || __print_syntfunc_sprint_written__ >= bufferleft) \
-    {                                                                                             \
-        goto print_syntfunc_end;                                                                  \
-    }                                                                                             \
-    currentout += __print_syntfunc_sprint_written__;                                              \
-    bufferleft -= __print_syntfunc_sprint_written__;                                              \
-} while (0)
-
         //Write header:
-        PRINT_SYNTFUNC_SPRINT("%s(", func.name.c_str());
-        for (parnum = 0; parnum < params_size - 1; parnum++)
-            PRINT_SYNTFUNC_SPRINT("i%d, ", (params + parnum)->idx);
+        snprintf_wrapped(currentout, bufferleft, "%s(", func.name.c_str());
+        for (int parnum = 0; parnum < params_size - 1; parnum++)
+            snprintf_wrapped(currentout, bufferleft, "i%d, ", (params + parnum)->idx);
         if (params_size)
-            PRINT_SYNTFUNC_SPRINT("i%d", (params + params_size - 1)->idx);
-        PRINT_SYNTFUNC_SPRINT(")\n");
+            snprintf_wrapped(currentout, bufferleft, "i%d", (params + params_size - 1)->idx);
+        snprintf_wrapped(currentout, bufferleft, ")\n");
         //Write instructions:
-        for (col = 0, cell = 0; cell < cells_amount; cell++)
+        for (int col = 0, cell = 0; cell < cells_amount; cell++)
         {
-            PRINT_SYNTFUNC_SPRINT(printtasks[col], cells[cell]);
+            snprintf_wrapped(currentout, bufferleft, printtasks[col], cells[cell]);
             if (col == cols - 1 || cell == cells_amount - 1)
-                PRINT_SYNTFUNC_SPRINT("\n");
+                snprintf_wrapped(currentout, bufferleft, "\n");
             col++;
             if (col == cols)
                 col = 0;
         }
-#undef PRINT_SYNTFUNC_SPRINT
     }
     else
-        err = LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION;
-print_syntfunc_end:
-    sout.resize(strlen(sout.data()));
-    return err;
+        throw loops_exception(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION);
+    return sout;
 }
 
-int program_printer::fprint_syntfunc(FILE* out, const loops::Syntfunc& func)
+void program_printer::fprint_syntfunc(FILE* out, const Syntfunc& func)
 {
-    std::string dummy;
-    return print_syntfunc(out, dummy, PRINT_TO_FILE, func);
+    print_syntfunc(out,PRINT_TO_FILE, func);
 }
 
-int program_printer::sprint_syntfunc(std::string& out, const loops::Syntfunc& func)
+std::string program_printer::sprint_syntfunc(const Syntfunc& func)
 {
-    return print_syntfunc(nullptr, out, PRINT_TO_STRING, func);
+    return print_syntfunc(nullptr, PRINT_TO_STRING, func);
 }
 
-static int col_num_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int row)
+void col_num_printer(program_printer* printer, column_printer* /*colprinter*/, const Syntfunc& /*func*/, int row)
 {
     loops_printf(printer, "%6d :", row);
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
-static int col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& /*func*/, int /*row*/)
+void col_delimeter_printer(program_printer* printer, column_printer* /*colprinter*/, const Syntfunc& /*func*/, int /*row*/)
 {
     loops_printf(printer, ";");
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
-static int col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
+void col_ir_opname_printer(program_printer* printer, column_printer* /*colprinter*/, const Syntfunc& func, int row)
 {
-    int err;
-    const loops::Syntop* op = func.program.data();
+    const Syntop* op = func.program.data();
     op += row;
-    loops_cstring found_name = opstrings_getter(op->opcode);
+    cstring found_name = opstrings_getter(op->opcode);
     if(found_name == nullptr)
     {
         if(suffixed_opnames.count(op->opcode) == 0)
         {
             switch(op->opcode)
             {
-            case loops::OP_JCC:
+            case OP_JCC:
             {
-                if (!(op->args_size == 2 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IIMMEDIATE))
+                if (!(op->args_size == 2 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IIMMEDIATE))
                 {//TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
 #if __LOOPS_ARCH == __LOOPS_RISCV
-                    if (!(op->args_size == 4 && op->args[0].tag == loops::Arg::IIMMEDIATE && op->args[1].tag == loops::Arg::IREG && op->args[2].tag == loops::Arg::IREG && op->args[3].tag == loops::Arg::IIMMEDIATE))
+                    if (!(op->args_size == 4 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IREG && op->args[2].tag == Arg::IREG && op->args[3].tag == Arg::IIMMEDIATE))
 #endif
                         throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                 }
-                err = cond_suffixes_getter((int)op->args[0].value, &found_name);
-                if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                found_name = cond_suffixes_getter((int)op->args[0].value);
+                if(found_name == nullptr)
                     throw loops_exception(LOOPS_ERR_UNKNOWN_CONDITION);
-                else if(err != LOOPS_ERR_SUCCESS)
-                    throw loops_exception(err);
                 loops_printf(printer, "jmp_%s", found_name);
                 break;
             }
-            case loops::OP_LABEL:
+            case OP_LABEL:
             {
-                if (!(op->args_size == 1 && op->args[0].tag == loops::Arg::IIMMEDIATE))
+                if (!(op->args_size == 1 && op->args[0].tag == Arg::IIMMEDIATE))
                     throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                 loops_printf(printer, "__loops_label_%d:", op->args[0].value);
                 break;
@@ -511,22 +496,18 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
                     switch (onam_osuf->suffix_type)
                     {
                     case SUFFIX_CONDITION:
-                        if(op->args[argnum].tag != loops::Arg::IIMMEDIATE)
+                        if(op->args[argnum].tag != Arg::IIMMEDIATE)
                             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = cond_suffixes_getter((int)op->args[argnum].value, &found_name);
-                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                        found_name = cond_suffixes_getter((int)op->args[argnum].value);
+                        if(found_name == nullptr)
                             throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
-                        else if(err != LOOPS_ERR_SUCCESS)
-                            throw loops_exception(err);
                         break;
                     case SUFFIX_ELEMTYPE:
-                        if(op->args[argnum].tag != loops::Arg::IREG && op->args[argnum].tag != loops::Arg::VREG && op->args[argnum].tag != loops::Arg::IIMMEDIATE)
+                        if(op->args[argnum].tag != Arg::IREG && op->args[argnum].tag != Arg::VREG && op->args[argnum].tag != Arg::IIMMEDIATE)
                             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-                        err = type_suffixes_getter(op->args[argnum].elemtype, &found_name);
-                        if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+                        found_name = type_suffixes_getter(op->args[argnum].elemtype);
+                        if(found_name == nullptr)
                             throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
-                        else if(err != LOOPS_ERR_SUCCESS)
-                            throw loops_exception(err);
                         break;
                     default: 
                         throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
@@ -539,151 +520,149 @@ static int col_ir_opname_printer(program_printer* printer, column_printer* /*col
     else
         loops_printf(printer, "%s", found_name);
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
-static int basic_arg_printer(program_printer* printer, const loops::Arg* arg)
+void basic_arg_printer(program_printer* printer, const Arg* arg)
 {
     switch (arg->tag)
     {
-    case loops::Arg::IREG:
-        if(arg->idx == loops::Syntfunc::RETREG)
+    case Arg::IREG:
+        if(arg->idx == Syntfunc::RETREG)
         {
             loops_printf(printer, "iR");
-            return LOOPS_ERR_SUCCESS;
+            return;
         }
         else
         {
             loops_printf(printer, "i%d", arg->idx);
-            return LOOPS_ERR_SUCCESS;
+            return;
         }
-    case loops::Arg::ISPILLED:
+    case Arg::ISPILLED:
     {
         loops_printf(printer, "s%d", arg->value);  //TODO(ch): Can we avoid spilled registers in IR?
-        return LOOPS_ERR_SUCCESS;
+        return;
     }
-    case loops::Arg::IIMMEDIATE:
+    case Arg::IIMMEDIATE:
     {
         loops_printf(printer, "%d", arg->value);
-        return LOOPS_ERR_SUCCESS;
+        return;
     }
-    case loops::Arg::VREG:
+    case Arg::VREG:
     {
         loops_printf(printer, "v%d", arg->idx);
-        return LOOPS_ERR_SUCCESS;
+        return;
     }
     default:
-        return LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE;
+        throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
     };
 }
 
-static int col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, const loops::Syntfunc& func, int row)
+void col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinter*/, const Syntfunc& func, int row)
 {
-    const loops::Syntop* op = func.program.data();
+    const Syntop* op = func.program.data();
     op += row;
     switch(op->opcode)
     {
-    case loops::OP_LABEL:
+    case OP_LABEL:
         break;
-    case loops::OP_JCC:
+    case OP_JCC:
         if(op->args_size != 2  //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
 #if __LOOPS_ARCH == __LOOPS_RISCV 
             && op->args_size != 4 
 #endif
             )
             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
-        if(op->args[op->args_size - 1].tag != loops::Arg::IIMMEDIATE)
+        if(op->args[op->args_size - 1].tag != Arg::IIMMEDIATE)
             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         for(int anum = 1; anum < op->args_size - 1; anum++)
         {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            basic_arg_printer(printer, op->args + anum);
             loops_printf(printer, ", ");
         }
         loops_printf(printer, "__loops_label_%d", op->args[op->args_size - 1].value);
         break;
-    case loops::VOP_DEF:
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+    case VOP_DEF:
+        basic_arg_printer(printer, op->args);
         break;
-    case loops::OP_CALL:
-        if (op->args_size < 2 || op->args[0].tag == loops::Arg::VREG)
+    case OP_CALL:
+        if (op->args_size < 2 || op->args[0].tag == Arg::VREG)
             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         loops_printf(printer, "[");
-        if(op->args[1].tag == loops::Arg::IIMMEDIATE)
-            LOOPS_CALL_THROW(print_address(printer, op->args[1].value));
+        if(op->args[1].tag == Arg::IIMMEDIATE)
+            print_address(printer, op->args[1].value);
         else
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 1));
+            basic_arg_printer(printer, op->args + 1);
         loops_printf(printer, "](");
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+        basic_arg_printer(printer, op->args);
         for(int anum = 2; anum < op->args_size; anum++)
         {
             loops_printf(printer, ", ");
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            basic_arg_printer(printer, op->args + anum);
         }
         loops_printf(printer, ")");
         break;
-    case loops::OP_CALL_NORET:
-        if (op->args_size < 1 || op->args[0].tag == loops::Arg::VREG)
+    case OP_CALL_NORET:
+        if (op->args_size < 1 || op->args[0].tag == Arg::VREG)
             throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         loops_printf(printer, "[");
-        if(op->args[0].tag == loops::Arg::IIMMEDIATE)
-            LOOPS_CALL_THROW(print_address(printer, op->args[0].value));
+        if(op->args[0].tag == Arg::IIMMEDIATE)
+            print_address(printer, op->args[0].value);
         else
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+            basic_arg_printer(printer, op->args);
         loops_printf(printer, "](");
         for(int anum = 1; anum < op->args_size - 1; anum++)
         {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            basic_arg_printer(printer, op->args + anum);
             loops_printf(printer, ", ");
         }
         if(op->args_size > 1)
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
+            basic_arg_printer(printer, op->args + op->args_size - 1);
         loops_printf(printer, ")");
         break;
-    case loops::OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+    case OP_IVERSON://TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
+        basic_arg_printer(printer, op->args);
         if(op->args_size > 2)
         {
             loops_printf(printer, ", ");
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+            basic_arg_printer(printer, op->args + 2);
             loops_printf(printer, ", ");
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+            basic_arg_printer(printer, op->args + 3);
         }
         break;
-    case loops::OP_SELECT:
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args));
+    case OP_SELECT:
+        basic_arg_printer(printer, op->args);
         loops_printf(printer, ", ");
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 2));
+        basic_arg_printer(printer, op->args + 2);
         loops_printf(printer, ", ");
-        LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + 3));
+        basic_arg_printer(printer, op->args + 3);
         break;
     default:
         for(int anum = 0; anum < op->args_size - 1; anum++)
         {
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + anum));
+            basic_arg_printer(printer, op->args + anum);
             loops_printf(printer, ", ");
         }
         if(op->args_size > 0)
-            LOOPS_CALL_THROW(basic_arg_printer(printer, op->args + op->args_size - 1));
+            basic_arg_printer(printer, op->args + op->args_size - 1);
         break;
     }
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
 program_printer_ptr program_printer::create_ir_printer(int columnflags)
 {
-    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP))
-        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG); //DUBUG: not exactly LOOPS_THROW
+    if(~(~columnflags | Func::PC_OPNUM | Func::PC_OP))
+        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG);
     program_printer_ptr res;
     res.reset(new program_printer());
     int colprinters_size = 0; 
-    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
+    colprinters_size += ((columnflags & Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & Func::PC_OP) > 0);
     res->colprinters.reserve(colprinters_size);
-    if(columnflags & loops::Func::PC_OPNUM)
+    if(columnflags & Func::PC_OPNUM)
         res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
 
-    if(columnflags & loops::Func::PC_OP)
+    if(columnflags & Func::PC_OP)
     {
         res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opname_printer));
         res->colprinters.push_back(std::make_shared<column_printer>(&col_ir_opargs_printer));
@@ -691,41 +670,40 @@ program_printer_ptr program_printer::create_ir_printer(int columnflags)
     return res;
 }
 
-int col_opname_table_printer::print(struct program_printer* printer, struct column_printer* colprinter, const loops::Syntfunc& func, int row)//DUBUG: really need int at return?
+void col_opname_table_printer::print(struct program_printer* printer, struct column_printer* colprinter, const Syntfunc& func, int row)
 {
-    const loops::Syntop* op = func.program.data();
+    const Syntop* op = func.program.data();
     op += row;
-    loops_cstring found_name = ((col_opname_table_printer*)colprinter)->name_getter(op->opcode);
+    cstring found_name = ((col_opname_table_printer*)colprinter)->name_getter(op->opcode);
     if(found_name == nullptr)
         throw loops_exception(LOOPS_ERR_ELEMENT_NOT_FOUND);
     else
         loops_printf(printer, "%s", found_name);
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
-program_printer_ptr program_printer::create_assembly_printer(int columnflags, loops::Backend* backend)
+program_printer_ptr program_printer::create_assembly_printer(int columnflags, Backend* backend)
 {
-    if(~(~columnflags | loops::Func::PC_OPNUM | loops::Func::PC_OP | loops::Func::PC_HEX))
+    if(~(~columnflags | Func::PC_OPNUM | Func::PC_OP | Func::PC_HEX))
         throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG);
     program_printer_ptr res;
     res.reset(new program_printer());
     int colprinters_size = 0;
-    colprinters_size += ((columnflags & loops::Func::PC_OPNUM) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_OP) > 0);
-    colprinters_size += 2 * ((columnflags & loops::Func::PC_HEX) > 0);
+    colprinters_size += ((columnflags & Func::PC_OPNUM) > 0);
+    colprinters_size += 2 * ((columnflags & Func::PC_OP) > 0);
+    colprinters_size += 2 * ((columnflags & Func::PC_HEX) > 0);
     res->colprinters.reserve(colprinters_size);
-    if(columnflags & loops::Func::PC_OPNUM)
+    if(columnflags & Func::PC_OPNUM)
         res->colprinters.push_back(std::make_shared<column_printer>(&col_num_printer));
     res->backend = backend;
 
-    if(columnflags & loops::Func::PC_OP)
+    if(columnflags & Func::PC_OP)
     {
         res->colprinters.push_back(backend->get_opname_printer());
         res->colprinters.push_back(backend->get_opargs_printer());
     }
 
-    if(columnflags & loops::Func::PC_HEX)
+    if(columnflags & Func::PC_HEX)
     {
         res->colprinters.push_back(std::make_shared<column_printer>(&col_delimeter_printer));
         res->colprinters.push_back(backend->get_hex_printer());
@@ -734,34 +712,29 @@ program_printer_ptr program_printer::create_assembly_printer(int columnflags, lo
     return res;
 }
 
-std::string IR_instruction2string(const loops::Syntop& op)
+std::string IR_instruction2string(const Syntop& op)
 {
-    const int columns = loops::Func::PC_OP;
+    const int columns = Func::PC_OP;
     program_printer_ptr _printer = program_printer::create_ir_printer(columns);
-    loops::Syntfunc s2p;
+    Syntfunc s2p;
     s2p.program.push_back(op);
-    std::string result;
-    int err = _printer->sprint_syntfunc(result, s2p);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
+    std::string result = _printer->sprint_syntfunc(s2p);
     result.erase(result.begin(), result.begin() + 3);
     if(result.size()) 
         result.resize(result.size()-1);
     return result;
 }
 
-std::string assembly_instruction2string(const loops::Syntop& op, const loops::Backend& backend)
+std::string assembly_instruction2string(const Syntop& op, const Backend& backend)
 {
-    const int columns = loops::Func::PC_OP;
-    program_printer_ptr _printer = program_printer::create_assembly_printer(columns, const_cast<loops::Backend*>(&backend));
-    loops::Syntfunc s2p;
+    const int columns = Func::PC_OP;
+    program_printer_ptr _printer = program_printer::create_assembly_printer(columns, const_cast<Backend*>(&backend));
+    Syntfunc s2p;
     s2p.program.push_back(op);
-    std::string result;
-    int err = _printer->sprint_syntfunc(result, s2p);
-    if(err != LOOPS_ERR_SUCCESS)
-        throw std::runtime_error(get_errstring(err));
+    std::string result = _printer->sprint_syntfunc(s2p);
     result.erase(result.begin(), result.begin() + 3);
     if(result.size()) 
         result.resize(result.size()-1);
     return result;
 }
+};

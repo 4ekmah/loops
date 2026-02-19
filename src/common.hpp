@@ -16,11 +16,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <memory>
 #include <atomic>
 
-typedef const char* loops_cstring; //DUBUG: to namespace?
-char* loops_strncpy(char* dest, const char* src, std::size_t count);
-
 namespace loops
 {
+    typedef const char* cstring;
     typedef int RegIdx;
     typedef int PassID;
     enum RegisterBasket

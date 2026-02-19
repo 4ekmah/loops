@@ -12,6 +12,9 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <exception>
 #include <string>
 #endif
+
+//DUBUG: don't forget to work with namespaces correctly!
+
 /*
 TODO[CPP2ANSIC]: Since core of project will be rewrtitten on C89, we need many things from C++, but rewritten on C.
 Example: collections, based on uthash, are already written in collections.hpp file.
@@ -24,9 +27,7 @@ for destruction of collection's elements.
 C89 suuport basic block initialization]), and function deinitilization(calling destructors for all currently existing 
 objects).
 3.) Macro for constucting such "stack" objects, which emplace it with destructors to the list.
-4.) All LOOPS_CALL_THROW / LOOPS_THROW, Assert macro have to be rewritten to call destructor list.
-5.) There needed Assert macro to be replaced to work in system LOOPS_CALL_THROW.
-6.) I think, as much code as possible, have to be written without __LOOPS_LANGUAGE divarication. Of course, loops have 
+4.) I think, as much code as possible, have to be written without __LOOPS_LANGUAGE divarication. Of course, loops have 
 to build in C++ environment, but we don't need substitute basic infrastructure when we are moving to this environment.
 E.g., exceptions definition have to be universal and have to be C-like. Same for module initialization. 
 */
@@ -70,20 +71,19 @@ enum
         ;                    \
     else                     \
         throw std::runtime_error(msg)
-
+namespace loops
+{
 const char* get_errstring(int errid);
+};
 
 //DUBUG: replace everywhere std::runtime_error with loops_exception. And rename Assert to LOOPS_ASSERT, check other asserts everywhere.
-class loops_exception : public std::exception
+class loops_exception : public std::exception //DUBUG: rename to loops::exception
 {
 private:
     int errid;
 public:
     loops_exception(int a_errid) : std::exception(), errid(a_errid) {}
-    virtual const char* what() const noexcept override { return get_errstring(errid); };
+    virtual const char* what() const noexcept override { return loops::get_errstring(errid); };
 };
-
-/*Macro for calling functions, which are able to throw exceptions. Rethrow them even if there is no exception support in language.*/
-#define LOOPS_CALL_THROW(x) do { int __loops_err__ = x; if(__loops_err__ != LOOPS_ERR_SUCCESS) throw loops_exception(__loops_err__); } while(0)
 
 #endif //__LOOPS_RUNTIME_HPP__

@@ -15,117 +15,117 @@ The file uses bits (related to ARM machine code encoding) from LLVM project, lic
 Apache 2 license. Please, see https://github.com/llvm/llvm-project/blob/main/llvm/LICENSE.TXT for details.
 */
 
-static inline loops_cstring opstrings_getter(int opcode)
+namespace loops
+{
+
+inline cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {
-     /*  |       enum_id                |string_id|    */
-    case (loops::AARCH64_LDR   ): return "ldr"   ;
-    case (loops::AARCH64_LDRSW ): return "ldrsw" ;
-    case (loops::AARCH64_LDRH  ): return "ldrh"  ;
-    case (loops::AARCH64_LDRSH ): return "ldrsh" ;
-    case (loops::AARCH64_LDRB  ): return "ldrb"  ;
-    case (loops::AARCH64_LDRSB ): return "ldrsb" ;
-    case (loops::AARCH64_LDP   ): return "ldp"   ;
-    case (loops::AARCH64_STR   ): return "str"   ;
-    case (loops::AARCH64_STRH  ): return "strh"  ;
-    case (loops::AARCH64_STRB  ): return "strb"  ;
-    case (loops::AARCH64_STP   ): return "stp"   ;
-    case (loops::AARCH64_MOV   ): return "mov"   ;
-    case (loops::AARCH64_MOVN  ): return "movn"  ;
-    case (loops::AARCH64_MOVK  ): return "movk"  ;
-    case (loops::AARCH64_ADD   ): return "add"   ;
-    case (loops::AARCH64_SUB   ): return "sub"   ;
-    case (loops::AARCH64_MUL   ): return "mul"   ;
-    case (loops::AARCH64_SDIV  ): return "sdiv"  ;
-    case (loops::AARCH64_LSL   ): return "lsl"   ;
-    case (loops::AARCH64_LSR   ): return "lsr"   ;
-    case (loops::AARCH64_ASR   ): return "asr"   ;
-    case (loops::AARCH64_AND   ): return "and"   ;
-    case (loops::AARCH64_ORR   ): return "orr"   ;
-    case (loops::AARCH64_EOR   ): return "eor"   ;
-    case (loops::AARCH64_NEG   ): return "neg"   ;
-    case (loops::AARCH64_MVN   ): return "mvn"   ;
-    case (loops::AARCH64_BSL   ): return "bsl"   ;
-    case (loops::AARCH64_CMP   ): return "cmp"   ;
-    case (loops::AARCH64_CSEL  ): return "csel"  ;
-    case (loops::AARCH64_CSET  ): return "cset"  ;
-    case (loops::AARCH64_CINC  ): return "cinc"  ;
-    case (loops::AARCH64_CNEG  ): return "cneg"  ;
-    case (loops::AARCH64_FADD  ): return "fadd"  ;
-    case (loops::AARCH64_FSUB  ): return "fsub"  ;
-    case (loops::AARCH64_FMUL  ): return "fmul"  ;
-    case (loops::AARCH64_FDIV  ): return "fdiv"  ;
-    case (loops::AARCH64_FNEG  ): return "fneg"  ;
-    case (loops::AARCH64_FMLA  ): return "fmla"  ;
-    case (loops::AARCH64_SHL   ): return "shl"   ;
-    case (loops::AARCH64_USHL  ): return "ushl"  ;
-    case (loops::AARCH64_SSHL  ): return "sshl"  ;
-    case (loops::AARCH64_USHR  ): return "ushr"  ;
-    case (loops::AARCH64_SSHR  ): return "sshr"  ;
-    case (loops::AARCH64_MOVI  ): return "movi"  ;
-    case (loops::AARCH64_MVNI  ): return "mvni"  ;
-    case (loops::AARCH64_CMHI  ): return "cmhi"  ;
-    case (loops::AARCH64_CMHS  ): return "cmhs"  ;
-    case (loops::AARCH64_CMEQ  ): return "cmeq"  ;
-    case (loops::AARCH64_CMGE  ): return "cmge"  ;
-    case (loops::AARCH64_CMGT  ): return "cmgt"  ;
-    case (loops::AARCH64_CMLE  ): return "cmle"  ;
-    case (loops::AARCH64_CMLT  ): return "cmlt"  ;
-    case (loops::AARCH64_FCMGT ): return "fcmgt" ;
-    case (loops::AARCH64_FCMGE ): return "fcmge" ;
-    case (loops::AARCH64_FCMEQ ): return "fcmeq" ;
-    case (loops::AARCH64_FMIN  ): return "fmin"  ;
-    case (loops::AARCH64_FMAX  ): return "fmax"  ;
-    case (loops::AARCH64_SMINV ): return "sminv" ;
-    case (loops::AARCH64_SMAXV ): return "smaxv" ;
-    case (loops::AARCH64_UMINV ): return "uminv" ;
-    case (loops::AARCH64_UMAXV ): return "umaxv" ;
-    case (loops::AARCH64_FMINV ): return "fminv" ;
-    case (loops::AARCH64_FMAXV ): return "fmaxv" ;
-    case (loops::AARCH64_ADDV  ): return "addv"  ;
-    case (loops::AARCH64_SADDLV): return "saddlv";
-    case (loops::AARCH64_UADDLV): return "uaddlv";
-    case (loops::AARCH64_FCVTZS): return "fcvtzs";
-    case (loops::AARCH64_FCVTZU): return "fcvtzu";
-    case (loops::AARCH64_FCVTMS): return "fcvtms";
-    case (loops::AARCH64_FCVTMU): return "fcvtmu";
-    case (loops::AARCH64_SCVTF ): return "scvtf" ;
-    case (loops::AARCH64_UCVTF ): return "ucvtf" ;
-    case (loops::AARCH64_LD1   ): return "ld1"   ;
-    case (loops::AARCH64_LD2   ): return "ld2"   ;
-    case (loops::AARCH64_LD4   ): return "ld4"   ;
-    case (loops::AARCH64_ST1   ): return "st1"   ;
-    case (loops::AARCH64_ST4   ): return "st4"   ;
-    case (loops::AARCH64_EXT   ): return "ext"   ;
-    case (loops::AARCH64_DUP   ): return "dup"   ;
-    case (loops::AARCH64_UMOV  ): return "umov"  ;
-    case (loops::AARCH64_INS   ): return "ins"   ;
-    case (loops::AARCH64_SSHLL ): return "sshll" ;
-    case (loops::AARCH64_SSHLL2): return "sshll2";
-    case (loops::AARCH64_USHLL ): return "ushll" ;
-    case (loops::AARCH64_USHLL2): return "ushll2";
-    case (loops::AARCH64_XTN   ): return "xtn"   ;
-    case (loops::AARCH64_XTN2  ): return "xtn2"  ;
-    case (loops::AARCH64_CNT   ): return "cnt"   ;
-    case (loops::AARCH64_B     ): return "b"     ;
-    case (loops::AARCH64_B_NE  ): return "b.ne"  ;
-    case (loops::AARCH64_B_EQ  ): return "b.eq"  ;
-    case (loops::AARCH64_B_LT  ): return "b.lt"  ;
-    case (loops::AARCH64_B_GT  ): return "b.gt"  ;
-    case (loops::AARCH64_B_HI  ): return "b.hi"  ;
-    case (loops::AARCH64_B_GE  ): return "b.ge"  ;
-    case (loops::AARCH64_B_LE  ): return "b.le"  ;
-    case (loops::AARCH64_B_LS  ): return "b.ls"  ;
-    case (loops::AARCH64_BLR   ): return "blr"   ;
-    case (loops::AARCH64_RET   ): return "ret"   ;
-    case (loops::AARCH64_LABEL ): return ""      ;
+     //  |       enum_id          |string_id|    
+    case (AARCH64_LDR   ): return "ldr"   ;
+    case (AARCH64_LDRSW ): return "ldrsw" ;
+    case (AARCH64_LDRH  ): return "ldrh"  ;
+    case (AARCH64_LDRSH ): return "ldrsh" ;
+    case (AARCH64_LDRB  ): return "ldrb"  ;
+    case (AARCH64_LDRSB ): return "ldrsb" ;
+    case (AARCH64_LDP   ): return "ldp"   ;
+    case (AARCH64_STR   ): return "str"   ;
+    case (AARCH64_STRH  ): return "strh"  ;
+    case (AARCH64_STRB  ): return "strb"  ;
+    case (AARCH64_STP   ): return "stp"   ;
+    case (AARCH64_MOV   ): return "mov"   ;
+    case (AARCH64_MOVN  ): return "movn"  ;
+    case (AARCH64_MOVK  ): return "movk"  ;
+    case (AARCH64_ADD   ): return "add"   ;
+    case (AARCH64_SUB   ): return "sub"   ;
+    case (AARCH64_MUL   ): return "mul"   ;
+    case (AARCH64_SDIV  ): return "sdiv"  ;
+    case (AARCH64_LSL   ): return "lsl"   ;
+    case (AARCH64_LSR   ): return "lsr"   ;
+    case (AARCH64_ASR   ): return "asr"   ;
+    case (AARCH64_AND   ): return "and"   ;
+    case (AARCH64_ORR   ): return "orr"   ;
+    case (AARCH64_EOR   ): return "eor"   ;
+    case (AARCH64_NEG   ): return "neg"   ;
+    case (AARCH64_MVN   ): return "mvn"   ;
+    case (AARCH64_BSL   ): return "bsl"   ;
+    case (AARCH64_CMP   ): return "cmp"   ;
+    case (AARCH64_CSEL  ): return "csel"  ;
+    case (AARCH64_CSET  ): return "cset"  ;
+    case (AARCH64_CINC  ): return "cinc"  ;
+    case (AARCH64_CNEG  ): return "cneg"  ;
+    case (AARCH64_FADD  ): return "fadd"  ;
+    case (AARCH64_FSUB  ): return "fsub"  ;
+    case (AARCH64_FMUL  ): return "fmul"  ;
+    case (AARCH64_FDIV  ): return "fdiv"  ;
+    case (AARCH64_FNEG  ): return "fneg"  ;
+    case (AARCH64_FMLA  ): return "fmla"  ;
+    case (AARCH64_SHL   ): return "shl"   ;
+    case (AARCH64_USHL  ): return "ushl"  ;
+    case (AARCH64_SSHL  ): return "sshl"  ;
+    case (AARCH64_USHR  ): return "ushr"  ;
+    case (AARCH64_SSHR  ): return "sshr"  ;
+    case (AARCH64_MOVI  ): return "movi"  ;
+    case (AARCH64_MVNI  ): return "mvni"  ;
+    case (AARCH64_CMHI  ): return "cmhi"  ;
+    case (AARCH64_CMHS  ): return "cmhs"  ;
+    case (AARCH64_CMEQ  ): return "cmeq"  ;
+    case (AARCH64_CMGE  ): return "cmge"  ;
+    case (AARCH64_CMGT  ): return "cmgt"  ;
+    case (AARCH64_CMLE  ): return "cmle"  ;
+    case (AARCH64_CMLT  ): return "cmlt"  ;
+    case (AARCH64_FCMGT ): return "fcmgt" ;
+    case (AARCH64_FCMGE ): return "fcmge" ;
+    case (AARCH64_FCMEQ ): return "fcmeq" ;
+    case (AARCH64_FMIN  ): return "fmin"  ;
+    case (AARCH64_FMAX  ): return "fmax"  ;
+    case (AARCH64_SMINV ): return "sminv" ;
+    case (AARCH64_SMAXV ): return "smaxv" ;
+    case (AARCH64_UMINV ): return "uminv" ;
+    case (AARCH64_UMAXV ): return "umaxv" ;
+    case (AARCH64_FMINV ): return "fminv" ;
+    case (AARCH64_FMAXV ): return "fmaxv" ;
+    case (AARCH64_ADDV  ): return "addv"  ;
+    case (AARCH64_SADDLV): return "saddlv";
+    case (AARCH64_UADDLV): return "uaddlv";
+    case (AARCH64_FCVTZS): return "fcvtzs";
+    case (AARCH64_FCVTZU): return "fcvtzu";
+    case (AARCH64_FCVTMS): return "fcvtms";
+    case (AARCH64_FCVTMU): return "fcvtmu";
+    case (AARCH64_SCVTF ): return "scvtf" ;
+    case (AARCH64_UCVTF ): return "ucvtf" ;
+    case (AARCH64_LD1   ): return "ld1"   ;
+    case (AARCH64_LD2   ): return "ld2"   ;
+    case (AARCH64_LD4   ): return "ld4"   ;
+    case (AARCH64_ST1   ): return "st1"   ;
+    case (AARCH64_ST4   ): return "st4"   ;
+    case (AARCH64_EXT   ): return "ext"   ;
+    case (AARCH64_DUP   ): return "dup"   ;
+    case (AARCH64_UMOV  ): return "umov"  ;
+    case (AARCH64_INS   ): return "ins"   ;
+    case (AARCH64_SSHLL ): return "sshll" ;
+    case (AARCH64_SSHLL2): return "sshll2";
+    case (AARCH64_USHLL ): return "ushll" ;
+    case (AARCH64_USHLL2): return "ushll2";
+    case (AARCH64_XTN   ): return "xtn"   ;
+    case (AARCH64_XTN2  ): return "xtn2"  ;
+    case (AARCH64_CNT   ): return "cnt"   ;
+    case (AARCH64_B     ): return "b"     ;
+    case (AARCH64_B_NE  ): return "b.ne"  ;
+    case (AARCH64_B_EQ  ): return "b.eq"  ;
+    case (AARCH64_B_LT  ): return "b.lt"  ;
+    case (AARCH64_B_GT  ): return "b.gt"  ;
+    case (AARCH64_B_HI  ): return "b.hi"  ;
+    case (AARCH64_B_GE  ): return "b.ge"  ;
+    case (AARCH64_B_LE  ): return "b.le"  ;
+    case (AARCH64_B_LS  ): return "b.ls"  ;
+    case (AARCH64_BLR   ): return "blr"   ;
+    case (AARCH64_RET   ): return "ret"   ;
+    case (AARCH64_LABEL ): return ""      ;
     }
     return nullptr;
 }
-
-namespace loops
-{
 
 enum Aarch64Reg
 {
@@ -2287,15 +2287,15 @@ public:
     aarch64_opargs_printer() : column_printer(&aarch64_opargs_printer::print) {}
     virtual ~aarch64_opargs_printer() {}
 private:
-    static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+    static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
     std::unordered_map<int, int> pos2opnum;
     std::vector<int> positions;
 };
 
-int aarch64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+void aarch64_opargs_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
 {
     int program_size = (int)func.program.size();
-    const loops::Syntop* program = func.program.data();
+    const Syntop* program = func.program.data();
     aarch64_opargs_printer* opargs_printer = (aarch64_opargs_printer*)colprinter;
     if (opargs_printer->positions.empty())
     {
@@ -2496,7 +2496,6 @@ int aarch64_opargs_printer::print(program_printer* printer, column_printer* colp
             loops_printf(printer, ", ");
     }
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
 column_printer_ptr Aarch64Backend::get_opargs_printer() const
@@ -2510,15 +2509,15 @@ public:
     aarch64_hex_printer() : column_printer(&aarch64_hex_printer::print) {}
     virtual ~aarch64_hex_printer() {}
 private:
-    static int print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row);
+    static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
     std::vector<int> positions;
     FuncBodyBuf binary;
 };
 
-int aarch64_hex_printer::print(program_printer* printer, column_printer* colprinter, const loops::Syntfunc& func, int row)
+void aarch64_hex_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
 {
     int program_size = (int)func.program.size();
-    const loops::Syntop* program = func.program.data();
+    const Syntop* program = func.program.data();
     aarch64_hex_printer* hex_printer = (aarch64_hex_printer*)colprinter;
     if (hex_printer->positions.empty())
     {
@@ -2542,7 +2541,6 @@ int aarch64_hex_printer::print(program_printer* printer, column_printer* colprin
             loops_printf(printer, "%02x ", (unsigned)(*(hexfield + pos)));
     }
     printer->close_printer_cell();
-    return LOOPS_ERR_SUCCESS;
 }
 
 column_printer_ptr Aarch64Backend::get_hex_printer() const

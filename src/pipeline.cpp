@@ -314,7 +314,7 @@ namespace loops
 #if __LOOPS_ARCH == __LOOPS_RISCV
                 Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
                     || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE)
-                    || (op.opcode == OP_JCC && op.args_size == 4 && op.args[0].tag == loops::Arg::IIMMEDIATE && op.args[1].tag == loops::Arg::IREG && op.args[2].tag == loops::Arg::IREG && op.args[3].tag == loops::Arg::IIMMEDIATE));
+                    || (op.opcode == OP_JCC && op.args_size == 4 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IIMMEDIATE));
                 labarg = op.opcode == OP_JCC ? (op.args_size == 4 ? 3 : 1) : 0;
                 mentionarg = (op.opcode == OP_JCC && op.args_size == 4) ? 2 : 0;
 #else

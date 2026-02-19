@@ -19,7 +19,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <cstring>
 
 
-static inline loops_cstring errstrings_getter_(int errcode)
+namespace loops
+{
+
+inline cstring errstrings_getter(int errcode)
 {
     switch (errcode)
     {
@@ -46,35 +49,16 @@ static inline loops_cstring errstrings_getter_(int errcode)
     return nullptr;
 }
 
-static int errstrings_getter(int errcode, loops_cstring* found_name)
-{
-    *found_name = errstrings_getter_(errcode);
-    return ((*found_name) == nullptr) ? LOOPS_ERR_ELEMENT_NOT_FOUND : LOOPS_ERR_SUCCESS;
-}
-
-char* loops_strncpy(char* dest, const char* src, std::size_t count)
-{
-#if _MSC_VER
-    strncpy_s(dest, count, src, _TRUNCATE);
-    return dest;
-#else
-    return strncpy(dest, src, count);
-#endif  
-}
-
 const char* get_errstring(int errid)
 {
     static const char* unknown_err = "Loops: Unknown error. Problem in error system.";
-    const char* result = nullptr; 
-    int err = errstrings_getter(errid, &result);
-    if(err == LOOPS_ERR_ELEMENT_NOT_FOUND)
+    const char* result = errstrings_getter(errid);
+    if(result == nullptr)
         return unknown_err;
     else 
         return result;
 }
 
-namespace loops
-{
 #if !(__LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC)
     /*
     Next four functions are taken from FP16 library.

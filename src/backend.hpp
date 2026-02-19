@@ -117,7 +117,7 @@ public:
 
     //It's assumed here, that Syntop is native, not IR. Return argument flags.
     //Result array have to be allocated before and have to be of (Syntop::SYNTOP_ARGS_MAX) size.
-    void fill_native_operand_flags(const loops::Syntop* a_op, uint64_t* result) const;
+    void fill_native_operand_flags(const Syntop* a_op, uint64_t* result) const;
 
     //Prologue and epilogue support
     /*
