@@ -2300,9 +2300,8 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
     if (opargs_printer->positions.empty())
     {
         int oppos = 0;
-        int opnum = 0;
         opargs_printer->positions.resize(program_size);
-        for (; opnum < program_size; opnum++)
+        for (int opnum = 0; opnum < program_size; opnum++)
         {
             int opcode = program[opnum].opcode;
             int opsize = (opcode == AARCH64_LABEL ? 0 : 4);
@@ -2341,8 +2340,8 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
             LOOPS_ASSERT(targetline >= 0);
             const Syntop* labelop = program + targetline;
             LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL);
-            LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
-            LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+            LOOPS_ASSERT(labelop->args_size == 1);
+            LOOPS_ASSERT(labelop->args[0].tag == Arg::IIMMEDIATE);
 #if __LOOPS_OS == __LOOPS_MAC
             loops_printf(printer, "Loops_label_%d", (int)(labelop->args[0].value)); //Clang have some label naming convention.
 #elif __LOOPS_OS == __LOOPS_LINUX
