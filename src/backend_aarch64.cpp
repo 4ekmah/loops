@@ -18,7 +18,7 @@ Apache 2 license. Please, see https://github.com/llvm/llvm-project/blob/main/llv
 namespace loops
 {
 
-inline cstring opstrings_getter(int opcode)
+static inline cstring opstrings_getter(int opcode)
 {
     switch (opcode)
     {

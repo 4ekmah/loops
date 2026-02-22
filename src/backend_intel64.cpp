@@ -12,7 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-    inline cstring opstrings_getter(int opcode)
+    static inline cstring opstrings_getter(int opcode)
     {
         switch (opcode)
         {

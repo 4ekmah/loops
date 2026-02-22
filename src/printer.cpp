@@ -32,7 +32,7 @@ typedef struct suffixed_opname
 } suffixed_opname;
 
 
-inline cstring opstrings_getter(int opcode)
+static inline cstring opstrings_ir_getter(int opcode)
 {
     switch (opcode)
     {
@@ -115,7 +115,7 @@ inline cstring opstrings_getter(int opcode)
     return nullptr;
 }
 
-inline cstring cond_suffixes_getter(int condcode)
+static inline cstring cond_suffixes_getter(int condcode)
 {
     switch (condcode)
     {
@@ -134,7 +134,7 @@ inline cstring cond_suffixes_getter(int condcode)
     return nullptr;
 }
 
-inline cstring type_suffixes_getter(int typecode)
+static inline cstring type_suffixes_getter(int typecode)
 {
     switch (typecode)
     {
@@ -286,23 +286,12 @@ void program_printer::augment_buffer(int buffer_size)
 {
     if(buffers.size())
     {
-        buffer_size = buffers.front().size();
+        buffer_size = (int)buffers.front().size();
     }
     buffers.emplace_back(std::vector<char>(buffer_size));
 }
 
 enum {PRINT_TO_FILE, PRINT_TO_STRING};
-class fixing_string_len_RAII
-{
-public:
-    fixing_string_len_RAII(std::string& a_keeped) : keeped(a_keeped) {}
-    ~fixing_string_len_RAII()
-    {
-        keeped.resize(strlen(keeped.data()));
-    }
-private: 
-    std::string& keeped; 
-};
 
 inline void snprintf_wrapped(char*& currentout, int& bufferleft, const char *__restrict __format,...)
 {
@@ -317,7 +306,6 @@ inline void snprintf_wrapped(char*& currentout, int& bufferleft, const char *__r
 std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntfunc& func)
 {
     std::string sout;
-    fixing_string_len_RAII stringkeeper(sout);
     int params_size = (int)func.params.size();
     const Arg* params = func.params.data();
 
@@ -350,7 +338,7 @@ std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntf
     catch(const std::exception& e)
     {
         fout = stderr;
-        fprintf(fout, "Loops: printing error. Currently printed:\n");
+        fprintf(fout, "Loops: printing error: %s\nCurrently printed:\n", e.what());
         outtype = PRINT_TO_FILE;
     }
 
@@ -370,7 +358,7 @@ std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntf
         fprintf(fout, ")\n");
         for(int col = 0, cell = 0; cell < cells_amount; cell++)
         {
-            fprintf(fout, printtasks[col], cells[cell]);
+            fprintf(fout, printtasks[col], cells[cell].ptr);
             if(col == cols - 1 || cell == cells_amount - 1)
                 fprintf(fout, "\n");
             col++;
@@ -405,7 +393,7 @@ std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntf
         //Write instructions:
         for (int col = 0, cell = 0; cell < cells_amount; cell++)
         {
-            snprintf_wrapped(currentout, bufferleft, printtasks[col], cells[cell]);
+            snprintf_wrapped(currentout, bufferleft, printtasks[col], cells[cell].ptr);
             if (col == cols - 1 || cell == cells_amount - 1)
                 snprintf_wrapped(currentout, bufferleft, "\n");
             col++;
@@ -415,12 +403,13 @@ std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntf
     }
     else
         throw loops::exception(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION);
+    sout.resize(strlen(sout.data()));
     return sout;
 }
 
 void program_printer::fprint_syntfunc(FILE* out, const Syntfunc& func)
 {
-    print_syntfunc(out,PRINT_TO_FILE, func);
+    print_syntfunc(out, PRINT_TO_FILE, func);
 }
 
 std::string program_printer::sprint_syntfunc(const Syntfunc& func)
@@ -444,7 +433,7 @@ void col_ir_opname_printer(program_printer* printer, column_printer* /*colprinte
 {
     const Syntop* op = func.program.data();
     op += row;
-    cstring found_name = opstrings_getter(op->opcode);
+    cstring found_name = opstrings_ir_getter(op->opcode);
     if(found_name == nullptr)
     {
         if(suffixed_opnames.count(op->opcode) == 0)
@@ -670,7 +659,7 @@ program_printer_ptr program_printer::create_ir_printer(int columnflags)
     return res;
 }
 
-void col_opname_table_printer::print(struct program_printer* printer, struct column_printer* colprinter, const Syntfunc& func, int row)
+void col_opname_table_printer::print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row)
 {
     const Syntop* op = func.program.data();
     op += row;

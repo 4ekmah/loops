@@ -19,14 +19,14 @@ See https://github.com/4ekmah/loops/LICENSE
 
 namespace loops
 {
-struct column_printer;
+class column_printer;
 class program_printer;
 typedef std::shared_ptr<program_printer> program_printer_ptr;
 
 class column_printer
 {
 public:
-    typedef void (*print_t)(program_printer* printer, struct column_printer* colprinter, const Syntfunc& func, int row);
+    typedef void (*print_t)(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
     column_printer(){}
     virtual ~column_printer() {}
     column_printer(print_t a_func): func(a_func) {}
@@ -41,7 +41,7 @@ public:
     virtual ~col_opname_table_printer() override {}
 private:
     table_opname_getter name_getter;
-    static void print(struct program_printer* printer, struct column_printer* colprinter, const Syntfunc& func, int row);
+    static void print(program_printer* printer, column_printer* colprinter, const Syntfunc& func, int row);
 };
 typedef std::shared_ptr<column_printer> column_printer_ptr;
 
