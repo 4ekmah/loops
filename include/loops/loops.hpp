@@ -500,6 +500,18 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 #define CALL_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).call_(__VA_ARGS__)
 #define VOID_CALL_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).void_call(__VA_ARGS__)
 
+class exception : public std::exception
+{
+private:
+    int errid;
+    std::string message;
+public:
+    exception(int a_errid) : std::exception(), errid(a_errid) {}
+    exception(const char* a_message) : std::exception(), message(a_message) {}
+    exception(const std::string& a_message) : std::exception(), message(a_message) {}
+    virtual const char* what() const noexcept override;
+};
+
 ///////////////////////////// integer operations ///////////////////////
 // Load with zero/sign extension:
 static inline IExpr loadx(const IExpr& base, int depth);

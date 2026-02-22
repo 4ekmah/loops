@@ -108,11 +108,11 @@ namespace loops
 
     static inline void check_fixed_reg(uint64_t fixedflags, int argnum, int* effargidxs, int argsamount, int& effargnum, uint64_t val)
     {
-        Assert(argnum >= 0 && argnum <= 2);
+        LOOPS_ASSERT(argnum >= 0 && argnum <= 2);
         int checkflag = argnum == 0 ? ARG0_FIXED : (argnum == 1 ? ARG1_FIXED : ARG2_FIXED);
         if(fixedflags & checkflag)
         {
-            Assert((val >= ZERO && val <= T6));
+            LOOPS_ASSERT((val >= ZERO && val <= T6));
             effargidxs[argnum] = -1;
             for(int anum = argnum + 1; anum < argsamount; anum++) 
                 effargidxs[anum]--;
@@ -122,11 +122,11 @@ namespace loops
 
     static inline void check_fixed_imm(uint64_t fixedflags, int argnum, int* effargidxs, int argsamount, int& effargnum, uint64_t val, int field_size, bool is_signed)
     {
-        Assert(argnum >= 0 && argnum <= 2);
+        LOOPS_ASSERT(argnum >= 0 && argnum <= 2);
         int checkflag = argnum == 0 ? ARG0_FIXED : (argnum == 1 ? ARG1_FIXED : ARG2_FIXED);
         if(fixedflags & checkflag)
         {
-            Assert((is_signed && signed_fits(val, field_size)) || (!is_signed && (val & ~((uint64_t(1) << field_size)-1)) == 0));
+            LOOPS_ASSERT((is_signed && signed_fits(val, field_size)) || (!is_signed && (val & ~((uint64_t(1) << field_size)-1)) == 0));
             effargidxs[argnum] = -1;
             for(int anum = argnum + 1; anum < argsamount; anum++) 
                 effargidxs[anum]--;
@@ -150,7 +150,7 @@ namespace loops
     static inline BinTranslation btype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
-        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        LOOPS_ASSERT(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
@@ -197,7 +197,7 @@ namespace loops
     static inline BinTranslation jtype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t fixed1)
     {
         using namespace BinTranslationConstruction;
-        Assert((opcode & ~(uint64_t(0b1111111))) == 0);
+        LOOPS_ASSERT((opcode & ~(uint64_t(0b1111111))) == 0);
         scs = true;
         int effargidxs[2] = {0,1};
         int effargnum = 2;
@@ -238,7 +238,7 @@ namespace loops
     static inline BinTranslation utype(const Syntop& index, bool& scs, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t fixed, uint64_t fixed0, uint64_t fixed1)
     {
         using namespace BinTranslationConstruction;
-        Assert((opcode & ~(uint64_t(0b1111111))) == 0);
+        LOOPS_ASSERT((opcode & ~(uint64_t(0b1111111))) == 0);
         scs = true;
         int effargidxs[2] = {0,1};
         int effargnum = 2;
@@ -274,7 +274,7 @@ namespace loops
     static inline BinTranslation rtype(const Syntop& index, bool& scs, uint64_t funct7, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
-        Assert(((funct7 & ~(uint64_t(0b1111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        LOOPS_ASSERT(((funct7 & ~(uint64_t(0b1111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
@@ -304,7 +304,7 @@ namespace loops
     static inline BinTranslation itype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
-        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        LOOPS_ASSERT(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
@@ -341,7 +341,7 @@ namespace loops
     static inline BinTranslation istype(const Syntop& index, bool& scs, uint64_t funct6, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
-        Assert(((funct6 & ~(uint64_t(0b111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        LOOPS_ASSERT(((funct6 & ~(uint64_t(0b111111))) == 0) && ((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
@@ -377,7 +377,7 @@ namespace loops
     static inline BinTranslation stype(const Syntop& index, bool& scs, uint64_t funct3, uint64_t opcode, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
     {
         using namespace BinTranslationConstruction;
-        Assert(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
+        LOOPS_ASSERT(((funct3 & ~(uint64_t(0b111))) == 0) && ((opcode & ~(uint64_t(0b1111111))) == 0));
         scs = true;
         int effargidxs[3] = {0,1,2};
         int effargnum = 3;
@@ -809,7 +809,7 @@ namespace loops
         switch (a_op.opcode)
         {
             case (OP_JCC):
-                Assert(a_op.size() == 4 && a_op[0].tag == Arg::IIMMEDIATE && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG && a_op[3].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(a_op.size() == 4 && a_op[0].tag == Arg::IIMMEDIATE && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG && a_op[3].tag == Arg::IIMMEDIATE);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if (AF_INPUT & flagmask)
@@ -821,7 +821,7 @@ namespace loops
                 break;
             case (OP_IVERSON):
             {
-                Assert(a_op.size() == 4);
+                LOOPS_ASSERT(a_op.size() == 4);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if (AF_OUTPUT & flagmask && ((AF_INPUT & flagmask) == 0))
@@ -843,7 +843,7 @@ namespace loops
                         allRegs = false;
                         break;
                     }
-                Assert(allRegs);
+                LOOPS_ASSERT(allRegs);
                 if(basketNum == RB_VEC)
                     return std::set<int>({});
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -880,7 +880,7 @@ namespace loops
         xBasket[RB_VEC] = getVectorRegisterBits() / 64;
         for(const Arg& arg : a_func.params)
         {
-            Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+            LOOPS_ASSERT(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
             int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
             if (regPassed[basketNum] > 0)
             {
@@ -970,17 +970,17 @@ namespace loops
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
-                    throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    throw loops::exception(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = opargs_printer->positions[row + 1] + (int)arg.value - 4;
                 if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                    throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                    throw loops::exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
                     targetline = opargs_printer->pos2opnum.at(offset2find);
-                Assert(targetline >= 0);
+                LOOPS_ASSERT(targetline >= 0);
                 const Syntop* labelop = program + targetline;
-                Assert(labelop->opcode == RISCV_LABEL);
-                Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1);
-                Assert(labelop->opcode == RISCV_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(labelop->opcode == RISCV_LABEL);
+                LOOPS_ASSERT(labelop->opcode == RISCV_LABEL && labelop->args_size == 1);
+                LOOPS_ASSERT(labelop->opcode == RISCV_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
                 loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
                 continue;
             }
@@ -1035,7 +1035,7 @@ namespace loops
                     }
                     break;
                 default:
-                    throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
+                    throw loops::exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
             };
             if (anum < aamount - 1 && !inhibit_comma)
                 loops_printf(printer, ", ");
@@ -1107,7 +1107,7 @@ namespace loops
             {
             case OP_SELECT:
             {
-                Assert(op.args_size == 4 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IREG);
+                LOOPS_ASSERT(op.args_size == 4 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IREG);
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, op.args[1] }));
                 Arg diap = op.args[0]; diap.idx = a_dest.provideIdx(RB_INT);
@@ -1119,7 +1119,7 @@ namespace loops
             }
             case OP_MIN:
             {
-                Assert(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
+                LOOPS_ASSERT(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
                 a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], op.args[2] }));
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
@@ -1132,7 +1132,7 @@ namespace loops
             }
             case OP_MAX:
             {
-                Assert(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
+                LOOPS_ASSERT(op.args_size == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG);
                 a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], op.args[2] }));
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
@@ -1145,7 +1145,7 @@ namespace loops
             }
             case OP_ABS:
             {
-                Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
+                LOOPS_ASSERT(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
                 a_dest.program.push_back(Syntop(OP_CMP,  { argIImm(0), op.args[1] }));
                 Arg zero_or_one = op.args[0]; zero_or_one.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { zero_or_one, argIImm(OP_LT) }));
@@ -1158,7 +1158,7 @@ namespace loops
             }
             case OP_SIGN:            
             {
-                Assert(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
+                LOOPS_ASSERT(op.args_size == 2 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG);
                 Arg negative = op.args[0]; negative.idx = a_dest.provideIdx(RB_INT);
                 a_dest.program.push_back(Syntop(OP_CMP,  { op.args[1], argIImm(0) }));
                 a_dest.program.push_back(Syntop(OP_IVERSON,  { negative, argIImm(OP_LT) }));
@@ -1208,7 +1208,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case OP_CMP:
-                Assert(opnum + 1 < (int)a_source.program.size());
+                LOOPS_ASSERT(opnum + 1 < (int)a_source.program.size());
                 switch(a_source.program[opnum + 1].opcode)
                 {
                     case OP_JCC:
@@ -1220,7 +1220,7 @@ namespace loops
                     case OP_IVERSON:
                     {
                         const Syntop& ivop = a_source.program[opnum + 1];
-                        Assert(ivop.args_size == 2 && ivop.args[0].tag == Arg::IREG && ivop.args[1].tag == Arg::IIMMEDIATE);
+                        LOOPS_ASSERT(ivop.args_size == 2 && ivop.args[0].tag == Arg::IREG && ivop.args[1].tag == Arg::IIMMEDIATE);
                         switch(ivop.args[1].value)
                         {
                             case OP_LT:
@@ -1243,12 +1243,12 @@ namespace loops
                                 a_dest.program.push_back(Syntop(OP_IVERSON, { ivop.args[0], ivop.args[1], ivop.args[0], argIImm(0)}));
                                 break;
                             default:
-                                throw std::runtime_error("Unsupported condition type.");
+                                throw loops::exception("Unsupported condition type.");
                         }
                         break;
                     }
                     default:
-                        throw std::runtime_error("Unknown CMP postoperation.");
+                        throw loops::exception("Unknown CMP postoperation.");
                 }
                 break;
             case OP_JCC: case OP_IVERSON: break; //it have to be handled in cmp option.
@@ -1295,7 +1295,7 @@ namespace loops
 
     void RiscVBRASnippets2::mov32(Syntfunc& a_dest, Arg destarg, int64_t val)
     {
-        Assert(destarg.tag == Arg::IREG && signed_fits(uint64_t(val), 32));
+        LOOPS_ASSERT(destarg.tag == Arg::IREG && signed_fits(uint64_t(val), 32));
         if(!signed_fits(uint64_t(val), 12))
         {
             uint64_t upper20 = (uint64_t(val) >> 12) & 0b11111111111111111111;
@@ -1334,7 +1334,7 @@ namespace loops
             {
             case OP_MOV:
                 //This is not about snippets, its ommiting parasite self-assignments.
-                Assert(op.size() == 2); 
+                LOOPS_ASSERT(op.size() == 2); 
                 if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
                     (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
                     && op[0].idx == op[1].idx))
@@ -1351,7 +1351,7 @@ namespace loops
                 allSaved.insert(parameterRegisters.begin(), parameterRegisters.end());
                 allSaved.insert(returnRegisters.begin(), returnRegisters.end());
                 allSaved.insert(callerSavedRegisters.begin(), callerSavedRegisters.end());
-                Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
+                LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
@@ -1372,7 +1372,7 @@ namespace loops
                 std::set<int> brokenRegs;
                 for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
                 {
-                    Assert(op[fargnum].tag == Arg::IREG);
+                    LOOPS_ASSERT(op[fargnum].tag == Arg::IREG);
                     int regidx = parameterRegisters[fargnum - (op.opcode == OP_CALL ? 2 : 1)];
                     if(op[fargnum].idx != regidx)
                     {
@@ -1384,7 +1384,7 @@ namespace loops
                             for(auto iter = allSaved.begin(); spillPos < (int)allSaved.size(); spillPos++, iter++)
                                 if(*iter == op[fargnum].idx)
                                     break;
-                            Assert(spillPos < (int)allSaved.size());
+                            LOOPS_ASSERT(spillPos < (int)allSaved.size());
                             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(spillPos)}));
                         }
                         brokenRegs.insert(regidx);

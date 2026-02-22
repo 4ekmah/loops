@@ -21,16 +21,16 @@ Bitwriter::Bitwriter(const Backend* a_backend) : m_backend(a_backend)
 void Bitwriter::startInstruction()
 {
     if (m_startsize != NOTRANSACTION)
-        throw std::runtime_error("Bitwriter: instruction is already started");
+        throw loops::exception("Bitwriter: instruction is already started");
     m_startsize = m_size;
 }
 
 void Bitwriter::writeToken(uint64_t a_token, int a_fieldwidth)
 {
     if (a_fieldwidth > 64)
-        throw std::runtime_error("Bitwriter: too big bitfield");
+        throw loops::exception("Bitwriter: too big bitfield");
     if (m_startsize == NOTRANSACTION)
-        throw std::runtime_error("Bitwriter: writing token out of instruction");
+        throw loops::exception("Bitwriter: writing token out of instruction");
     if((int)m_buffer->size() < m_size + ((m_bitpos + a_fieldwidth) >> 3) + 1)
         m_buffer->resize(m_buffer->size() << 1 );
     uint8_t* buffer = m_buffer->data();
@@ -66,15 +66,15 @@ void Bitwriter::writeToken(uint64_t a_token, int a_fieldwidth)
 void Bitwriter::endInstruction()
 {
     if (m_bitpos != 0)
-        throw std::runtime_error("Bitwriter: instructions with width, not multiple of 8 bits are not supported.");
+        throw loops::exception("Bitwriter: instructions with width, not multiple of 8 bits are not supported.");
     if (m_startsize == NOTRANSACTION)
-        throw std::runtime_error("Bitwriter: finishing instruction wasn't start.");
+        throw loops::exception("Bitwriter: finishing instruction wasn't start.");
 
     if(m_backend->isMonowidthInstruction())
     {
         const int instrsize = m_backend->instructionWidth();
         if (m_size - m_startsize != instrsize)
-            throw std::runtime_error("Bitwriter: non-standard instruction width.");
+            throw loops::exception("Bitwriter: non-standard instruction width.");
     }
     if(m_backend->isLittleEndianInstructions())
     {
@@ -106,9 +106,9 @@ BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
    , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_REG && tag != T_IMMEDIATE && tag != T_SPILLED && tag != T_OMIT)
-        throw std::runtime_error("Binary translator: wrong token constructor.");
+        throw loops::exception("Binary translator: wrong token constructor.");
     if(tag == T_OMIT && fieldsize != 0) 
-        throw std::runtime_error("Binary translator: omit immediate must not have field width.");
+        throw loops::exception("Binary translator: omit immediate must not have field width.");
 }
 
 BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize):tag(tag)
@@ -117,7 +117,7 @@ BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize):tag(tag)
    , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
 {
     if(tag != T_STATIC)
-        throw std::runtime_error("Binary translator: wrong token constructor.");
+        throw loops::exception("Binary translator: wrong token constructor.");
 }
 
 BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(lst), m_bytewidth(0)
@@ -139,7 +139,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
     if(m_compound.size() == 0) 
         return;
     if (bits == nullptr)
-        throw std::runtime_error("Binary translator: null writer pointer.");
+        throw loops::exception("Binary translator: null writer pointer.");
     bits->startInstruction();
     uint64_t argmask = (uint64_t(1) << op.size()) - 1;
     for (const Token& det : m_compound)
@@ -150,17 +150,17 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         {
         case (Token::T_REG):
             if (op.args[det.srcArgnum].tag != Arg::IREG && op.args[det.srcArgnum].tag != Arg::VREG)
-                throw std::runtime_error("Binary translator: syntop bring const instead of register.");
+                throw loops::exception("Binary translator: syntop bring const instead of register.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_SPILLED):
             if (op.args[det.srcArgnum].tag != Arg::ISPILLED)
-                throw std::runtime_error("Binary translator: syntop bring active register or const instead of spilled.");
+                throw loops::exception("Binary translator: syntop bring active register or const instead of spilled.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_IMMEDIATE):
             if (op.args[det.srcArgnum].tag != Arg::IIMMEDIATE)
-                throw std::runtime_error("Binary translator: syntop bring register instead of const.");
+                throw loops::exception("Binary translator: syntop bring register instead of const.");
             argmask = (argmask | pos) ^ pos;
             break;
         case (Token::T_STATIC): break;
@@ -168,10 +168,10 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
             argmask = (argmask | pos) ^ pos;
             break;
         default:
-            throw std::runtime_error("Binary translator: unknown token type.");
+            throw loops::exception("Binary translator: unknown token type.");
         };
     }
-    Assert(argmask == 0);
+    LOOPS_ASSERT(argmask == 0);
     for (const Token& det : m_compound)
     {
         if(det.tag == Token::T_OMIT)
@@ -194,7 +194,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
                 piece = Bitwriter::revertToken(piece, det.width);
             break;
         default:
-            throw std::runtime_error("Binary translator: unknown token type.");
+            throw loops::exception("Binary translator: unknown token type.");
         };
         bits->writeToken(piece, det.width);
     }

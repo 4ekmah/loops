@@ -262,13 +262,13 @@ namespace loops
 
     static inline bool bm64_exists(uint64_t field, int flag)
     {
-        Assert(flag >= 0);
+        LOOPS_ASSERT(flag >= 0);
         return (field == 0 || (bm64(flag) & field) != 0);
     }
 
     static inline bool bm64_exists(uint64_t field, const Syntop& index, int argnum)
     {
-        Assert(argnum < index.args_size);
+        LOOPS_ASSERT(argnum < index.args_size);
         return (field == 0 || (bm64(index.args[argnum].elemtype) & field) != 0);
     }
 
@@ -285,7 +285,7 @@ namespace loops
 
     static inline void synchronizeTypesBitmask(const Syntop& index, uint64_t& a, uint64_t& b, int numA, int numB)
     {
-        Assert(numA<numB);
+        LOOPS_ASSERT(numA<numB);
         static uint64_t uint_same_size[] = {0 , bm64({TYPE_U8}), bm64({TYPE_U16}), 0, bm64({TYPE_U32}), 0, 0, 0, bm64({TYPE_U64})};
         if(numA == 0 && numB == 1 && (a == bm64(TYPE_MASK_FOR_1)))
             a = uint_same_size[elem_size(index.args[1].elemtype)];
@@ -313,16 +313,16 @@ namespace loops
         const uint64_t argflags[] = {argflags0, argflags1, argflags2, argflags3};
         using namespace BinTranslationConstruction;
         scs = false;
-        Assert(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
-        Assert(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
+        LOOPS_ASSERT(pp_opcode == 0 || pp_opcode == 0x66 || pp_opcode == 0xF2 || pp_opcode == 0xF3);
+        LOOPS_ASSERT(m_opcode == 0x0F || m_opcode == 0x0F3A || m_opcode == 0x0F38);
         //Metatypes TYPE_SAME_AS_0, TYPE_SAME_AS_1, TYPE_UINT_SAMESIZE_AS_0 and TYPE_UINT_SAMESIZE_AS_1 cannot be variation, it have to be only type!
-        Assert(bm64_exclusive(supportedTypesBitmask0, TYPE_MASK_FOR_1));
-        Assert(bm64_exclusive(supportedTypesBitmask1, TYPE_SAME_AS_0));
-        Assert(bm64_exclusive(supportedTypesBitmask1, TYPE_MASK_FOR_0));
-        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_0));
-        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_1));
-        Assert(bm64_exclusive(supportedTypesBitmask2, TYPE_MASK_FOR_0));
-        Assert(index.args_size >= 2);
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask0, TYPE_MASK_FOR_1));
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask1, TYPE_SAME_AS_0));
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask1, TYPE_MASK_FOR_0));
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_0));
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask2, TYPE_SAME_AS_1));
+        LOOPS_ASSERT(bm64_exclusive(supportedTypesBitmask2, TYPE_MASK_FOR_0));
+        LOOPS_ASSERT(index.args_size >= 2);
         if(supportedTypesBitmask1 == 0 && supportedTypesBitmask0 != 0)
             supportedTypesBitmask1 = supportedTypesBitmask0;
         if(supportedTypesBitmask2 == 0 && supportedTypesBitmask0 != 0)
@@ -1803,7 +1803,7 @@ namespace loops
                               index[1].value == OP_ULE ? INTEL64_CMOVBE :
                               index[1].value == OP_S   ? INTEL64_CMOVS  :
                               index[1].value == OP_NS  ? INTEL64_CMOVNS : -1;
-                Assert(tarcode != -1);
+                LOOPS_ASSERT(tarcode != -1);
                 return SyT(tarcode, { SAcop(0), SAcop(2) });
             }
             break;
@@ -1820,7 +1820,7 @@ namespace loops
                               index[1].value == OP_ULE ? INTEL64_SETBE :
                               index[1].value == OP_S   ? INTEL64_SETS  :
                               index[1].value == OP_NS  ? INTEL64_SETNS : -1;
-                Assert(tarcode != -1);
+                LOOPS_ASSERT(tarcode != -1);
                 return SyT(tarcode, { SAcopelt(0, TYPE_U8) });
             }
             break;
@@ -2399,7 +2399,7 @@ namespace loops
         case(OP_SHR):
         case(OP_SAR):
         {
-            Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
+            LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
             std::set<int> res = toFilter;
             res.erase(1);
             res = (res.size() < 2) ? res : std::set<int>({ 0 });
@@ -2417,7 +2417,7 @@ namespace loops
         case(OP_NEG):
         case(OP_NOT):
         {
-            Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+            LOOPS_ASSERT(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
             if (toFilter.size() == 2 && a_op[0].idx != a_op[1].idx) //{0,1}
                 return std::set<int>({ 1 });
             else 
@@ -2439,11 +2439,11 @@ namespace loops
             break;
         }
         case(OP_IVERSON):
-            Assert(a_op.size() == 2);
+            LOOPS_ASSERT(a_op.size() == 2);
             return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
             break;
         case(OP_ABS):
-            Assert(a_op.size() == 2);
+            LOOPS_ASSERT(a_op.size() == 2);
             return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<int>({ 1 }) : std::set<int>({});
             break;
         case(OP_CALL):
@@ -2514,7 +2514,7 @@ namespace loops
             case (OP_SHL):
             case (OP_SHR):
             case (OP_SAR):
-                Assert(a_op.size() == 3);
+                LOOPS_ASSERT(a_op.size() == 3);
                 return a_op[2].tag == Arg::IREG ? 1 : 0;
             case (OP_ABS):
             case (OP_SIGN):
@@ -2583,7 +2583,7 @@ namespace loops
             case (OP_SHR):
             case (OP_SAR):
             {
-                Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+                LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = (a_op[2].tag == Arg::IREG ? makeBitmask64({ 0,1,2 }) : makeBitmask64({ 0,1 }));
@@ -2595,7 +2595,7 @@ namespace loops
             }
             case (OP_SELECT):
             {
-                Assert(a_op.size() == 4 && a_op[0].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
+                LOOPS_ASSERT(a_op.size() == 4 && a_op[0].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
@@ -2610,7 +2610,7 @@ namespace loops
             case (OP_ABS):
             case (OP_SIGN):
             {
-                Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+                LOOPS_ASSERT(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = makeBitmask64({ 0,1 });
@@ -2622,7 +2622,7 @@ namespace loops
             }
             case (OP_IVERSON):
             {
-                Assert(a_op.size() == 2);
+                LOOPS_ASSERT(a_op.size() == 2);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     actualRegs = makeBitmask64({ 0 });
@@ -2657,7 +2657,7 @@ namespace loops
                 break;
             case (VOP_FMA):
             {
-                Assert(a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG);
+                LOOPS_ASSERT(a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG);
                 if(basketNum == RB_VEC)
                 {
                     actualRegs = makeBitmask64({ 0, 1, 2, 3 });
@@ -2679,7 +2679,7 @@ namespace loops
                         allRegs = false;
                         break;
                     }
-                Assert(allRegs);
+                LOOPS_ASSERT(allRegs);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     outRegs = actualRegs = makeBitmask64({ 0 });
@@ -2737,7 +2737,7 @@ namespace loops
         xBasket[RB_VEC] = getVectorRegisterBits() / 64;
         for(const Arg& arg : a_func.params)
         {
-            Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+            LOOPS_ASSERT(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
             int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
             if (regPassed[basketNum] > 0)
             {
@@ -2828,17 +2828,17 @@ namespace loops
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
-                    throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                    throw loops::exception(LOOPS_ERR_INCORRECT_ARGUMENT);
                 int offset2find = opargs_printer->positions[row + 1] + (int)arg.value;
                 if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                    throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                    throw loops::exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
                 else
                     targetline = opargs_printer->pos2opnum.at(offset2find);
-                Assert(targetline >= 0);
+                LOOPS_ASSERT(targetline >= 0);
                 const Syntop* labelop = program + targetline;
-                Assert(labelop->opcode == INTEL64_LABEL);
-                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
-                Assert(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(labelop->opcode == INTEL64_LABEL);
+                LOOPS_ASSERT(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1);
+                LOOPS_ASSERT(labelop->opcode == INTEL64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
                 loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
                 continue;
             }
@@ -2882,7 +2882,7 @@ namespace loops
             case Arg::IIMMEDIATE:
                 if(op->opcode == INTEL64_LABEL)
                 {
-                    Assert(op->args_size == 1);
+                    LOOPS_ASSERT(op->args_size == 1);
                     loops_printf(printer, "__loops_label_%d:", arg.value);
                     break;
                 }
@@ -2933,7 +2933,7 @@ namespace loops
                 break;
             }
             default:
-                throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                throw loops::exception(LOOPS_ERR_INCORRECT_ARGUMENT);
             };
             if(address)
             {
@@ -3013,7 +3013,7 @@ namespace loops
 
     void Intel64BRASnippets::handle_mov_imm2vec(Syntfunc& a_dest, const Arg& output, int64_t input) const
     {
-        Assert(output.tag == Arg::VREG && input != 0);
+        LOOPS_ASSERT(output.tag == Arg::VREG && input != 0);
         Arg scalar = argReg(RB_INT, a_dest.provideIdx(RB_INT));
         a_dest.program.push_back(Syntop(OP_MOV, { scalar, argIImm(input) }));
         Arg onelane = output;
@@ -3059,7 +3059,7 @@ namespace loops
             {
             case OP_IVERSON:
                 //Unfortunately, Intel's setcc works only with 8-bit wide reigsters, like al or r8b, so register must be preliminarily zeroed.
-                Assert(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && (op[0].tag == Arg::IREG || op[0].tag == Arg::ISPILLED) &&
+                LOOPS_ASSERT(op.size() == 2 && op[1].tag == Arg::IIMMEDIATE && (op[0].tag == Arg::IREG || op[0].tag == Arg::ISPILLED) &&
                        a_dest.program.size() && a_dest.program.back().opcode == OP_CMP);
                 a_dest.program.insert(a_dest.program.end() - 1, Syntop(OP_MOV, { op[0], Arg(0) }));
                 a_dest.program.push_back(op);
@@ -3071,7 +3071,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case (VOP_NEG):
-                Assert(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype);
+                LOOPS_ASSERT(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype);
                 {
                     Arg zero = op.args[0];
                     zero.idx = a_dest.provideIdx(RB_VEC);
@@ -3080,7 +3080,7 @@ namespace loops
                 }
                 break;
             case VOP_CAST:
-                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[0].elemtype == TYPE_I64 && op.args[1].elemtype == TYPE_FP64)
                 {
                     Arg a0_i32 = op.args[0];
@@ -3092,7 +3092,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case VOP_FLOOR:
-                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[0].elemtype == TYPE_I64 && op.args[1].elemtype == TYPE_FP64)
                 {
                     Arg a0_fp64 = op.args[0];
@@ -3114,7 +3114,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case VOP_TRUNC:
-                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[0].elemtype == TYPE_I64 && op.args[1].elemtype == TYPE_FP64)
                 {
                     Arg a0_fp64 = op.args[0];
@@ -3136,7 +3136,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case VOP_NE:
-                Assert(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[1].elemtype == op.args[2].elemtype && isInteger(op.args[1].elemtype))
                 {
                     a_dest.program.push_back(Syntop(VOP_EQ, { op.args[0], op.args[1], op.args[2] }));
@@ -3160,7 +3160,7 @@ namespace loops
                 break;
             case VOP_LE:
             case VOP_GE:
-                Assert(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[1].elemtype == op.args[2].elemtype && isInteger(op.args[1].elemtype))
                 {
                     if(elem_size(op.args[1].elemtype) <= 4)
@@ -3193,7 +3193,7 @@ namespace loops
                 break;
             case VOP_GETLANE:
             {
-                Assert(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::IIMMEDIATE && op.args[2].value < m_backend->vlanes(op.args[1].elemtype));
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::IIMMEDIATE && op.args[2].value < m_backend->vlanes(op.args[1].elemtype));
                 Arg halfvec = op.args[1];
                 Arg halfidx = op.args[2];
                 if(op.args[2].value >= m_backend->vlanes(op.args[1].elemtype)/2)
@@ -3207,7 +3207,7 @@ namespace loops
             }
             case VOP_SETLANE:
             {
-                Assert(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[1].value < m_backend->vlanes(op.args[0].elemtype));
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG && op.args[1].value < m_backend->vlanes(op.args[0].elemtype));
                 Arg halfvec = op.args[0];
                 Arg halfidx = op.args[1];
                 bool returnHalfvec = false;
@@ -3225,7 +3225,7 @@ namespace loops
             }
             case VOP_CAST_HIGH:
             {
-                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && elem_size(op.args[0].elemtype) == 2 * elem_size(op.args[1].elemtype));
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && elem_size(op.args[0].elemtype) == 2 * elem_size(op.args[1].elemtype));
                 Arg halfvec = op.args[1];
                 halfvec.idx = a_dest.provideIdx(RB_VEC);
                 a_dest.program.push_back(Syntop(isInteger(op.args[1].elemtype) ? VOP_X86_VEXTRACT128 : VOP_X86_VEXTRACT128, { halfvec, op.args[1], argIImm(1) }));
@@ -3234,7 +3234,7 @@ namespace loops
             }
             case VOP_NOT:
             {
-                Assert(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 Arg allones = op.args[1]; 
                 allones.elemtype = TYPE_U8;
                 allones.idx = a_dest.provideIdx(RB_VEC);
@@ -3249,10 +3249,10 @@ namespace loops
             }
             case VOP_EXT:
             {
-                Assert(op.args_size == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::VREG &&
+                LOOPS_ASSERT(op.args_size == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::VREG &&
                        op.args[3].tag == Arg::IIMMEDIATE && op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == op.args[2].elemtype);
                 int shift_in_bytes = elem_size(op.args[0].elemtype) * (int)op.args[3].value;
-                Assert(shift_in_bytes >= 0 && shift_in_bytes <= 32);
+                LOOPS_ASSERT(shift_in_bytes >= 0 && shift_in_bytes <= 32);
                 if(shift_in_bytes == 0)
                 {
                     a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], op.args[1] }));
@@ -3406,7 +3406,7 @@ namespace loops
             switch (op.opcode)
             {
             case OP_MOV:
-                Assert(op.size() == 2); 
+                LOOPS_ASSERT(op.size() == 2); 
                 if(op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[1].value == 0)
                 {
                     Arg nullified = op.args[0];
@@ -3426,10 +3426,10 @@ namespace loops
             case OP_MUL:
             {
                 Syntop op_ = op;
-                Assert(op_.size() == 3 && regOrSpi(op_[0]));
+                LOOPS_ASSERT(op_.size() == 3 && regOrSpi(op_[0]));
                 if (op_[1].tag == Arg::IIMMEDIATE)
                     std::swap(op_[1], op_[2]);
-                Assert(regOrSpi(op_[1]));
+                LOOPS_ASSERT(regOrSpi(op_[1]));
                 if (regOrSpi(op_[2]) && regOrSpiEq(op_[0], op_[2]) && !regOrSpiEq(op_[0], op_[1]))
                     std::swap(op_[1], op_[2]);
                 if (!regOrSpiEq(op_[0], op_[1]))
@@ -3442,7 +3442,7 @@ namespace loops
             }
             case OP_SUB:
             {
-                Assert(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
+                LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
                 if (regOrSpi(op[1]) && regOrSpiEq(op[0], op[1]))
                 {
                     a_dest.program.push_back(op);
@@ -3463,7 +3463,7 @@ namespace loops
             case OP_SHR:
             case OP_SAR:
             {
-                Assert(op.size() == 3 && regOrSpi(op[0]) && regOrSpi(op[1]));
+                LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && regOrSpi(op[1]));
                 if (op[2].tag == Arg::IIMMEDIATE)
                 {
                     if (!regOrSpiEq(op[0], op[1]))
@@ -3512,7 +3512,7 @@ namespace loops
             case OP_DIV:
             case OP_MOD:
             {
-                Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
+                LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
                 bool unspillRax = false;;
                 if (op[0].idx != RAX)
                 {
@@ -3556,7 +3556,7 @@ namespace loops
             case OP_NEG:
             {
                 Syntop op_ = op;
-                Assert(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));
+                LOOPS_ASSERT(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));
                 if (!regOrSpiEq(op_[0], op_[1]))
                 {
                     a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
@@ -3566,7 +3566,7 @@ namespace loops
                 break;
             }
             case OP_SELECT:
-                Assert(op.size() == 4 && op[0].tag == Arg::IREG && regOrSpi(op[2]) && op[3].tag == Arg::IREG);
+                LOOPS_ASSERT(op.size() == 4 && op[0].tag == Arg::IREG && regOrSpi(op[2]) && op[3].tag == Arg::IREG);
                 if (regOrSpiEq(op[2], op[3]))
                 {
                     if (!regOrSpiEq(op[0], op[2]))
@@ -3585,7 +3585,7 @@ namespace loops
             case OP_MAX:
             {
                 Syntop op_ = op;
-                Assert(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
+                LOOPS_ASSERT(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
                 if (regOrSpiEq(op_[0], op_[1]))
                     std::swap(op_[1], op_[2]);
                 if (op_[2].tag == Arg::ISPILLED)
@@ -3598,7 +3598,7 @@ namespace loops
             }
             case OP_ABS:
             {
-                Assert(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
                 bool augAbs = regOrSpiEq(op[0], op[1]);
                 if (regOrSpiEq(op[0], op[1]))
                     a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
@@ -3610,7 +3610,7 @@ namespace loops
             }
             case OP_SIGN:
             {
-                Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
                 Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
                 a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
                 if (!regOrSpiEq(op[0], op[1]))
@@ -3625,7 +3625,7 @@ namespace loops
             case VOP_FMA:
             {
                 Syntop op_= op;
-                Assert(op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG);
+                LOOPS_ASSERT(op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG);
                 if(op_[0].idx == op_[1].idx)
                 {
                     a_dest.program.push_back(op_);
@@ -3672,7 +3672,7 @@ namespace loops
                 allSavedV.insert(returnRegistersV.begin(), returnRegistersV.end());
                 allSavedV.insert(callerSavedRegistersV.begin(), callerSavedRegistersV.end());
 
-                Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
+                LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
 #if __LOOPS_OS == __LOOPS_WINDOWS
                 Arg sp = argReg(RB_INT, RSP);
@@ -3699,7 +3699,7 @@ namespace loops
                 std::set<int> brokenRegs;
                 for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
                 {
-                    Assert(op[fargnum].tag == Arg::IREG);
+                    LOOPS_ASSERT(op[fargnum].tag == Arg::IREG);
                     int regidx = parameterRegisters[fargnum - (op.opcode == OP_CALL ? 2 : 1)];
                     if(op[fargnum].idx != regidx)
                     {
@@ -3711,7 +3711,7 @@ namespace loops
                             for(auto iter = allSaved.begin(); spillPos < (int)allSaved.size(); spillPos++, iter++)
                                 if(*iter == op[fargnum].idx)
                                     break;
-                            Assert(spillPos < (int)allSaved.size());
+                            LOOPS_ASSERT(spillPos < (int)allSaved.size());
                             a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(spillPos)}));
                         }
                         brokenRegs.insert(regidx);

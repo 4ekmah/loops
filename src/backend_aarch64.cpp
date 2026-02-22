@@ -282,7 +282,7 @@ static inline bool processLogicalImmediate(uint64_t Imm, unsigned RegSize, uint6
 
   if (isShiftedMask_64(Imm)) {
     I = countTrailingZeros(Imm);
-    Assert(I < 64 && "undefined behavior");
+    LOOPS_ASSERT(I < 64 && "undefined behavior");
     CTO = countTrailingOnes(Imm >> I);
   } else {
     Imm |= ~Mask;
@@ -297,7 +297,7 @@ static inline bool processLogicalImmediate(uint64_t Imm, unsigned RegSize, uint6
   // Encode in Immr the number of RORs it would take to get *from* 0^m 1^n
   // to our target value, where I is the number of RORs to go the opposite
   // direction.
-  Assert(Size > I && "I should be smaller than element size");
+  LOOPS_ASSERT(Size > I && "I should be smaller than element size");
   unsigned Immr = (Size - I) & (Size - 1);
 
   // If size has a 1 in the n'th bit, create a value that has zeroes in
@@ -1024,7 +1024,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
             int size_imm = size_imms[elem_size(index[0].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001110, 8), BTsta(size_imm, 2), BTsta(0b110001101110, 12), BTreg(1, 5, In), BTreg(0, 5, Out | Rdc) });
         }
         break;
@@ -1033,7 +1033,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
             int size_imm = size_imms[elem_size(index[1].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01101110, 8), BTsta(size_imm, 2), BTsta(0b110000001110, 12), BTreg(1, 5, In), BTreg(0, 5, Out | Rdc) });
         }
         break;
@@ -1042,7 +1042,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10};
             int size_imm = size_imms[elem_size(index[1].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001110, 8), BTsta(size_imm, 2), BTsta(0b110000001110, 12), BTreg(1, 5, In), BTreg(0, 5, Out | Rdc) });
         }
         break;
@@ -1124,7 +1124,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             int esize = elem_size(index[0].elemtype);
             static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100};
             int opcode = opcodes[esize];
-            Assert(opcode != -1);
+            LOOPS_ASSERT(opcode != -1);
             uint64_t size_field = esize == 8 ? 1 : 0;
             int S = 0;
             int Q = 0;
@@ -1160,7 +1160,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {//This is post-index form, post-incrementing pointing scalar register on 64 bytes.
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
             int size_imm = size_imms[elem_size(index[0].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001100110111110010, 20), BTsta(size_imm, 2), BTreg(4, 5, In|Addr64), BTreg(0, 5, In | VecRng), BTomm(1, VecRng), BTomm(2, VecRng), BTomm(3, VecRng), BTomm(5)});
         }
         break;
@@ -1178,7 +1178,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
             int size_imm = size_imms[elem_size(index[0].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001100110111110000, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
@@ -1188,7 +1188,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             int esize = elem_size(index[0].elemtype); 
             static int opcodes[9] = {-1, 0b000, 0b010 , -1, 0b100, -1, -1, -1 , 0b100}; 
             int opcode = opcodes[esize];
-            Assert(opcode != -1);
+            LOOPS_ASSERT(opcode != -1);
             uint64_t size_field = esize == 8 ? 1 : 0;
             int S = 0;
             int Q = 0;
@@ -1223,7 +1223,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {//This is post-index form, post-incrementing pointing scalar register on 64 bytes.
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
             int size_imm = size_imms[elem_size(index[0].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001100100111110010, 20), BTsta(size_imm, 2), BTreg(4, 5, In|Addr64), BTreg(0, 5, In | VecRng), BTomm(1, VecRng), BTomm(2, VecRng), BTomm(3, VecRng), BTomm(5) });
         }
         break;
@@ -1233,7 +1233,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
         {
             static int size_imms[9] = {-1, 0b00, 0b01 , -1, 0b10, -1, -1, -1 , 0b11};
             int size_imm = size_imms[elem_size(index[0].elemtype)];
-            Assert(size_imm != -1);
+            LOOPS_ASSERT(size_imm != -1);
             return BiT({ BTsta(0b01001100100111110000, 20), BTsta(size_imm, 2), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         break;
@@ -1247,7 +1247,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t dupSizeStats[] = {WrongStat, 0b00001, 0b00010, WrongStat, 0b00100, WrongStat, WrongStat, WrongStat, 0b01000 };
             uint64_t dupSizeStat = dupSizeStats[elem_size(index[0].elemtype)];
-            Assert(dupSizeStat != WrongStat);
+            LOOPS_ASSERT(dupSizeStat != WrongStat);
             return BiT({ BTsta(0b01001110000, 11), BTsta(dupSizeStat, 5), BTsta(0b000011, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
         }
         else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE && index[0].elemtype == index[1].elemtype)
@@ -1256,7 +1256,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t sizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, 3 };
             uint64_t sizIdx = sizIdxs[elemsize];
-            Assert(sizIdx != WrongStat);
+            LOOPS_ASSERT(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
             static const int sizStatSiz[] = {1, 2, 3, 4};
             return BiT({ BTsta(0b01001110000, 11), BTimm(2, 5-sizStatSiz[sizIdx], LanInd), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0b000001, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1274,7 +1274,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const int WrongStat = -1;
             static const int dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
             int dupSizeSWidth= dupSizeSWidthes[elemsize];
-            Assert(dupSizeSWidth != WrongStat);
+            LOOPS_ASSERT(dupSizeSWidth != WrongStat);
             static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
             uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
             return BiT({ BTsta(mainSta, 11), BTimm(2,5 - dupSizeSWidth, LanInd), BTsta(dupSizeStat, dupSizeSWidth),BTsta(0b001111, 6), BTreg(1, 5, In), BTreg(0, 5, Out) });
@@ -1287,7 +1287,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const int WrongStat = -1;
             static const int dupSizeSWidthes[] = {WrongStat, 1, 2, WrongStat, 3, WrongStat, WrongStat, WrongStat, 4 };
             int dupSizeSWidth = dupSizeSWidthes[elemsize];
-            Assert(dupSizeSWidth != WrongStat);
+            LOOPS_ASSERT(dupSizeSWidth != WrongStat);
             static const uint64_t dupSizeStats[] = {0b1, 0b10, 0b00100, 0b1000 };
             uint64_t dupSizeStat = dupSizeStats[dupSizeSWidth - 1];
             return BiT({ BTsta(0b01001110000, 11), BTimm(1,5 - dupSizeSWidth, LanInd), BTsta(dupSizeStat, dupSizeSWidth), BTsta(0b000111, 6), BTreg(2, 5, In), BTreg(0, 5, IO) });
@@ -1298,7 +1298,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t sizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, 3 };
             uint64_t sizIdx = sizIdxs[elemsize];
-            Assert(sizIdx != WrongStat);
+            LOOPS_ASSERT(sizIdx != WrongStat);
             static const uint64_t sizStat[] = {0b1, 0b10, 0b100, 0b1000};
             static const int sizStatSiz[] = {1, 2, 3, 4};
             return BiT({ BTsta(0b01101110000, 11), BTimm(1, 5-sizStatSiz[sizIdx], LanInd), BTsta(sizStat[sizIdx], sizStatSiz[sizIdx]), BTsta(0, 1), BTimm(3, 5-sizStatSiz[sizIdx], LanInd), BTsta(0, sizStatSiz[sizIdx] - 1), BTsta(1, 1), BTreg(2, 5, In), BTreg(0, 5, IO) });
@@ -1317,7 +1317,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizIdx = esizIdxs[elemsize];
-            Assert(esizIdx != WrongStat);
+            LOOPS_ASSERT(esizIdx != WrongStat);
             static const int esizeStatSizes[] = {4, 3, 2};
             int esizSSiz = esizeStatSizes[esizIdx];
             static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
@@ -1338,7 +1338,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t esizIdxs[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizIdx = esizIdxs[elemsize];
-            Assert(esizIdx != WrongStat);
+            LOOPS_ASSERT(esizIdx != WrongStat);
             static const int esizeStatSizes[] = {4, 3, 2};
             int esizSSiz = esizeStatSizes[esizIdx];
             static const int64_t shiftFieldMask[] = {0b111, 0b1111, 0b11111};
@@ -1358,7 +1358,7 @@ BinTranslation a64BTLookup(const Syntop& index, bool& scs)
             const uint64_t WrongStat = 0xFFFFFFFF;
             static const uint64_t esizStats[] = {WrongStat, 0, 1, WrongStat, 2, WrongStat, WrongStat, WrongStat, WrongStat };
             uint64_t esizStat = esizStats[elemsize];
-            Assert(esizStat != WrongStat);
+            LOOPS_ASSERT(esizStat != WrongStat);
             return BiT({ BTsta(opprefix, 8), BTsta(esizStat, 2), BTsta(0b100001001010, 12), BTreg(1, 5, In), BTreg(0, 5, high ? IO : (Out | HlfLan)) });
         }
         break;
@@ -1758,7 +1758,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 int taropcode = index.opcode == VOP_GT ? AARCH64_FCMGT :
                                 index.opcode == VOP_GE ? AARCH64_FCMGE :
                                 index.opcode == VOP_EQ ? AARCH64_FCMEQ : -1;
-                Assert(taropcode >= 0);
+                LOOPS_ASSERT(taropcode >= 0);
                 return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
             else if(isUnsignedInteger(index[1].elemtype))
@@ -1766,7 +1766,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 int taropcode = index.opcode == VOP_GT ? AARCH64_CMHI :
                                 index.opcode == VOP_GE ? AARCH64_CMHS :
                                 index.opcode == VOP_EQ ? AARCH64_CMEQ : -1;
-                Assert(taropcode >= 0);
+                LOOPS_ASSERT(taropcode >= 0);
                 return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
             else if(isSignedInteger(index[1].elemtype))
@@ -1774,7 +1774,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
                 int taropcode = index.opcode == VOP_GT ? AARCH64_CMGT :
                                 index.opcode == VOP_GE ? AARCH64_CMGE :
                                 index.opcode == VOP_EQ ? AARCH64_CMEQ : -1;
-                Assert(taropcode >= 0);
+                LOOPS_ASSERT(taropcode >= 0);
                 return SyT(taropcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
         }
@@ -2107,7 +2107,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (OP_MIN):
         case (OP_MAX):
         {
-            Assert(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
+            LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG && a_op[2].tag == Arg::IREG);
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
@@ -2120,7 +2120,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (OP_ABS):
         case (OP_SIGN):
         {
-            Assert(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
+            LOOPS_ASSERT(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
@@ -2140,7 +2140,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
                     allRegs = false;
                     break;
                 }
-            Assert(allRegs);
+            LOOPS_ASSERT(allRegs);
             if(basketNum == RB_VEC)
                 return std::set<int>({});
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -2164,7 +2164,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         case (VOP_FMA):
         case (VOP_SELECT):
         {
-            Assert((a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG) ||
+            LOOPS_ASSERT((a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG) ||
                    (a_op.size() == 5 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG && a_op[4].tag == Arg::IIMMEDIATE));
             if(basketNum == RB_INT)
                 return std::set<int>({});
@@ -2179,7 +2179,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
         }
         case (VOP_ARM_LD2):
         {
-            Assert(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
+            LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
@@ -2225,7 +2225,7 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
     xBasket[RB_VEC] = getVectorRegisterBits() / 64;
     for(const Arg& arg : a_func.params)
     {
-        Assert(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
+        LOOPS_ASSERT(arg.tag == Arg::IREG || arg.tag == Arg::VREG);
         int basketNum = ( arg.tag == Arg::IREG ? RB_INT : RB_VEC );
         if (regPassed[basketNum] > 0)
         {
@@ -2324,7 +2324,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
         //Exceptions block:
         if(op->opcode == AARCH64_MOVK && anum == 2)
         {
-            Assert(arg.tag == Arg::IIMMEDIATE);
+            LOOPS_ASSERT(arg.tag == Arg::IIMMEDIATE);
             loops_printf(printer, "lsl #%d", (int)(arg.value));
             continue;
         }
@@ -2332,17 +2332,17 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
         {
             int targetline;
             if (arg.tag != Arg::IIMMEDIATE)
-                throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                throw loops::exception(LOOPS_ERR_INCORRECT_ARGUMENT);
             int offset2find = opargs_printer->positions[row + 1] + (int)arg.value - 4;
             if (opargs_printer->pos2opnum.count(offset2find) == 0)
-                throw loops_exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
+                throw loops::exception(LOOPS_ERR_INTERNAL_INCORRECT_OFFSET);
             else
                 targetline = opargs_printer->pos2opnum.at(offset2find);
-            Assert(targetline >= 0);
+            LOOPS_ASSERT(targetline >= 0);
             const Syntop* labelop = program + targetline;
-            Assert(labelop->opcode == AARCH64_LABEL);
-            Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
-            Assert(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
+            LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL);
+            LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1);
+            LOOPS_ASSERT(labelop->opcode == AARCH64_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
 #if __LOOPS_OS == __LOOPS_MAC
             loops_printf(printer, "Loops_label_%d", (int)(labelop->args[0].value)); //Clang have some label naming convention.
 #elif __LOOPS_OS == __LOOPS_LINUX
@@ -2360,7 +2360,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
         bool vrange_start = vrange && (anum == 0 || !(operand_flags[anum - 1] & AF_VREGRANGE));
         bool vrange_end = vrange && (anum == aamount - 1 || !(operand_flags[anum + 1] & AF_VREGRANGE));
         bool indexed_vreg = false;
-        Assert(!(address && vrange));
+        LOOPS_ASSERT(!(address && vrange));
         if (vrange_start)
             loops_printf(printer, "{");
         else if (address_start)
@@ -2391,7 +2391,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
                 else
                 {
                     indexed_vreg = anum < aamount - 1 && (operand_flags[anum + 1] & AF_LANEINDEX);
-                    Assert(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
+                    LOOPS_ASSERT(!indexed_vreg || operand_flags[anum + 1] == AF_LANEINDEX);
                     if(indexed_vreg)
                     {
                         static const char* Vsuffixes[] = {"", "b", "h", "", "s", "", "", "", "d" };
@@ -2419,7 +2419,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
             case Arg::IIMMEDIATE:
                 if(op->opcode == AARCH64_LABEL)
                 {
-                    Assert(op->args_size == 1);
+                    LOOPS_ASSERT(op->args_size == 1);
 #if __LOOPS_OS == __LOOPS_MAC
                     loops_printf(printer, "Loops_label_%d:", arg.value); //Clang have some label naming convention.
 #elif __LOOPS_OS == __LOOPS_LINUX
@@ -2430,7 +2430,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
                 }
                 else if(argflags & AF_CONDITION)
                 {
-                    Assert(argflags == AF_CONDITION);
+                    LOOPS_ASSERT(argflags == AF_CONDITION);
                     static const char* conds[] = {"ne", "eq", "ge", "le", "ls", "gt", "hi", "lt", "mi", "pl"};
                     int cond_ind = -1;
                     switch (arg.value)
@@ -2449,14 +2449,14 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
                         break;
                     }
                     if(cond_ind == -1)
-                        throw loops_exception(LOOPS_ERR_UNKNOWN_CONDITION);
+                        throw loops::exception(LOOPS_ERR_UNKNOWN_CONDITION);
                     loops_printf(printer, conds[cond_ind]);
                 }
                 else if(argflags & AF_LANEINDEX)
                 {
-                    Assert(argflags == AF_LANEINDEX && anum > 0 && op->args[anum-1].tag == Arg::VREG);
+                    LOOPS_ASSERT(argflags == AF_LANEINDEX && anum > 0 && op->args[anum-1].tag == Arg::VREG);
                     if(arg.value < 0 || arg.value >= printer->backend->vlanes(op->args[anum-1].elemtype))
-                        throw loops_exception(LOOPS_ERR_INCORRECT_LANE_INDEX);
+                        throw loops::exception(LOOPS_ERR_INCORRECT_LANE_INDEX);
                     loops_printf(printer, "[%d]", arg.value);
                 }
                 else if(arg.value == 0)
@@ -2486,7 +2486,7 @@ void aarch64_opargs_printer::print(program_printer* printer, column_printer* col
                 }
                 break;
             default:
-                throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
+                throw loops::exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
         };
         if (vrange_end)
             loops_printf(printer, "}");
@@ -2561,7 +2561,7 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
         {
         case OP_MOV:
         {
-            Assert(op.size() == 2);
+            LOOPS_ASSERT(op.size() == 2);
             if(op[1].tag != Arg::IIMMEDIATE)
             {
                 a_dest.program.push_back(op);
@@ -2598,7 +2598,7 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
         }
         case VOP_SHRINK:
         {
-            Assert(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG &&
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG &&
                    op[1].elemtype == op[2].elemtype && 2 * elem_size(op[0].elemtype) == elem_size(op[1].elemtype));
             a_dest.program.push_back(Syntop(VOP_ARM_SHRINK_LOW, { op[0], op[1]}));
             a_dest.program.push_back(Syntop(VOP_ARM_SHRINK_HIGH, { op[0], op[2]}));
@@ -2624,7 +2624,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case OP_MOV:
             //This is not about snippets, its ommiting parasite self-assignments.
             //TODO(ch): also kill UNSPILL and SPILL.
-            Assert(op.size() == 2); 
+            LOOPS_ASSERT(op.size() == 2); 
             if(!(((op[0].tag == Arg::IREG && op[1].tag == Arg::IREG ) || 
                 (op[0].tag == Arg::VREG && op[1].tag == Arg::VREG ))
                 && op[0].idx == op[1].idx))
@@ -2632,12 +2632,12 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             break;
         case OP_MIN:
         case OP_MAX:
-            Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], op[2] }));
             a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, op[1], op[2] }));
             break;
         case OP_MOD:
-            Assert(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
             if(op[1].idx == op[2].idx)
             {
                 a_dest.program.push_back(Syntop(OP_DIV, { op[0], op[1], op[1] }));
@@ -2670,18 +2670,18 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             }
             break;
         case OP_SIGN:
-            Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
             a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
             a_dest.program.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(OP_GT) }));
             break;
         case OP_ABS:
-            Assert(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
             a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
             a_dest.program.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(OP_LT) }));
             break;
         case VOP_NE:
-            Assert(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[1].elemtype == op[2].elemtype && elem_size(op[0].elemtype) == elem_size(op[1].elemtype) && isUnsignedInteger(op[0].elemtype));
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[1].elemtype == op[2].elemtype && elem_size(op[0].elemtype) == elem_size(op[1].elemtype) && isUnsignedInteger(op[0].elemtype));
             a_dest.program.push_back(Syntop(VOP_EQ , { op[0], op[1], op[2] }));
             a_dest.program.push_back(Syntop(VOP_NOT, { op[0], op[0] }));
             break;
@@ -2689,7 +2689,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case VOP_SELECT:
         {
             Syntop op_= op;
-            Assert((op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG) ||
+            LOOPS_ASSERT((op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG) ||
                 (op_.size() == 5 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG && op_[4].tag == Arg::IIMMEDIATE));
             bool laneVersion = (op_.size() == 5);
             if(op_[0].idx == op_[1].idx)
@@ -2738,7 +2738,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
         case OP_CALL:
         case OP_CALL_NORET:
         {
-            Assert((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10) ||
+            LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= 10) ||
                    (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() < 10) );
             Arg sp = argReg(RB_INT, SP);
             int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
@@ -2753,7 +2753,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             std::set<int> brokenRegs;
             for(int fargnum = (op.opcode == OP_CALL ? 2 : 1); fargnum < op.size(); fargnum++)
             {
-                Assert(op[fargnum].tag == Arg::IREG);
+                LOOPS_ASSERT(op[fargnum].tag == Arg::IREG);
                 int regidx = fargnum - (op.opcode == OP_CALL ? 2 : 1);
                 if(op[fargnum].idx != regidx)
                 {
@@ -2773,7 +2773,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                                 spillPos = spillLayout[pairNum].first + 1;
                                 break;
                             }
-                        Assert(spillPos < (int)spillLayout.size()*2);
+                        LOOPS_ASSERT(spillPos < (int)spillLayout.size()*2);
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT,  regidx), argIImm(spillPos)}));
                     }
                     brokenRegs.insert(regidx);

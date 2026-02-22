@@ -27,7 +27,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
             case ArgTranslation::T_FROMSOURCE:
             {
                 if(argt.srcArgnum == UNDEFINED_ARGUMENT_NUMBER || argt.srcArgnum >= (int)a_source.size())
-                    throw std::runtime_error("Syntop translator: non-existent argument is requested.");
+                    throw loops::exception(LOOPS_SYN_T_NON_EXISTENT_ARG);
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
@@ -36,7 +36,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
             case ArgTranslation::T_SETELEMTYPE:
             {
                 if(argt.srcArgnum == UNDEFINED_ARGUMENT_NUMBER || argt.srcArgnum >= (int)a_source.size())
-                    throw std::runtime_error("Syntop translator: non-existent argument is requested.");
+                    throw loops::exception(LOOPS_SYN_T_NON_EXISTENT_ARG);
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
                 toAdd.elemtype = argt.elemtype;
@@ -45,8 +45,8 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
             }
             case ArgTranslation::T_TRANSFORMTOSPILL:
             {
-                Assert(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
-                Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
+                LOOPS_ASSERT(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = argSpilled(RB_INT, a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
@@ -54,25 +54,25 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
             }
             case ArgTranslation::T_COPYSHIFTRIGHT:
             {
-                Assert(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
-                Assert(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(argt.srcArgnum < a_source.size() && argt.srcArgnum != UNDEFINED_ARGUMENT_NUMBER);
+                LOOPS_ASSERT(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 if (argt.fixed.value >= 0){
                     toAdd.value >>= argt.fixed.value;
                     if((toAdd.value << argt.fixed.value) != a_source.args[argt.srcArgnum].value)
-                        throw std::runtime_error("Syntop translator: argument alignment error.");
+                        throw loops::exception("Syntop translator: argument alignment error.");
                 }
                 else {
                     toAdd.value <<= std::abs(argt.fixed.value);
                     if((toAdd.value >> std::abs(argt.fixed.value)) != a_source.args[argt.srcArgnum].value)
-                        throw std::runtime_error("Syntop translator: argument alignment error.");
+                        throw loops::exception("Syntop translator: argument alignment error.");
                 }
                 toAdd.flags |= argt.transitFlags;
                 resargs.push_back(toAdd);
                 break;
             }
             default:
-                throw std::runtime_error("Syntop translator: unknown type of argument translation.");
+                throw loops::exception("Syntop translator: unknown type of argument translation.");
         }
     return Syntop(m_tarop, resargs);
 }
@@ -104,7 +104,7 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
     BinTranslation instemp = m_s2blookup(tar_op, found);
     if (!found)
         return false;
-    Assert(argnum < (int)tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
+    LOOPS_ASSERT(argnum < (int)tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
     bool neg = tar_op.args[argnum].value < 0;
     uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
     for(const BinTranslation::Token& det : instemp.m_compound)
@@ -114,13 +114,13 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
                 return true; //Encoder checked everything on his side.
             if(det.tag != BinTranslation::Token::T_STATIC)
             {
-                Assert(det.tag != BinTranslation::Token::T_REG);
+                LOOPS_ASSERT(det.tag != BinTranslation::Token::T_REG);
                 int bitwneeded = msb64(val2BeFit);
                 bitwneeded += neg ? 1 : 0;
                 return (bitwneeded < det.width);
             }
         }
-    throw std::runtime_error("Binary translator: non-existent argument is requested.");
+    throw loops::exception("Binary translator: non-existent argument is requested.");
 }
 
 std::set<int> Backend::filterStackPlaceable(const Syntop& /*a_op*/, const std::set<int>& /*toFilter*/) const
@@ -164,7 +164,7 @@ std::set<int> Backend::getUsedRegistersIdxs(const Syntop &a_op, int basketNum, u
         if (ar.tag == SyntopTranslation::ArgTranslation::T_FROMSOURCE || ar.tag == SyntopTranslation::ArgTranslation::T_SETELEMTYPE )
         {
             if (ar.srcArgnum == SyntopTranslation::ARG_NOT_USED || ar.srcArgnum >= a_op.size())
-                throw std::runtime_error("Binary translator: non-existent argument is requested.");
+                throw loops::exception("Binary translator: non-existent argument is requested.");
             if (a_op[ar.srcArgnum].tag == desiredRegType && ((s2b.m_compound[bpiecenum].fieldOflags & flagmask) == flagmask))
                 result.insert(ar.srcArgnum);
         }
@@ -189,9 +189,9 @@ std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, ui
     for(int argNum: preres)
     {
         if(argNum >= a_op.size())
-            throw std::runtime_error("Compile error: non-existent argument is requested.");
+            throw loops::exception("Compile error: non-existent argument is requested.");
         if(a_op[argNum].tag != Arg::IREG && a_op[argNum].tag != Arg::VREG)
-            throw std::runtime_error("Compile error: constant is requested instead of register.");
+            throw loops::exception("Compile error: constant is requested instead of register.");
         result.insert(a_op[argNum].idx);
     }
     return result;
@@ -222,12 +222,12 @@ void Backend::fill_native_operand_flags(const Syntop* a_op, uint64_t* result) co
 
 BinTranslation BTLookup(const Syntop&, bool&)
 {
-    throw std::runtime_error("Binary translation table is not implemented.");
+    throw loops::exception("Binary translation table is not implemented.");
 }
 
 SyntopTranslation STLookup(const Backend*, const Syntop&, bool&)
 {
-    throw std::runtime_error("Syntop translation table is not implemented.");
+    throw loops::exception("Syntop translation table is not implemented.");
 }
 
 Backend::Backend() : m_s2blookup(BTLookup)

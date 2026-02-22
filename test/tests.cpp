@@ -428,7 +428,7 @@ bool assembly_is_stable(loops::Func func, std::string& errmessage, bool tolerabl
 {
     std::vector<std::string> passes_names = loops::Context().get_all_passes();
     auto found = std::find(passes_names.begin(), passes_names.end(), "CP_IR_TO_ASSEMBLY");
-    Assert(found >= passes_names.begin() && found < passes_names.end());
+    LOOPS_ASSERT(found >= passes_names.begin() && found < passes_names.end());
     int passn = (int)(found - passes_names.begin());
     std::string filename = LISTINGS_ROOT + std::to_string(passn + 1) + "_" + passes_names[passn] + "/" + func.name() + ".tst";
     return check_listing_at_pass(func, errmessage, passes_names[passn], filename, tolerable_defect);

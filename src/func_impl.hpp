@@ -39,7 +39,7 @@ public:
     const FuncBodyBuf get_hex_body();
     inline CodeCollecting* get_code_collecting()
     {
-        AssertMsg(m_pipeline.get(), "Attempt to add instruction to already finished function.");
+        LOOPS_ASSERT_MSG(m_pipeline.get(), "Attempt to add instruction to already finished function.");
         return m_pipeline->get_code_collecting();
     }
     void set_compiled_ptr(void* ptr) {m_compiled = ptr;}  //TODO(ch): I don't like this scheme. it's better to separate "compile" pass to "compile2buf" "writeBuf2exe"
@@ -65,7 +65,7 @@ private:
 inline FuncImpl* getImpl(Func* wrapper)
 {
     if (!wrapper)
-        throw std::runtime_error("Null context pointer.");
+        throw loops::exception("Null context pointer.");
     return static_cast<FuncImpl*>(_getImpl(wrapper));
 }
 }

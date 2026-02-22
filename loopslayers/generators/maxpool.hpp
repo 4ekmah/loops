@@ -588,7 +588,7 @@ template<typename _Tp>
 void MaxpoolGenerator<_Tp>::loadVector(const IReg& base, std::vector<VReg<_Tp> >& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int flags)
 {
     USE_CONTEXT_(CTX);
-    Assert(stride_x == 1 || stride_x == 2);
+    LOOPS_ASSERT(stride_x == 1 || stride_x == 2);
     if(stride_x == 1)
     {
         if(flags&INITDEST)
@@ -598,7 +598,7 @@ void MaxpoolGenerator<_Tp>::loadVector(const IReg& base, std::vector<VReg<_Tp> >
     }
     else
     {
-        Assert(stride_x == 2);
+        LOOPS_ASSERT(stride_x == 2);
         if(flags&INITDEST)
         {
             loadvec_deinterleave2<_Tp>(dest[0], dest[1], base);

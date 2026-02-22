@@ -35,7 +35,7 @@ void* FuncImpl::ptr()
 {
     if(m_compiled == nullptr)
     {
-        Assert(m_pipeline.get());
+        LOOPS_ASSERT(m_pipeline.get());
         FuncBodyBuf body = get_hex_body();
         Backend* backend = m_context->getBackend();
         Allocator* alloc = backend->getAllocator();
@@ -62,7 +62,7 @@ void FuncImpl::printIR(std::ostream& out, int columns, const std::string& uptoPa
     {
         std::vector<std::string>  allpasses = l_pipeline.get_all_passes();
         auto found = std::find(allpasses.begin(), allpasses.end(), "CP_IR_TO_ASSEMBLY");
-        Assert(found != allpasses.end() && found != allpasses.begin());
+        LOOPS_ASSERT(found != allpasses.end() && found != allpasses.begin());
         uptoPass = *(found - 1);
     }
     l_pipeline.run_until(uptoPass);
@@ -84,7 +84,7 @@ const Syntfunc& FuncImpl::get_data() const
 {
     if(m_pipeline.get())
         return m_pipeline->get_data(); 
-    AssertMsg(m_context->debug_mode(), "Function is already compiled.");
+    LOOPS_ASSERT_MSG(m_context->debug_mode(), "Function is already compiled.");
     return m_debug_pipeline->get_data();
 }
 

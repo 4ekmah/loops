@@ -537,7 +537,7 @@ void DepthwiseconvGenerator<_Tp>::onlylineHandler(const VReg<uintM>& WcondV, IRe
                         }
                         else
                         {
-                            Assert(stride_x == 2);
+                            LOOPS_ASSERT(stride_x == 2);
                             loadvec_deinterleave2<_Tp>(loaded_by_one_instruction[kcol], loaded_by_one_instruction[kcol + 1], base);
                         }
                         if(kcol + stride_x < kw) 
@@ -717,12 +717,12 @@ template<typename _Tp>
 void DepthwiseconvGenerator<_Tp>::loadVectorStride(const IReg& base, std::vector<VReg<_Tp> >& dest, VReg<intC>& horIdxs, const VReg<uintM>& verMask, const VReg<uintM>& WcondV, int retsneeded, int flags)
 {
     USE_CONTEXT_(CTX);
-    Assert(stride_x == 1 || stride_x == 2);
+    LOOPS_ASSERT(stride_x == 1 || stride_x == 2);
     if(stride_x == 1) 
         dest[0].copyidx(loadvec<_Tp>(base));
     else
     {
-        Assert(stride_x == 2);
+        LOOPS_ASSERT(stride_x == 2);
         loadvec_deinterleave2<_Tp>(dest[0], dest[1], base);
     }
     for(int dnum = 0; dnum < retsneeded; dnum++) 

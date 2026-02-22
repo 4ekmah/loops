@@ -211,7 +211,7 @@ namespace loops
 {
     inline RegIdx pickFirstBit64(uint64_t& bigNum)
     {
-        Assert(bigNum != 0);
+        LOOPS_ASSERT(bigNum != 0);
         RegIdx ret = lsb64(bigNum);
         bigNum = (bigNum | (uint64_t(1) << ret)) ^ (uint64_t(1) << ret);
         return ret;
@@ -289,7 +289,7 @@ namespace loops
                     break;
                 }
             }
-            Assert(res!=NOREGISTER);
+            LOOPS_ASSERT(res!=NOREGISTER);
         }
         else if (havefreeRegs(basketNum))
         {
@@ -300,7 +300,7 @@ namespace loops
                     res = m_reorderInner2Arch[basketNum][vessNum][res];
                     break;
                 }
-            Assert(res != NOREGISTER);
+            LOOPS_ASSERT(res != NOREGISTER);
             if (m_reorderArch2Inner[basketNum][CALLEE_VESS][res] != REG_UNDEF)
                 m_usedCallee[basketNum].insert(res);
         }
@@ -321,7 +321,7 @@ namespace loops
         {
             RegIdx next = provideRegFromPool(basketNum);
             if(next == IReg::NOIDX)
-                throw std::runtime_error("Register allocator: register space is too fragmented for ld2/ld3/ld4 workaround.");
+                throw loops::exception("Register allocator: register space is too fragmented for ld2/ld3/ld4 workaround.");
             if(res.empty() || next == res.back() + 1)
             {
                 amount_temp--;
@@ -341,7 +341,7 @@ namespace loops
 
     RegIdx RegisterPool::provideReturnFromPool(int basketNum)
     {
-        Assert(m_reorderInner2Arch[basketNum][RETURN_VESS][0] != REG_UNDEF);
+        LOOPS_ASSERT(m_reorderInner2Arch[basketNum][RETURN_VESS][0] != REG_UNDEF);
         RegIdx res = m_reorderInner2Arch[basketNum][RETURN_VESS][0];
         removeFromAllVessels(basketNum, res);
         return res;
@@ -349,7 +349,7 @@ namespace loops
 
     void RegisterPool::releaseReg(int basketNum, RegIdx freeReg)
     {
-        Assert(freeReg != IReg::NOIDX);
+        LOOPS_ASSERT(freeReg != IReg::NOIDX);
         m_pool[basketNum] |= (((uint64_t)(1)) << freeReg);
         for(int vessNum = 0; vessNum < VESS_AMOUNT; vessNum++)
         {
@@ -431,7 +431,7 @@ namespace loops
             paramsSorted[basketNum].reserve(a_source.params.size());
         for (const Arg& par : a_source.params)
         {
-            Assert(par.tag == Arg::IREG || par.tag == Arg::VREG);
+            LOOPS_ASSERT(par.tag == Arg::IREG || par.tag == Arg::VREG);
             int basketNum = (par.tag == Arg::IREG ? RB_INT : RB_VEC);
             paramsSorted[basketNum].push_back(par.idx);
         }
@@ -512,7 +512,7 @@ namespace loops
                     for (; removerator != active.end(); ++removerator)
                         if (removerator->end <= interval->start)
                         {
-                            Assert(regReassignment[basketNum][removerator->idx].tag == REGtag);
+                            LOOPS_ASSERT(regReassignment[basketNum][removerator->idx].tag == REGtag);
                             m_pool.releaseReg(basketNum, regReassignment[basketNum][removerator->idx].idx);
                             if (removerator->end == interval->start) //Current line, line of definition of considered register
                                 opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, regReassignment[basketNum][removerator->idx].idx));
@@ -524,7 +524,7 @@ namespace loops
                 if (!m_pool.havefreeRegs(basketNum))
                 {
                     if(unspillableLd2[basketNum].find(interval->idx) != unspillableLd2[basketNum].end())
-                        throw std::runtime_error("Register allocator: not enough free registers for ld2 workaround.");
+                        throw loops::exception("Register allocator: not enough free registers for ld2 workaround.");
                     bool stackParameterSpilled = false;
                     std::multiset<LiveInterval, endordering>::reverse_iterator lastactive = active.rbegin();
                     while(lastactive!=active.rend() && unspillableLd2[basketNum].find(lastactive->idx) != unspillableLd2[basketNum].end())
@@ -648,7 +648,7 @@ namespace loops
                 for (std::set<int>::iterator removerator = unspilledIdxs.begin(); removerator != unspilledIdxs.end();)
                 {
                     int argNum = (*removerator);
-                    Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
+                    LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
                     else
@@ -657,7 +657,7 @@ namespace loops
                 for (std::set<int>::iterator removerator = spilledIdxs.begin(); removerator != spilledIdxs.end();)
                 {
                     int argNum = (*removerator);
-                    Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
+                    LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if (getReassigned(basketNum, op.args[argNum].idx).tag == SPLtag)
                         removerator++;
                     else
@@ -681,12 +681,12 @@ namespace loops
                 for (int argNum : unspilledIdxs)
                 {
                     RegIdx idx = op.args[argNum].idx;
-                    Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
+                    LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if(unspilledRenaming[basketNum][opnum].count(idx) == 0) 
                     {
                         RegIdx pseudoname = m_pool.provideSpillPlaceholder(basketNum);
                         if (pseudoname == IReg::NOIDX)
-                            throw std::runtime_error("Register allocator : not enough free registers.");
+                            throw loops::exception("Register allocator : not enough free registers.");
                         Arg newArg = op[argNum];
                         newArg.idx = pseudoname;
                         unspilledRenaming[basketNum][opnum][idx] = newArg;
@@ -696,7 +696,7 @@ namespace loops
                 for (int argNum : spilledIdxs)
                 {
                     RegIdx idx = op.args[argNum].idx;
-                    Assert(argNum < op.size() && op.args[argNum].tag == REGtag);
+                    LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
                     if(unspilledRenaming[basketNum][opnum].count(idx) != 0)
                     {
                         spilledRenaming[basketNum][opnum][idx] = unspilledRenaming[basketNum][opnum][idx];
@@ -706,7 +706,7 @@ namespace loops
                     {
                         RegIdx pseudoname = m_pool.provideSpillPlaceholder(basketNum);
                         if (pseudoname == IReg::NOIDX)
-                            throw std::runtime_error("Register allocator : not enough free registers.");
+                            throw loops::exception("Register allocator : not enough free registers.");
                         Arg newArg = op[argNum];
                         newArg.idx = pseudoname;
                         spilledRenaming[basketNum][opnum][idx] = newArg;
@@ -742,7 +742,7 @@ namespace loops
         {
             const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
             Arg reassigned = getReassigned(basketNum, reg);
-            Assert(reassigned.tag == SPLtag);
+            LOOPS_ASSERT(reassigned.tag == SPLtag);
             int64_t spillOffset = reassigned.value * basketElemX[basketNum] + basketOffset[basketNum];
             if (stackParamLayout[basketNum].count(reg))
                 spillOffset = spAddAligned + stackParamLayout[basketNum][reg];
@@ -815,7 +815,7 @@ namespace loops
                     RegIdx idx = param.first;
                     if (regReassignment[basketNum][idx].tag == Arg::IREG)
                     {
-                        Assert(stackParamLayout[basketNum].find(idx) != stackParamLayout[basketNum].end());
+                        LOOPS_ASSERT(stackParamLayout[basketNum].find(idx) != stackParamLayout[basketNum].end());
                         a_dest.program.push_back(Syntop(OP_UNSPILL, { regReassignment[basketNum][idx], argIImm(spAddAligned + param.second) }));
                     }
                 }
@@ -904,7 +904,7 @@ namespace loops
     void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         //TODO(ch): Introduce inplace passes. 
-        Assert(&a_dest == &a_source); 
+        LOOPS_ASSERT(&a_dest == &a_source); 
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             m_subintervals[basketNum].resize(a_source.regAmount[basketNum], std::vector<LiveInterval>());
         
@@ -921,7 +921,7 @@ namespace loops
             std::deque<ControlFlowBracket> flowstack;
             for (const Arg& par : a_source.params)
             {
-                Assert(par.tag == Arg::IREG || par.tag == Arg::VREG);
+                LOOPS_ASSERT(par.tag == Arg::IREG || par.tag == Arg::VREG);
                 int basketNum = (par.tag == Arg::IREG ? RB_INT : RB_VEC);
                 def(basketNum, par.idx, 0);
                 paramsAmount[basketNum]++;
@@ -940,35 +940,35 @@ namespace loops
                 {
                 case (OP_IF_CEND):
                 {
-                    Assert(op.size() == 0);
+                    LOOPS_ASSERT(op.size() == 0);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
                     CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
                     continue;
                 }
                 case (OP_ELSE):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
-                    Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::IF);
+                    LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
+                    LOOPS_ASSERT(flowstack.size() && flowstack.back().tag == ControlFlowBracket::IF);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, opnum));
                     continue;
                 }
                 case (OP_ENDIF):
                 {
-                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-                    Assert(flowstack.size());
+                    LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
+                    LOOPS_ASSERT(flowstack.size());
                     ControlFlowBracket bracket = flowstack.back();
                     flowstack.pop_back();
                     int elsePos = LAEvent::NONDEF;
                     if (bracket.tag == ControlFlowBracket::ELSE)
                     {
                         elsePos = bracket.label_or_pos;
-                        Assert(flowstack.size());
+                        LOOPS_ASSERT(flowstack.size());
                         bracket = flowstack.back();
                         flowstack.pop_back();
                     }
-                    Assert(bracket.tag == ControlFlowBracket::IF);
+                    LOOPS_ASSERT(bracket.tag == ControlFlowBracket::IF);
                     auto rator = CFqueue.find(bracket.label_or_pos);
-                    Assert(rator != CFqueue.end());
+                    LOOPS_ASSERT(rator != CFqueue.end());
                     int ifStart = rator->first;
                     rator->second.oppositeNestingSide = opnum;
                     rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDBRANCH)));
@@ -978,19 +978,19 @@ namespace loops
                 }
                 case (OP_WHILE_CSTART):
                 {
-                    Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
+                    LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                     flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum));
                     CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
                     continue;
                 }
                 case (OP_ENDWHILE):
                 {
-                    Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
-                    Assert(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
+                    LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
+                    LOOPS_ASSERT(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
                     const ControlFlowBracket& bracket = flowstack.back();
                     flowstack.pop_back();
                     auto rator = CFqueue.find(bracket.label_or_pos);
-                    Assert(rator != CFqueue.end());
+                    LOOPS_ASSERT(rator != CFqueue.end());
                     int whilePos = rator->first;
                     rator->second.oppositeNestingSide = opnum;
                     rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
@@ -1112,7 +1112,7 @@ namespace loops
                                 const int siend = m_subintervals[basketNum][idx][sinum].end;
                                 if (sistart > endifPos)
                                 {
-                                    Assert(sinum > 0);
+                                    LOOPS_ASSERT(sinum > 0);
                                     sinum--;
                                     break;
                                 }
@@ -1178,7 +1178,7 @@ namespace loops
                                     lastActiveChanged.insert(changedOne);
                                     auto removerator = lastActive[basketNum].find(LiveInterval(idx, switchIpos));;
                                     while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
-                                    Assert(removerator != lastActive[basketNum].end());
+                                    LOOPS_ASSERT(removerator != lastActive[basketNum].end());
                                     lastActive[basketNum].erase(removerator);
                                     moveEventLater(CFqueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
                                 }
@@ -1221,7 +1221,7 @@ namespace loops
                     break;
                 }
                 default:
-                    throw std::runtime_error("Internal error: unexpected event in branch queue.");
+                    throw loops::exception("Internal error: unexpected event in branch queue.");
                 }
             }
         }
@@ -1256,7 +1256,7 @@ namespace loops
                         if (arg.idx == Syntfunc::RETREG)
                             continue;
                         bool isOut = (outRegArnums[basketNum].count(arnum) > 0);
-                        Assert(siAmount(basketNum, arg.idx) > 0);
+                        LOOPS_ASSERT(siAmount(basketNum, arg.idx) > 0);
                         while (isIterateable(basketNum, arg.idx))
                         {
                             LiveInterval& li = getCurrentSubinterval(basketNum, arg.idx);
@@ -1308,7 +1308,7 @@ namespace loops
     {
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         {
-            Assert(!m_active_headers_stack[basketNum].empty());
+            LOOPS_ASSERT(!m_active_headers_stack[basketNum].empty());
             m_active_headers_stack[basketNum].pop_back();
         }
     }
@@ -1316,20 +1316,20 @@ namespace loops
     std::map<RegIdx, int>::const_iterator LivenessAnalysisAlgoImpl::acs_begin(int basketNum) const
     {
         const std::deque<std::map<RegIdx, int> >& b_states = m_active_headers_stack[basketNum];
-        Assert(!b_states.empty());
+        LOOPS_ASSERT(!b_states.empty());
         return b_states.back().cbegin();
     }
 
     std::map<RegIdx, int>::const_iterator LivenessAnalysisAlgoImpl::acs_end(int basketNum) const
     {
         const std::deque<std::map<RegIdx, int> >& b_states = m_active_headers_stack[basketNum];
-        Assert(!b_states.empty());
+        LOOPS_ASSERT(!b_states.empty());
         return b_states.back().cend();
     }
 
     int LivenessAnalysisAlgoImpl::siAmount(int basketNum, RegIdx regNum) const
     {
-        Assert(regNum!= IReg::NOIDX && regNum < regAmount(basketNum));
+        LOOPS_ASSERT(regNum!= IReg::NOIDX && regNum < regAmount(basketNum));
         return (int)m_subintervals[basketNum][regNum].size();
     }
 
@@ -1337,7 +1337,7 @@ namespace loops
     {
         if (regNum != Syntfunc::RETREG)
         {
-            Assert(regNum != IReg::NOIDX && regNum < regAmount(basketNum));
+            LOOPS_ASSERT(regNum != IReg::NOIDX && regNum < regAmount(basketNum));
             m_subintervals[basketNum][regNum].push_back(LiveInterval(regNum, opnum));
         }
     }
@@ -1347,7 +1347,7 @@ namespace loops
         if (regNum != Syntfunc::RETREG)
         {
             if (regNum != IReg::NOIDX && !defined(basketNum, regNum))
-                throw std::runtime_error("Compile error: using uninitialized register");
+                throw loops::exception("Compile error: using uninitialized register");
             m_subintervals[basketNum][regNum].back().end = opnum;
         }
     }
@@ -1356,8 +1356,8 @@ namespace loops
     {
         m_subintervalHeaders[basketNum][regNum] = a_siStart == UNDEFINED_OPERATION_NUMBER ? m_subintervalHeaders[basketNum][regNum] : a_siStart;
         int siStart = m_subintervalHeaders[basketNum][regNum];
-        Assert(siStart <= siEnd);
-        Assert(siEnd != UNDEFINED_OPERATION_NUMBER && siEnd < siAmount(basketNum, regNum));
+        LOOPS_ASSERT(siStart <= siEnd);
+        LOOPS_ASSERT(siEnd != UNDEFINED_OPERATION_NUMBER && siEnd < siAmount(basketNum, regNum));
         m_subintervals[basketNum][regNum][siStart].end = m_subintervals[basketNum][regNum][siEnd].end;
         m_subintervals[basketNum][regNum].erase(m_subintervals[basketNum][regNum].begin() + siStart + 1, m_subintervals[basketNum][regNum].begin() + siEnd + 1);
     }
@@ -1403,13 +1403,13 @@ namespace loops
 
     LiveInterval& LivenessAnalysisAlgoImpl::getCurrentSubinterval(int basketNum, RegIdx regNum)
     {
-        Assert(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] < siAmount(basketNum, regNum));
+        LOOPS_ASSERT(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] < siAmount(basketNum, regNum));
         return m_subintervals[basketNum][regNum][m_subintervalHeaders[basketNum][regNum]];
     }
 
     LiveInterval& LivenessAnalysisAlgoImpl::getNextSubinterval(int basketNum, RegIdx regNum)
     {
-        Assert(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] + 1 < siAmount(basketNum, regNum));
+        LOOPS_ASSERT(m_subintervalHeaders[basketNum][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basketNum][regNum] + 1 < siAmount(basketNum, regNum));
         return m_subintervals[basketNum][regNum][m_subintervalHeaders[basketNum][regNum] + 1];
     }
 
@@ -1432,7 +1432,7 @@ namespace loops
                 break;
             else
                 qremrator++;
-        Assert(qremrator != queue.end() && qremrator->first == oldOpnum);
+        LOOPS_ASSERT(qremrator != queue.end() && qremrator->first == oldOpnum);
         LAEvent toRead = qremrator->second;
         queue.erase(qremrator);
         queue.insert(std::make_pair(newOpnum, toRead));

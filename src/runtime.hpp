@@ -7,32 +7,27 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_RUNTIME_HPP__
 
 #include "loops/defines.hpp"
-#if __LOOPS_LANGUAGE  == __LOOPS_CPP
 #include <stdexcept>
 #include <exception>
 #include <string>
-#endif
 
-//DUBUG: don't forget to work with namespaces correctly!
+#define LOOPS_ASSERT_LINE_(x) #x
+#define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
 
-/*
-TODO[CPP2ANSIC]: Since core of project will be rewrtitten on C89, we need many things from C++, but rewritten on C.
-Example: collections, based on uthash, are already written in collections.hpp file.
+#undef LOOPS_ASSERT
+#define LOOPS_ASSERT(expr) \
+    if (expr)        \
+        ;            \
+    else             \
+        throw loops::exception("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
+#define LOOPS_ASSERT_MSG(expr, msg) \
+    if (expr)                \
+        ;                    \
+    else                     \
+        throw loops::exception(msg)
 
-Most critical thing are exception handling and automatic objects destruction on stack unwinding or function return.
-To implement this, we need next details: 
-1.) Universal destructor interface(loops_destructor). Among other things, this destructor interface have to be used 
-for destruction of collection's elements.
-2.) Structures keeping list of destructors, macroses for function intialization(or basic block[have to be checked, that 
-C89 suuport basic block initialization]), and function deinitilization(calling destructors for all currently existing 
-objects).
-3.) Macro for constucting such "stack" objects, which emplace it with destructors to the list.
-4.) I think, as much code as possible, have to be written without __LOOPS_LANGUAGE divarication. Of course, loops have 
-to build in C++ environment, but we don't need substitute basic infrastructure when we are moving to this environment.
-E.g., exceptions definition have to be universal and have to be C-like. Same for module initialization. 
-*/
-typedef void (*loops_destructor)(void* obj);
-
+namespace loops
+{
 enum 
 {
     LOOPS_ERR_SUCCESS = 0, 
@@ -53,37 +48,10 @@ enum
     LOOPS_ERR_INTERNAL_INCORRECT_OFFSET,
     LOOPS_ERR_ELEMENT_NOT_FOUND,
     LOOPS_ERR_INCORRECT_LANE_INDEX,
+    LOOPS_ERR_TOO_MUCH_ARGS,
+    LOOPS_MEMORY_ALLOCATION_FAILURE,
+    LOOPS_MEMORY_PROTECTION_FAILURE,
+    LOOPS_SYN_T_NON_EXISTENT_ARG,
 };
-
- //TODO[CPP2ANSIC]: All "Assert" entries have to be replaced with C-version of assert, returning exception via return code.
-
-#define LOOPS_ASSERT_LINE_(x) #x
-#define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
-
-#undef Assert
-#define Assert(expr) \
-    if (expr)        \
-        ;            \
-    else             \
-        throw std::runtime_error("Assertion '" #expr "' failed at " __FILE__ ":" LOOPS_ASSERT_LINE(__LINE__))
-#define AssertMsg(expr, msg) \
-    if (expr)                \
-        ;                    \
-    else                     \
-        throw std::runtime_error(msg)
-namespace loops
-{
-const char* get_errstring(int errid);
 };
-
-//DUBUG: replace everywhere std::runtime_error with loops_exception. And rename Assert to LOOPS_ASSERT, check other asserts everywhere.
-class loops_exception : public std::exception //DUBUG: rename to loops::exception
-{
-private:
-    int errid;
-public:
-    loops_exception(int a_errid) : std::exception(), errid(a_errid) {}
-    virtual const char* what() const noexcept override { return loops::get_errstring(errid); };
-};
-
 #endif //__LOOPS_RUNTIME_HPP__

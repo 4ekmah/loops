@@ -37,7 +37,7 @@ namespace loops
     void CodeCollecting::process(Syntfunc& /*a_dest*/, const Syntfunc& /*a_source*/)
     {
         if (m_cflowStack.size())
-            throw std::runtime_error("Unclosed control flow bracket."); // TODO(ch): Look at stack for providing more detailed information.
+            throw loops::exception("Unclosed control flow bracket."); // TODO(ch): Look at stack for providing more detailed information.
     }
     std::string CodeCollecting::pass_id() const { return "CP_COLLECTING"; }
 
@@ -64,7 +64,7 @@ namespace loops
     void CodeCollecting::reg_assign(Expr& target, Expr &fromwho)
     {
         Arg res;
-        Assert(target.is_leaf() && ((target.leaf().tag == Arg::IREG && !fromwho.is_vector()) || (target.leaf().tag == Arg::VREG && fromwho.type() == target.leaf().elemtype)));
+        LOOPS_ASSERT(target.is_leaf() && ((target.leaf().tag == Arg::IREG && !fromwho.is_vector()) || (target.leaf().tag == Arg::VREG && fromwho.type() == target.leaf().elemtype)));
         std::vector<Arg> args;
         if (fromwho.is_leaf())
         {
@@ -89,7 +89,7 @@ namespace loops
         int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
-        Assert(stem_cstart_pos >= 0);
+        LOOPS_ASSERT(stem_cstart_pos >= 0);
         m_data.program[stem_cstart_pos] = Syntop(OP_WHILE_CSTART, {Arg(continuelabel)});
         unpack_condition(r, bodylabel, breaklabel);
         m_data.program.push_back(Syntop(OP_WHILE_CEND, {}));
@@ -99,7 +99,7 @@ namespace loops
     void CodeCollecting::endwhile_()
     {
         if (m_cflowStack.size() == 0 || m_cflowStack.back().tag != ControlFlowBracket::WHILE)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"while\" for \"endwhile\".");
+            throw loops::exception("Unclosed control flow bracket: there is no \"while\" for \"endwhile\".");
         auto bracket = m_cflowStack.back();
         m_cflowStack.pop_back();
         int continuelabel = bracket.label_or_pos;
@@ -109,7 +109,7 @@ namespace loops
 
     void CodeCollecting::break_(int depth)
     {
-        Assert(depth >= 1);
+        LOOPS_ASSERT(depth >= 1);
         auto rator = m_cflowStack.rbegin();
         for (; rator != m_cflowStack.rend(); ++rator)
             if (rator->tag == ControlFlowBracket::WHILE)
@@ -120,14 +120,14 @@ namespace loops
                     depth--;
             }
         if (rator == m_cflowStack.rend())
-            throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"break\".");
+            throw loops::exception("Control flow bracket issue: there is no \"while\" for \"break\".");
         int breaklabel = rator->auxfield;
         m_data.program.push_back(Syntop(OP_BREAK, {Arg(breaklabel)}));
     }
 
     void CodeCollecting::continue_(int depth)
     {
-        Assert(depth >= 1);
+        LOOPS_ASSERT(depth >= 1);
         (void)depth;
         auto rator = m_cflowStack.rbegin();
         for (; rator != m_cflowStack.rend(); ++rator)
@@ -139,7 +139,7 @@ namespace loops
                     depth--;
             }
         if (rator == m_cflowStack.rend())
-            throw std::runtime_error("Control flow bracket issue: there is no \"while\" for \"continue\".");
+            throw loops::exception("Control flow bracket issue: there is no \"while\" for \"continue\".");
         int continuelabel = rator->label_or_pos;
         m_data.program.push_back(Syntop(OP_BREAK, {Arg(continuelabel)}));
     }
@@ -151,7 +151,7 @@ namespace loops
         int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
-        Assert(stem_cstart_pos >= 0);
+        LOOPS_ASSERT(stem_cstart_pos >= 0);
         m_data.program[stem_cstart_pos] = Syntop(OP_IF_CSTART, {});
         unpack_condition(r, thenlabel, endlabel);
         m_data.program.push_back(Syntop(OP_IF_CEND, {}));
@@ -161,16 +161,16 @@ namespace loops
     void CodeCollecting::elif_(Expr &r)
     {
         if (m_cflowStack.size() == 0)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"if\" for \"elif\".");
+            throw loops::exception("Unclosed control flow bracket: there is no \"if\" for \"elif\".");
         ControlFlowBracket bracket = m_cflowStack.back();
         m_cflowStack.pop_back();
         if (bracket.tag != ControlFlowBracket::IF)
-            throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
+            throw loops::exception("Control flow bracket error: expected corresponding \"if\" for \"elif\".");
         int outlabel = m_data.provideLabel();
         int stem_cstart_pos = (int)(m_data.program.size()) - 1;
         while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
             stem_cstart_pos--;
-        Assert(stem_cstart_pos >= 0);
+        LOOPS_ASSERT(stem_cstart_pos >= 0);
         m_data.program[stem_cstart_pos] = Syntop(OP_ELIF_CSTART, {Arg(bracket.label_or_pos), Arg(outlabel)});
         int thenlabel = m_data.provideLabel();
         int new_end_label = m_data.provideLabel();
@@ -182,11 +182,11 @@ namespace loops
     void CodeCollecting::else_()
     {
         if (m_cflowStack.size() == 0)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"if\" for \"else\".");
+            throw loops::exception("Unclosed control flow bracket: there is no \"if\" for \"else\".");
         ControlFlowBracket bracket = m_cflowStack.back();
         m_cflowStack.pop_back();
         if (bracket.tag != ControlFlowBracket::IF)
-            throw std::runtime_error("Control flow bracket error: expected corresponding \"if\" for \"else\".");
+            throw loops::exception("Control flow bracket error: expected corresponding \"if\" for \"else\".");
         int outlabel = m_data.provideLabel();
         m_data.program.push_back(Syntop(OP_ELSE, {Arg(bracket.label_or_pos), Arg(outlabel)}));
         m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, outlabel));
@@ -207,27 +207,27 @@ namespace loops
     void CodeCollecting::endif_()
     {
         if (m_cflowStack.size() == 0)
-            throw std::runtime_error("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
+            throw loops::exception("Unclosed control flow bracket: there is no \"if\", \"elif\" or \"else\", for \"endif\".");
         ControlFlowBracket bracket = m_cflowStack.back();
         m_cflowStack.pop_back();
         if (bracket.tag != ControlFlowBracket::IF && bracket.tag != ControlFlowBracket::ELSE)
-            throw std::runtime_error("Control flow bracket error: expected corresponding \"if\", \"elif\" or \"else\" for \"endif\".");
+            throw loops::exception("Control flow bracket error: expected corresponding \"if\", \"elif\" or \"else\" for \"endif\".");
         m_data.program.push_back(Syntop(OP_ENDIF, {Arg(bracket.label_or_pos)}));
     }
 
     void CodeCollecting::return_()
     {
         if (m_returnType == RT_REGISTER)
-            throw std::runtime_error("Mixed return types");
+            throw loops::exception("Mixed return types");
         m_data.program.push_back(Syntop(OP_RET, {}));
     }
 
     void CodeCollecting::return_(Expr &retval)
     {
         if (m_returnType == RT_VOID)
-            throw std::runtime_error("Mixed return types");
+            throw loops::exception("Mixed return types");
         if (retval.is_vector())
-            throw std::runtime_error("Vector return is not supported.");
+            throw loops::exception("Vector return is not supported.");
         m_data.program.push_back(Syntop(OP_MOV, {argReg(RB_INT, (int)Syntfunc::RETREG), unpack_expr(retval)}));
         m_data.program.push_back(Syntop(OP_RET, {}));
     }
@@ -255,7 +255,7 @@ namespace loops
         }
         case (OP_REINTERPRET):
         {
-            Assert(!expr.is_vector() && expr.children().size() == 1);
+            LOOPS_ASSERT(!expr.is_vector() && expr.children().size() == 1);
             res = unpack_expr(expr.children()[0], flags & UR_NONEWIDX, &outbuf);
             res.tag = Arg::IREG;
             res.elemtype = expr.type();
@@ -263,7 +263,7 @@ namespace loops
         }
         case (VOP_REINTERPRET):
         {
-            Assert(expr.is_vector() && expr.children().size() == 1);
+            LOOPS_ASSERT(expr.is_vector() && expr.children().size() == 1);
             res = unpack_expr(expr.children()[0], flags & UR_NONEWIDX, &outbuf);
             res.tag = Arg::VREG;
             res.elemtype = expr.type();
@@ -271,14 +271,14 @@ namespace loops
         }
         case (OP_SELECT):
         {
-            Assert(expr.children().size() == 3 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector() && !expr.children()[2].is_vector());
+            LOOPS_ASSERT(expr.children().size() == 3 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector() && !expr.children()[2].is_vector());
             // TODO(ch): In truth, i'm not sure, that select doesn't support immediates on all the archs, so, this usage of UR_WRAPIIMM must be reconsidered
             Arg truev = unpack_expr(expr.children()[1], UR_WRAPIIMM, &outbuf);
             Arg falsev = unpack_expr(expr.children()[2], UR_WRAPIIMM, &outbuf);
             Expr cond = eliminate_not(expr.children()[0]);
             if(cond.opcode() == OP_LOGICAL_AND || cond.opcode() == OP_LOGICAL_NOT)
                 cond = IExpr(OP_NE, TYPE_BOOLEAN, {cond, Arg(0)}).notype();
-            Assert(cond.children().size() == 2 && !cond.children()[0].is_vector() && !cond.children()[1].is_vector());
+            LOOPS_ASSERT(cond.children().size() == 2 && !cond.children()[0].is_vector() && !cond.children()[1].is_vector());
             outbuf.program.emplace_back(Syntop(OP_CMP, {unpack_expr(cond.children()[0], 0, &outbuf), unpack_expr(cond.children()[1], 0, &outbuf)}));
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
             res.tag = Arg::IREG;
@@ -297,7 +297,7 @@ namespace loops
             }
             else
             {
-                Assert(expr.opcode() != OP_LOGICAL_NOT && expr.children().size() == 2 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector());
+                LOOPS_ASSERT(expr.opcode() != OP_LOGICAL_NOT && expr.children().size() == 2 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector());
                 res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
                 res.tag = Arg::IREG;
                 res.elemtype = TYPE_BOOLEAN;
@@ -309,7 +309,7 @@ namespace loops
         case (OP_GT): case (OP_UGT): case (OP_GE): case (OP_LT):
         case (OP_LE): case (OP_ULE): case (OP_NE): case (OP_EQ):
         {
-            Assert(expr.children().size() == 2 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector());
+            LOOPS_ASSERT(expr.children().size() == 2 && !expr.children()[0].is_vector() && !expr.children()[1].is_vector());
             outbuf.program.emplace_back(Syntop(OP_CMP, {unpack_expr(expr.children()[0], 0, &outbuf), unpack_expr(expr.children()[1], 0, &outbuf)}));
             res.idx = flags & UR_NONEWIDX ? 0 : outbuf.provideIdx(RB_INT);
             res.tag = Arg::IREG;
@@ -319,7 +319,7 @@ namespace loops
         }
         case (OP_S):
         case (OP_NS):
-            throw std::runtime_error("Condition deployment: unexpected Signed/Unsigned check.");
+            throw loops::exception("Condition deployment: unexpected Signed/Unsigned check.");
         default:
         {
             std::vector<Arg> args;
@@ -355,13 +355,13 @@ namespace loops
         switch (expr.opcode())
         {
         case (OP_LOGICAL_NOT):
-            Assert(expr.children().size() == 1);
+            LOOPS_ASSERT(expr.children().size() == 1);
             return eliminate_not(expr.children()[0], !inverseflag);
         case (OP_LOGICAL_AND):
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             return IExpr(inverseflag ? OP_LOGICAL_OR : OP_LOGICAL_AND, TYPE_BOOLEAN, {eliminate_not(expr.children()[0], inverseflag), eliminate_not(expr.children()[1], inverseflag)}).notype();
         case (OP_LOGICAL_OR):
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             return IExpr(inverseflag ? OP_LOGICAL_AND : OP_LOGICAL_OR, TYPE_BOOLEAN, {eliminate_not(expr.children()[0], inverseflag), eliminate_not(expr.children()[1], inverseflag)}).notype();
         case (OP_GT):
         case (OP_UGT):
@@ -371,11 +371,11 @@ namespace loops
         case (OP_ULE):
         case (OP_NE):
         case (OP_EQ):
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             return IExpr(inverseflag ? invertCondition(expr.opcode()) : expr.opcode(), TYPE_BOOLEAN, {expr.children()[0], expr.children()[1]}).notype();
         case (OP_S):
         case (OP_NS):
-            Assert(expr.children().size() == 1);
+            LOOPS_ASSERT(expr.children().size() == 1);
             return IExpr(inverseflag ? invertCondition(expr.opcode()) : expr.opcode(), TYPE_BOOLEAN, {expr.children()[0]}).notype();
         default:
             return IExpr((inverseflag ? OP_EQ : OP_NE), TYPE_BOOLEAN, {expr, Expr(0)}).notype();
@@ -522,7 +522,7 @@ namespace loops
         {
         case (OP_LOGICAL_AND):
         {
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             int innerlabel = condition_buffer.provideLabel();
             unpack_condition_(condition_buffer, expr.children()[0], innerlabel, labelfalse);
             condition_buffer.program.emplace_back(Syntop(OP_LABEL, {innerlabel}));
@@ -532,7 +532,7 @@ namespace loops
         }
         case (OP_LOGICAL_OR):
         {
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             int innerlabel = condition_buffer.provideLabel();
             unpack_condition_(condition_buffer, expr.children()[0], labeltrue, innerlabel, UC_CORRECT_PREFFERED);
             condition_buffer.program.emplace_back(Syntop(OP_LABEL, {innerlabel}));
@@ -542,7 +542,7 @@ namespace loops
             break;
         }
         case (OP_LOGICAL_NOT):
-            throw std::runtime_error("Condition deployment: unexpected NOT operator.");
+            throw loops::exception("Condition deployment: unexpected NOT operator.");
         case (OP_GT):
         case (OP_UGT):
         case (OP_GE):
@@ -552,12 +552,12 @@ namespace loops
         case (OP_NE):
         case (OP_EQ):
         {
-            Assert(expr.children().size() == 2);
+            LOOPS_ASSERT(expr.children().size() == 2);
             std::vector<Arg> args;
             args.reserve(2);
             args.push_back(unpack_expr(expr.children()[0], 0, &condition_buffer));
             args.push_back(unpack_expr(expr.children()[1], 0, &condition_buffer));
-            Assert(args[0].tag == Arg::IREG || args[1].tag == Arg::IREG);
+            LOOPS_ASSERT(args[0].tag == Arg::IREG || args[1].tag == Arg::IREG);
             condition_buffer.program.emplace_back(Syntop(OP_CMP, args));
             args.clear();
             args.push_back(flags & UC_CORRECT_PREFFERED ? expr.opcode() : invertCondition(expr.opcode()));
@@ -568,33 +568,33 @@ namespace loops
         }
         case (OP_S):
         case (OP_NS):
-            throw std::runtime_error("Condition deployment: unexpected Signed/Unsigned check.");
+            throw loops::exception("Condition deployment: unexpected Signed/Unsigned check.");
         default:
-            throw std::runtime_error("Condition deployment: unexpected operation: must be comparisson or logical.");
+            throw loops::exception("Condition deployment: unexpected operation: must be comparisson or logical.");
         }
     }
 
     void CodeCollecting::reopen_endif(bool cond_prefix_allowed)
     {
         if (!m_data.program.size())
-            throw std::runtime_error("Trying to substitute branch end in empty program.");
+            throw loops::exception("Trying to substitute branch end in empty program.");
         int endif_to_reopen;
         if (cond_prefix_allowed)
         {
             int stem_cstart_pos = (int)m_data.program.size() - 1;
             while (stem_cstart_pos >= 0 && m_data.program[stem_cstart_pos].opcode != OP_STEM_CSTART)
                 stem_cstart_pos--;
-            Assert(stem_cstart_pos >= 0);
+            LOOPS_ASSERT(stem_cstart_pos >= 0);
             if (stem_cstart_pos == 0 || m_data.program[stem_cstart_pos - 1].opcode != OP_ENDIF)
-                throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
+                throw loops::exception("Branch end substitution can be done only immediately after embranchment end.");
             endif_to_reopen = (int)m_data.program[stem_cstart_pos - 1][0].value;
             m_data.program.erase(m_data.program.begin() + stem_cstart_pos - 1);
         }
         else
         {
             if (m_data.program.back().opcode != OP_ENDIF)
-                throw std::runtime_error("Branch end substitution can be done only immediately after embranchment end.");
-            Assert(m_data.program.back().size() == 1);
+                throw loops::exception("Branch end substitution can be done only immediately after embranchment end.");
+            LOOPS_ASSERT(m_data.program.back().size() == 1);
             endif_to_reopen = (int)m_data.program.back()[0].value;
             m_data.program.pop_back();
         }

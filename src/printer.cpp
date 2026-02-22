@@ -222,13 +222,13 @@ void loops_printf(program_printer* printer, const char *__restrict __format,...)
     if(written < 0 || written >= chars_left)
     {
         if(printer->cells.empty())
-            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+            throw loops::exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         char* current_cell_start = printer->cells.back().ptr + printer->cells.back().size + 1;
         int current_cell_size = (int)(buffers_tail.data() + printer->current_offset - current_cell_start);
         if(current_cell_size < 0) 
-            throw loops_exception(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
+            throw loops::exception(LOOPS_ERR_POINTER_ARITHMETIC_ERROR);
         if(current_cell_size + written >= (int)buffers_tail.size())
-            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+            throw loops::exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
         printer->augment_buffer(0);
         std::vector<char>& newtail = printer->buffers.back();
         if(current_cell_size > 0)
@@ -242,7 +242,7 @@ void loops_printf(program_printer* printer, const char *__restrict __format,...)
         written = vsnprintf(nextcharpos, chars_left, __format, var_args2);
         va_end(var_args2);
         if(written < 0 || written >= chars_left)
-            throw loops_exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
+            throw loops::exception(LOOPS_ERR_UNIMAGINARY_BIG_STRING);
     }
     printer->current_offset += written;
     va_end ( var_args );
@@ -414,7 +414,7 @@ std::string program_printer::print_syntfunc(FILE* fout, int outtype, const Syntf
         }
     }
     else
-        throw loops_exception(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION);
+        throw loops::exception(LOOPS_ERR_INTERNAL_UNKNOWN_PRINT_DESTINATION);
     return sout;
 }
 
@@ -458,23 +458,23 @@ void col_ir_opname_printer(program_printer* printer, column_printer* /*colprinte
 #if __LOOPS_ARCH == __LOOPS_RISCV
                     if (!(op->args_size == 4 && op->args[0].tag == Arg::IIMMEDIATE && op->args[1].tag == Arg::IREG && op->args[2].tag == Arg::IREG && op->args[3].tag == Arg::IIMMEDIATE))
 #endif
-                        throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                        throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                 }
                 found_name = cond_suffixes_getter((int)op->args[0].value);
                 if(found_name == nullptr)
-                    throw loops_exception(LOOPS_ERR_UNKNOWN_CONDITION);
+                    throw loops::exception(LOOPS_ERR_UNKNOWN_CONDITION);
                 loops_printf(printer, "jmp_%s", found_name);
                 break;
             }
             case OP_LABEL:
             {
                 if (!(op->args_size == 1 && op->args[0].tag == Arg::IIMMEDIATE))
-                    throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                    throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                 loops_printf(printer, "__loops_label_%d:", op->args[0].value);
                 break;
             }
             default:
-                throw loops_exception(LOOPS_ERR_UNPRINTABLE_OPERATION);
+                throw loops::exception(LOOPS_ERR_UNPRINTABLE_OPERATION);
             }; 
         }
         else 
@@ -492,25 +492,25 @@ void col_ir_opname_printer(program_printer* printer, column_printer* /*colprinte
                     if(onam_osuf->fracture_size > 0 && op->args_size >= onam_osuf->fracture_size) 
                         argnum++;
                     if(op->args_size <= argnum)
-                        throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                        throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                     switch (onam_osuf->suffix_type)
                     {
                     case SUFFIX_CONDITION:
                         if(op->args[argnum].tag != Arg::IIMMEDIATE)
-                            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                         found_name = cond_suffixes_getter((int)op->args[argnum].value);
                         if(found_name == nullptr)
-                            throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
+                            throw loops::exception(LOOPS_ERR_UNKNOWN_TYPE);
                         break;
                     case SUFFIX_ELEMTYPE:
                         if(op->args[argnum].tag != Arg::IREG && op->args[argnum].tag != Arg::VREG && op->args[argnum].tag != Arg::IIMMEDIATE)
-                            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+                            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
                         found_name = type_suffixes_getter(op->args[argnum].elemtype);
                         if(found_name == nullptr)
-                            throw loops_exception(LOOPS_ERR_UNKNOWN_TYPE);
+                            throw loops::exception(LOOPS_ERR_UNKNOWN_TYPE);
                         break;
                     default: 
-                        throw loops_exception(LOOPS_ERR_INCORRECT_ARGUMENT);
+                        throw loops::exception(LOOPS_ERR_INCORRECT_ARGUMENT);
                     }
                 }
                 loops_printf(printer, "%s%s", onam_osuf->prefix, found_name);
@@ -553,7 +553,7 @@ void basic_arg_printer(program_printer* printer, const Arg* arg)
         return;
     }
     default:
-        throw loops_exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
+        throw loops::exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
     };
 }
 
@@ -571,9 +571,9 @@ void col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinte
             && op->args_size != 4 
 #endif
             )
-            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         if(op->args[op->args_size - 1].tag != Arg::IIMMEDIATE)
-            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         for(int anum = 1; anum < op->args_size - 1; anum++)
         {
             basic_arg_printer(printer, op->args + anum);
@@ -586,7 +586,7 @@ void col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinte
         break;
     case OP_CALL:
         if (op->args_size < 2 || op->args[0].tag == Arg::VREG)
-            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         loops_printf(printer, "[");
         if(op->args[1].tag == Arg::IIMMEDIATE)
             print_address(printer, op->args[1].value);
@@ -603,7 +603,7 @@ void col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinte
         break;
     case OP_CALL_NORET:
         if (op->args_size < 1 || op->args[0].tag == Arg::VREG)
-            throw loops_exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
+            throw loops::exception(LOOPS_ERR_INCORRECT_OPERATION_FORMAT);
         loops_printf(printer, "[");
         if(op->args[0].tag == Arg::IIMMEDIATE)
             print_address(printer, op->args[0].value);
@@ -652,7 +652,7 @@ void col_ir_opargs_printer(program_printer* printer, column_printer* /*colprinte
 program_printer_ptr program_printer::create_ir_printer(int columnflags)
 {
     if(~(~columnflags | Func::PC_OPNUM | Func::PC_OP))
-        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG);
+        throw loops::exception(LOOPS_ERR_UNKNOWN_FLAG);
     program_printer_ptr res;
     res.reset(new program_printer());
     int colprinters_size = 0; 
@@ -676,7 +676,7 @@ void col_opname_table_printer::print(struct program_printer* printer, struct col
     op += row;
     cstring found_name = ((col_opname_table_printer*)colprinter)->name_getter(op->opcode);
     if(found_name == nullptr)
-        throw loops_exception(LOOPS_ERR_ELEMENT_NOT_FOUND);
+        throw loops::exception(LOOPS_ERR_ELEMENT_NOT_FOUND);
     else
         loops_printf(printer, "%s", found_name);
     printer->close_printer_cell();
@@ -685,7 +685,7 @@ void col_opname_table_printer::print(struct program_printer* printer, struct col
 program_printer_ptr program_printer::create_assembly_printer(int columnflags, Backend* backend)
 {
     if(~(~columnflags | Func::PC_OPNUM | Func::PC_OP | Func::PC_HEX))
-        throw loops_exception(LOOPS_ERR_UNKNOWN_FLAG);
+        throw loops::exception(LOOPS_ERR_UNKNOWN_FLAG);
     program_printer_ptr res;
     res.reset(new program_printer());
     int colprinters_size = 0;

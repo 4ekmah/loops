@@ -6,7 +6,8 @@ See https://github.com/4ekmah/loops/LICENSE
 
 //TODO(ch): write some words, that this code was basically copied from xbyak
 #include "allocator.hpp"
-#include "loops/defines.hpp"
+#include "runtime.hpp"
+#include "loops/loops.hpp"
 #include <assert.h>
 #include <stdexcept>
 #include <string>
@@ -44,7 +45,7 @@ uint8_t* Allocator::allocate(size_t size)
     mode |= MAP_JIT;
     void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE, mode, -1, 0);
     if (p == MAP_FAILED)
-      throw std::runtime_error("Memory allocation failure.");
+      throw loops::exception(LOOPS_MEMORY_ALLOCATION_FAILURE); 
     assert(p);
     uint8_t* res = reinterpret_cast<uint8_t*>(p);
     m_table[res] = size;
@@ -59,7 +60,7 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
 
     auto proret = mprotect(reinterpret_cast<void*>(roundAddr), m_table[a_buffer] + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
     if (proret != 0)
-        throw std::runtime_error("Memory protection failure.");
+        throw loops::exception(LOOPS_MEMORY_PROTECTION_FAILURE);
     sys_icache_invalidate(a_buffer, m_table[a_buffer]);
 }
 
@@ -81,7 +82,7 @@ void Allocator::free(uint8_t* a_buffer)
         size = (size + alignedSizeM1) & ~alignedSizeM1;
         uint8_t* result = reinterpret_cast<uint8_t*>(VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
         if(result == nullptr) 
-            throw std::runtime_error("Memory allocation failure.");
+            throw loops::exception(LOOPS_MEMORY_ALLOCATION_FAILURE);
         m_table[result] = size;
         return result;
     }
@@ -91,9 +92,9 @@ void Allocator::free(uint8_t* a_buffer)
         DWORD mode = PAGE_EXECUTE_READ;
         DWORD oldProtect = 0;
         if(!VirtualProtect(static_cast<void*>(a_buffer), m_table[a_buffer], mode, &oldProtect))
-            throw std::runtime_error("Memory protection failure.");
+            throw loops::exception(LOOPS_MEMORY_PROTECTION_FAILURE);
         if (!FlushInstructionCache(GetCurrentProcess(), a_buffer, m_table[a_buffer]))
-            throw std::runtime_error("Memory cache flushing failure.");
+            throw loops::exception("Memory cache flushing failure.");
     }
 
     void Allocator::free(uint8_t* a_buffer)
@@ -122,7 +123,7 @@ uint8_t* Allocator::allocate(size_t size)
     // mode |= MAP_JIT;
     void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE, mode, -1, 0);
     if (p == MAP_FAILED)
-      throw std::runtime_error("Memory allocation failure.");
+      throw loops::exception(LOOPS_MEMORY_ALLOCATION_FAILURE);
     assert(p);
     uint8_t* res = reinterpret_cast<uint8_t*>(p);
     m_table[res] = size;
@@ -137,7 +138,7 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
 
     auto proret = mprotect(reinterpret_cast<void*>(roundAddr), m_table[a_buffer] + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
     if (proret != 0)
-        throw std::runtime_error("Memory protection failure.");
+        throw loops::exception(LOOPS_MEMORY_PROTECTION_FAILURE);
 #ifdef __clang__
     __clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
 #else// __GNUC__

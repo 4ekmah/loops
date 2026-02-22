@@ -50,11 +50,4 @@ See https://github.com/4ekmah/loops/LICENSE
     #error Unknown compiler
 #endif
 
-#if defined(__cplusplus)
-#define __LOOPS_LANGUAGE  __LOOPS_CPP
-#else
-#define __LOOPS_LANGUAGE  __LOOPS_C
-#endif
-
-
 #endif //__LOOPSDEFS_HPP__

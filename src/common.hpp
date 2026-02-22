@@ -89,7 +89,7 @@ namespace loops
             case TYPE_FP64:
                 return 8;
             default:
-                throw std::runtime_error("Unknown data type.");
+                throw loops::exception("Unknown data type.");
         }
     }
 
@@ -100,7 +100,7 @@ namespace loops
 
     inline bool regOrSpiEq(const Arg &toCmp1, const Arg &toCmp2)
     {
-        Assert(regOrSpi(toCmp1) && regOrSpi(toCmp2));
+        LOOPS_ASSERT(regOrSpi(toCmp1) && regOrSpi(toCmp2));
         if (toCmp1.tag != toCmp2.tag)
             return false;
         if (toCmp1.tag == Arg::IREG)
@@ -266,14 +266,14 @@ namespace loops
         inline Arg *end()
         {
             if (args_size > SYNTOP_ARGS_MAX)
-                throw std::runtime_error("Syntaxic operation: too much args!");
+                throw loops::exception(LOOPS_ERR_TOO_MUCH_ARGS);
             return args + args_size;
         }
         inline const Arg *begin() const { return args; }
         inline const Arg *end() const
         {
             if (args_size > SYNTOP_ARGS_MAX)
-                throw std::runtime_error("Syntaxic operation: too much args!");
+                throw loops::exception(LOOPS_ERR_TOO_MUCH_ARGS);
             return args + args_size;
         }
 
@@ -282,26 +282,26 @@ namespace loops
         inline Arg &operator[](int anum)
         {
             if (anum >= args_size)
-                throw std::runtime_error("Syntaxic operation: too big argument index!");
+                throw loops::exception("Syntaxic operation: too big argument index!");
             return args[anum];
         }
         inline const Arg &operator[](int anum) const
         {
             if (anum >= args_size)
-                throw std::runtime_error("Syntaxic operation: too big argument index!");
+                throw loops::exception("Syntaxic operation: too big argument index!");
             return args[anum];
         }
 
         inline Arg &back()
         {
             if (args_size == 0)
-                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw loops::exception("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
         inline const Arg &back() const
         {
             if (args_size == 0)
-                throw std::runtime_error("Syntaxic operation: taking argument from non-parameterized operation!");
+                throw loops::exception("Syntaxic operation: taking argument from non-parameterized operation!");
             return args[args_size - 1];
         }
     };
@@ -370,7 +370,7 @@ namespace loops
     inline Context *_getImpl(Context *wrapper) { return wrapper->impl; }
     inline ContextImpl *getImpl(Context *wrapper)
     {
-        Assert(wrapper);
+        LOOPS_ASSERT(wrapper);
         return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
 }

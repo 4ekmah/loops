@@ -143,7 +143,7 @@ template<typename _Tp>
 void VReg<_Tp>::copyidx(const VReg<_Tp>& from)
 {
     if(func != nullptr && func != from.func)
-        throw std::runtime_error("Registers of different functions in idx assignment.");
+        throw loops::exception("Registers of different functions in idx assignment.");
     func = from.func;
     idx = from.idx;
 }
@@ -213,43 +213,43 @@ Expr::Expr(int64_t a_leaf): pointee(new __loops_ExprStr_)
 }
 
 Expr::~Expr() { if(pointee) { if(--(pointee->refcounter) == 0) delete pointee; } }
-int& Expr::opcode() { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->opcode; }
-bool& Expr::is_vector() { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->is_vector; }
+int& Expr::opcode() { if(!pointee) throw loops::exception("Null pointer."); return pointee->opcode; }
+bool& Expr::is_vector() { if(!pointee) throw loops::exception("Null pointer."); return pointee->is_vector; }
 bool Expr::is_leaf() const {return opcode() == EXPR_LEAF; }
-int& Expr::type() { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->type;}
+int& Expr::type() { if(!pointee) throw loops::exception("Null pointer."); return pointee->type;}
 Arg& Expr::leaf()
 {
-    if(!pointee) throw std::runtime_error("Null pointer in Expr.");
-    if(pointee->opcode != EXPR_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
+    if(!pointee) throw loops::exception("Null pointer.");
+    if(pointee->opcode != EXPR_LEAF) throw loops::exception("Interpretting leaf node as a branch.");
     return pointee->leaf;
 }
 
-Func*& Expr::func() { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->func;}
+Func*& Expr::func() { if(!pointee) throw loops::exception("Null pointer."); return pointee->func;}
 
 std::vector<Expr>& Expr::children()
 {
-    if(!pointee) throw std::runtime_error("Null pointer in Expr.");
-    if(pointee->opcode == EXPR_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
+    if(!pointee) throw loops::exception("Null pointer.");
+    if(pointee->opcode == EXPR_LEAF) throw loops::exception("Interpretting leaf node as a branch.");
     return pointee->children;
 }
 
-int Expr::opcode() const { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->opcode; }
-bool Expr::is_vector() const { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->is_vector; }
-int Expr::type() const { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->type;}
+int Expr::opcode() const { if(!pointee) throw loops::exception("Null pointer."); return pointee->opcode; }
+bool Expr::is_vector() const { if(!pointee) throw loops::exception("Null pointer."); return pointee->is_vector; }
+int Expr::type() const { if(!pointee) throw loops::exception("Null pointer."); return pointee->type;}
 const Arg& Expr::leaf() const
 {
-    if(!pointee) throw std::runtime_error("Null pointer in Expr.");
-    if(pointee->opcode != EXPR_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
+    if(!pointee) throw loops::exception("Null pointer.");
+    if(pointee->opcode != EXPR_LEAF) throw loops::exception("Interpretting leaf node as a branch.");
     return pointee->leaf;
 }
 const std::vector<Expr>& Expr::children() const
 {
-    if(!pointee) throw std::runtime_error("Null pointer in Expr.");
-    if(pointee->opcode == EXPR_LEAF) throw std::runtime_error("Interpretting leaf node as branch.");
+    if(!pointee) throw loops::exception("Null pointer.");
+    if(pointee->opcode == EXPR_LEAF) throw loops::exception("Interpretting leaf node as a branch.");
     return pointee->children;
 }
 
-Func* Expr::func() const { if(!pointee) throw std::runtime_error("Null pointer in Expr."); return pointee->func;}
+Func* Expr::func() const { if(!pointee) throw loops::exception("Null pointer."); return pointee->func;}
 
 bool Expr::empty() const { return pointee == nullptr; }
 
@@ -533,7 +533,7 @@ static inline IExpr operator + (const IExpr& a, const IExpr& b)
 static inline IExpr operator + (const IExpr& a, int64_t b)
 {
     if(b == std::numeric_limits<int64_t>::min())
-        throw std::runtime_error(std::string("Direct addition of " + std::to_string(std::numeric_limits<int64_t>::min()) + " is not supported. Use CONST_() macro."));
+        throw loops::exception(std::string("Direct addition of " + std::to_string(std::numeric_limits<int64_t>::min()) + " is not supported. Use CONST_() macro."));
     int opcode = b < 0 ? OP_SUB : OP_ADD;
     b = b < 0 ? -b : b;
     return IExpr(opcode, a.type(), {a.notype(), Expr(b)});
@@ -779,7 +779,7 @@ void loadvec_deinterleave2_(Arg& res1, Arg& res2, const IExpr& base);
 template<typename _Tp> void loadvec_deinterleave2(VReg<_Tp>& res1, VReg<_Tp>& res2, const IExpr& base)
 {
     if(res1.func || res2.func)
-        throw std::runtime_error("Load deinterleave doesn't support initilized results registers yet.");
+        throw loops::exception("Load deinterleave doesn't support initilized results registers yet.");
     Arg r1(res1);
     Arg r2(res2);
     loadvec_deinterleave2_(r1, r2, base);

@@ -84,7 +84,7 @@ void print_channel(T* data, int H, int W, int stride)
 template<typename _Tp>
 loops::Expr iregtyped(const loops::Expr& reg)
 {
-    Assert(reg.opcode() == loops::EXPR_LEAF && reg.leaf().tag == loops::Arg::IREG);
+    LOOPS_ASSERT(reg.opcode() == loops::EXPR_LEAF && reg.leaf().tag == loops::Arg::IREG);
     loops::IReg ar; ar.func = reg.func(); ar.idx = reg.leaf().idx;
     loops::IExpr ret(ar);
     ret.type() = loops::ElemTraits<_Tp>::depth;

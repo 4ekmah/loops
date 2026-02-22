@@ -20,7 +20,7 @@ namespace loops
 
     void ImmediateImplantation::process(Syntfunc &a_dest, const Syntfunc &a_source)
     {
-        Assert(&a_dest != &a_source);
+        LOOPS_ASSERT(&a_dest != &a_source);
         a_dest.name = a_source.name;
         a_dest.nextLabel = a_source.nextLabel;
         a_dest.params = a_source.params;
@@ -49,7 +49,7 @@ namespace loops
                 //TODO(ch): create universal mechanism(probably based on encoding attempt?)
                 if(op.size() == 5)
                 {
-                    Assert(op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG && op[4].tag == Arg::IIMMEDIATE && op[0].elemtype == op[1].elemtype && op[0].elemtype == op[2].elemtype && op[0].elemtype == op[3].elemtype && op[4].value < m_backend->vlanes(op[0].elemtype));
+                    LOOPS_ASSERT(op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[3].tag == Arg::VREG && op[4].tag == Arg::IIMMEDIATE && op[0].elemtype == op[1].elemtype && op[0].elemtype == op[2].elemtype && op[0].elemtype == op[3].elemtype && op[4].value < m_backend->vlanes(op[0].elemtype));
                 }
                 a_dest.program.push_back(op);
                 break;
@@ -69,15 +69,15 @@ namespace loops
                 case (OP_SELECT):
                 case (OP_IVERSON): // TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
                 case (VOP_SETLANE):
-                    Assert(arnums[0] == 1);
+                    LOOPS_ASSERT(arnums[0] == 1);
                     arnums.erase(arnums.begin());
                 break;
                 case (VOP_GETLANE):
-                    Assert(arnums[0] == 2);
+                    LOOPS_ASSERT(arnums[0] == 2);
                     arnums.erase(arnums.begin());
                 break;
                 case (VOP_EXT):
-                    Assert(arnums[0] == 3);
+                    LOOPS_ASSERT(arnums[0] == 3);
                     arnums.erase(arnums.begin());
                 break;
                 default: break;
@@ -91,7 +91,7 @@ namespace loops
                 RegIdx placeholderTop = 0;
                 for (int arNum : arnums)
                 {
-                    Assert(op_probe[arNum].tag == Arg::IIMMEDIATE);
+                    LOOPS_ASSERT(op_probe[arNum].tag == Arg::IIMMEDIATE);
                     attempts.push_back(op_probe[arNum]);
                     while (usedRegs.count(placeholderTop))
                         placeholderTop++;
@@ -119,7 +119,7 @@ namespace loops
 
     void ElifElimination::process(Syntfunc &a_dest, const Syntfunc &a_source)
     {
-        Assert(&a_dest != &a_source);
+        LOOPS_ASSERT(&a_dest != &a_source);
         a_dest.name = a_source.name;
         a_dest.nextLabel = a_source.nextLabel;
         a_dest.params = a_source.params;
@@ -137,11 +137,11 @@ namespace loops
                 break;
             case (OP_ELIF_CSTART):
             {
-                Assert(m_cflowStack.size());
+                LOOPS_ASSERT(m_cflowStack.size());
                 if (m_cflowStack.back().tag == ControlFlowBracket::ELSE)
-                    throw std::runtime_error("Control flow bracket error: \"else\" before \"endif\".");
-                Assert(m_cflowStack.back().tag == ControlFlowBracket::IF);
-                Assert(op.size() == 2);
+                    throw loops::exception("Control flow bracket error: \"else\" before \"endif\".");
+                LOOPS_ASSERT(m_cflowStack.back().tag == ControlFlowBracket::IF);
+                LOOPS_ASSERT(op.size() == 2);
                 int elselabel = (int)op[0].value;
                 int outlabel = (int)op[1].value;
                 ControlFlowBracket ifcf(ControlFlowBracket::IF, outlabel, m_cflowStack.back().auxfield + 1);
@@ -152,32 +152,32 @@ namespace loops
                 break;
             }
             case (OP_ELSE):
-                Assert(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::IF);
+                LOOPS_ASSERT(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::IF);
                 m_cflowStack.emplace_back(ControlFlowBracket(ControlFlowBracket::ELSE, 0));
                 a_dest.program.push_back(op);
                 break;
             case (OP_ENDIF):
             {
-                Assert(m_cflowStack.size());
-                Assert(op.size() == 1);
+                LOOPS_ASSERT(m_cflowStack.size());
+                LOOPS_ASSERT(op.size() == 1);
                 std::deque<int64_t> reversed_endifs;
                 reversed_endifs.push_back(op[0].value);
                 if (m_cflowStack.back().tag == ControlFlowBracket::ELSE)
                 {
                     m_cflowStack.pop_back();
-                    Assert(m_cflowStack.size());
+                    LOOPS_ASSERT(m_cflowStack.size());
                 }
                 int last_elif_repeats = 0;
                 do
                 {
                     ControlFlowBracket bracket = m_cflowStack.back();
                     m_cflowStack.pop_back();
-                    Assert(bracket.tag == ControlFlowBracket::IF);
+                    LOOPS_ASSERT(bracket.tag == ControlFlowBracket::IF);
                     last_elif_repeats = bracket.auxfield;
                     if (last_elif_repeats)
                     {
                         reversed_endifs.push_back(bracket.label_or_pos);
-                        Assert(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::ELSE);
+                        LOOPS_ASSERT(m_cflowStack.size() && m_cflowStack.back().tag == ControlFlowBracket::ELSE);
                         m_cflowStack.pop_back();
                     }
                 } while (last_elif_repeats);
@@ -204,7 +204,7 @@ namespace loops
         //           I think, it can be effectively soluted only after deletition of after-jump-silent tails a-la jmp end; mov ..code-without-jumps...; end:
         //           After this we just need to check last operation before end mark. it must be mov to return register.
         // Handle situation, when return is just before end of function (reasonable)
-        Assert(&a_dest != &a_source);
+        LOOPS_ASSERT(&a_dest != &a_source);
         a_dest.name = a_source.name;
         a_dest.nextLabel = a_source.nextLabel;
         a_dest.params = a_source.params;
@@ -226,7 +226,7 @@ namespace loops
                 break;
             case (OP_ELSE):
             {
-                Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                 if (a_dest.program.size() == 0 || a_dest.program.back().opcode != OP_JMP) // Eliminating sequential jumps
                     a_dest.program.push_back(Syntop(OP_JMP, {op.args[1].value}));
                 a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
@@ -235,13 +235,13 @@ namespace loops
             case (OP_WHILE_CSTART):
             case (OP_ENDIF):
             {
-                Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 a_dest.program.push_back(Syntop(OP_LABEL, {op.args[0].value}));
                 break;
             }
             case (OP_ENDWHILE):
             {
-                Assert(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                 if (a_dest.program.size() == 0 || a_dest.program.back().opcode != OP_JMP) // Eliminating sequential jumps
                     a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
                 a_dest.program.push_back(Syntop(OP_LABEL, {op.args[1].value}));
@@ -249,14 +249,14 @@ namespace loops
             }
             case (OP_BREAK):
             {
-                Assert(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 if (a_dest.program.size() == 0 || a_dest.program.back().opcode != OP_JMP) // Eliminating sequential jumps
                     a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
                 break;
             }
             case (OP_CONTINUE):
             {
-                Assert(op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE);
                 if (a_dest.program.size() == 0 || a_dest.program.back().opcode != OP_JMP) // Eliminating sequential jumps
                     a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
                 break;
@@ -312,13 +312,13 @@ namespace loops
                 int mentionarg = 0;
 //TODO(ch)[1]: Change OP_IVERSON, OP_JCC general format to format of Risc-V.
 #if __LOOPS_ARCH == __LOOPS_RISCV
-                Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
+                LOOPS_ASSERT((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
                     || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE)
                     || (op.opcode == OP_JCC && op.args_size == 4 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG && op.args[3].tag == Arg::IIMMEDIATE));
                 labarg = op.opcode == OP_JCC ? (op.args_size == 4 ? 3 : 1) : 0;
                 mentionarg = (op.opcode == OP_JCC && op.args_size == 4) ? 2 : 0;
 #else
-                Assert((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
+                LOOPS_ASSERT((op.opcode == OP_JMP && op.size() == 1 && op[0].tag == Arg::IIMMEDIATE)
                     || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
 #endif
                 int64_t target_label = op[labarg].value;
@@ -334,9 +334,9 @@ namespace loops
             case (OP_LABEL):
             {
                 if (op.size() != 1 || op[0].tag != Arg::IIMMEDIATE)
-                    throw std::runtime_error("Wrong LABEL format.");
+                    throw loops::exception("Wrong LABEL format.");
                 if (label_map.count(op[0].value) != 0)
-                    throw std::runtime_error("Label redefinition");
+                    throw loops::exception("Label redefinition");
                 label_map[op[0].value] = current_offset;
                 a_dest.program.emplace_back(m_backend->lookS2s(op).apply(op, m_backend));
                 break;
@@ -357,16 +357,16 @@ namespace loops
         for (auto label : label_ref_map)
         {
             if (label_map.count(label.first) == 0)
-                throw std::runtime_error("Reference to unknown label");
+                throw loops::exception("Reference to unknown label");
             const int64_t loff = static_cast<int64_t>(label_map[label.first]);
             for (label_ref_info &lref : label.second)
             {
                 if (lref.opnum >= (int)a_dest.program.size())
-                    throw std::runtime_error("Internal error: operation number is too big");
+                    throw loops::exception("Internal error: operation number is too big");
                 if (lref.argnum >= a_dest.program[lref.opnum].size())
-                    throw std::runtime_error("Internal error: operation don't have so much arguments");
+                    throw loops::exception("Internal error: operation don't have so much arguments");
                 if (a_dest.program[lref.opnum][lref.argnum].tag != Arg::IIMMEDIATE)
-                    throw std::runtime_error("Internal error: operation don't have so much arguments");
+                    throw loops::exception("Internal error: operation don't have so much arguments");
                 int64_t &opoff = a_dest.program[lref.opnum][lref.argnum].value;
                 opoff = (loff - opoff);
             }
@@ -394,7 +394,7 @@ namespace loops
         for (IReg *parreg : params)
         {
             if (parreg->func != nullptr || parreg->idx != IReg::NOIDX)
-                throw std::runtime_error("Parameter index is already initilized in some other function");
+                throw loops::exception("Parameter index is already initilized in some other function");
             parreg->func = a_func;
             parreg->idx = m_data.provideIdx(RB_INT);
             m_data.params.emplace_back(*parreg);
@@ -428,7 +428,7 @@ namespace loops
 
     CodeCollecting *Pipeline::get_code_collecting()
     {
-        AssertMsg(m_current_pass <= m_cp_collecting_pass_num, "Attempt to add instruction to already finished function.");
+        LOOPS_ASSERT_MSG(m_current_pass <= m_cp_collecting_pass_num, "Attempt to add instruction to already finished function.");
         return &m_codecol;
     }
 
@@ -454,10 +454,10 @@ namespace loops
             std::vector<int> calleeSavedRegisters = m_backend->calleeSavedRegisters(basketNum);
             for (int reg : calleeSavedRegisters) m_calleeSavedRegistersO_.insert(reg);
         }
-        for (int reg : a_parameterRegisters) Assert(m_parameterRegistersO_.find(reg) != m_parameterRegistersO_.end());
-        for (int reg : a_returnRegisters) Assert(m_returnRegistersO_.find(reg) != m_returnRegistersO_.end());
-        for (int reg : a_callerSavedRegisters) Assert(m_callerSavedRegistersO_.find(reg) != m_callerSavedRegistersO_.end());
-        for (int reg : a_calleeSavedRegisters) Assert(m_calleeSavedRegistersO_.find(reg) != m_calleeSavedRegistersO_.end());
+        for (int reg : a_parameterRegisters) LOOPS_ASSERT(m_parameterRegistersO_.find(reg) != m_parameterRegistersO_.end());
+        for (int reg : a_returnRegisters) LOOPS_ASSERT(m_returnRegistersO_.find(reg) != m_returnRegistersO_.end());
+        for (int reg : a_callerSavedRegisters) LOOPS_ASSERT(m_callerSavedRegistersO_.find(reg) != m_callerSavedRegistersO_.end());
+        for (int reg : a_calleeSavedRegisters) LOOPS_ASSERT(m_calleeSavedRegistersO_.find(reg) != m_calleeSavedRegistersO_.end());
         m_parameterRegistersO[basketNum] = a_parameterRegisters;
         m_returnRegistersO[basketNum] = a_returnRegisters;
         m_callerSavedRegistersO[basketNum] = a_callerSavedRegisters;
@@ -508,7 +508,7 @@ namespace loops
     {
         if (m_mode == PM_FINDORDER)
         {
-            Assert(m_pass_ordering.find(a_pass->pass_id()) == m_pass_ordering.end());
+            LOOPS_ASSERT(m_pass_ordering.find(a_pass->pass_id()) == m_pass_ordering.end());
             m_pass_ordering.insert(std::pair<std::string, int>(a_pass->pass_id(), (int)m_pass_ordering.size()));
             return;
         }
