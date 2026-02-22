@@ -65,7 +65,8 @@ const char* get_errstring(int errid)
 
 const char* exception::what() const noexcept 
 {
-    return (std::string("Loops: ") + (message.length() ? message : std::string(loops::get_errstring(errid)))).c_str();
+    compiled_message = std::string("Loops: ") + (message.length() ? message : std::string(loops::get_errstring(errid)));
+    return compiled_message.c_str();
 }
 
 #if !(__LOOPS_ARCH == __LOOPS_AARCH64 && __LOOPS_OS == __LOOPS_MAC)

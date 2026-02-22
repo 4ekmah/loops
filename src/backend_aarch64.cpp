@@ -2529,8 +2529,9 @@ void aarch64_hex_printer::print(program_printer* printer, column_printer* colpri
             hex_printer->positions[opnum] = oppos;
             oppos += opsize;
         }
+        Syntfunc dummy;
         Assembly2Hex a2hPass(printer->backend);
-        a2hPass.process(*((Syntfunc*)(nullptr)), func);
+        a2hPass.process(dummy, func);
         hex_printer->binary = a2hPass.result_buffer();
     }
     if(program[row].opcode != AARCH64_LABEL)

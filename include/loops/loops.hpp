@@ -505,6 +505,7 @@ class exception : public std::exception
 private:
     int errid;
     std::string message;
+    mutable std::string compiled_message;
 public:
     exception(int a_errid) : std::exception(), errid(a_errid) {}
     exception(const char* a_message) : std::exception(), message(a_message) {}
