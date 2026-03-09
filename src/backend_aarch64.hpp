@@ -129,7 +129,7 @@ public:
     virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
     virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
-    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const override final;
+    virtual std::array<std::map<RegIdx, int>, RB_AMOUNT> getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const override final;
     virtual int stackGrowthAlignment(int stackGrowth) const override final;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const override final;

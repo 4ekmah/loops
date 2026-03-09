@@ -46,7 +46,7 @@ public:
         virtual bool is_inplace() const override final { return true; }
         virtual std::string pass_id() const override final { return "CP_LIVENESS_ANALYSIS"; }
 
-    virtual std::vector<LiveInterval>* live_intervals();
+    virtual std::array<std::vector<LiveInterval>, RB_AMOUNT>* live_intervals();
     virtual int getSnippetCausedSpills() const;
     virtual bool haveFunctionCalls() const;
 protected:
@@ -88,7 +88,7 @@ public:
                                             const std::vector<int>&  a_callerSavedRegisters,
                                             const std::vector<int>&  a_calleeSavedRegisters);
         
-    void getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const;
+    std::array<std::vector<int>, RB_AMOUNT> getOverridenParams() const;
 private:
     Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
@@ -125,7 +125,7 @@ class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
 public:
-    RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls);
+    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
@@ -134,11 +134,51 @@ public:
     inline int epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
+    const std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_liveintervals_raw;
+    void layOutLiveIntervals(const Syntfunc& a_source, 
+                             std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
+                             std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
+                             std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+
+    std::array<std::vector<Arg>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
+        const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
+        const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);
+
+    struct SpillInfo
+    {
+        std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> unspilledRenaming;
+        std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> spilledRenaming;
+        std::array<std::vector<std::set<int> >, RB_AMOUNT> stackPlaceable;
+        int nettoSpills[RB_AMOUNT] = {0, 0};
+        size_t basket_offset[RB_AMOUNT]; //Start postions of scalar and vector baskets in stack
+        int spAddAligned;
+        std::function<int64_t(int, RegIdx)> getSpillOffset;
+    };
+    void modelSpills(const Syntfunc& a_source,
+                     const std::array<std::vector<Arg>, RB_AMOUNT>& reg_reassignment,
+                     SpillInfo& to_fill);
+
+    void insertSpillInstructions(const Syntfunc& a_source,
+                                 Syntfunc& a_destination,
+                                 const SpillInfo& spill_info);
+    void writePrologue(Syntfunc& a_destination,
+                       const std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted,
+                       const std::array<std::vector<Arg>, RB_AMOUNT>& reg_reassignment,
+                       const SpillInfo& spill_info);
+    void writeEpilogue(Syntfunc& a_destination,
+                       const SpillInfo& spill_info);
+
     RegisterPool m_pool;
-    const std::vector<LiveInterval>* m_live_intervals;
     int m_snippet_caused_spills;
     bool m_have_function_calls;
     int m_epilogueSize;
+
+    //Algorithm constants:
+    int m_basketElemX[RB_AMOUNT];
+    
+    //Widely used algorithm variables:
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_stackParamLayout;
+    std::function<Arg(int, int)> m_getReassigned;
 };
 }
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

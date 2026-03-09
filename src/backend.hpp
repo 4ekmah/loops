@@ -126,7 +126,7 @@ public:
     It's assumed offset from SP just after function call(without prologue).
     Offset measured not in bytes, each unit = 8 bytes. 
     */
-    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const = 0;
+    virtual std::array<std::map<RegIdx, int>, RB_AMOUNT> getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const = 0;
     virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;

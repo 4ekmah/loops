@@ -2719,8 +2719,9 @@ namespace loops
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
-    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const
     {
+        std::array<std::map<RegIdx, int>, RB_AMOUNT> result;
     #if __LOOPS_OS == __LOOPS_WINDOWS
         int sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
@@ -2746,9 +2747,10 @@ namespace loops
             }
             if(currOffset%xBasket[basketNum])
                 currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
-            parLayout[basketNum][arg.idx] = currOffset + sp2parShift;
+            result[basketNum][arg.idx] = currOffset + sp2parShift;
             currOffset+=xBasket[basketNum];
         }
+        return result;
     }
 
     int Intel64Backend::stackGrowthAlignment(int stackGrowth) const

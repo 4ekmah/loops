@@ -399,7 +399,7 @@ namespace loops
             parreg->idx = m_data.provideIdx(RB_INT);
             m_data.params.emplace_back(*parreg);
         }
-        m_mode = PM_FINDORDER;
+        m_mode = PM_FINDORDER; //DUBUG: Haven't we to make it static?
         run();
         m_mode = PM_REGULAR;
         m_cp_collecting_pass_num = m_pass_ordering.at("CP_COLLECTING");
@@ -519,7 +519,7 @@ namespace loops
                 a_pass->process(m_data, m_data);
             else
             {
-                Syntfunc oldcode = m_data;
+                Syntfunc oldcode = m_data;//DUBUG: redundant program copy?
                 m_data.program.clear();
                 a_pass->process(m_data, oldcode);
             }

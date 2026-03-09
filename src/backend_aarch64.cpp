@@ -2215,8 +2215,9 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
     return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
 }
 
-void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
+std::array<std::map<RegIdx, int>, RB_AMOUNT> Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const
 {
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> result;
     size_t regPassed[RB_AMOUNT];
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
         regPassed[basketNum] = regParsOverride[basketNum].size() ? regParsOverride[basketNum].size() : m_parameterRegisters[basketNum].size();
@@ -2234,9 +2235,10 @@ void Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::
         }
         if(currOffset%xBasket[basketNum])
             currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
-        parLayout[basketNum][arg.idx] = currOffset;
+        result[basketNum][arg.idx] = currOffset;
         currOffset+=xBasket[basketNum];
     }
+    return result;
 }
 
 int Aarch64Backend::stackGrowthAlignment(int stackGrowth) const
