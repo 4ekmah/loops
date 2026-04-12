@@ -139,8 +139,23 @@ private:
                              std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
                              std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
                              std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+    struct RegisterReassignment
+    {
+        int spill_parameters_assignment;
+        std::vector<int> bounds; 
+        std::vector<Arg> args;
+        inline Arg getAt(int opnum)
+        {
+            int bnum = std::distance(bounds.begin(), std::lower_bound(bounds.begin(), bounds.end(), opnum));
+            bnum = bounds[bnum] == opnum ? bnum : bnum - 1;
+            return args[bnum];
+        }
+        RegisterReassignment() {}
+        RegisterReassignment(int start, int end, const Arg& base_replace) :
+            bounds({start, end}), args({base_replace}) {}
+    };
 
-    std::array<std::vector<Arg>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
+    std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
         const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);
 
@@ -152,21 +167,18 @@ private:
         int nettoSpills[RB_AMOUNT] = {0, 0};
         size_t basket_offset[RB_AMOUNT]; //Start postions of scalar and vector baskets in stack
         int spAddAligned;
-        std::function<int64_t(int, RegIdx)> getSpillOffset;
     };
-    void modelSpills(const Syntfunc& a_source,
-                     const std::array<std::vector<Arg>, RB_AMOUNT>& reg_reassignment,
-                     SpillInfo& to_fill);
+
+    SpillInfo modelSpills(const Syntfunc& a_source);
 
     void insertSpillInstructions(const Syntfunc& a_source,
-                                 Syntfunc& a_destination,
-                                 const SpillInfo& spill_info);
+                                 Syntfunc& a_destination);
     void writePrologue(Syntfunc& a_destination,
-                       const std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted,
-                       const std::array<std::vector<Arg>, RB_AMOUNT>& reg_reassignment,
-                       const SpillInfo& spill_info);
-    void writeEpilogue(Syntfunc& a_destination,
-                       const SpillInfo& spill_info);
+                       const std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+    void writeEpilogue(Syntfunc& a_destination);
+
+    inline Arg getReassigned(int basketNum, int opnum, int old);
+    inline int getSpillOffset(int basketNum, int opnum, RegIdx reg);
 
     RegisterPool m_pool;
     int m_snippet_caused_spills;
@@ -175,10 +187,12 @@ private:
 
     //Algorithm constants:
     int m_basketElemX[RB_AMOUNT];
+    Arg m_retreg;
     
     //Widely used algorithm variables:
+    std::array<std::vector<RegisterReassignment>, RB_AMOUNT> m_reg_reassignment;
     std::array<std::map<RegIdx, int>, RB_AMOUNT> m_stackParamLayout;
-    std::function<Arg(int, int)> m_getReassigned;
+    SpillInfo m_spill_info;
 };
 }
 #endif // __LOOPS_REG_ALLOCATOR_HPP__
