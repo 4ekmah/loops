@@ -141,15 +141,9 @@ private:
                              std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
     struct RegisterReassignment
     {
-        int spill_parameters_assignment;
         std::vector<int> bounds; 
         std::vector<Arg> args;
-        inline Arg getAt(int opnum)
-        {
-            int bnum = (int)std::distance(bounds.begin(), std::lower_bound(bounds.begin(), bounds.end(), opnum));
-            bnum = bounds[bnum] == opnum ? bnum : bnum - 1;
-            return args[bnum];
-        }
+        inline Arg getAt(int opnum);
         RegisterReassignment() {}
         RegisterReassignment(int start, int end, const Arg& base_replace) :
             bounds({start, end}), args({base_replace}) {}
@@ -173,11 +167,11 @@ private:
 
     void insertSpillInstructions(const Syntfunc& a_source,
                                  Syntfunc& a_destination);
-    void writePrologue(Syntfunc& a_destination,
-                       const std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+    void writePrologue(Syntfunc& a_destination);
     void writeEpilogue(Syntfunc& a_destination);
 
     inline Arg getReassigned(int basketNum, int opnum, int old);
+    inline int64_t getSpillOffset(int basketNum, RegIdx reg, Arg spilled);
     inline int64_t getSpillOffset(int basketNum, int opnum, RegIdx reg);
 
     RegisterPool m_pool;
@@ -192,7 +186,12 @@ private:
     //Widely used algorithm variables:
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> m_reg_reassignment;
     std::array<std::map<RegIdx, int>, RB_AMOUNT> m_stackParamLayout;
+    std::array<std::vector<RegIdx>, RB_AMOUNT> m_params_sorted;
     SpillInfo m_spill_info;
+
+    inline bool isParam(int basketNum, int idx);
+    inline bool isRegisterPassedParam(int basketNum, int idx);
+    inline bool isStackPassedParam(int basketNum, int idx);
 };
 }
 #endif // __LOOPS_REG_ALLOCATOR_HPP__
