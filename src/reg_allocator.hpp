@@ -146,7 +146,7 @@ private:
         std::vector<Arg> args;
         inline Arg getAt(int opnum)
         {
-            int bnum = std::distance(bounds.begin(), std::lower_bound(bounds.begin(), bounds.end(), opnum));
+            int bnum = (int)std::distance(bounds.begin(), std::lower_bound(bounds.begin(), bounds.end(), opnum));
             bnum = bounds[bnum] == opnum ? bnum : bnum - 1;
             return args[bnum];
         }
@@ -178,7 +178,7 @@ private:
     void writeEpilogue(Syntfunc& a_destination);
 
     inline Arg getReassigned(int basketNum, int opnum, int old);
-    inline int getSpillOffset(int basketNum, int opnum, RegIdx reg);
+    inline int64_t getSpillOffset(int basketNum, int opnum, RegIdx reg);
 
     RegisterPool m_pool;
     int m_snippet_caused_spills;

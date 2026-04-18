@@ -12,6 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "composer.hpp"
 #include "printer.hpp"
 #include <vector>
+#include <array>
 #include <set>
 #include <map>
 

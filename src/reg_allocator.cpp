@@ -453,6 +453,7 @@ void RegisterAllocator::layOutLiveIntervals(const Syntfunc& a_source,
         liveintervals[basketNum].clear();
         parintervals[basketNum].clear();
         size_t idx = 0;
+        //Function can have more arguments, than it use, so:  
         size_t idxParMax = std::min((*m_liveintervals_raw)[basketNum].size(), params_sorted[basketNum].size());
         parintervals[basketNum].reserve(idxParMax);
         for (; idx < idxParMax; ++idx)
@@ -554,7 +555,8 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                     result[basketNum][interval->idx] = result[basketNum][lastactive->idx];
                     stackParameterSpilled = m_stackParamLayout[basketNum].count(lastactive->idx);
                     result[basketNum][lastactive->idx] = RegisterReassignment(keeped.bounds[0], keeped.bounds[1], argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]));
-                    result[basketNum][lastactive->idx].spill_parameters_assignment = keeped.args[0].idx; //DUBUG: args[0] is very bad hardcode, but we have to rewrite whole algoritthm to eliminate it.
+                    if(lastactive->idx < (int)parintervals[basketNum].size())
+                        result[basketNum][lastactive->idx].spill_parameters_assignment = keeped.args[0].idx;
                     active.erase(--(active.end()));
                     active.insert(*interval);
                 }
@@ -661,7 +663,7 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
             {
                 int argNum = (*removerator);
                 LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
-                if (getReassigned(basketNum, opnum, op.args[argNum].idx).tag == SPLtag)
+                if (getReassigned(basketNum, (int)opnum, op.args[argNum].idx).tag == SPLtag)
                     removerator++;
                 else
                     removerator = unspilledIdxs.erase(removerator);
@@ -670,7 +672,7 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
             {
                 int argNum = (*removerator);
                 LOOPS_ASSERT(argNum < op.size() && op.args[argNum].tag == REGtag);
-                if (getReassigned(basketNum, opnum, op.args[argNum].idx).tag == SPLtag)
+                if (getReassigned(basketNum, (int)opnum, op.args[argNum].idx).tag == SPLtag)
                     removerator++;
                 else
                     removerator = spilledIdxs.erase(removerator);
@@ -761,7 +763,7 @@ void RegisterAllocator::insertSpillInstructions(const Syntfunc& a_source,
         Syntop op = a_source.program[opnum];
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             for (auto ar : m_spill_info.unspilledRenaming[basketNum].at(opnum))
-                a_destination.program.push_back(Syntop(OP_UNSPILL, { ar.second, argIImm(getSpillOffset(basketNum, opnum, ar.first)) }));
+                a_destination.program.push_back(Syntop(OP_UNSPILL, { ar.second, argIImm(getSpillOffset(basketNum, (int)opnum, ar.first)) }));
         for (int arnum = 0; arnum < op.size(); arnum++)
         {
             Arg& ar = op[arnum];
@@ -769,19 +771,19 @@ void RegisterAllocator::insertSpillInstructions(const Syntfunc& a_source,
             {
                 int basketNum = (ar.tag == Arg::IREG ? RB_INT : RB_VEC);
                 if (m_spill_info.stackPlaceable[basketNum][opnum].count(arnum) != 0)
-                    ar = argSpilled(basketNum, getSpillOffset(basketNum, opnum, ar.idx));
+                    ar = argSpilled(basketNum, getSpillOffset(basketNum, (int)opnum, ar.idx));
                 else if(m_spill_info.spilledRenaming[basketNum][opnum].count(ar.idx)) 
                     ar = m_spill_info.spilledRenaming[basketNum][opnum].at(ar.idx);
                 else if(m_spill_info.unspilledRenaming[basketNum][opnum].count(ar.idx)) 
                     ar = m_spill_info.unspilledRenaming[basketNum][opnum].at(ar.idx);
                 else
-                    ar.idx = getReassigned(basketNum, opnum, ar.idx).idx;
+                    ar.idx = getReassigned(basketNum, (int)opnum, ar.idx).idx;
             }
         }
         a_destination.program.push_back(op);
         for(int basketNum = 0; basketNum<RB_AMOUNT; basketNum++)
             for (auto ar : m_spill_info.spilledRenaming[basketNum][opnum])
-                a_destination.program.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, opnum, ar.first)), ar.second }));
+                a_destination.program.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, (int)opnum, ar.first)), ar.second }));
     }
 }
 
@@ -885,7 +887,7 @@ inline Arg RegisterAllocator::getReassigned(int basketNum, int opnum, int old)
     return (old == Syntfunc::RETREG && basketNum == RB_INT ? m_retreg : m_reg_reassignment[basketNum][old].getAt(opnum));
 }
 
-inline int RegisterAllocator::getSpillOffset(int basketNum, int opnum, RegIdx reg)
+inline int64_t RegisterAllocator::getSpillOffset(int basketNum, int opnum, RegIdx reg)
 {
     const int SPLtag = ((basketNum == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
     Arg reassigned = getReassigned(basketNum, opnum, reg);
