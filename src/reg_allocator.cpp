@@ -794,7 +794,6 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
         for(auto p : m_stackParamLayout[basketNum])
             if (m_reg_reassignment[basketNum][p.first].args[0].tag == SPLtag)
                 parametersStoodSpilled++;
-        to_fill.nettoSpills[basketNum];
         for(int idx = 0; idx < (int)m_reg_reassignment[basketNum].size(); idx++)
             for(int intnum = 0; intnum < (int)m_reg_reassignment[basketNum][idx].args.size(); intnum++)
                 if(m_reg_reassignment[basketNum][idx].args[intnum].tag == SPLtag)
@@ -980,7 +979,7 @@ inline int64_t RegisterAllocator::getSpillOffset(int basketNum, int opnum, RegId
 
 inline bool RegisterAllocator::isParam(int basketNum, int idx)
 {
-    return idx < m_params_sorted[basketNum].size();
+    return idx < (int)m_params_sorted[basketNum].size();
 }
 
 inline bool RegisterAllocator::isRegisterPassedParam(int basketNum, int idx)
