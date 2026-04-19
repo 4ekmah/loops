@@ -213,6 +213,33 @@ Linear scan(algorithm description is given in paper: Poletto, Massimiliano; Sark
 
 namespace loops
 {
+
+void DUBUGprint_allocation(const std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT>& m_reg_reassignment)
+{
+    for(int basketNum = 0; basketNum < (int)m_reg_reassignment.size(); basketNum++)
+    {
+        if (basketNum == RB_INT)
+            printf("Scalar registers reassignment:\n");
+        else 
+            printf("Vector registers reassignment:\n");
+        for(int idx = 0; idx < (int)m_reg_reassignment[basketNum].size(); idx++)
+        {
+            const RegisterAllocator::RegisterReassignment& ra = m_reg_reassignment[basketNum][idx];
+            printf("    %d ->", idx);
+            for(int sinum = 0; sinum < (int)ra.args.size(); sinum++)
+            {
+                bool spilled = ra.args[sinum].tag == Arg::ISPILLED || ra.args[sinum].tag == Arg::VSPILLED;
+                printf("(%d-%d:", ra.bounds[sinum], ra.bounds[sinum + 1]);
+                printf("%s%d)|", spilled ? "s" : "r", (int)(spilled ? ra.args[sinum].value : ra.args[sinum].idx));
+            }
+            printf("\n");
+        }
+            
+    } 
+
+
+}
+
 inline RegIdx pickFirstBit64(uint64_t& bigNum)
 {
     LOOPS_ASSERT(bigNum != 0);
@@ -512,6 +539,12 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                 if (attempt == IReg::NOIDX)
                     break;
                 result[basketNum][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basketNum, attempt));
+                if(isStackPassedParam(basketNum, idx))
+                {
+                    RegisterReassignment& param_r = result[basketNum][idx];
+                    param_r.bounds.insert(param_r.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
+                    param_r.args.insert(param_r.args.begin(), argSpilled(basketNum, 0));
+                } 
                 active.insert(parintervals[basketNum][parreg]);
             }
             for (; parreg < (int)parintervals[basketNum].size(); parreg++)
@@ -522,6 +555,12 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                 if (attempt == IReg::NOIDX)
                     break;
                 result[basketNum][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basketNum, attempt));
+                if(isStackPassedParam(basketNum, idx))
+                {
+                    RegisterReassignment& param_r = result[basketNum][idx];
+                    param_r.bounds.insert(param_r.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
+                    param_r.args.insert(param_r.args.begin(), argSpilled(basketNum, 0));
+                }
                 active.insert(parintervals[basketNum][parreg]);
             }
             //DUBUG: At least here we can use space provided by calling convention. But, probably, in previous case, 
@@ -541,10 +580,12 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                 for (; removerator != active.end(); ++removerator)
                     if (removerator->end <= interval->start)
                     {
-                        LOOPS_ASSERT(result[basketNum][removerator->idx].args[0].tag == REGtag); //DUBUG: args[0] is very bad hardcode, but we have to rewrite whole algoritthm to eliminate it.
-                        m_pool.releaseReg(basketNum, result[basketNum][removerator->idx].args[0].idx); //DUBUG: args[0] is very bad hardcode, but we have to rewrite whole algoritthm to eliminate it.
+                        int lastsn = ((int)result[basketNum][removerator->idx].args.size()) - 1;
+                        LOOPS_ASSERT(result[basketNum][removerator->idx].args[lastsn].tag == REGtag);
+                        int assigned_idx = result[basketNum][removerator->idx].args[lastsn].idx;
+                        m_pool.releaseReg(basketNum, assigned_idx);
                         if (removerator->end == interval->start) //Current line, line of definition of considered register
-                            opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, result[basketNum][removerator->idx].args[0].idx)); //DUBUG: args[0] is very bad hardcode, but we have to rewrite whole algoritthm to eliminate it.
+                            opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, assigned_idx));
                     }
                     else
                         break;
@@ -562,10 +603,18 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                 {
                     RegisterReassignment keeped = result[basketNum][lastactive->idx];
                     result[basketNum][interval->idx] = result[basketNum][lastactive->idx];
-                    stackParameterSpilled = isStackPassedParam(basketNum, lastactive->idx);
-                    result[basketNum][lastactive->idx] = RegisterReassignment(keeped.bounds[0], keeped.bounds[1], argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]));
-                    if(isRegisterPassedParam(basketNum, lastactive->idx))
+                    if(!isParam(basketNum, interval->idx) && result[basketNum][interval->idx].args.size() > 1)
                     {
+                        //DUBUG: now we are supporting only 0-0 subintervals, but be aware, it's not for long!
+                        result[basketNum][interval->idx].bounds.erase(result[basketNum][interval->idx].bounds.begin());
+                        int pos = result[basketNum][interval->idx].args[0].tag == Arg::ISPILLED || result[basketNum][interval->idx].args[0].tag == Arg::VSPILLED ? 0 : 1;
+                        result[basketNum][interval->idx].args.erase(result[basketNum][interval->idx].args.begin() + pos);
+                    }
+                    stackParameterSpilled = isStackPassedParam(basketNum, lastactive->idx);
+                    int lastsn = ((int)keeped.args.size()) - 1;
+                    result[basketNum][lastactive->idx] = RegisterReassignment(keeped.bounds[lastsn], keeped.bounds[lastsn + 1], argSpilled(basketNum, stackParameterSpilled ? 0 : spoffset[basketNum]));
+                    if(isRegisterPassedParam(basketNum, lastactive->idx))
+                    {//Parameter, passed in register was spilled and have to be moved on function start.
                         RegisterReassignment& param = result[basketNum][lastactive->idx];
                         param.bounds.insert(param.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
                         param.args.insert(param.args.begin(), keeped.args[0]);
@@ -795,6 +844,8 @@ void RegisterAllocator::insertSpillInstructions(const Syntfunc& a_source,
             int basketNum = (first.tag == Arg::ISPILLED || first.tag == Arg::IREG) ? RB_INT : RB_VEC;
             if (first.tag == Arg::IREG && second.tag == Arg::ISPILLED)
                 a_destination.program.push_back(Syntop(OP_SPILL, { argIImm(getSpillOffset(basketNum, idx, second)), first }));
+            else if (first.tag == Arg::ISPILLED && second.tag == Arg::IREG)
+                a_destination.program.push_back(Syntop(OP_UNSPILL, { second, getSpillOffset(basketNum, idx, first) }));
             else
                 throw loops::exception("Register transfer type is not supported!");
         }
@@ -843,13 +894,6 @@ void RegisterAllocator::writePrologue(Syntfunc& a_destination)
             }
         }
     }
-    for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
-        for(auto param : m_stackParamLayout[basketNum])
-        {
-            RegIdx idx = param.first;
-            if (m_reg_reassignment[basketNum][idx].getAt(0).tag == (basketNum == RB_INT ? Arg::IREG : Arg::VREG))
-                a_destination.program.push_back(Syntop(OP_UNSPILL, { m_reg_reassignment[basketNum][idx].getAt(0), argIImm(m_spill_info.spAddAligned + param.second) }));
-        }
     if(m_have_function_calls)
         m_backend->writeCallerPrologue(a_destination, m_spill_info.spAddAligned);
 }

@@ -192,6 +192,7 @@ private:
     inline bool isParam(int basketNum, int idx);
     inline bool isRegisterPassedParam(int basketNum, int idx);
     inline bool isStackPassedParam(int basketNum, int idx);
+    friend void DUBUGprint_allocation(const std::array<std::vector<RegisterReassignment>, RB_AMOUNT>& m_reg_reassignment);
 };
 }
 #endif // __LOOPS_REG_ALLOCATOR_HPP__
