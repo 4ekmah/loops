@@ -24,7 +24,9 @@ struct LiveInterval
 {
     int start, end;
     RegIdx idx;
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx) {}
+    //Priority is measured like sum of occurrences of usage, multilplied by 4^k, where k is hierarchical depth of loop.
+    uint64_t priority; //DUBUG: we need here saturation sums, if it max(uint64_t), let it be unchangeable.
+    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0) {}
 };
 
 struct startordering

@@ -2481,6 +2481,7 @@ namespace loops
         case OP_SAR:
         case OP_NOT:
         case OP_SIGN:
+        case VOP_FMA:
         {
             if (undefinedArgNums.count(1))
                 return 1;
@@ -2492,10 +2493,6 @@ namespace loops
                 return 3;
             break;
         }
-        case (VOP_FMA):
-            if (undefinedArgNums.count(1))
-                return 1;
-            break;
         default:
             break;
         }

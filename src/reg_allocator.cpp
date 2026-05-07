@@ -1032,8 +1032,8 @@ private:
     inline int regAmount(int basketNum) const { return (int)m_subintervals[basketNum].size(); }
     inline int siAmount(int basketNum, RegIdx regNum) const;
     inline bool defined(int basketNum, RegIdx regNum) const { return siAmount(basketNum, regNum) > 0; }
-    inline void def(int basketNum, RegIdx regNum, int opnum);
-    inline void use(int basketNum, RegIdx regNum, int opnum);
+    inline void def(int basketNum, RegIdx regNum, int opnum, uint64_t priority_scale = 0);
+    inline void use(int basketNum, RegIdx regNum, int opnum, uint64_t priority_scale = 0);
     inline void spliceUntilSinum(int basketNum, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
     inline int expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int siStart);
     inline int deactivationOpnum(int basketNum, RegIdx regNum);
@@ -1062,6 +1062,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
     std::multimap<int, LAEvent> CFqueue;
     RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
+    int64_t priority_scale = 1;
     { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
         std::deque<ControlFlowBracket> flowstack;
         for (const Arg& par : a_source.params)
@@ -1126,6 +1127,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum));
                 CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
+                priority_scale <<= 2;
                 continue;
             }
             case (OP_ENDWHILE):
@@ -1140,6 +1142,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 rator->second.oppositeNestingSide = opnum;
                 rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
                 rator->second.oppositeNestingSide = whilePos;
+                priority_scale >>= 2;
                 continue;
             }
             default:
@@ -1154,9 +1157,9 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         outRegs.erase(IO);
                     }
                     for (RegIdx inreg : inRegs)
-                        use(basketNum, inreg, opnum);
+                        use(basketNum, inreg, opnum, priority_scale);
                     for (RegIdx outreg : outRegs)
-                        def(basketNum, outreg, opnum);
+                        def(basketNum, outreg, opnum, priority_scale);
                 }
                 break;
             }
@@ -1476,22 +1479,24 @@ int LivenessAnalysisAlgoImpl::siAmount(int basketNum, RegIdx regNum) const
     return (int)m_subintervals[basketNum][regNum].size();
 }
 
-void LivenessAnalysisAlgoImpl::def(int basketNum, RegIdx regNum, int opnum)
+void LivenessAnalysisAlgoImpl::def(int basketNum, RegIdx regNum, int opnum, uint64_t priority_scale)
 {
     if (regNum != Syntfunc::RETREG)
     {
         LOOPS_ASSERT(regNum != IReg::NOIDX && regNum < regAmount(basketNum));
         m_subintervals[basketNum][regNum].push_back(LiveInterval(regNum, opnum));
+        m_subintervals[basketNum][regNum].back().priority = priority_scale;
     }
 }
 
-void LivenessAnalysisAlgoImpl::use(int basketNum, RegIdx regNum, int opnum)
+void LivenessAnalysisAlgoImpl::use(int basketNum, RegIdx regNum, int opnum, uint64_t priority_scale)
 {
     if (regNum != Syntfunc::RETREG)
     {
         if (regNum != IReg::NOIDX && !defined(basketNum, regNum))
             throw loops::exception("Compile error: using uninitialized register");
         m_subintervals[basketNum][regNum].back().end = opnum;
+        m_subintervals[basketNum][regNum].back().priority += priority_scale;
     }
 }
 
@@ -1502,7 +1507,11 @@ void LivenessAnalysisAlgoImpl::spliceUntilSinum(int basketNum, RegIdx regNum, in
     LOOPS_ASSERT(siStart <= siEnd);
     LOOPS_ASSERT(siEnd != UNDEFINED_OPERATION_NUMBER && siEnd < siAmount(basketNum, regNum));
     m_subintervals[basketNum][regNum][siStart].end = m_subintervals[basketNum][regNum][siEnd].end;
-    m_subintervals[basketNum][regNum].erase(m_subintervals[basketNum][regNum].begin() + siStart + 1, m_subintervals[basketNum][regNum].begin() + siEnd + 1);
+    std::vector<LiveInterval>::iterator remove_start = m_subintervals[basketNum][regNum].begin() + siStart + 1;
+    std::vector<LiveInterval>::iterator remove_end = m_subintervals[basketNum][regNum].begin() + siEnd + 1;
+    for(std::vector<LiveInterval>::iterator sum_iterator = remove_start; sum_iterator < remove_end; sum_iterator++)
+        m_subintervals[basketNum][regNum][siStart].priority += sum_iterator->priority;
+    m_subintervals[basketNum][regNum].erase(remove_start, remove_end);
 }
 
 int LivenessAnalysisAlgoImpl::expandUntilOpnum(int basketNum, RegIdx regNum, int opnum, int a_siStart)
