@@ -39,6 +39,18 @@ struct endordering
     bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
 };
 
+struct BasicBlocksTree
+{
+    std::vector<std::shared_ptr<BasicBlocksTree> > children;
+    enum {BBT_IF, BBT_WHILE, BBT_FUNC};
+    int type;
+    int start_pos;
+    int end_pos;
+    int else_pos;
+    BasicBlocksTree() {} 
+    BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
+};
+
 class LivenessAnalysisAlgo : public CompilerPass
 {
 public:

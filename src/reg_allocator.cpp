@@ -1005,18 +1005,14 @@ public:
     virtual int getSnippetCausedSpills() const override final { return m_snippetCausedSpills; }
     virtual bool haveFunctionCalls() const override final { return m_haveFunctionCalls; }
 private:
-    struct LAEvent //Liveness Analysis Event
+    struct SIEvent //Subinterval Event
     {
-        enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT, NONDEF = -1 };
-        int eventType;
         RegIdx idx;
-        int elsePos;
-        int oppositeNestingSide;
-        int basketNum;
-        LAEvent() : eventType(NONDEF), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER) {}
-        LAEvent(int a_eventType) : eventType(a_eventType), idx(IReg::NOIDX), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(RB_AMOUNT) {}
-        LAEvent(int a_eventType, RegIdx a_idx, int basketNum_) : eventType(a_eventType), idx(a_idx), elsePos(UNDEFINED_OPERATION_NUMBER), oppositeNestingSide(UNDEFINED_OPERATION_NUMBER), basketNum(basketNum_) {}
+        int basket_num;
+        SIEvent() : idx(IReg::NOIDX) {}
+        SIEvent(RegIdx a_idx, int a_basket_num) : idx(a_idx), basket_num(a_basket_num) {}
     };
+    friend struct LAEventIterator;
     std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> m_subintervals; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
                                                                                     //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
                                                                                     //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
@@ -1043,11 +1039,128 @@ private:
     inline LiveInterval& getNextSubinterval(int basketNum, RegIdx regNum);
     inline bool isIterateable(int basketNum, RegIdx regNum) const; //Well, unfotunately, we don't have after-end-state, only last-one state.
     inline void iterateSubinterval(int basketNum, RegIdx regNum);
-    inline void moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum);
+    inline void moveEventLater(std::multimap<int, SIEvent>& queue, RegIdx regNum, int oldOpnum, int newOpnum);
 };
+
+//It is destructive for subint_queue
+struct LAEventIterator //Liveness analysis event
+{
+    enum { LAE_STARTLOOP, LAE_ENDLOOP, LAE_STARTBRANCH, LAE_ENDBRANCH, LAE_SWITCHSUBINT};
+    int event_type;
+    int opnum;
+    int else_pos;
+    int idx;
+    int basket_num;
+    int opposite_nesting_side;
+    LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue);
+    bool done() const;
+    void next();
+private:
+    struct CFEvent //Control flow Event
+    {
+        int event_type;
+        int else_pos;
+        int opposite_nesting_side;
+        CFEvent(int a_event_type) : event_type(a_event_type), else_pos(UNDEFINED_OPERATION_NUMBER), opposite_nesting_side(UNDEFINED_OPERATION_NUMBER) {}
+    };
+    const BasicBlocksTree& bbt;
+    std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& subint_queue;
+    std::map<int, CFEvent> bbt_queue;
+    std::map<int, CFEvent>::iterator bbt_iterator;
+    bool isdone;
+};
+
+LAEventIterator::LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue):
+    bbt(a_bbt)
+    , subint_queue(a_subint_queue)
+    , opnum(0)
+    , isdone(false)
+{
+    std::stack<const BasicBlocksTree*> bbt_stack;
+    bbt_stack.push(&bbt);
+    std::stack<int> child_idx_stack;
+    child_idx_stack.push(0);
+    while(bbt_stack.size())
+    {
+        const BasicBlocksTree* curr_block = bbt_stack.top();
+        if(child_idx_stack.top() < curr_block->children.size())
+        {
+            int child_idx = child_idx_stack.top();
+            child_idx_stack.top()++;
+            child_idx_stack.push(0);
+            bbt_stack.push(curr_block->children[child_idx].get());
+            curr_block = bbt_stack.top();
+            CFEvent evnt(curr_block->type == BasicBlocksTree::BBT_IF ?
+                                                    LAE_STARTBRANCH : 
+                                                    LAE_STARTLOOP);
+            evnt.opposite_nesting_side = curr_block->end_pos;
+            bbt_queue.insert(std::make_pair(curr_block->start_pos, evnt)); 
+        }
+        else
+        {
+            if(bbt_stack.size() > 1)
+            {
+                CFEvent evnt(LAE_ENDLOOP);
+                if(curr_block->type == BasicBlocksTree::BBT_IF)
+                {
+                    evnt = CFEvent(LAE_ENDBRANCH);
+                    evnt.else_pos = curr_block->else_pos;
+                }
+                evnt.opposite_nesting_side = curr_block->start_pos;
+                bbt_queue.insert(std::make_pair(curr_block->end_pos, evnt)); 
+            }
+            bbt_stack.pop();
+            child_idx_stack.pop();
+        }
+    }
+    bbt_iterator = bbt_queue.begin();
+    next();
+}
+    
+bool LAEventIterator::done() const 
+{
+    return isdone;
+}
+
+void LAEventIterator::next()
+{
+    const int op_end = bbt.end_pos;
+    int subint_next_opnum = op_end;
+    int bbt_next_opnum = op_end;
+    if(!subint_queue.empty())
+        subint_next_opnum = subint_queue.begin()->first;
+    if(bbt_iterator != bbt_queue.end())
+        bbt_next_opnum = bbt_iterator->first;
+    if(subint_next_opnum == op_end && bbt_next_opnum == op_end)
+    {
+        isdone = true;
+    }
+    else if(subint_next_opnum < bbt_next_opnum)
+    {
+        auto subint_queue_iterator = subint_queue.begin();
+        opnum = subint_next_opnum;
+        event_type = LAE_SWITCHSUBINT;
+        idx = subint_queue_iterator->second.idx;
+        basket_num = subint_queue_iterator->second.basket_num;
+        subint_queue.erase(subint_queue_iterator);
+    }
+    else // if(bbt_next_opnum < subint_next_opnum)
+    {
+        opnum = bbt_next_opnum;
+        event_type = bbt_iterator->second.event_type;
+        else_pos = bbt_iterator->second.else_pos;
+        opposite_nesting_side = bbt_iterator->second.opposite_nesting_side;
+        bbt_iterator++;
+    }
+}
 
 void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
+    BasicBlocksTree bbt(BasicBlocksTree::BBT_FUNC, 0);
+    bbt.end_pos = (int)a_dest.program.size();
+    std::stack<BasicBlocksTree*> bbtstack;
+    bbtstack.push(&bbt);
+    
     //TODO(ch): Introduce inplace passes. 
     LOOPS_ASSERT(&a_dest == &a_source); 
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -1060,11 +1173,10 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     //4.) Also, find the biggest number of spilled variables needed for deployment of some instructions into snippets(e.g., DIV on intel).
     
     //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
-    std::multimap<int, LAEvent> CFqueue;
     RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
     int64_t priority_scale = 1;
     { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
-        std::deque<ControlFlowBracket> flowstack;
+        // std::deque<ControlFlowBracket> flowstack;
         for (const Arg& par : a_source.params)
         {
             LOOPS_ASSERT(par.tag == Arg::IREG || par.tag == Arg::VREG);
@@ -1087,61 +1199,41 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             case (OP_IF_CEND):
             {
                 LOOPS_ASSERT(op.size() == 0);
-                flowstack.push_back(ControlFlowBracket(ControlFlowBracket::IF, opnum));
-                CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTBRANCH)));
+                std::shared_ptr<BasicBlocksTree> bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_IF, opnum); 
+                bbtstack.top()->children.push_back(bbttoadd);
+                bbtstack.push(bbttoadd.get());
                 continue;
             }
             case (OP_ELSE):
             {
                 LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
-                LOOPS_ASSERT(flowstack.size() && flowstack.back().tag == ControlFlowBracket::IF);
-                flowstack.push_back(ControlFlowBracket(ControlFlowBracket::ELSE, opnum));
+                LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_IF);
+                bbtstack.top()->else_pos = opnum;
                 continue;
             }
             case (OP_ENDIF):
             {
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-                LOOPS_ASSERT(flowstack.size());
-                ControlFlowBracket bracket = flowstack.back();
-                flowstack.pop_back();
-                int elsePos = LAEvent::NONDEF;
-                if (bracket.tag == ControlFlowBracket::ELSE)
-                {
-                    elsePos = bracket.label_or_pos;
-                    LOOPS_ASSERT(flowstack.size());
-                    bracket = flowstack.back();
-                    flowstack.pop_back();
-                }
-                LOOPS_ASSERT(bracket.tag == ControlFlowBracket::IF);
-                auto rator = CFqueue.find(bracket.label_or_pos);
-                LOOPS_ASSERT(rator != CFqueue.end());
-                int ifStart = rator->first;
-                rator->second.oppositeNestingSide = opnum;
-                rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDBRANCH)));
-                rator->second.elsePos = elsePos;
-                rator->second.oppositeNestingSide = ifStart;
+                LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_IF);
+                bbtstack.top()->end_pos = opnum;
+                bbtstack.pop();
                 continue;
             }
             case (OP_WHILE_CSTART):
-            {
+            {                
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-                flowstack.push_back(ControlFlowBracket(ControlFlowBracket::WHILE, opnum));
-                CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_STARTLOOP)));
                 priority_scale <<= 2;
+                std::shared_ptr<BasicBlocksTree> bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_WHILE, opnum); 
+                bbtstack.top()->children.push_back(bbttoadd);
+                bbtstack.push(bbttoadd.get());
                 continue;
             }
             case (OP_ENDWHILE):
             {
                 LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
-                LOOPS_ASSERT(flowstack.size() && flowstack.back().tag == ControlFlowBracket::WHILE);
-                const ControlFlowBracket& bracket = flowstack.back();
-                flowstack.pop_back();
-                auto rator = CFqueue.find(bracket.label_or_pos);
-                LOOPS_ASSERT(rator != CFqueue.end());
-                int whilePos = rator->first;
-                rator->second.oppositeNestingSide = opnum;
-                rator = CFqueue.insert(std::make_pair(opnum, LAEvent(LAEvent::LAE_ENDLOOP)));
-                rator->second.oppositeNestingSide = whilePos;
+                LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_WHILE);
+                bbtstack.top()->end_pos = opnum;
+                bbtstack.pop();
                 priority_scale >>= 2;
                 continue;
             }
@@ -1169,8 +1261,9 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             alignx = std::max(alignx, bex);
         m_snippetCausedSpills += m_snippetCausedSpills % alignx ? alignx - m_snippetCausedSpills % alignx : 0; 
     }
-
+    LOOPS_ASSERT(bbtstack.size() == 1);
     { //2.) Calculating intervals crossing loops and embranchments.
+        std::multimap<int, SIEvent> SIqueue;
         initSubintervalHeaders(-1);
         std::array<std::multiset<LiveInterval, endordering>, RB_AMOUNT> lastActive; // NOTE: In this part of code LiveInterval::end means not end position of subinterval, but deactivation position, position, when starts new subinterval or ends final one.
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -1192,21 +1285,21 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 }
                 else
                     eventPos = sintStart;
-                CFqueue.insert(std::make_pair(eventPos, LAEvent(LAEvent::LAE_SWITCHSUBINT, idx, basketNum)));
+                SIqueue.insert(std::make_pair(eventPos, SIEvent(idx, basketNum)));
             }
         }
 
-        while (!CFqueue.empty())
+        LAEventIterator event(bbt, SIqueue);
+
+        while (!event.done())
         {
-            int opnum = CFqueue.begin()->first;
-            LAEvent event = CFqueue.begin()->second;
-            CFqueue.erase(CFqueue.begin());
-            switch (event.eventType)
+            int opnum = event.opnum;
+            switch (event.event_type)
             {
-            case (LAEvent::LAE_SWITCHSUBINT):
+            case (LAEventIterator::LAE_SWITCHSUBINT):
             {
-                std::multiset<LiveInterval, endordering>& b_lastActive = lastActive[event.basketNum];
-                if ((getCurrentSinum(event.basketNum, event.idx) + 1) > 0)
+                std::multiset<LiveInterval, endordering>& b_lastActive = lastActive[event.basket_num];
+                if ((getCurrentSinum(event.basket_num, event.idx) + 1) > 0)
                 {
                     auto removerator = b_lastActive.begin();
                     while (removerator != b_lastActive.end() && removerator->idx != event.idx && removerator->end == opnum)
@@ -1214,32 +1307,34 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     if (removerator != b_lastActive.end() && removerator->idx == event.idx)
                         b_lastActive.erase(removerator);
                 }
-                if (isIterateable(event.basketNum, event.idx))
+                if (isIterateable(event.basket_num, event.idx))
                 {
-                    LAEvent toAdd = event;
-                    iterateSubinterval(event.basketNum, event.idx);
-                    int eventPos = deactivationOpnum(event.basketNum, event.idx);
-                    LiveInterval toActive = getCurrentSubinterval(event.basketNum, event.idx);
+                    SIEvent toAdd;
+                    toAdd.basket_num = event.basket_num;
+                    toAdd.idx = event.idx;
+                    iterateSubinterval(event.basket_num, event.idx);
+                    int eventPos = deactivationOpnum(event.basket_num, event.idx);
+                    LiveInterval toActive = getCurrentSubinterval(event.basket_num, event.idx);
                     toActive.end = eventPos;
                     b_lastActive.insert(toActive);
-                    CFqueue.insert(std::make_pair(eventPos, toAdd));
+                    SIqueue.insert(std::make_pair(eventPos, toAdd));
                 }
                 break;
             };
-            case (LAEvent::LAE_STARTBRANCH):
-            case (LAEvent::LAE_STARTLOOP):
+            case (LAEventIterator::LAE_STARTBRANCH):
+            case (LAEventIterator::LAE_STARTLOOP):
             {
-                push_active_state(lastActive, event.oppositeNestingSide);
+                push_active_state(lastActive, event.opposite_nesting_side);
                 break;
             }
-            case (LAEvent::LAE_ENDBRANCH):
+            case (LAEventIterator::LAE_ENDBRANCH):
             {
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
                 {
-                    const int ifPos = event.oppositeNestingSide;
+                    const int ifPos = event.opposite_nesting_side;
                     const int endifPos = opnum;
-                    const bool haveElse = (event.elsePos != UNDEFINED_OPERATION_NUMBER);
-                    const int elsePos = haveElse ? event.elsePos : endifPos;
+                    const bool haveElse = (event.else_pos != UNDEFINED_OPERATION_NUMBER);
+                    const int else_pos = haveElse ? event.else_pos : endifPos;
                     std::multiset<LiveInterval, endordering> lastActiveChanged;
                     for(auto ifidrator = acs_begin(basketNum); ifidrator != acs_end(basketNum); ifidrator++)
                     {
@@ -1266,7 +1361,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                             }
                             if (sistart > ifPos)
                             {
-                                if (haveElse && sistart > elsePos && firstDefElse == UNDEFINED_OPERATION_NUMBER)
+                                if (haveElse && sistart > else_pos && firstDefElse == UNDEFINED_OPERATION_NUMBER)
                                     firstDefElse = sinum;
                                 else if (firstDefMain == UNDEFINED_OPERATION_NUMBER)
                                     firstDefMain = sinum;
@@ -1275,7 +1370,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                                 break;
                             if (siend > ifPos)
                             {
-                                if (haveElse && siend > elsePos && firstUseElse == UNDEFINED_OPERATION_NUMBER)
+                                if (haveElse && siend > else_pos && firstUseElse == UNDEFINED_OPERATION_NUMBER)
                                     firstUseElse = sinum;
                                 else if (firstUseMain == UNDEFINED_OPERATION_NUMBER)
                                     firstUseMain = sinum;
@@ -1328,7 +1423,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                                 while(removerator != lastActive[basketNum].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
                                 LOOPS_ASSERT(removerator != lastActive[basketNum].end());
                                 lastActive[basketNum].erase(removerator);
-                                moveEventLater(CFqueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
+                                moveEventLater(SIqueue, idx, switchIpos, changedOne.end);
                             }
                         }
                     }
@@ -1337,7 +1432,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 pop_active_state();
                 break;
             }
-            case (LAEvent::LAE_ENDLOOP):
+            case (LAEventIterator::LAE_ENDLOOP):
             {
                 const int endwhilePos = opnum;
                 for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
@@ -1359,7 +1454,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                                 LiveInterval changedOne = m_subintervals[basketNum][idx][si_start];
                                 changedOne.end = deactivationOpnum(basketNum, idx);
                                 lastActiveChanged.insert(changedOne);
-                                moveEventLater(CFqueue, idx, LAEvent::LAE_SWITCHSUBINT, switchIpos, changedOne.end);
+                                moveEventLater(SIqueue, idx, switchIpos, changedOne.end);
                             }
                         }
                     }
@@ -1371,6 +1466,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             default:
                 throw loops::exception("Internal error: unexpected event in branch queue.");
             }
+            event.next();
         }
     }
 
@@ -1576,16 +1672,16 @@ void LivenessAnalysisAlgoImpl::iterateSubinterval(int basketNum, RegIdx regNum)
         m_subintervalHeaders[basketNum][regNum]++;
 }
 
-void LivenessAnalysisAlgoImpl::moveEventLater(std::multimap<int, LAEvent>& queue, RegIdx regNum, int eventType, int oldOpnum, int newOpnum)
+void LivenessAnalysisAlgoImpl::moveEventLater(std::multimap<int, SIEvent>& queue, RegIdx regNum, int oldOpnum, int newOpnum)
 {
     auto qremrator = queue.find(oldOpnum);
     while (qremrator != queue.end() && qremrator->first == oldOpnum)
-        if (qremrator->second.eventType == eventType && qremrator->second.idx == regNum)
+        if (qremrator->second.idx == regNum)
             break;
         else
             qremrator++;
     LOOPS_ASSERT(qremrator != queue.end() && qremrator->first == oldOpnum);
-    LAEvent toRead = qremrator->second;
+    SIEvent toRead = qremrator->second;
     queue.erase(qremrator);
     queue.insert(std::make_pair(newOpnum, toRead));
 }
