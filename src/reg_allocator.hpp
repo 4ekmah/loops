@@ -12,6 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "common.hpp"
 #include "pipeline.hpp"
 #include <map>
+#include <set>
 
 namespace loops {
 /*
@@ -47,6 +48,7 @@ struct BasicBlocksTree
     int start_pos;
     int end_pos;
     int else_pos;
+    std::array<std::set<RegIdx>, RB_AMOUNT> reg_occurencies;
     BasicBlocksTree() {} 
     BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
 };

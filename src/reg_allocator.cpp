@@ -1071,9 +1071,9 @@ private:
 };
 
 LAEventIterator::LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue):
-    bbt(a_bbt)
+    opnum(0)
+    , bbt(a_bbt)
     , subint_queue(a_subint_queue)
-    , opnum(0)
     , isdone(false)
 {
     std::stack<const BasicBlocksTree*> bbt_stack;
@@ -1083,7 +1083,7 @@ LAEventIterator::LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int
     while(bbt_stack.size())
     {
         const BasicBlocksTree* curr_block = bbt_stack.top();
-        if(child_idx_stack.top() < curr_block->children.size())
+        if(child_idx_stack.top() < (int)curr_block->children.size())
         {
             int child_idx = child_idx_stack.top();
             child_idx_stack.top()++;
@@ -1470,6 +1470,8 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
         }
     }
 
+    std::stack<int> child_idx_stack;
+    child_idx_stack.push(0);
     size_t resSize[RB_AMOUNT];
     { //3.) Renaming splitted registers.
         initSubintervalHeaders();
@@ -1487,6 +1489,25 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
 
         for (int opnum = 0; opnum < (int)a_dest.program.size(); opnum++)
         {
+            //Keeping bbtstack actual
+            {
+                int child_idx = child_idx_stack.top();
+                if(child_idx < (int)bbtstack.top()->children.size())
+                {
+                    if(bbtstack.top()->children[child_idx]->start_pos == opnum)
+                    {
+                        bbtstack.push(bbtstack.top()->children[child_idx].get());
+                        child_idx_stack.top()++;
+                        child_idx_stack.push(0);
+                    }
+                }
+                else if(bbtstack.top()->end_pos == opnum)
+                {
+                    bbtstack.pop();
+                    child_idx_stack.pop();
+                }
+            }
+            BasicBlocksTree* bbtop = bbtstack.top();
             Syntop& op = a_dest.program[opnum];
             std::array<std::set<int>, RB_AMOUNT> outRegArnums;
             for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++ )
@@ -1512,6 +1533,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     if (isIterateable(basketNum, arg.idx) && isOut && (getNextSubinterval(basketNum, arg.idx).start <= opnum))
                         sinum++;
                     arg.idx = m_subintervals[basketNum][arg.idx][sinum].idx;
+                    bbtop->reg_occurencies[basketNum].insert(arg.idx);
                 }
             }
         }
