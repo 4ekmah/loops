@@ -398,10 +398,15 @@ namespace loops
             if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::IREG && (index.args[1].flags & AF_ADDRESS) != 0 && 
                (index.args[2].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask0, index, 0))
             {
-                mod = 0;
                 sib_byte_present = true;
                 sib_reg0_argnum = 2;
                 sib_reg1_argnum = 1;
+                mod = ((index.args[sib_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0;
+                if ((index.args[sib_reg1_argnum].idx & 0b111) == 0b101)
+                {
+                    postfix_static = true;
+                    ib = 0;
+                }
             }
             else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 && 
                (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))

@@ -443,8 +443,9 @@ void RegisterPool::removeFromAllVessels(int basketNum, int reg)
     }
 }
 
-RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
+RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr bbt, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
     , m_liveintervals_raw(a_live_intervals)
+    , m_bbt(bbt)
     , m_pool(a_backend)
     , m_snippet_caused_spills(a_snippet_caused_spills)
     , m_have_function_calls(a_have_function_calls)
@@ -1003,6 +1004,7 @@ public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual std::array<std::vector<LiveInterval>, RB_AMOUNT>* live_intervals() override final { return &m_liveintervals; }
     virtual int getSnippetCausedSpills() const override final { return m_snippetCausedSpills; }
+    virtual BasicBlocksTreePtr getBasicBlocksTree() const {return m_basic_blocks_tree; }
     virtual bool haveFunctionCalls() const override final { return m_haveFunctionCalls; }
 private:
     struct SIEvent //Subinterval Event
@@ -1024,6 +1026,7 @@ private:
     std::map<RegIdx, int>::const_iterator acs_end(int basketNum) const;
     std::array<std::vector<LiveInterval>, RB_AMOUNT> m_liveintervals;
     int m_snippetCausedSpills;
+    BasicBlocksTreePtr m_basic_blocks_tree;
     bool m_haveFunctionCalls;
     inline int regAmount(int basketNum) const { return (int)m_subintervals[basketNum].size(); }
     inline int siAmount(int basketNum, RegIdx regNum) const;
@@ -1052,7 +1055,7 @@ struct LAEventIterator //Liveness analysis event
     int idx;
     int basket_num;
     int opposite_nesting_side;
-    LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue);
+    LAEventIterator(const BasicBlocksTreePtr a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue);
     bool done() const;
     void next();
 private:
@@ -1063,21 +1066,21 @@ private:
         int opposite_nesting_side;
         CFEvent(int a_event_type) : event_type(a_event_type), else_pos(UNDEFINED_OPERATION_NUMBER), opposite_nesting_side(UNDEFINED_OPERATION_NUMBER) {}
     };
-    const BasicBlocksTree& bbt;
+    const BasicBlocksTreePtr bbt;
     std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& subint_queue;
     std::map<int, CFEvent> bbt_queue;
     std::map<int, CFEvent>::iterator bbt_iterator;
     bool isdone;
 };
 
-LAEventIterator::LAEventIterator(const BasicBlocksTree& a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue):
+LAEventIterator::LAEventIterator(const BasicBlocksTreePtr a_bbt, std::multimap<int, LivenessAnalysisAlgoImpl::SIEvent>& a_subint_queue):
     opnum(0)
     , bbt(a_bbt)
     , subint_queue(a_subint_queue)
     , isdone(false)
 {
     std::stack<const BasicBlocksTree*> bbt_stack;
-    bbt_stack.push(&bbt);
+    bbt_stack.push(bbt.get());
     std::stack<int> child_idx_stack;
     child_idx_stack.push(0);
     while(bbt_stack.size())
@@ -1124,7 +1127,7 @@ bool LAEventIterator::done() const
 
 void LAEventIterator::next()
 {
-    const int op_end = bbt.end_pos;
+    const int op_end = bbt->end_pos;
     int subint_next_opnum = op_end;
     int bbt_next_opnum = op_end;
     if(!subint_queue.empty())
@@ -1156,10 +1159,10 @@ void LAEventIterator::next()
 
 void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
-    BasicBlocksTree bbt(BasicBlocksTree::BBT_FUNC, 0);
-    bbt.end_pos = (int)a_dest.program.size();
+    m_basic_blocks_tree = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_FUNC, 0);
+    m_basic_blocks_tree->end_pos = (int)a_dest.program.size();
     std::stack<BasicBlocksTree*> bbtstack;
-    bbtstack.push(&bbt);
+    bbtstack.push(m_basic_blocks_tree.get());
     
     //TODO(ch): Introduce inplace passes. 
     LOOPS_ASSERT(&a_dest == &a_source); 
@@ -1199,7 +1202,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             case (OP_IF_CEND):
             {
                 LOOPS_ASSERT(op.size() == 0);
-                std::shared_ptr<BasicBlocksTree> bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_IF, opnum); 
+                BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_IF, opnum); 
                 bbtstack.top()->children.push_back(bbttoadd);
                 bbtstack.push(bbttoadd.get());
                 continue;
@@ -1223,7 +1226,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             {                
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 priority_scale <<= 2;
-                std::shared_ptr<BasicBlocksTree> bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_WHILE, opnum); 
+                BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_WHILE, opnum); 
                 bbtstack.top()->children.push_back(bbttoadd);
                 bbtstack.push(bbttoadd.get());
                 continue;
@@ -1289,7 +1292,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             }
         }
 
-        LAEventIterator event(bbt, SIqueue);
+        LAEventIterator event(m_basic_blocks_tree, SIqueue);
 
         while (!event.done())
         {
@@ -1538,6 +1541,35 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             }
         }
     }
+    LOOPS_ASSERT(bbtstack.size() == 1);
+
+    {//4.) Finishing register usage map in Basic Block Tree hierarchy.
+        child_idx_stack = {};
+        child_idx_stack.push(0);
+        while(bbtstack.size())
+        {
+            BasicBlocksTree* curr_block = bbtstack.top();
+            if(child_idx_stack.top() < (int)curr_block->children.size())
+            {
+                int child_idx = child_idx_stack.top();
+                child_idx_stack.top()++;
+                child_idx_stack.push(0);
+                bbtstack.push(curr_block->children[child_idx].get());
+            }
+            else
+            {
+                bbtstack.pop();
+                child_idx_stack.pop();
+                for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++ )
+                    for(int cnum = 0; cnum < (int)curr_block->children.size(); cnum++)
+                    {
+                        BasicBlocksTreePtr child = curr_block->children[cnum];
+                        curr_block->reg_occurencies[basketNum].insert(child->reg_occurencies[basketNum].begin(), child->reg_occurencies[basketNum].end());
+                    }
+            }
+        }
+    }
+
     for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
     {
         m_liveintervals[basketNum] = std::vector<LiveInterval>(resSize[basketNum], LiveInterval(0,0));
@@ -1729,6 +1761,11 @@ std::array<std::vector<LiveInterval>, RB_AMOUNT>* LivenessAnalysisAlgo::live_int
 int LivenessAnalysisAlgo::getSnippetCausedSpills() const
 {
     return impl->getSnippetCausedSpills();
+}
+
+BasicBlocksTreePtr LivenessAnalysisAlgo::getBasicBlocksTree() const
+{
+    return impl->getBasicBlocksTree();
 }
 
 bool LivenessAnalysisAlgo::haveFunctionCalls() const

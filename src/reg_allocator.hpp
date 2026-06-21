@@ -13,6 +13,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "pipeline.hpp"
 #include <map>
 #include <set>
+#include <unordered_set>
 
 namespace loops {
 /*
@@ -48,11 +49,12 @@ struct BasicBlocksTree
     int start_pos;
     int end_pos;
     int else_pos;
-    std::array<std::set<RegIdx>, RB_AMOUNT> reg_occurencies;
+    std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
     BasicBlocksTree() {} 
     BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
 };
 
+typedef std::shared_ptr<BasicBlocksTree> BasicBlocksTreePtr;
 class LivenessAnalysisAlgo : public CompilerPass
 {
 public:
@@ -64,6 +66,7 @@ public:
 
     virtual std::array<std::vector<LiveInterval>, RB_AMOUNT>* live_intervals();
     virtual int getSnippetCausedSpills() const;
+    virtual BasicBlocksTreePtr getBasicBlocksTree() const;
     virtual bool haveFunctionCalls() const;
 protected:
     LivenessAnalysisAlgo(const Backend* a_owner, int);
@@ -141,7 +144,7 @@ class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
 public:
-    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls);
+    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr bbt, int a_snippet_caused_spills, bool a_have_function_calls);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
@@ -151,6 +154,7 @@ public:
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
     const std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_liveintervals_raw;
+    BasicBlocksTreePtr m_bbt;
     void layOutLiveIntervals(const Syntfunc& a_source, 
                              std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
                              std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
