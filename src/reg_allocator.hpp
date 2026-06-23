@@ -144,7 +144,7 @@ class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
 public:
-    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr bbt, int a_snippet_caused_spills, bool a_have_function_calls);
+    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt, int a_snippet_caused_spills, bool a_have_function_calls);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
@@ -168,6 +168,7 @@ private:
         RegisterReassignment(int start, int end, const Arg& base_replace) :
             bounds({start, end}), args({base_replace}) {}
     };
+    void removeBranchesFromBBT(BasicBlocksTree& node);
 
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,

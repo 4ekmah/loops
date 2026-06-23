@@ -443,9 +443,9 @@ void RegisterPool::removeFromAllVessels(int basketNum, int reg)
     }
 }
 
-RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr bbt, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
+RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt, int a_snippet_caused_spills, bool a_have_function_calls) : CompilerPass(a_backend)
     , m_liveintervals_raw(a_live_intervals)
-    , m_bbt(bbt)
+    , m_bbt(a_bbt)
     , m_pool(a_backend)
     , m_snippet_caused_spills(a_snippet_caused_spills)
     , m_have_function_calls(a_have_function_calls)
@@ -501,6 +501,27 @@ inline Arg RegisterAllocator::RegisterReassignment::getAt(int opnum)
     return args[bnum];
 }
 
+void RegisterAllocator::removeBranchesFromBBT(BasicBlocksTree& node)
+{
+    std::vector<std::shared_ptr<BasicBlocksTree> > newChildren;
+    newChildren.reserve(node.children.size());
+    for(std::shared_ptr<BasicBlocksTree>& child : node.children)
+    {
+        removeBranchesFromBBT(*child);
+        if(child->type == BasicBlocksTree::BBT_IF)
+        {
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                node.reg_occurencies[basketNum].insert(child->reg_occurencies[basketNum].begin(),
+                                                        child->reg_occurencies[basketNum].end());
+            for(std::shared_ptr<BasicBlocksTree>& grandchild : child->children)
+                newChildren.push_back(grandchild);
+        }
+        else
+            newChildren.push_back(child);
+    }
+    node.children = std::move(newChildren);
+}
+
 std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> RegisterAllocator::assignRegisters(const Syntfunc& a_source,
     const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
     const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals)
@@ -508,6 +529,9 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
     //Function takes live intervals, program and create a mapping from abstract old register
     //indexes to new real machine registers. If it's not enough machine registers, some of
     //them are spilled, so mapping for this register will point to spill position in stack.
+
+    //Remove IF statements, because they doesn't affect performance on register allocation.
+    removeBranchesFromBBT(*m_bbt);
 
     //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
     std::array<std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >, RB_AMOUNT> unspillableLd2;
