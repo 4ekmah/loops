@@ -28,7 +28,10 @@ struct LiveInterval
     RegIdx idx;
     //Priority is measured like sum of occurrences of usage, multilplied by 4^k, where k is hierarchical depth of loop.
     uint64_t priority; //DUBUG: we need here saturation sums, if it max(uint64_t), let it be unchangeable.
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0) {}
+    //Sometimes LiveInterval struct is used as split(part of big interval). In this situation it's important to 
+    //distinguish last split.
+    bool is_last_split;
+    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0), is_last_split(true) {}
 };
 
 struct startordering
@@ -49,8 +52,7 @@ struct BasicBlocksTree
     int start_pos;
     int end_pos;
     int else_pos;
-    std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
-    BasicBlocksTree() {} 
+    BasicBlocksTree() {}
     BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
 };
 
@@ -102,6 +104,11 @@ public:
     void clearSpillPlaceholders(int basketNum);
 
     inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
+
+    //Functions for summarizing information about separate register allocations.
+    inline void mergeSpillPlaceholders(const RegisterPool& other);
+    inline void mergeUsedCallee(const RegisterPool& other);
+
     void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
                                             const std::vector<int>&  a_returnRegisters,
                                             const std::vector<int>&  a_callerSavedRegisters,
@@ -140,6 +147,10 @@ M4 provide 8 highest-level registers of hierarchy depth = 5.
 M1 provide 32 highest-level registers of hierarchy depth = 3.
 MF8 provide 256 highest-level registers of hierarchy depth = 0.
 */
+
+// CLADUBUG: Group functions and memebers by stages of algorithm, e.g., so-called m_split_assignments. m_subassignments
+// is really via-building collection for constructioning m_reg_reassignment. That's why they look like one entity, but they are not:
+// m_subassignments is comfortable for building, when m_reg_reassignment is comfortable for application.
 class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
@@ -168,7 +179,51 @@ private:
         RegisterReassignment(int start, int end, const Arg& base_replace) :
             bounds({start, end}), args({base_replace}) {}
     };
+    RegisterPool m_pool;
+    RegisterPool m_poolBase; //Pool just after allocation parameters, cloned for every block allocation.
+
+    //One allocated subinterval of a register: on [start_pos, end_pos) the register lives in "assignment".
+    struct SplitAssignment
+    {
+        int start_pos;
+        int end_pos;
+        Arg assignment;
+    };
+    //Positionally-mixed allocations of liveinterval cuts, made by boundaries of WHILE_ blocks.
+    std::array<std::vector<std::vector<SplitAssignment> >, RB_AMOUNT> m_split_assignments;
+    
+    //We do not consider IF_ nodes as blocks in our hierarhcial allocation approach, because only WHILE_ nodes 
+    //affects performance enough. This function erases IF_ nodes from basic blocks tree.
     void removeBranchesFromBBT(BasicBlocksTree& node);
+
+    //Split a live interval by boundaries of WHILE_ blocks. Parameters are not cut(they keep a whole reassignment).
+    std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> makeBlockSplits(const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals);
+
+    //Pinned spill slot per register index(see linearScanBlock).
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
+    //Provide place for new spill or get already provided 
+    int64_t getSpillSlot(RegIdx idx, int basketNum);
+
+    //Plain linear scan over a single block's splits(one basket): the flat per-block allocation primitive,
+    //driven by allocateBlock's recursion. It doesn't consider function parameters. Works with fresh register 
+    //pool, negotiatian of different allocation is made after.
+    void linearScanBlock(int basketNum, const Syntfunc& a_source,
+        const std::multiset<LiveInterval, startordering>& liveintervals,
+        std::multiset<LiveInterval, endordering>& active,
+        std::vector<RegisterReassignment>& result,
+        const std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >& unspillableLd2,
+        std::unordered_map<RegIdx, RegIdx>& already_allocatedLd2);
+
+    //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree(one basket),
+    //inner-loops-first: each child WHILE is scanned on a fresh pool, then this block scans its own intervals(the
+    //splits made by boundaries of children. Boundaries between a split and its neighbours are reconciled afterwards 
+    //by the per-split transfers in insertSpillInstructions.
+    void allocateBlock(const BasicBlocksTree& node, int basketNum, const Syntfunc& a_source,
+        const std::vector<std::vector<LiveInterval> >& block_splits,
+        std::multiset<LiveInterval, endordering>& active,
+        std::vector<RegisterReassignment>& result,
+        const std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >& unspillableLd2,
+        std::unordered_map<RegIdx, RegIdx>& already_allocatedLd2);
 
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
@@ -181,10 +236,25 @@ private:
         std::array<std::vector<std::set<int> >, RB_AMOUNT> stackPlaceable;
         int nettoSpills[RB_AMOUNT] = {0, 0};
         size_t basket_offset[RB_AMOUNT]; //Start postions of scalar and vector baskets in stack
+        int64_t m_spoffset[RB_AMOUNT] = {0, 0}; 
         int spAddAligned;
     };
 
     SpillInfo modelSpills(const Syntfunc& a_source);
+
+    inline int64_t getSpillOffset(int basketNum, RegIdx reg, Arg spilled);
+    inline int64_t getSpillOffset(int basketNum, int opnum, RegIdx reg);
+
+    struct SplitTransfers
+    {
+        RegIdx vidx;
+        Arg src;
+        Arg dst;
+        int basket_num;
+        bool src_scratch;
+    };
+
+    void emitParallelCopy(Syntfunc& a_destination, const std::vector<SplitTransfers>& transfersHere);
 
     void insertSpillInstructions(const Syntfunc& a_source,
                                  Syntfunc& a_destination);
@@ -192,10 +262,7 @@ private:
     void writeEpilogue(Syntfunc& a_destination);
 
     inline Arg getReassigned(int basketNum, int opnum, int old);
-    inline int64_t getSpillOffset(int basketNum, RegIdx reg, Arg spilled);
-    inline int64_t getSpillOffset(int basketNum, int opnum, RegIdx reg);
 
-    RegisterPool m_pool;
     int m_snippet_caused_spills;
     bool m_have_function_calls;
     int m_epilogueSize;
