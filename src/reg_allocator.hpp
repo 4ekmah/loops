@@ -8,6 +8,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_REG_ALLOCATOR_HPP__
 
 #include "loops/loops.hpp"
+#include "liveness_analysis.hpp"
 #include "backend.hpp"
 #include "common.hpp"
 #include "pipeline.hpp"
@@ -16,65 +17,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <unordered_set>
 
 namespace loops {
-/*
-TODO(ch): Implement with RISC-V RVV
-There will be needed modification for support of connected(nested) vectors:
-Nested vector register must be redefined on redefinition of container vector,
-but only if this nested register will be used after this redefinition.
-*/
-struct LiveInterval
-{
-    int start, end;
-    RegIdx idx;
-    //Priority is measured like sum of occurrences of usage, multilplied by 4^k, where k is hierarchical depth of loop.
-    uint64_t priority; //DUBUG: we need here saturation sums, if it max(uint64_t), let it be unchangeable.
-    //Sometimes LiveInterval struct is used as split(part of big interval). In this situation it's important to 
-    //distinguish last split.
-    bool is_last_split;
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0), is_last_split(true) {}
-};
 
-struct startordering
-{
-    bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.start < b.start; }
-};
-
-struct endordering
-{
-    bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
-};
-
-struct BasicBlocksTree
-{
-    std::vector<std::shared_ptr<BasicBlocksTree> > children;
-    enum {BBT_IF, BBT_WHILE, BBT_FUNC};
-    int type;
-    int start_pos;
-    int end_pos;
-    int else_pos;
-    BasicBlocksTree() {}
-    BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
-};
-
-typedef std::shared_ptr<BasicBlocksTree> BasicBlocksTreePtr;
-class LivenessAnalysisAlgo : public CompilerPass
-{
-public:
-    LivenessAnalysisAlgo(const Backend* a_owner);
-    virtual ~LivenessAnalysisAlgo();
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
-        virtual bool is_inplace() const override final { return true; }
-        virtual std::string pass_id() const override final { return "CP_LIVENESS_ANALYSIS"; }
-
-    virtual std::array<std::vector<LiveInterval>, RB_AMOUNT>* live_intervals();
-    virtual int getSnippetCausedSpills() const;
-    virtual BasicBlocksTreePtr getBasicBlocksTree() const;
-    virtual bool haveFunctionCalls() const;
-protected:
-    LivenessAnalysisAlgo(const Backend* a_owner, int);
-private:
-    LivenessAnalysisAlgo* impl;
-};
 /*
 TODO(ch): Implement with RISC-V RVV
 For RVV support Register pool must be modified to support connected vectors(fractions and splices):
@@ -91,25 +34,25 @@ public:
     RegisterPool(Backend* m_owner);
 
     void initRegisterPool();
-    size_t freeRegsAmount(int basketNum) const;
-    inline bool havefreeRegs(int basketNum) const { return freeRegsAmount(basketNum) > 0; }
-    RegIdx provideParamFromPool(int basketNum);  //Must be called first.
+    size_t freeRegsAmount(int basket_num) const;
+    inline bool havefreeRegs(int basket_num) const { return freeRegsAmount(basket_num) > 0; }
+    RegIdx provideParamFromPool(int basket_num);  //Must be called first.
     // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
-    RegIdx provideRegFromPool(int basketNum, RegIdx a_hint = IReg::NOIDX);
-    std::vector<RegIdx> provideConsecutiveRegs(int basketNum, int amount);
-    RegIdx provideReturnFromPool(int basketNum); //Must be called last.
-    void releaseReg(int basketNum, RegIdx freeReg);
+    RegIdx provideRegFromPool(int basket_num, RegIdx a_hint = IReg::NOIDX);
+    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount);
+    RegIdx provideReturnFromPool(int basket_num); //Must be called last.
+    void releaseReg(int basket_num, RegIdx freeReg);
 
-    RegIdx provideSpillPlaceholder(int basketNum);
-    void clearSpillPlaceholders(int basketNum);
+    RegIdx provideSpillPlaceholder(int basket_num);
+    void clearSpillPlaceholders(int basket_num);
 
-    inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
+    inline std::set<RegIdx> usedCallee(int basket_num) const { return m_usedCallee[basket_num]; }
 
     //Functions for summarizing information about separate register allocations.
     inline void mergeSpillPlaceholders(const RegisterPool& other);
     inline void mergeUsedCallee(const RegisterPool& other);
 
-    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+    void overrideRegisterSet(int basket_num, const std::vector<int>&  a_parameterRegisters,
                                             const std::vector<int>&  a_returnRegisters,
                                             const std::vector<int>&  a_callerSavedRegisters,
                                             const std::vector<int>&  a_calleeSavedRegisters);
@@ -119,7 +62,7 @@ private:
     Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
     // register to be erased from all of them.
-    void removeFromAllVessels(int basketNum, int reg);
+    void removeFromAllVessels(int basket_num, int reg);
 
     enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
     enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
@@ -148,9 +91,6 @@ M1 provide 32 highest-level registers of hierarchy depth = 3.
 MF8 provide 256 highest-level registers of hierarchy depth = 0.
 */
 
-// CLADUBUG: Group functions and memebers by stages of algorithm, e.g., so-called m_split_assignments. m_subassignments
-// is really via-building collection for constructioning m_reg_reassignment. That's why they look like one entity, but they are not:
-// m_subassignments is comfortable for building, when m_reg_reassignment is comfortable for application.
 class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
@@ -202,12 +142,12 @@ private:
     //Pinned spill slot per register index(see linearScanBlock).
     std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
     //Provide place for new spill or get already provided 
-    int64_t getSpillSlot(RegIdx idx, int basketNum);
+    int64_t getSpillSlot(RegIdx idx, int basket_num);
 
     //Plain linear scan over a single block's splits(one basket): the flat per-block allocation primitive,
     //driven by allocateBlock's recursion. It doesn't consider function parameters. Works with fresh register 
     //pool, negotiatian of different allocation is made after.
-    void linearScanBlock(int basketNum, const Syntfunc& a_source,
+    void linearScanBlock(int basket_num, const Syntfunc& a_source,
         const std::multiset<LiveInterval, startordering>& liveintervals,
         std::multiset<LiveInterval, endordering>& active,
         std::vector<RegisterReassignment>& result,
@@ -218,7 +158,7 @@ private:
     //inner-loops-first: each child WHILE is scanned on a fresh pool, then this block scans its own intervals(the
     //splits made by boundaries of children. Boundaries between a split and its neighbours are reconciled afterwards 
     //by the per-split transfers in insertSpillInstructions.
-    void allocateBlock(const BasicBlocksTree& node, int basketNum, const Syntfunc& a_source,
+    void allocateBlock(const BasicBlocksTree& node, int basket_num, const Syntfunc& a_source,
         const std::vector<std::vector<LiveInterval> >& block_splits,
         std::multiset<LiveInterval, endordering>& active,
         std::vector<RegisterReassignment>& result,
@@ -242,8 +182,8 @@ private:
 
     SpillInfo modelSpills(const Syntfunc& a_source);
 
-    inline int64_t getSpillOffset(int basketNum, RegIdx reg, Arg spilled);
-    inline int64_t getSpillOffset(int basketNum, int opnum, RegIdx reg);
+    inline int64_t getSpillOffset(int basket_num, RegIdx reg, Arg spilled);
+    inline int64_t getSpillOffset(int basket_num, int opnum, RegIdx reg);
 
     struct SplitTransfers
     {
@@ -261,7 +201,7 @@ private:
     void writePrologue(Syntfunc& a_destination);
     void writeEpilogue(Syntfunc& a_destination);
 
-    inline Arg getReassigned(int basketNum, int opnum, int old);
+    inline Arg getReassigned(int basket_num, int opnum, int old);
 
     int m_snippet_caused_spills;
     bool m_have_function_calls;
@@ -277,9 +217,9 @@ private:
     std::array<std::vector<RegIdx>, RB_AMOUNT> m_params_sorted;
     SpillInfo m_spill_info;
 
-    inline bool isParam(int basketNum, int idx);
-    inline bool isRegisterPassedParam(int basketNum, int idx);
-    inline bool isStackPassedParam(int basketNum, int idx);
+    inline bool isParam(int basket_num, int idx);
+    inline bool isRegisterPassedParam(int basket_num, int idx);
+    inline bool isStackPassedParam(int basket_num, int idx);
     friend void DUBUGprint_allocation(const std::array<std::vector<RegisterReassignment>, RB_AMOUNT>& m_reg_reassignment);
 };
 }
