@@ -159,11 +159,16 @@ namespace loops
         //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
     }
 
+    static inline uint64_t regBit(RegIdx hwidx)
+    {
+        return uint64_t(1) << hwidx;
+    }
+
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
     {
         uint64_t res = 0;
         for (size_t bitnum : regNumbers)
-            res |= (static_cast<uint64_t>(1) << bitnum);
+            res |= regBit((RegIdx)bitnum);
         return res;
     }
 
@@ -373,6 +378,48 @@ namespace loops
         LOOPS_ASSERT(wrapper);
         return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
+    template <typename _Tp>
+    class DisjointSetUnion
+    {
+        struct Node
+        {
+            _Tp value;
+            std::shared_ptr<Node> parent;
+        };
+        std::shared_ptr<Node> node;
+        static std::shared_ptr<Node> find(std::shared_ptr<Node> n)
+        {
+            while (n->parent)
+            {
+                if (n->parent->parent)
+                    n->parent = n->parent->parent;
+                n = n->parent;
+            }
+            return n;
+        }
+    public:
+        DisjointSetUnion(){}
+        DisjointSetUnion(const _Tp& initVal) : node(std::make_shared<Node>(Node{initVal, nullptr})) {}
+        bool isConnected(const DisjointSetUnion& who) const
+        {
+            return node && who.node && find(node) == find(who.node);
+        }
+        bool isEmpty() const
+        {
+            return node.get() == nullptr;
+        }
+        void merge(const DisjointSetUnion& who)
+        {
+            LOOPS_ASSERT(node && who.node);
+            auto a = find(node), b = find(who.node);
+            if(a != b)
+                a->parent = b;
+        }
+        _Tp* operator->() const { return &find(node)->value; }
+        _Tp* operator->() { return &find(node)->value; }
+        _Tp& operator*()  const { return find(node)->value; }
+        _Tp& operator*() { return find(node)->value; }
+    };
 }
 
 #endif //__LOOPS_COMMON_HPP__

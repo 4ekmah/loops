@@ -151,10 +151,10 @@ public:
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
     //from first byte after end of instruction.
     inline bool postInstructionOffset() const { return m_postInstructionOffset; }
-    virtual std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
-    virtual std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
-    virtual std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
-    virtual std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
+    std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
+    std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
+    std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
+    std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
 
     const std::vector<CompilerPassPtr>& getAfterRegAllocPasses() const { return m_afterRegAllocPasses; }

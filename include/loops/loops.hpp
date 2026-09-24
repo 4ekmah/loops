@@ -468,7 +468,7 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 //     //end of 2 loop<──┘
 // }
 #define BREAK_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).break_(__VA_ARGS__)
-#define CONTINUE_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
+#define CONTINUE_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_(__VA_ARGS__)
 #define RETURN_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(__VA_ARGS__)
 
 //Call signature:

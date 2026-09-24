@@ -28,10 +28,7 @@ struct LiveInterval
     RegIdx idx;
     //Priority is measured like sum of occurrences of usage, multilplied by 4^k, where k is hierarchical depth of loop.
     uint64_t priority; //DUBUG: we need here saturation sums, if it max(uint64_t), let it be unchangeable.
-    //Sometimes LiveInterval struct is used as split(part of big interval). In this situation it's important to 
-    //distinguish last split.
-    bool is_last_split;
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0), is_last_split(true) {}
+    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0) {}
 };
 
 struct startordering
@@ -52,6 +49,7 @@ struct BasicBlocksTree
     int start_pos;
     int end_pos;
     int else_pos;
+    std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
     BasicBlocksTree() {}
     BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
 };

@@ -14,8 +14,13 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "common.hpp"
 #include "func_impl.hpp"
 
+//1: block-hierarchical allocation(loops are allocated innermost-first and negotiated with the enclosing block).
+//0: the whole function is one block, which turns the scheme into the plain linear scan; kept for A/B comparison.
+#define HIERARCHICAL_LINEAR_SCAN 1
+
 //DUBUG list:
 //1.) I know certainly, that loops cannot call functions with more arguments, than calling convention grants to copy in registers. 
+//2.) Restore LD2 solution.
 /*
 Register allocator fits unlimited amount of virtual register to fixed set of registers of
 target CPU. Other purpose of algorithm is to collect some data needed to write function's
@@ -108,9 +113,9 @@ void DUBUGprint_allocation(const std::array<std::vector<RegisterAllocator::Regis
             printf("    %d ->", idx);
             for(int sinum = 0; sinum < (int)ra.args.size(); sinum++)
             {
-                bool spilled = ra.args[sinum].tag == Arg::ISPILLED || ra.args[sinum].tag == Arg::VSPILLED;
+                bool spilled = ra.args[sinum]->tag == Arg::ISPILLED || ra.args[sinum]->tag == Arg::VSPILLED;
                 printf("(%d-%d:", ra.bounds[sinum], ra.bounds[sinum + 1]);
-                printf("%s%d)|", spilled ? "s" : "r", (int)(spilled ? ra.args[sinum].value : ra.args[sinum].idx));
+                printf("%s%d)|", spilled ? "s" : "r", (int)(spilled ? ra.args[sinum]->value : ra.args[sinum]->idx));
             }
             printf("\n");
         }
@@ -126,10 +131,12 @@ inline RegIdx pickFirstBit64(uint64_t& bigNum)
     return ret;
 }
 
-RegisterPool::RegisterPool(Backend* a_backend): m_backend(a_backend)
+RegisterPool::RegisterPool(const Backend* a_backend): m_backend(a_backend)
     , m_spillPlaceholdersAvailable{0,0}
-
-{}
+    , m_reservedRegs{0,0}
+{
+    memset(&(m_reservationCursor[0][0]), 0, sizeof(m_reservationCursor));
+}
 
 void RegisterPool::initRegisterPool()
 {
@@ -150,8 +157,10 @@ void RegisterPool::initRegisterPool()
                 origRegistersV[vessNum] = m_registersO[basket_num][vessNum];
         
         m_pool[basket_num] = 0;
+        m_maxRegisterNumber[basket_num] = origRegistersV[0][0];
         for(int vessNum = 0; vessNum < VESS_AMOUNT; vessNum++)
         {
+            LOOPS_ASSERT(origRegistersV[vessNum].size() < REG_MAX);
             uint8_t regAmount = static_cast<uint8_t>(origRegistersV[vessNum].size());
             m_vessel[basket_num][vessNum] = (((uint64_t)(1)) << regAmount) - 1;
             for(uint8_t inRegNum = 0; inRegNum < regAmount; inRegNum++)
@@ -160,6 +169,7 @@ void RegisterPool::initRegisterPool()
                 m_reorderInner2Arch[basket_num][vessNum][inRegNum] = argregNum;
                 m_reorderArch2Inner[basket_num][vessNum][argregNum] = inRegNum;
                 m_pool[basket_num] |= (((uint64_t)(1)) << argregNum);
+                m_maxRegisterNumber[basket_num] = std::max(m_maxRegisterNumber[basket_num], (int)argregNum);
             }
         }
         m_spillPlaceholdersAvailable[basket_num] = m_pool[basket_num];
@@ -167,25 +177,26 @@ void RegisterPool::initRegisterPool()
     }
 }
 
-size_t RegisterPool::freeRegsAmount(int basket_num) const
-{
-    return amountOfBits64(m_pool[basket_num]) - MAXIMUM_SPILLS; //TODO(ch): MAXIMUM_SPILLS must become basket-dependend variable.
-}
-
-RegIdx RegisterPool::provideParamFromPool(int basket_num)
+RegIdx RegisterPool::provideParamFromPool(int basket_num, int needed_until)
 {
     if(m_vessel[basket_num][PARAMS_VESS] == 0)
         return IReg::NOIDX;
     RegIdx res = lsb64(m_vessel[basket_num][PARAMS_VESS]);
     res = m_reorderInner2Arch[basket_num][PARAMS_VESS][res];
+    LOOPS_ASSERT(!(reservedMask(basket_num, needed_until) & (((uint64_t)1) << res)));
     removeFromAllVessels(basket_num, res);
     return res;
 }
 
-RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx a_hint)
+RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx a_hint, int needed_until)
+{
+    return provideRegFromPool(basket_num, a_hint, reservedMask(basket_num, needed_until));
+}
+
+RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx a_hint, uint64_t excluded)
 {
     RegIdx res = NOREGISTER;
-    if (a_hint != IReg::NOIDX)
+    if (a_hint != IReg::NOIDX && !(excluded & (((uint64_t)1) << a_hint)))
     {
         for(int vessNum = 0; vessNum < VESS_AMOUNT; vessNum++)
         {
@@ -199,15 +210,21 @@ RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx a_hint)
             }
         }
     }
-    if (res == NOREGISTER && havefreeRegs(basket_num))
+    if (res == NOREGISTER && amountOfBits64(m_pool[basket_num] & ~excluded) > MAXIMUM_SPILLS)
     {
-        for(int vessNum = 0; vessNum < VESS_AMOUNT; vessNum++)
-            if(m_vessel[basket_num][vessNum])
+        for(int vessNum = 0; vessNum < VESS_AMOUNT && res == NOREGISTER; vessNum++)
+        {
+            uint64_t vessel = m_vessel[basket_num][vessNum];
+            while(vessel)
             {
-                res = lsb64(m_vessel[basket_num][vessNum]);
-                res = m_reorderInner2Arch[basket_num][vessNum][res];
-                break;
+                RegIdx candidate = m_reorderInner2Arch[basket_num][vessNum][pickFirstBit64(vessel)];
+                if(!(excluded & (((uint64_t)1) << candidate)))
+                {
+                    res = candidate;
+                    break;
+                }
             }
+        }
         LOOPS_ASSERT(res != NOREGISTER);
     }
     if (res != NOREGISTER && m_reorderArch2Inner[basket_num][CALLEE_VESS][res] != REG_UNDEF)
@@ -217,8 +234,64 @@ RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx a_hint)
     return res;
 }
 
+void RegisterPool::reserveReg(int basket_num, RegIdx reg, int from)
+{
+    LOOPS_ASSERT(reg != IReg::NOIDX && reg < REG_MAX);
+    std::vector<int>& starts = m_reservations[basket_num][reg];
+    LOOPS_ASSERT(starts.empty() || starts.back() <= from);
+    starts.push_back(from);
+    m_reservedRegs[basket_num] |= ((uint64_t)1) << reg;
+}
+
+void RegisterPool::clearReservations(int basket_num)
+{   //Consumed registers are already out of m_reservedRegs, so every list is walked.
+    for(int reg = 0; reg < REG_MAX; reg++)
+    {
+        m_reservations[basket_num][reg].clear();
+        m_reservationCursor[basket_num][reg] = 0;
+    }
+    m_reservedRegs[basket_num] = 0;
+}
+
+void RegisterPool::dropReservation(int basket_num, RegIdx reg, int from)
+{
+    const std::vector<int>& starts = m_reservations[basket_num][reg];
+    int& cursor = m_reservationCursor[basket_num][reg];
+    LOOPS_ASSERT(cursor < (int)starts.size() && starts[cursor] == from);
+    cursor++;
+    if(cursor == (int)starts.size()) //nothing left: the register is out of the picture until clearReservations
+        m_reservedRegs[basket_num] &= ~(((uint64_t)1) << reg);
+}
+
+RegIdx RegisterPool::provideReservedReg(int basket_num, RegIdx reg, int from, int needed_until)
+{
+    dropReservation(basket_num, reg, from);
+    RegIdx res = provideRegFromPool(basket_num, reg, needed_until);
+    LOOPS_ASSERT(res == reg);
+    return res;
+}
+
+uint64_t RegisterPool::reservedMask(int basket_num, int needed_until) const
+{
+    uint64_t res = 0;
+    uint64_t reserved = m_reservedRegs[basket_num];
+    while(reserved)
+    {
+        const RegIdx reg = pickFirstBit64(reserved);
+        if(m_reservations[basket_num][reg][m_reservationCursor[basket_num][reg]] < needed_until)
+            res |= ((uint64_t)1) << reg;
+    }
+    return res;
+}
+
+size_t RegisterPool::freeRegsAmount(int basket_num, int needed_until) const
+{   //TODO(ch): MAXIMUM_SPILLS must become basket-dependend variable.
+    const int free_regs = amountOfBits64(m_pool[basket_num] & ~reservedMask(basket_num, needed_until));
+    return free_regs > MAXIMUM_SPILLS ? free_regs - MAXIMUM_SPILLS : 0;
+}
+
 //TODO(ch): this function is just a workaround for ld2/ld3/ld4 instructions
-std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amount)
+std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amount, int needed_until)
 {
     int amount_temp = amount; 
     std::vector<RegIdx> res;
@@ -227,7 +300,7 @@ std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amo
     fragmented.reserve(32);
     while(amount_temp > 0)
     {
-        RegIdx next = provideRegFromPool(basket_num);
+        RegIdx next = provideRegFromPool(basket_num, IReg::NOIDX, needed_until);
         if(next == IReg::NOIDX)
             throw loops::exception("Register allocator: register space is too fragmented for ld2/ld3/ld4 workaround.");
         if(res.empty() || next == res.back() + 1)
@@ -344,16 +417,15 @@ RegisterAllocator::RegisterAllocator(Backend* a_backend, const std::array<std::v
     m_basketElemX[RB_VEC] = m_backend->getVectorRegisterBits() / 64;
 }
 
-void RegisterAllocator::layOutLiveIntervals(const Syntfunc& a_source, 
+void RegisterAllocator::layOutLiveIntervals(const Syntfunc& a_source,
                             std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
-                            std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
                             std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted)
 {
-    //After liveness analysis we are sorting given liveintervals into two heaps:
-    //parameters(parintervals), which are immediately marked as active and other intervals(liveintervals),
-    //which are reordered by start positions to work with Linear scan algorithm.
+    //After liveness analysis we are collecting parameters' intervals(parintervals), which are immediately
+    //marked as active on the root scan; non-parameter intervals are taken by blocks directly from
+    //m_liveintervals_raw in allocateBlock.
     //Also, this function sorts parameters into two baskets(params_sorted): scalars and vectors.
-    
+
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
     {
         params_sorted[basket_num].clear();
@@ -367,27 +439,106 @@ void RegisterAllocator::layOutLiveIntervals(const Syntfunc& a_source,
     }
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
     {
-        liveintervals[basket_num].clear();
         parintervals[basket_num].clear();
-        size_t idx = 0;
-        //Function can have more arguments, than it use, so:  
+        //Function can have more arguments, than it use, so:
         size_t idxParMax = std::min((*m_liveintervals_raw)[basket_num].size(), params_sorted[basket_num].size());
         parintervals[basket_num].reserve(idxParMax);
-        for (; idx < idxParMax; ++idx)
+        for (size_t idx = 0; idx < idxParMax; ++idx)
             parintervals[basket_num].push_back((*m_liveintervals_raw)[basket_num][idx]);
-        idxParMax = (*m_liveintervals_raw)[basket_num].size();
-        for (; idx < idxParMax; ++idx)
-            liveintervals[basket_num].insert((*m_liveintervals_raw)[basket_num][idx]);
     }
 }
 
-inline Arg RegisterAllocator::RegisterReassignment::getAt(int opnum)
+int RegisterAllocator::RegisterReassignment::splitNumAt(int opnum) const
 {
+    LOOPS_ASSERT(!bounds.empty() && opnum >= bounds.front() && opnum < bounds.back());
     int bnum = (int)std::distance(bounds.begin(), std::lower_bound(bounds.begin(), bounds.end(), opnum));
     bnum = bounds[bnum] == opnum ? bnum : bnum - 1;
     while(bnum < ((int)args.size()) - 1 && bounds[bnum] == bounds[bnum + 1])
         bnum++;
-    return args[bnum];
+    return bnum;
+}
+
+Arg& RegisterAllocator::RegisterReassignment::getAt(int opnum)
+{
+    Arg& res = *args[splitNumAt(opnum)];
+    LOOPS_ASSERT(res.tag != Arg::EMPTY);
+    return res;
+}
+
+const Arg& RegisterAllocator::RegisterReassignment::getAt(int opnum) const
+{
+    const Arg& res = *args[splitNumAt(opnum)];
+    LOOPS_ASSERT(res.tag != Arg::EMPTY);
+    return res;
+}
+
+void RegisterAllocator::RegisterReassignment::overlaySplit(int start, int end, AssignedArg arg)
+{
+    if(bounds.empty())
+    {
+        bounds = {start, end};
+        args = {arg};
+        return;
+    }
+    if(start >= bounds.back())
+    {
+        if(start > bounds.back()) //hole between existing splits and the new one
+        {
+            args.push_back(AssignedArg(Arg()));
+            bounds.push_back(start);
+        }
+        args.push_back(arg);
+        bounds.push_back(end);
+        return;
+    }
+    if(end <= bounds.front())
+    {
+        if(end < bounds.front()) //hole between the new split and existing ones
+        {
+            args.insert(args.begin(), AssignedArg(Arg()));
+            bounds.insert(bounds.begin(), end);
+        }
+        args.insert(args.begin(), arg);
+        bounds.insert(bounds.begin(), start);
+        return;
+    }
+    //Overlay in the interior: the region must lie wholly inside a single split - a hole or a covering
+    //assignment of this block, which is cut around the newcomer.
+    int snum = (int)std::distance(bounds.begin(), std::upper_bound(bounds.begin(), bounds.end(), start)) - 1;
+    LOOPS_ASSERT(snum >= 0 && snum < (int)args.size());
+    LOOPS_ASSERT(bounds[snum] <= start && end <= bounds[snum + 1]);
+    if(end < bounds[snum + 1]) //keep the right part of the covering split: both halves are one location,
+    {                          //so they share the object; a cut hole gets a fresh one - holes are not locations.
+        AssignedArg right_part = args[snum]->tag == Arg::EMPTY ? AssignedArg(Arg()) : args[snum];
+        bounds.insert(bounds.begin() + snum + 1, end);
+        args.insert(args.begin() + snum + 1, right_part);
+    }
+    if(bounds[snum] < start) //keep the left part of the covering split
+    {
+        bounds.insert(bounds.begin() + snum + 1, start);
+        args.insert(args.begin() + snum + 1, arg);
+    }
+    else
+        args[snum] = arg;
+}
+
+void RegisterAllocator::RegisterReassignment::appendSplits(const RegisterReassignment& tail)
+{
+    if(tail.bounds.empty())
+        return;
+    if(bounds.empty())
+    {
+        *this = tail;
+        return;
+    }
+    LOOPS_ASSERT(tail.bounds.front() >= bounds.back());
+    if(tail.bounds.front() > bounds.back())
+    {
+        bounds.push_back(tail.bounds.front());
+        args.push_back(AssignedArg(Arg()));
+    }
+    bounds.insert(bounds.end(), tail.bounds.begin() + 1, tail.bounds.end());
+    args.insert(args.end(), tail.args.begin(), tail.args.end());
 }
 
 void RegisterAllocator::removeBranchesFromBBT(BasicBlocksTree& node)
@@ -397,79 +548,26 @@ void RegisterAllocator::removeBranchesFromBBT(BasicBlocksTree& node)
     for(std::shared_ptr<BasicBlocksTree>& child : node.children)
     {
         removeBranchesFromBBT(*child);
-        if(child->type == BasicBlocksTree::BBT_IF)
+#if HIERARCHICAL_LINEAR_SCAN
+        const bool dissolve = (child->type == BasicBlocksTree::BBT_IF);
+#else
+        const bool dissolve = true;
+#endif
+        if(dissolve)
+        {
+            for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+                node.reg_occurencies[basketNum].insert(child->reg_occurencies[basketNum].begin(),
+                                                        child->reg_occurencies[basketNum].end());
             for(std::shared_ptr<BasicBlocksTree>& grandchild : child->children)
                 newChildren.push_back(grandchild);
+        }
         else
             newChildren.push_back(child);
     }
     node.children = std::move(newChildren);
 }
 
-static void collectLoops(const BasicBlocksTree& node, std::vector<const BasicBlocksTree*>& out)
-{
-    for(const BasicBlocksTreePtr& child : node.children)
-    {
-        if(child->type == BasicBlocksTree::BBT_WHILE)
-            out.push_back(child.get());
-        collectLoops(*child, out);
-    }
-}
-
-std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> RegisterAllocator::makeBlockSplits(const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals)
-{
-    //Boundaries have to cut live intervals, sorted ascending and deduplicated.
-    std::vector<int> loops_boundaries;
-    {
-        std::vector<const BasicBlocksTree*> loops;
-        collectLoops(*m_bbt, loops);
-        loops_boundaries.reserve(2 * loops.size());
-        for(const BasicBlocksTree* m : loops)
-        {
-            loops_boundaries.push_back(m->start_pos);
-            loops_boundaries.push_back(m->end_pos + 1);
-        }
-        std::sort(loops_boundaries.begin(), loops_boundaries.end());
-        loops_boundaries.erase(std::unique(loops_boundaries.begin(), loops_boundaries.end()), loops_boundaries.end());
-    }    
-    std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> res; 
-    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
-    {
-        const std::multiset<LiveInterval, startordering>& baskets_intervals = liveintervals[basket_num];
-        std::vector<std::vector<LiveInterval> >& block_splits = res[basket_num];
-        block_splits.resize((*m_liveintervals_raw)[basket_num].size());
-        //TODO(ch): Probably, we can speed up by using ordering of liveintervals, but I don't really think it worth it.
-        for(const LiveInterval& li:baskets_intervals)
-        {
-            int idx = li.idx;
-            std::vector<int>::iterator cutsBegin = std::upper_bound(loops_boundaries.begin(), loops_boundaries.end(), li.start);
-            std::vector<int>::iterator cutsEnd = std::upper_bound(cutsBegin, loops_boundaries.end(), li.end);
-            block_splits[idx].reserve((size_t)(cutsEnd - cutsBegin) + 1);
-            int prev = li.start;
-            for(std::vector<int>::iterator cut = cutsBegin; cut != cutsEnd; ++cut)
-            {
-                const int b = *cut;
-                //Non-final piece: its reassignment covers [prev, b), but it keeps its register through the boundary
-                //op `b`(end = b, !is_last_split) so the boundary copy at `b` can read it and a value defined at b-1
-                //cannot steal it early.
-                LiveInterval split(li.idx, prev);
-                split.end = b;
-                split.is_last_split = false;
-                split.priority = li.priority;
-                block_splits[idx].push_back(split);
-                prev = b;
-            }
-            LiveInterval last(li.idx, prev);
-            last.end = li.end;
-            last.priority = li.priority;
-            block_splits[idx].push_back(last);
-        }
-    }
-    return res;
-}
-
 std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> RegisterAllocator::assignRegisters(const Syntfunc& a_source,
-    const std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT>& liveintervals,
     const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals)
 {
     //Function takes live intervals, program and create a mapping from abstract old register
@@ -478,9 +576,6 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
 
     //Remove IF statements, because they doesn't affect performance on register allocation.
     removeBranchesFromBBT(*m_bbt);
-
-    //Positions(loop entries/exits, while-only after branch removal) at which registers crossing a loop are cut.
-    std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> block_splits = RegisterAllocator::makeBlockSplits(liveintervals);
 
     //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
     std::array<std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >, RB_AMOUNT> unspillableLd2;
@@ -496,46 +591,40 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
     //Space in stack used by snippets will be located in the bottom,
     //so spilled variables will be located higher.
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+    {
         m_spill_slot_of[basket_num].clear();
+        m_spill_info.m_spoffset[basket_num] = 0;
+    }
 
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> result;
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
     {
         std::multiset<LiveInterval, endordering> active;
         result[basket_num].resize(a_source.regAmount[basket_num]);
-        m_split_assignments[basket_num].assign(a_source.regAmount[basket_num], {});
         {//Get pseudonames for parameters.
             RegIdx parreg = 0;
             for (; parreg < (int)parintervals[basket_num].size(); parreg++)
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];
                 RegIdx idx = interval.idx;
-                RegIdx attempt = m_pool.provideParamFromPool(basket_num);
+                RegIdx attempt = m_pool.provideParamFromPool(basket_num, interval.end + 1);
                 if (attempt == IReg::NOIDX)
                     break;
                 result[basket_num][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basket_num, attempt));
                 if(isStackPassedParam(basket_num, idx))
-                {
-                    RegisterReassignment& param_r = result[basket_num][idx];
-                    param_r.bounds.insert(param_r.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
-                    param_r.args.insert(param_r.args.begin(), argSpilled(basket_num, 0));
-                } 
+                    result[basket_num][idx].overlaySplit(0, interval.start, argSpilled(basket_num, 0));
                 active.insert(parintervals[basket_num][parreg]);
             }
             for (; parreg < (int)parintervals[basket_num].size(); parreg++)
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];
                 RegIdx idx = interval.idx;
-                RegIdx attempt = m_pool.provideRegFromPool(basket_num);
+                RegIdx attempt = m_pool.provideRegFromPool(basket_num, IReg::NOIDX, interval.end + 1);
                 if (attempt == IReg::NOIDX)
                     break;
                 result[basket_num][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basket_num, attempt));
                 if(isStackPassedParam(basket_num, idx))
-                {
-                    RegisterReassignment& param_r = result[basket_num][idx];
-                    param_r.bounds.insert(param_r.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
-                    param_r.args.insert(param_r.args.begin(), argSpilled(basket_num, 0));
-                }
+                    result[basket_num][idx].overlaySplit(0, interval.start, argSpilled(basket_num, 0));
                 active.insert(parintervals[basket_num][parreg]);
             }
             //DUBUG: At least here we can use space provided by calling convention. But, probably, in previous case, 
@@ -548,206 +637,457 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
             }
         }
         m_poolBase = m_pool; //post-seeding snapshot: parameters(and callee) reserved; base for fresh per-block pools.
-        allocateBlock(*m_bbt, basket_num, a_source, block_splits[basket_num], active, result[basket_num], unspillableLd2[basket_num], already_allocatedLd2[basket_num]);
-
+        allocateBlock(basket_num, *m_bbt, a_source, active, result[basket_num], m_pool);
         for(RegIdx idx = 0; idx < (RegIdx)result[basket_num].size(); idx++)
-        {
-            std::vector<SplitAssignment>& sas = m_split_assignments[basket_num][idx];
-            if(sas.empty()) //parameter(kept in result) or unused register.
-                continue;
-            std::sort(sas.begin(), sas.end(),
-                      [](const SplitAssignment& a, const SplitAssignment& b){ return a.start_pos < b.start_pos; });
-            RegisterReassignment rr(sas[0].start_pos, sas[0].end_pos, sas[0].assignment);
-            for(size_t p = 1; p < sas.size(); p++)
-            {
-                LOOPS_ASSERT(rr.bounds.back() == sas[p].start_pos); //contiguous tiling, no gaps/overlaps.
-                rr.bounds.push_back(sas[p].end_pos);
-                rr.args.push_back(sas[p].assignment);
-            }
-            result[basket_num][idx] = rr;
-        }
+            for(const AssignedArg& arg : result[basket_num][idx].args)
+                LOOPS_ASSERT(arg->tag != Arg::EMPTY); //every hole must be filled: splits tile the whole live interval.
     }
     return result;
 }
 
-void RegisterAllocator::allocateBlock(const BasicBlocksTree& node, int basket_num, const Syntfunc& a_source,
-    const std::vector<std::vector<LiveInterval> >& block_splits,
-    std::multiset<LiveInterval, endordering>& active,
-    std::vector<RegisterReassignment>& result,
-    const std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >& unspillableLd2,
-    std::unordered_map<RegIdx, RegIdx>& already_allocatedLd2)
+static inline bool isLiveInBlock(const LiveInterval& li, int start, int end)
 {
-    //1. Allocate child loops first(innermost-first). Each child scans on a fresh pool(copy of m_poolBase, so
-    //parameters/callee stay reserved) and a fresh active set: it is an independent allocation.
-    for(const BasicBlocksTreePtr& child : node.children)
-    {
-        RegisterPool savedPool = m_pool;
-        m_pool = m_poolBase;
-        std::multiset<LiveInterval, endordering> childActive;
-        allocateBlock(*child, basket_num, a_source, block_splits, childActive, result, unspillableLd2, already_allocatedLd2);
-        savedPool.mergeUsedCallee(m_pool);
-        savedPool.mergeSpillPlaceholders(m_pool);
-        m_pool = savedPool;
-    }
-    //2. Claim this block's OWN splits out of the(block-independent) decomposition: those lying in [nlo, nhi) but
-    //not inside any direct child(a child owns its interior). Splitting runs at every loop boundary, so every
-    //split falls wholly inside or wholly outside each child; ownership is the deepest block containing it.
+    const int lo = std::max(li.start, start);
+    const int hi = std::min(li.end + 1, end);
+    return lo < hi;
+}
+
+void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
+    std::multiset<LiveInterval, endordering>& active,
+    std::vector<RegisterReassignment>& block_reassignment,
+    RegisterPool& result_pool)
+{
+    //1. Collect this block's own intervals.
     const bool isRoot = (node.type == BasicBlocksTree::BBT_FUNC);
     const int nlo = isRoot ? 0 : node.start_pos;
     const int nhi = isRoot ? (int)node.end_pos : node.end_pos + 1;
     std::multiset<LiveInterval, startordering> blockIntervals;
-    for(RegIdx idx = 0; idx < (int)block_splits.size(); idx++)
+    const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
+    for(RegIdx idx = 0; idx < (RegIdx)raw_intervals.size(); idx++)
     {
-        if(isParam(basket_num, idx))
+        const LiveInterval& li = raw_intervals[idx];
+        if(isParam(basket_num, idx) || !isLiveInBlock(li, nlo, nhi))
             continue;
-        for(const LiveInterval& piece : block_splits[idx])
+        const int lo = std::max(li.start, nlo);
+        const int hi = std::min(li.end + 1, nhi);
+        LiveInterval clip(idx, lo);
+        clip.end = hi - 1;
+        clip.priority = li.priority;
+        blockIntervals.insert(clip);
+    }
+    //2. Allocate child loops first(innermost-first). Each child scans on a fresh pool(copy of m_poolBase, so
+    //parameters/callee stay reserved) and a fresh active set into its own table: it is an independent allocation.
+    std::vector<std::vector<RegisterReassignment> > children_reassignments(node.children.size());
+    std::vector<RegisterPool> children_pools(node.children.size(), m_poolBase);
+    std::vector<std::unordered_set<RegIdx>> children_live(node.children.size(), std::unordered_set<RegIdx>());
+    for(size_t cnum = 0; cnum < node.children.size(); cnum++)
+    {
+        children_reassignments[cnum].resize(block_reassignment.size());
+        std::multiset<LiveInterval, endordering> childActive;
+        allocateBlock(basket_num, *node.children[cnum], a_source, childActive, children_reassignments[cnum], children_pools[cnum]);
+        for(const LiveInterval& li : blockIntervals)
+            if(isLiveInBlock(li, node.children[cnum]->start_pos, node.children[cnum]->end_pos + 1))
+                children_live[cnum].insert(li.idx);
+    }
+    std::vector<RegisterReassignment> negotiated_assignments = negotiateAndMergeBlockAssignments(basket_num, children_reassignments,
+                                                                                          node.children, children_live, children_pools);
+    //3. Linear scan of block itself with geven hints from children and final merging.
+    std::unordered_map<RegIdx, RegIdx> hints = makeBlocksHints(negotiated_assignments, node.children);
+    linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node.reg_occurencies[basket_num]);
+    //4. Overlay children splits over the block's own ones. A child's split that landed on the same register
+    //as the block's is the same location: the objects are united, so a later renaming moves them together
+    //and the boundary needs no transfer.
+    const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
+    for(RegIdx idx = 0; idx < (RegIdx)negotiated_assignments.size(); idx++)
+    {
+        const RegisterReassignment& negotiated = negotiated_assignments[idx];
+        RegisterReassignment& own = block_reassignment[idx];
+        for(int snum = 0; snum < (int)negotiated.args.size(); snum++)
         {
-            const int lo = piece.start;
-            const int hi = piece.is_last_split ? piece.end + 1: piece.end;
-            if(!(lo >= nlo && hi <= nhi)) //not in this block's extent
+            AssignedArg child_arg = negotiated.args[snum];
+            if(child_arg->tag == Arg::EMPTY)
                 continue;
-            bool inChild = false;
-            for(const BasicBlocksTreePtr& child : node.children)
-                if(lo >= child->start_pos && hi <= child->end_pos + 1) //+1 is because loop boundary is defined like +1.
-                {
-                    inChild = true;
-                    break;
-                }
-            if(inChild) //owned by a child(already allocated above)
-                continue;
-            blockIntervals.insert(piece);
+            const int start = negotiated.bounds[snum];
+            const int end = negotiated.bounds[snum + 1];
+            if(!own.bounds.empty())
+            {
+                AssignedArg own_arg = own.args[own.splitNumAt(start)];
+                if(own_arg->tag == REGtag && child_arg->tag == REGtag && own_arg->idx == child_arg->idx)
+                    own_arg.merge(child_arg);
+            }
+            own.overlaySplit(start, end, child_arg);
         }
     }
-    linearScanBlock(basket_num, a_source, blockIntervals, active, result, unspillableLd2, already_allocatedLd2);
+    for(size_t cnum = 0; cnum < node.children.size(); cnum++)
+    {
+        result_pool.mergeUsedCallee(children_pools[cnum]);
+        result_pool.mergeSpillPlaceholders(children_pools[cnum]);
+    }
 }
 
-void RegisterAllocator::linearScanBlock(int basket_num, const Syntfunc& a_source,
-    const std::multiset<LiveInterval, startordering>& liveintervals,
-    std::multiset<LiveInterval, endordering>& active,
-    std::vector<RegisterReassignment>& result,
-    const std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >& unspillableLd2,
-    std::unordered_map<RegIdx, RegIdx>& already_allocatedLd2)
+static bool sameLocation(const Arg& a, const Arg& b)
 {
-    const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
-    const int SPLtag = ((basket_num == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
-    std::vector<std::vector<SplitAssignment> >& split_assignments = m_split_assignments[basket_num];
-    for (auto interval = liveintervals.begin(); interval != liveintervals.end(); ++interval)
+    if(a.tag != b.tag)
+        return false;
+    if(a.tag == Arg::IREG || a.tag == Arg::VREG)
+        return a.idx == b.idx;
+    if(a.tag == Arg::ISPILLED || a.tag == Arg::VSPILLED)
+        return a.value == b.value;
+    return a.tag == Arg::EMPTY; //holes are indistinguishable; other tags are not locations at all
+}
+
+bool RegisterAllocator::RegisterReassignment::isSwappableInBlock(const BasicBlocksTreePtr& block) const
+{
+    //The value can be born or die inside the block: probed is its own range there.
+    int startSplitNum = splitNumAt(std::max(block->start_pos, bounds.front()));
+    int endSplitNum = splitNumAt(std::min(block->end_pos, bounds.back() - 1));
+    AssignedArg startSplit = args[startSplitNum];
+    if(startSplit->tag != Arg::IREG && startSplit->tag != Arg::VREG) 
+        return false;
+    if(startSplitNum == endSplitNum)
+        return true;
+    AssignedArg nextSplit;
+    for(int snum = startSplitNum + 1; snum < endSplitNum; snum++)
+        if(!startSplit.isConnected(args[snum]))
+        {   
+            nextSplit = args[snum];
+            break;
+        }
+    if(nextSplit.isEmpty())
+        return true;
+    return startSplit->idx != nextSplit->idx;
+}
+
+void RegisterAllocator::formNegotiationHeader(int basket_num,
+                                              std::vector<RegisterReassignment>& assignment,
+                                              const BasicBlocksTreePtr& block,
+                                              const std::unordered_set<RegIdx>& live,
+                                              std::vector<int>& weights,
+                                              std::vector<RegIdx>& hw2reg)
+{
+    weights.clear();
+    hw2reg.clear();
+    weights.resize(assignment.size(), 0);
+    hw2reg.resize(m_poolBase.maxRegisterNumber(basket_num) + 1, NOASSIGNED);
+    for(RegIdx rnum: live)
+        for(const AssignedArg& arg : assignment[rnum].args)
+            if(arg->tag == Arg::IREG || arg->tag == Arg::VREG)
+            {
+                RegIdx& owner = hw2reg[arg->idx];
+                owner = (owner == NOASSIGNED || owner == rnum) ? rnum : (RegIdx)SHARED;
+            }
+    for(RegIdx rnum: live)
     {
-        std::unordered_map<RegIdx, RegIdx> opUndefs; //TODO(ch): You also have to consider spilled undefs.
-        //Upper bound of this split's reassignment subinterval. A non-final split(!is_last_split) keeps its
-        //register live through the boundary op `end`(see expire logic), but its subinterval is only [start, end).
-        const int hi = interval->is_last_split ? interval->end + 1: interval->end;
-        { //Dropping expired registers.
-            auto removerator = active.begin();
-            for (; removerator != active.end(); ++removerator)
-                if (removerator->end <= interval->start)
-                {
-                    Arg curLoc = isParam(basket_num, removerator->idx) ? result[removerator->idx].args.back(): split_assignments[removerator->idx].back().assignment;
-                    LOOPS_ASSERT(curLoc.tag == REGtag);
-                    int assigned_idx = curLoc.idx;
-                    m_pool.releaseReg(basket_num, assigned_idx);
-                    if (removerator->end == interval->start) //Current line, line of definition of considered register
-                        opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, assigned_idx));
-                }
-                else
-                    break;
-            active.erase(active.begin(), removerator);
-        }
-        //If this virtual register was spilled once, we can use it's slot for every spilled split.
+        const Arg& assigned = assignment[rnum].getAtEntry(block->start_pos);
+        if((assigned.tag == Arg::IREG || assigned.tag == Arg::VREG) && hw2reg[assigned.idx] == rnum && assignment[rnum].isSwappableInBlock(block))
+            weights[rnum] = 1;
+    }
+}
+
+std::vector<RegisterAllocator::RegisterReassignment> RegisterAllocator::negotiateAndMergeBlockAssignments(int basket_num,
+                                                             std::vector<std::vector<RegisterReassignment>>& assignments,
+                                                             const std::vector<BasicBlocksTreePtr>& blocks,
+                                                             const std::vector<std::unordered_set<RegIdx>>& live, //DUBUG: probably, it's better to make via blocks ranges and access to raw_intervals?
+                                                             std::vector<RegisterPool>& pools)
+{
+    LOOPS_ASSERT(assignments.size() == blocks.size() &&
+                 assignments.size() == live.size() &&
+                 assignments.size() == pools.size());
+    if(assignments.empty())
+        return std::vector<RegisterReassignment>();
+    if(assignments.size() == 1)
+        return assignments[0];
+    std::unordered_set<RegIdx> upper_live = live[0];
+    //Here weight of register means amount of blocks, where it is connected in one component
+    //Since we are negotiating it from up to down, appending blocks one by one, measure LAST 
+    //connectivity component. This is important, because we cannot swap components with different
+    //weight. Just pretend, that we have to move swap register, used in two blocks with register, 
+    //used in one block. It will unpredictably break situation(or it will become too hard to implement
+    //it correctly). Thus, we are consider only swaps for equally weighted registers.
+    std::vector<std::vector<RegIdx>> hw2reg(assignments.size(), std::vector<RegIdx>());
+    std::vector<int> upper_weights, lower_weights;
+    formNegotiationHeader(basket_num, assignments[0], blocks[0], upper_live, upper_weights, hw2reg[0]);
+
+    auto deeplyNoAssigned = [&hw2reg](int lowest_block, int weight, RegIdx hwidx)
+    {
+        for(int bnum = lowest_block; lowest_block - bnum < weight; bnum--) 
+            if(hw2reg[bnum][hwidx] != NOASSIGNED)
+                return false;
+        return true;
+    };
+
+    for(int bnum = 1; bnum < (int)assignments.size(); bnum++)
+    {
+        std::vector<RegisterReassignment>& upper_assignment = assignments[bnum-1];
+        std::vector<RegisterReassignment>& lower_assignment = assignments[bnum];
+        const BasicBlocksTree& upper_block = *(blocks[bnum-1]);
+        const BasicBlocksTree& lower_block = *(blocks[bnum]);
+        const std::unordered_set<RegIdx>& lower_live = live[bnum];
+        RegisterPool& lower_pool = pools[bnum];
+        std::vector<RegIdx>& upper_hw2reg = hw2reg[bnum-1];
+        std::vector<RegIdx>& lower_hw2reg = hw2reg[bnum];
+
+        LOOPS_ASSERT(lower_assignment.size() == assignments[0].size());
+        formNegotiationHeader(basket_num, lower_assignment, blocks[bnum], lower_live, lower_weights, lower_hw2reg);
+        for(RegIdx vidx: lower_live)
         {
-            bool adjacentSpilled = false;
-            for(const SplitAssignment& sa : split_assignments[interval->idx])
+            if(lower_weights[vidx] > 0 && upper_weights[vidx] > 0) 
             {
-                const Arg& a = sa.assignment;
-                if(a.tag == SPLtag && (sa.end_pos == interval->start || sa.start_pos == hi))
+                Arg& upper_reg_assign = upper_assignment[vidx].getAt(upper_block.start_pos);
+                Arg& lower_reg_assign = lower_assignment[vidx].getAt(lower_block.start_pos);
+                RegIdx upper_hwidx = upper_reg_assign.idx;
+                RegIdx lower_hwidx = lower_reg_assign.idx;
+                if(upper_hwidx != lower_hwidx)
                 {
-                    adjacentSpilled = true;
-                    break;
+                    if(lower_hw2reg[upper_hwidx] == NOASSIGNED)
+                    {
+                        int splitnum = lower_assignment[vidx].entrySplitNum(lower_block.start_pos);
+                        lower_assignment[vidx].args[splitnum]->idx = upper_hwidx;
+                        lower_hw2reg[upper_hwidx] = vidx;
+                        lower_hw2reg[lower_hwidx] = NOASSIGNED;
+                        lower_pool.releaseReg(basket_num, lower_hwidx);
+                        lower_pool.provideRegFromPool(basket_num, upper_hwidx, lower_block.end_pos + 1);
+                    }
+                    else if(upper_hw2reg[lower_hwidx] == NOASSIGNED && deeplyNoAssigned(bnum - 1, upper_weights[vidx], lower_hwidx))
+                    {
+                        for(int ubnum = bnum - 1; (bnum - 1) - ubnum < upper_weights[vidx]; ubnum--)
+                        {
+                            int splitnum = assignments[ubnum][vidx].entrySplitNum(blocks[ubnum]->start_pos);
+                            assignments[ubnum][vidx].args[splitnum]->idx = lower_hwidx;
+                            hw2reg[ubnum][lower_hwidx] = vidx;
+                            hw2reg[ubnum][upper_hwidx] = NOASSIGNED;
+                            pools[ubnum].releaseReg(basket_num, upper_hwidx);
+                            pools[ubnum].provideRegFromPool(basket_num, lower_hwidx, blocks[ubnum]->end_pos + 1);
+                        }
+                    }
+                    else if(lower_hw2reg[upper_hwidx] >= 0 && lower_weights[lower_hw2reg[upper_hwidx]] > 0)
+                    {
+                        int vidx_alt = lower_hw2reg[upper_hwidx];
+                        int splitnum = lower_assignment[vidx].entrySplitNum(lower_block.start_pos);
+                        int splitnum_alt = lower_assignment[vidx_alt].entrySplitNum(lower_block.start_pos);
+                        std::swap(lower_assignment[vidx].args[splitnum]->idx, lower_assignment[vidx_alt].args[splitnum_alt]->idx);
+                        std::swap(lower_hw2reg[upper_hwidx], lower_hw2reg[lower_hwidx]);
+                    }
+                    else if(upper_hw2reg[lower_hwidx] >= 0 && upper_weights[upper_hw2reg[lower_hwidx]] > 0 && upper_weights[upper_hw2reg[lower_hwidx]] == upper_weights[vidx])
+                    {
+                        int vidx_alt = upper_hw2reg[lower_hwidx];
+                        int splitnum = upper_assignment[vidx].entrySplitNum(upper_block.start_pos);
+                        int splitnum_alt = upper_assignment[vidx_alt].entrySplitNum(upper_block.start_pos);
+                        std::swap(upper_assignment[vidx].args[splitnum]->idx, upper_assignment[vidx_alt].args[splitnum_alt]->idx);
+                        std::swap(upper_hw2reg[upper_hwidx], upper_hw2reg[lower_hwidx]);
+                    }
+                }
+                upper_hwidx = upper_reg_assign.idx;
+                lower_hwidx = lower_reg_assign.idx;
+                if(upper_hwidx == lower_hwidx)
+                {
+                    int upper_splitnum = upper_assignment[vidx].splitNumAt(upper_block.start_pos);
+                    int lower_splitnum = lower_assignment[vidx].splitNumAt(lower_block.start_pos);
+                    upper_assignment[vidx].args[upper_splitnum].merge(lower_assignment[vidx].args[lower_splitnum]);
+                    lower_weights[vidx] = upper_weights[vidx] = upper_weights[vidx] + lower_weights[vidx];
                 }
             }
-            if(adjacentSpilled)
-            {
-                const Arg sp = argSpilled(basket_num, isStackPassedParam(basket_num, interval->idx) ? 0 : getSpillSlot(interval->idx, basket_num));
-                split_assignments[interval->idx].push_back(SplitAssignment{interval->start, hi, sp});
+        }
+        //Cheapeast way to write upper_weights = lower_weights.
+        upper_weights.swap(lower_weights);
+    }
+    //Merging assignemnts
+    std::vector<RegisterReassignment> result(assignments[0].size());
+    for(size_t bnum = 0; bnum < assignments.size(); bnum++)
+        for(RegIdx vidx = 0; vidx < (RegIdx)result.size(); vidx++)
+            result[vidx].appendSplits(assignments[bnum][vidx]);
+    return result;
+}
+
+std::unordered_map<RegIdx, RegIdx> RegisterAllocator::makeBlocksHints(std::vector<RegisterReassignment>& assignment,
+                                                                      const std::vector<BasicBlocksTreePtr>& blocks)
+{
+    std::unordered_map<RegIdx, std::unordered_map<RegIdx, int> > occur_amount;
+    for(int bnum = 0; bnum < (int)blocks.size(); bnum++)
+    {
+        const int start_pos = blocks[bnum]->start_pos;
+        const int end_pos = blocks[bnum]->end_pos;
+        for(int anum = 0; anum < (int)assignment.size(); anum++)
+        {
+            const RegisterReassignment& re = assignment[anum];
+            if(re.bounds.empty())
                 continue;
+            const int probe = std::max(start_pos, re.bounds.front());
+            if(probe > end_pos || probe >= re.bounds.back())
+                continue;
+            const AssignedArg& arg = re.args[re.splitNumAt(probe)];
+            if(arg->tag == Arg::IREG || arg->tag == Arg::VREG)
+                occur_amount[anum][arg->idx]++;
+        }
+    }
+    std::unordered_map<RegIdx, RegIdx> result;
+    for(std::pair<RegIdx, std::unordered_map<RegIdx, int> > opair: occur_amount)
+    {
+        if(opair.second.empty())
+            continue;
+        int maximizer = opair.second.begin()->first;
+        int maximum = opair.second.begin()->second;
+        for(std::pair<RegIdx, int> mpair: opair.second)
+        {
+            if(maximum <= mpair.second)
+            {
+                maximizer = mpair.first;
+                maximum = mpair.second;
             }
         }
-        if (!m_pool.havefreeRegs(basket_num))
+        result[opair.first] = maximizer;
+    }
+    return result;
+}
+
+void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
+                                   const std::multiset<LiveInterval, startordering>& liveintervals,
+                                   std::multiset<LiveInterval, endordering>& active,
+                                   std::vector<RegisterReassignment>& block_reassignment,
+                                   RegisterPool& result_pool,
+                                   const std::unordered_map<RegIdx, RegIdx>& hints,
+                                   const std::unordered_set<RegIdx>& reg_occurencies)
+{
+    //Sorting intervals into packs: used first, hinted first.
+    std::vector<std::multiset<LiveInterval, startordering> > packs;
+    if(reg_occurencies.size())
+    {
+        std::multiset<LiveInterval, startordering> used;
+        std::multiset<LiveInterval, startordering> riders;
+        for(const LiveInterval& interval : liveintervals)
+            if(reg_occurencies.find(interval.idx) == reg_occurencies.end())
+                riders.insert(riders.end(), interval);
+            else
+                used.insert(used.end(), interval);
+        if(used.size() > 0)
         {
-            if(unspillableLd2.find(interval->idx) != unspillableLd2.end())
-                throw loops::exception("Register allocator: not enough free registers for ld2 workaround.");
-            bool stackParameterSpilled = false;
-            std::multiset<LiveInterval, endordering>::reverse_iterator lastactive = active.rbegin();
-            while(lastactive!=active.rend() && unspillableLd2.find(lastactive->idx) != unspillableLd2.end())
-                lastactive++;
-            if (lastactive != active.rend() && lastactive->end > interval->end)
+            packs.push_back(std::multiset<LiveInterval, startordering>());
+            packs.back().swap(used);
+        }
+        if(riders.size() > 0)
+        {
+            packs.push_back(std::multiset<LiveInterval, startordering>());
+            packs.back().swap(riders);
+        }
+    }
+    else
+        packs.push_back(liveintervals);
+    if(hints.size())
+        for(int pnum = packs.size() - 1; pnum >= 0; pnum--)
+        {
+            std::multiset<LiveInterval, startordering> hinted;
+            std::multiset<LiveInterval, startordering> nonhinted;
+            for(const LiveInterval& interval : packs[pnum])
+                if(hints.find(interval.idx) == hints.end())
+                    nonhinted.insert(nonhinted.end(), interval);
+                else
+                    hinted.insert(hinted.end(), interval);
+            if(hinted.size() > 0 && nonhinted.size() > 0)
             {
-                //Victim is a register considered to be moved to stack.
-                const RegIdx vict_idx = lastactive->idx;
-                Arg curLoc = isParam(basket_num, vict_idx) ? result[vict_idx].args.back(): split_assignments[vict_idx].back().assignment;
-                LOOPS_ASSERT(curLoc.tag == REGtag);
-                const RegIdx stolenReg = curLoc.idx; //Victim's active register, read before changes.
-                stackParameterSpilled = isStackPassedParam(basket_num, vict_idx);
-                const Arg victSpilled = argSpilled(basket_num, stackParameterSpilled ? 0 : getSpillSlot(vict_idx, basket_num));
-                if(isParam(basket_num, vict_idx))
+                packs[pnum].swap(hinted);
+                packs.insert(packs.begin() + pnum + 1, std::multiset<LiveInterval, startordering>());
+                packs[pnum + 1].swap(nonhinted);
+            }
+        }
+
+    const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
+    std::multiset<LiveInterval, startordering> fixed;
+    std::unordered_set<RegIdx> fixed_idxs;
+    std::vector<LiveInterval> placed(active.begin(), active.end()); //Intervals scanned since the last pack change.
+    for(int pnum = 0; pnum < (int)packs.size(); pnum++)
+    {
+        if(pnum > 0)
+        {
+            for(const LiveInterval& li : active)
+                result_pool.releaseReg(basket_num, block_reassignment[li.idx].getAt(li.start).idx);
+            active.clear();
+            for(const LiveInterval& li : placed)
+                if(block_reassignment[li.idx].getAt(li.start).tag == REGtag) //spilled ones reserve nothing
                 {
-                    RegisterReassignment keeped = result[vict_idx];
-                    int lastsn = ((int)keeped.args.size()) - 1;
-                    result[vict_idx] = RegisterReassignment(keeped.bounds[lastsn], keeped.bounds[lastsn + 1], victSpilled);
-                    if(isRegisterPassedParam(basket_num, vict_idx))
+                    fixed.insert(li);
+                    fixed_idxs.insert(li.idx);
+                }
+            placed.clear();
+            result_pool.clearReservations(basket_num);
+            for(const LiveInterval& li : fixed)
+                result_pool.reserveReg(basket_num, block_reassignment[li.idx].getAt(li.start).idx, li.start);
+        }
+        std::multiset<LiveInterval, startordering>::iterator fixed_it = fixed.begin();
+        for (auto interval = packs[pnum].begin(); interval != packs[pnum].end(); ++interval)
+        {
+            std::unordered_map<RegIdx, RegIdx> opUndefs; //TODO(ch): You also have to consider spilled undefs.
+            const int hi = interval->end + 1;
+            { //Dropping expired registers.
+                auto removerator = active.begin();
+                for (; removerator != active.end(); ++removerator)
+                    if (removerator->end <= interval->start)
                     {
-                        RegisterReassignment& param = result[vict_idx];
-                        param.bounds.insert(param.bounds.begin(), 0);   //DUBUG: there needed some kind of function, which append subinterval.
-                        param.args.insert(param.args.begin(), keeped.args[0]);
+                        Arg curLoc = block_reassignment[removerator->idx].getAt(removerator->start);
+                        LOOPS_ASSERT(curLoc.tag == REGtag);
+                        int assigned_idx = curLoc.idx;
+                        result_pool.releaseReg(basket_num, assigned_idx);
+                        if (removerator->end == interval->start) //Current line, line of definition of considered register
+                            opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, assigned_idx));
                     }
+                    else
+                        break;
+                active.erase(active.begin(), removerator);
+            }
+            //Fixed intervals reached by the cursor take their reserved registers(ones already over are reuse hints at most).
+            for(; fixed_it != fixed.end() && fixed_it->start <= interval->start; ++fixed_it)
+            {
+                const RegIdx fixed_reg = block_reassignment[fixed_it->idx].getAt(fixed_it->start).idx;
+                if(fixed_it->end <= interval->start)
+                {
+                    result_pool.dropReservation(basket_num, fixed_reg, fixed_it->start);
+                    if(fixed_it->end == interval->start)
+                        opUndefs.insert(std::pair<RegIdx,RegIdx>(fixed_it->idx, fixed_reg));
+                    continue;
+                }
+                result_pool.provideReservedReg(basket_num, fixed_reg, fixed_it->start, fixed_it->end);
+                active.insert(*fixed_it);
+            }
+            placed.push_back(*interval);
+            if (!result_pool.havefreeRegs(basket_num, hi))
+            {
+                bool stackParameterSpilled = false;
+                std::multiset<LiveInterval, endordering>::reverse_iterator lastactive = active.rbegin();
+                while(lastactive != active.rend() && fixed_idxs.count(lastactive->idx))
+                    ++lastactive;
+                if (lastactive != active.rend() && lastactive->end > interval->end)
+                {
+                    //Victim is a register considered to be moved to stack.
+                    const RegIdx vict_idx = lastactive->idx;
+                    Arg curLoc = block_reassignment[vict_idx].getAt(lastactive->start);
+                    LOOPS_ASSERT(curLoc.tag == REGtag);
+                    const RegIdx stolenReg = curLoc.idx; //Victim's active register, read before changes.
+                    stackParameterSpilled = isStackPassedParam(basket_num, vict_idx);
+                    const Arg victSpilled = argSpilled(basket_num, stackParameterSpilled ? 0 : getSpillSlot(vict_idx, basket_num));
+                    if(isParam(basket_num, vict_idx))
+                    {
+                        RegisterReassignment keeped = block_reassignment[vict_idx];
+                        int lastsn = ((int)keeped.args.size()) - 1;
+                        block_reassignment[vict_idx] = RegisterReassignment(keeped.bounds[lastsn], keeped.bounds[lastsn + 1], victSpilled);
+                        if(isRegisterPassedParam(basket_num, vict_idx))
+                            block_reassignment[vict_idx].overlaySplit(0, keeped.bounds[lastsn], *(keeped.args[0]));
+                    }
+                    else
+                        block_reassignment[vict_idx].getAt(lastactive->start) = victSpilled;
+                    block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, argReg(basket_num, stolenReg));
+                    active.erase(std::next(lastactive).base());
+                    active.insert(*interval);
                 }
                 else
                 {
-                    LOOPS_ASSERT(!split_assignments[vict_idx].empty());
-                    split_assignments[vict_idx].back().assignment = victSpilled;
+                    stackParameterSpilled = isStackPassedParam(basket_num, interval->idx);
+                    const Arg sp = argSpilled(basket_num, stackParameterSpilled ? 0 : getSpillSlot(interval->idx, basket_num));
+                    block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, sp);
                 }
-                split_assignments[interval->idx].push_back(SplitAssignment{interval->start, hi, argReg(basket_num, stolenReg)});
-                active.erase(--(active.end()));
+            }
+            else
+            {
+                RegIdx hwReg;
                 active.insert(*interval);
-            }
-            else
-            {
-                stackParameterSpilled = isStackPassedParam(basket_num, interval->idx);
-                const Arg sp = argSpilled(basket_num, stackParameterSpilled ? 0 : getSpillSlot(interval->idx, basket_num));
-                split_assignments[interval->idx].push_back(SplitAssignment{interval->start, hi, sp});
-            }
-        }
-        else
-        {
-            RegIdx hwReg;
-            active.insert(*interval);
-            auto unsprator = unspillableLd2.find(interval->idx);
-            if(basket_num == RB_VEC && ( unsprator != unspillableLd2.end()))
-            {
-                auto alrator = already_allocatedLd2.find(interval->idx);
-                if(alrator != already_allocatedLd2.end())
-                {
-                    hwReg = alrator->second;
-                    already_allocatedLd2.erase(interval->idx);
-                }
-                else
-                {
-                    std::vector<RegIdx> consecutive_regs = m_pool.provideConsecutiveRegs(RB_VEC, 2);
-                    RegIdx oppositeSrc = unsprator->second.second;
-                    RegIdx oppositeDst = consecutive_regs[1];
-                    RegIdx dst = consecutive_regs[0];
-                    if (oppositeSrc == interval->idx)
-                    {
-                        oppositeSrc = unsprator->second.first;
-                        oppositeDst = consecutive_regs[0];
-                        dst = consecutive_regs[1];
-                    }
-                    hwReg = dst;
-                    already_allocatedLd2.insert(std::make_pair(oppositeSrc, oppositeDst));
-                }
-            }
-            else
-            {
                 //There we are looking around last used input registers and trying to reuse them as
                 //out. This optimization is important, e.g., for add, sub and mul operation on Intel, where
                 //this operation are binary, not ternary.
@@ -768,30 +1108,14 @@ void RegisterAllocator::linearScanBlock(int basket_num, const Syntfunc& a_source
                     if (argnumHint != UNDEFINED_ARGUMENT_NUMBER)
                         poolHint = opUndefsIdxMap.at(argnumHint);
                 }
-                //We are trying to keep same assignment for heighbouring splits.
-                if(poolHint == IReg::NOIDX)
-                {
-                    const std::vector<SplitAssignment >& own = split_assignments[interval->idx];
-                    RegIdx anyHint = IReg::NOIDX;
-                    for(const SplitAssignment& sa : own)
-                    {
-                        if(sa.assignment.tag != REGtag)
-                            continue;
-                        if(sa.end_pos == interval->start || sa.start_pos == hi) //immediately adjacent
-                        {
-                            poolHint = sa.assignment.idx;
-                            break;
-                        }
-                        anyHint = sa.assignment.idx;
-                    }
-                    if(poolHint == IReg::NOIDX)
-                        poolHint = anyHint;
-                }
-                hwReg = m_pool.provideRegFromPool(basket_num, poolHint);
+                if(poolHint == IReg::NOIDX && hints.find(interval->idx) != hints.end())
+                    poolHint = hints.at(interval->idx);
+                hwReg = result_pool.provideRegFromPool(basket_num, poolHint, hi);
+                block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, argReg(basket_num, hwReg));
             }
-            split_assignments[interval->idx].push_back(SplitAssignment{interval->start, hi, argReg(basket_num, hwReg)});
         }
     }
+    result_pool.clearReservations(basket_num);
 }
 
 RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_source)
@@ -900,17 +1224,10 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
                 }
             }
         }
-        const int SPLtag = ((basket_num == RB_INT) ? Arg::ISPILLED : Arg::VSPILLED);
-        int parametersStoodSpilled = 0; 
-        for(auto p : m_stackParamLayout[basket_num])
-            if (m_reg_reassignment[basket_num][p.first].args[0].tag == SPLtag)
-                parametersStoodSpilled++;
-        for(int idx = 0; idx < (int)m_reg_reassignment[basket_num].size(); idx++)
-            for(int intnum = 0; intnum < (int)m_reg_reassignment[basket_num][idx].args.size(); intnum++)
-                if(m_reg_reassignment[basket_num][idx].args[intnum].tag == SPLtag)
-                    to_fill.nettoSpills[basket_num]++;
-        to_fill.nettoSpills[basket_num] -= parametersStoodSpilled;
-        to_fill.nettoSpills[basket_num] += (int)m_pool.usedCallee(basket_num).size();
+        //Spilled values area is sized by the amount of slots provided by getSpillSlot: a slot stays
+        //reserved even if children assignments were overlaid over all spilled splits using it.
+        //Stack-passed parameters don't consume slots(they live in the caller's frame).
+        to_fill.nettoSpills[basket_num] = (int)m_spill_info.m_spoffset[basket_num] + (int)m_pool.usedCallee(basket_num).size();
         to_fill.spAddAligned += to_fill.nettoSpills[basket_num] * m_basketElemX[basket_num];
     }
     if(m_have_function_calls)
@@ -931,65 +1248,91 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
     return to_fill;
 }
 
-struct CFGInfo //Control flow graph info.
+void RegisterAllocator::insertMultiLevelJumpTransfers(const Syntfunc& a_source,
+    std::vector<std::vector<SplitTransfers> >& a_split_transfers)
 {
-    std::vector<std::vector<int> > succ;
-    std::vector<int> predCount;
-};
-
-static CFGInfo buildCFG(const Syntfunc& a_source)
-{
+#if !HIERARCHICAL_LINEAR_SCAN
+    return; //One location per value for the whole function: a jump has nothing to compensate.
+#endif
     const int N = (int)a_source.program.size();
-    std::unordered_map<int64_t, int> labelPos;
-    for(int q = 0; q < N; q++)
+    std::unordered_map<int64_t, int> label_owner_pos;
+    for(int opnum = 0; opnum < N; opnum++)
     {
-        const Syntop& op = a_source.program[q];
-        switch (op.opcode)
-        {
-        case (OP_LABEL):        labelPos[op.args[0].value] = q;     break; //explicit label(IF branch targets)
-        case (OP_WHILE_CSTART): labelPos[op.args[0].value] = q;     break; //continue label -> loop head
-        case (OP_ENDWHILE):     labelPos[op.args[1].value] = q + 1; break; //break label -> loop exit
-        case (OP_ENDIF):        labelPos[op.args[0].value] = q + 1; break; //out label -> after the IF
-        case (OP_ELSE):         labelPos[op.args[0].value] = q + 1; break; //else label -> else body
-        }
+        const Syntop& op = a_source.program[opnum];
+        if(op.opcode == OP_WHILE_CSTART)
+            label_owner_pos[op.args[0].value] = opnum;
+        else if(op.opcode == OP_ENDWHILE)
+            label_owner_pos[op.args[1].value] = opnum;
     }
-    CFGInfo cfg;
-    cfg.succ.resize(N);
-    cfg.predCount.assign(N, 0);
-    auto target = [&](int64_t label, int def){ std::unordered_map<int64_t,int>::iterator it = labelPos.find(label); return it == labelPos.end() ? def : it->second; };
-    for(int q = 0; q < N; q++)
+    for(int opnum = 0; opnum < N; opnum++)
     {
-        const Syntop& op = a_source.program[q];
-        switch (op.opcode)
+        const int jump_opcode = a_source.program[opnum].opcode;
+        if(jump_opcode != OP_BREAK && jump_opcode != OP_CONTINUE)
+            continue;
+        //Chain of loops containing the jump, innermost last(IF nodes are already removed from the tree).
+        std::vector<const BasicBlocksTree*> enclosing;
+        const BasicBlocksTree* node = m_bbt.get();
+        while(true)
         {
-        case (OP_JMP):      cfg.succ[q].push_back(target(op.args[0].value, q + 1)); break;
-        case (OP_JCC):      cfg.succ[q].push_back(q + 1); cfg.succ[q].push_back(target(op.args[1].value, q + 1)); break;
-        case (OP_BREAK):    cfg.succ[q].push_back(target(op.args[0].value, q + 1)); break;
-        case (OP_ENDWHILE): cfg.succ[q].push_back(target(op.args[0].value, q + 1)); break; //back-edge to whilecstart 
-        case (OP_ELSE):     cfg.succ[q].push_back(target(op.args[1].value, q + 1)); break; //jump over else body 
-        case (OP_RET):      break;
-        default: if(q + 1 < N) cfg.succ[q].push_back(q + 1);
+            const BasicBlocksTree* deeper = nullptr;
+            for(const BasicBlocksTreePtr& child : node->children)
+                if(opnum >= child->start_pos && opnum <= child->end_pos)
+                {
+                    deeper = child.get();
+                    break;
+                }
+            if(deeper == nullptr)
+                break;
+            enclosing.push_back(deeper);
+            node = deeper;
         }
+        auto owner = label_owner_pos.find(a_source.program[opnum].args[0].value);
+        LOOPS_ASSERT(!enclosing.empty() && owner != label_owner_pos.end());
+        const int owner_pos = owner->second;
+        const BasicBlocksTree* target = nullptr;
+        for(int depth = (int)enclosing.size() - 1; depth >= 0; depth--)
+            if(enclosing[depth]->start_pos == owner_pos || enclosing[depth]->end_pos == owner_pos)
+            {
+                target = enclosing[depth];
+                break;
+            }
+        if(target == nullptr)
+            throw loops::exception("Register allocator: jump target is not a boundary of an enclosing loop.");
+        if(target == enclosing.back())
+            continue; //single-level jump: reconciled by ordinary boundary transfers.
+        a_split_transfers[opnum].clear();
+        const bool to_head = (target->start_pos == owner_pos);
+        LOOPS_ASSERT(to_head == (jump_opcode == OP_CONTINUE));
+        for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+            for(int idx = 0; idx < (int)m_reg_reassignment[basket_num].size(); idx++)
+            {
+                RegisterReassignment& ra = m_reg_reassignment[basket_num][idx];
+                if(ra.args.empty())
+                    continue;
+                //Value must be alive at the jump and at the landing point(intervals are contiguous, and
+                //the jump op defines nothing, so front <= opnum - 1 still means alive at the jump).
+                if(to_head ? (ra.bounds.front() > owner_pos || ra.bounds.back() <= opnum)
+                           : (ra.bounds.front() > opnum - 1 || ra.bounds.back() <= target->end_pos + 1))
+                    continue;
+                const Arg su = ra.getAt(opnum - 1), sv = ra.getAt(owner_pos);
+                if(sameLocation(su, sv))
+                    continue;
+                a_split_transfers[opnum].push_back(SplitTransfers{(RegIdx)idx, su, sv, basket_num, false});
+            }
     }
-    for(int q = 0; q < N; q++)
-        for(int v : cfg.succ[q])
-            if(v >= 0 && v < N) cfg.predCount[v]++;
-    return cfg;
 }
-
 
 //There are need in transfers between splits at every position. This function generate optimal movement
 //sequence for satisfaction of known permutation. One scratch spill position is used for optimal solution.
 void RegisterAllocator::emitParallelCopy(Syntfunc& a_destination, const std::vector<SplitTransfers>& transfersHere)
 {
-    auto sameLoc = [](const Arg& a, const Arg& b){ return a.tag == b.tag && a.idx == b.idx && a.value == b.value; };
     std::vector<SplitTransfers> pending;
     pending.reserve(transfersHere.size());
     for(const auto& tr : transfersHere)
     {
         const Arg& src = tr.src;
         const Arg& dst = tr.dst;
-        if(sameLoc(src, dst)) //no-op: both sides ended up on the same register/slot.
+        if(sameLocation(src, dst)) //no-op: both sides ended up on the same register/slot.
             continue;
         // int basket = (src.tag == Arg::IREG || src.tag == Arg::ISPILLED) ? RB_INT : RB_VEC;
         pending.push_back(tr);
@@ -1018,7 +1361,7 @@ void RegisterAllocator::emitParallelCopy(Syntfunc& a_destination, const std::vec
             {
                 bool isDst = false;
                 for(size_t b = 0; b < grp.size() && !isDst; b++)
-                    isDst = sameLoc(pending[grp[a]].src, pending[grp[b]].dst);
+                    isDst = sameLocation(pending[grp[a]].src, pending[grp[b]].dst);
                 if(!isDst)
                 {
                     startk = grp[a];
@@ -1030,11 +1373,11 @@ void RegisterAllocator::emitParallelCopy(Syntfunc& a_destination, const std::vec
             bool cyclic = false;
             for(size_t step = 0; step < grp.size(); step++) //follow src==cur links to the chain end.
             {
-                if(sameLoc(cur, t.src)) //chain returned to its start: a single register's transfers cancel
+                if(sameLocation(cur, t.src)) //chain returned to its start: a single register's transfers cancel
                 { cyclic = true; break; } //(e.g. an inner loop's exit transfer and the enclosing loop's
                 bool advanced = false;    //back-edge copy coincide at one op). Net is a no-op -> drop it.
                 for(size_t a = 0; a < grp.size() && !advanced; a++)
-                    if(sameLoc(pending[grp[a]].src, cur))
+                    if(sameLocation(pending[grp[a]].src, cur))
                     {
                         cur = pending[grp[a]].dst;
                         advanced = true;
@@ -1043,7 +1386,7 @@ void RegisterAllocator::emitParallelCopy(Syntfunc& a_destination, const std::vec
                     break;
             }
             t.dst = cur;
-            if(!cyclic && !sameLoc(t.src, t.dst))
+            if(!cyclic && !sameLocation(t.src, t.dst))
                 collapsed.push_back(t);
         }
         pending.swap(collapsed);
@@ -1055,7 +1398,7 @@ void RegisterAllocator::emitParallelCopy(Syntfunc& a_destination, const std::vec
         {
             bool needed = false; //is pending[i].dst still read as a source by another pending transfer?
             for(size_t j = 0; j < pending.size() && !needed; j++)
-                if(j != i && !pending[j].src_scratch && sameLoc(pending[j].src, pending[i].dst))
+                if(j != i && !pending[j].src_scratch && sameLocation(pending[j].src, pending[i].dst))
                     needed = true;
             if(!needed)
                 pick = (int)i;
@@ -1112,44 +1455,66 @@ int64_t RegisterAllocator::getSpillSlot(RegIdx idx, int basket_num)
     return s;
 }
 
+static void collectBlockBoundaries(const BasicBlocksTree& node, std::vector<int>& boundaries)
+{
+    for(const BasicBlocksTreePtr& child : node.children)
+    {
+        boundaries.push_back(child->start_pos);
+        boundaries.push_back(child->end_pos + 1);
+        collectBlockBoundaries(*child, boundaries);
+    }
+}
+
 void RegisterAllocator::insertSpillInstructions(const Syntfunc& a_source, Syntfunc& a_destination)
 {
+    //1.) Forming transfers on edges of register's subintervals. 
     std::vector<std::vector<SplitTransfers> > split_transfers;
     split_transfers.resize(a_source.program.size());
-    //Edge-based reconciliation. For every structured-CFG edge u->v and every register live across it, if its
-    //location differs(getAt(u) != getAt(v)) place a copy on that edge.
     {
-        const CFGInfo cfg = buildCFG(a_source);
         const int N = (int)a_source.program.size();
-        for(int u = 0; u < N; u++)
-            for(int v : cfg.succ[u])
+        std::vector<int> boundaries;
+        collectBlockBoundaries(*m_bbt, boundaries);
+        std::sort(boundaries.begin(), boundaries.end());
+        boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
+        //Self-check of the scheme above: a location change anywhere else would be silently lost.
+        for(int bn = 0; bn < RB_AMOUNT; bn++)
+            for(int idx = 0; idx < (int)m_reg_reassignment[bn].size(); idx++)
             {
-                if(v < 0 || v >= N)
-                    continue;
-                const bool backEdge = (a_source.program[u].opcode == OP_ENDWHILE && a_source.program[v].opcode == OP_WHILE_CSTART);
-                const int pos = backEdge ? u : v;
-                for(int bn = 0; bn < RB_AMOUNT; bn++)
-                    for(int idx = 0; idx < (int)m_reg_reassignment[bn].size(); idx++)
-                    {
-                        RegisterReassignment& ra = m_reg_reassignment[bn][idx];
-                        if(ra.args.empty() || u < ra.bounds.front() || u >= ra.bounds.back() || v < ra.bounds.front() || v >= ra.bounds.back())
-                            continue; //register not live on both ends of the edge
-                        const Arg su = ra.getAt(u), sv = ra.getAt(v);
-                        if(su.tag == sv.tag && su.idx == sv.idx && su.value == sv.value)
-                            continue;
-                        split_transfers[pos].push_back(SplitTransfers{(RegIdx)idx, su, sv, bn, false});
-                    }
+                const RegisterReassignment& ra = m_reg_reassignment[bn][idx];
+                for(int snum = 1; snum < (int)ra.args.size(); snum++)
+                {
+                    if(sameLocation(*ra.args[snum - 1], *ra.args[snum]))
+                        continue;
+                    LOOPS_ASSERT(ra.bounds[snum] == 0 || std::binary_search(boundaries.begin(), boundaries.end(), ra.bounds[snum]));
+                }
             }
+        for(int p : boundaries)
+        {
+            if(p <= 0 || p >= N)
+                continue;
+            for(int bn = 0; bn < RB_AMOUNT; bn++)
+                for(int idx = 0; idx < (int)m_reg_reassignment[bn].size(); idx++)
+                {
+                    RegisterReassignment& ra = m_reg_reassignment[bn][idx];
+                    if(ra.args.empty() || ra.bounds.front() >= p || ra.bounds.back() <= p)
+                        continue; //value is not alive on both sides of the boundary
+                    const Arg su = ra.getAt(p - 1), sv = ra.getAt(p);
+                    if(sameLocation(su, sv))
+                        continue;
+                    split_transfers[p].push_back(SplitTransfers{(RegIdx)idx, su, sv, bn, false});
+                }
+        }
         for(int bn = 0; bn < RB_AMOUNT; bn++)
             for(int idx = 0; idx < (int)m_reg_reassignment[bn].size(); idx++)
             {
                 const RegisterReassignment& ra = m_reg_reassignment[bn][idx];
                 if(ra.args.size() >= 2 && ra.bounds[1] == 0)
-                    split_transfers[0].push_back(SplitTransfers{(RegIdx)idx, ra.args[0], ra.args[1], bn, false});
+                    split_transfers[0].push_back(SplitTransfers{(RegIdx)idx, *ra.args[0], *ra.args[1], bn, false});
             }
     }
+    insertMultiLevelJumpTransfers(a_source, split_transfers);
 
-    //Renaming registers and adding spill operations
+    //2.) Renaming registers and adding spill operations
     for (size_t opnum = 0; opnum < a_source.program.size(); ++opnum)
     {
         emitParallelCopy(a_destination, split_transfers[opnum]);
@@ -1237,10 +1602,9 @@ void RegisterAllocator::process(Syntfunc& a_dest, const Syntfunc& a_source)
     m_stackParamLayout = m_backend->getStackParameterLayout(a_source, m_pool.getOverridenParams());
 
     std::array<std::vector<LiveInterval>, RB_AMOUNT> parintervals;
-    std::array<std::multiset<LiveInterval, startordering>, RB_AMOUNT> liveintervals;
-    layOutLiveIntervals(a_source, parintervals, liveintervals, m_params_sorted);
+    layOutLiveIntervals(a_source, parintervals, m_params_sorted);
 
-    m_reg_reassignment = assignRegisters(a_source, liveintervals, parintervals);
+    m_reg_reassignment = assignRegisters(a_source, parintervals);
     m_retreg = argReg(RB_INT, m_pool.provideReturnFromPool(RB_INT));
 
     m_spill_info = modelSpills(a_source);

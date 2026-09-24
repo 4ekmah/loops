@@ -651,6 +651,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     child_idx_stack.pop();
                 }
             }
+            BasicBlocksTree* bbtop = bbtstack.top();
             Syntop& op = a_dest.program[opnum];
             std::array<std::set<int>, RB_AMOUNT> outRegArnums;
             for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++ )
@@ -676,11 +677,39 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     if (isIterateable(basket_num, arg.idx) && isOut && (getNextSubinterval(basket_num, arg.idx).start <= opnum))
                         sinum++;
                     arg.idx = m_subintervals[basket_num][arg.idx][sinum].idx;
+                    bbtop->reg_occurencies[basket_num].insert(arg.idx);
                 }
             }
         }
     }
     LOOPS_ASSERT(bbtstack.size() == 1);
+
+    {//4.) Finishing register usage map in Basic Block Tree hierarchy.
+        child_idx_stack = {};
+        child_idx_stack.push(0);
+        while(bbtstack.size())
+        {
+            BasicBlocksTree* curr_block = bbtstack.top();
+            if(child_idx_stack.top() < (int)curr_block->children.size())
+            {
+                int child_idx = child_idx_stack.top();
+                child_idx_stack.top()++;
+                child_idx_stack.push(0);
+                bbtstack.push(curr_block->children[child_idx].get());
+            }
+            else
+            {
+                bbtstack.pop();
+                child_idx_stack.pop();
+                for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++ )
+                    for(int cnum = 0; cnum < (int)curr_block->children.size(); cnum++)
+                    {
+                        BasicBlocksTreePtr child = curr_block->children[cnum];
+                        curr_block->reg_occurencies[basket_num].insert(child->reg_occurencies[basket_num].begin(), child->reg_occurencies[basket_num].end());
+                    }
+            }
+        }
+    }
 
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
     {

@@ -256,7 +256,7 @@ namespace loops
             }
             case (OP_CONTINUE):
             {
-                LOOPS_ASSERT(op.size() != 1 || op.args[0].tag != Arg::IIMMEDIATE);
+                LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 if (a_dest.program.size() == 0 || a_dest.program.back().opcode != OP_JMP) // Eliminating sequential jumps
                     a_dest.program.push_back(Syntop(OP_JMP, {op.args[0].value}));
                 break;
