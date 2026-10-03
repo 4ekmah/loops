@@ -194,6 +194,87 @@ namespace loops
             };
     }
 
+    InplaceUnfolding::InplaceUnfolding(const Backend* a_backend, std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt): 
+        CompilerPass(a_backend)
+      , m_live_intervals(a_live_intervals)
+      , m_bbt(a_bbt)
+        {}
+
+    void InplaceUnfolding::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    {
+        LOOPS_ASSERT(&a_dest != &a_source);
+        a_dest.name = a_source.name;
+        a_dest.nextLabel = a_source.nextLabel;
+        a_dest.params = a_source.params;
+        for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
+            a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
+        a_dest.program.clear();
+        a_dest.program.reserve(a_source.program.size() * 2);
+        for(int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
+        {
+            const Syntop& op = a_source.program[opnum];
+            AllocationRestriction restriction = m_backend->getRestriction(op);
+            if(restriction.type == AllocationRestriction::AR_INPLACE_COMMUTATIVE)
+            {
+                int onum = restriction.descr.inplace_comm.m_output_num;
+                int inum = restriction.descr.inplace_comm.m_input_num;
+                int ianum = restriction.descr.inplace_comm.m_input_aux_num;
+                if(op.args[onum] != op.args[inum])
+                {
+                    int newopnum = (int)a_dest.program.size();
+                    Syntop op2a = op;
+                    // ianum == UNDEFINED_ARGUMENT_NUMBER means unary operation.
+                    //It's better to use just ending interval as first input.
+                    if(ianum != UNDEFINED_ARGUMENT_NUMBER && (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) &&
+                        op2a.args[inum].tag == op2a.args[ianum].tag)
+                    {
+                        int basket_num = op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC;
+                        int iaidx = op2a.args[ianum].idx;
+                        if((*m_live_intervals)[basket_num][iaidx].end == newopnum)
+                            std::swap(op2a.args[inum], op2a.args[ianum]);
+                    }
+                    if(ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[onum] != op2a.args[ianum])
+                    {
+                        a_dest.program.push_back(Syntop(OP_MOV, {op2a.args[onum], op2a.args[inum]}));
+                        const bool input_non_used = (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) && (ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[inum] != op2a.args[ianum]);
+                        for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                            for(int linum = 0; linum < (int)(*m_live_intervals)[basket_num].size(); linum++) 
+                            {
+                                int& start = (*m_live_intervals)[basket_num][linum].start;
+                                int& end = (*m_live_intervals)[basket_num][linum].end;
+                                int idx = (*m_live_intervals)[basket_num][linum].idx;
+                                if(start > newopnum)
+                                    start++;
+                                if(end > newopnum || (end == newopnum && !(input_non_used && idx == op2a.args[inum].idx)))
+                                    end++;
+                            }
+                        shift_block_intervals(m_bbt, newopnum);
+                        op2a.args[inum] = op2a.args[onum];
+                    }
+                    else
+                        std::swap(op2a.args[inum], op2a.args[ianum]);
+                    a_dest.program.push_back(op2a);
+                }
+                else 
+                    a_dest.program.push_back(op);
+            }
+            else 
+                a_dest.program.push_back(op);
+        }
+    }
+
+    void InplaceUnfolding::shift_block_intervals(BasicBlocksTreePtr block, int opnum)
+    {
+        if(block->end_pos < opnum)
+            return;
+        for(BasicBlocksTreePtr child : block->children)
+            shift_block_intervals(child, opnum);
+        if(block->start_pos > opnum)
+            block->start_pos++;
+        if(block->end_pos > opnum)
+            block->end_pos++;
+    }
+
     Cf2jumps::Cf2jumps(const Backend *a_backend, int a_epilogueSize) : CompilerPass(a_backend), m_epilogueSize(a_epilogueSize)
     {
     }
@@ -484,6 +565,8 @@ namespace loops
             run_pass(braPass.get());
         LivenessAnalysisAlgo LAalgo(m_backend);
         run_pass(&LAalgo); // inplace
+        InplaceUnfolding inplaceUnfolding(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree());
+        run_pass(&inplaceUnfolding); // inplace
         RegisterAllocator regalloc(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree(), LAalgo.getSnippetCausedSpills(), LAalgo.haveFunctionCalls());
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             if (m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)

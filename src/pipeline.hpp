@@ -37,6 +37,20 @@ public:
     virtual ~ElifElimination() {}
 };
 
+class InplaceUnfolding : public CompilerPass
+{
+public:
+    InplaceUnfolding(const Backend* a_backend, std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt);
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+    virtual bool is_inplace() const override final { return false; }
+    virtual std::string pass_id() const override final { return "CP_INPLACE_UNFOLDING"; }
+    virtual ~InplaceUnfolding() override {}
+private:
+    std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_live_intervals;
+    static void shift_block_intervals(BasicBlocksTreePtr block, int opnum);
+    BasicBlocksTreePtr m_bbt;
+};
+
 class Cf2jumps: public CompilerPass
 {
 public:

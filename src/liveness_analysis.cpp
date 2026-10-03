@@ -305,8 +305,6 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     std::stack<BasicBlocksTree*> bbtstack;
     bbtstack.push(m_basic_blocks_tree.get());
     
-    //TODO(ch): Introduce inplace passes. 
-    LOOPS_ASSERT(&a_dest == &a_source); 
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
         m_subintervals[basket_num].resize(a_source.regAmount[basket_num], std::vector<LiveInterval>());
     

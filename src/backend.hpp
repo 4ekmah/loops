@@ -95,6 +95,36 @@ namespace SyntopTranslationConstruction
     inline SyntopTranslation::ArgTranslation SAcopelt(int argnum, int elemtype, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, elemtype, flags); }
 }
 
+struct AllocationRestriction
+{
+    enum {AR_NONE, AR_INPLACE_COMMUTATIVE, AR_FIXED, AR_CONSECUTIVE};
+    int type;
+    struct InplaceCommutativeDescription
+    {
+        int m_output_num; 
+        int m_input_num;
+        int m_input_aux_num;
+    };
+    struct FixedDescription
+    {
+        int m_arg_num;
+        RegIdx m_fixed_idx; 
+    };
+    struct ConsecutiveDescription
+    {
+        int m_idx_start;
+        int m_idx_end;
+    };
+    union Description
+    {
+        InplaceCommutativeDescription inplace_comm;
+        FixedDescription fixed;
+        ConsecutiveDescription consecutive;
+    } descr;
+    static AllocationRestriction makeNone();
+    static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
+};
+
 class Backend
 {
 public:
@@ -115,6 +145,8 @@ public:
     std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
+
+    virtual AllocationRestriction getRestriction(const Syntop& a_op) const;
 
     //It's assumed here, that Syntop is native, not IR. Return argument flags.
     //Result array have to be allocated before and have to be of (Syntop::SYNTOP_ARGS_MAX) size.

@@ -2464,12 +2464,6 @@ namespace loops
     {
         switch (a_op.opcode)
         {
-        case OP_X86_ADC:
-        case OP_ADD:
-        case OP_MUL:
-        case OP_AND:
-        case OP_OR:
-        case OP_XOR:
         case OP_MIN:
         case OP_MAX:
         {
@@ -2479,12 +2473,10 @@ namespace loops
                 return 2;
             break;
         }
-        case OP_NEG:
         case OP_SUB:
         case OP_SHL:
         case OP_SHR:
         case OP_SAR:
-        case OP_NOT:
         case OP_SIGN:
         case VOP_FMA:
         {
@@ -2719,6 +2711,24 @@ namespace loops
         }
         else
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+    }
+
+    AllocationRestriction Intel64Backend::getRestriction(const Syntop& a_op) const
+    {
+        switch (a_op.opcode)
+        {
+            case (OP_X86_ADC):
+            case (OP_ADD):
+            case (OP_MUL):
+            case (OP_AND):
+            case (OP_OR):
+            case (OP_XOR):
+                return AllocationRestriction::makeInplaceCommutative(0, 1, 2);
+            case OP_NEG:
+            case OP_NOT:
+                return AllocationRestriction::makeInplaceCommutative(0, 1, UNDEFINED_ARGUMENT_NUMBER);
+            default: return AllocationRestriction::makeNone();
+        }
     }
 
     std::array<std::map<RegIdx, int>, RB_AMOUNT> Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const
@@ -3422,28 +3432,6 @@ namespace loops
                         && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
-            case OP_AND:
-            case OP_OR:
-            case OP_XOR:
-            case OP_X86_ADC:
-            case OP_ADD:
-            case OP_MUL:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 3 && regOrSpi(op_[0]));
-                if (op_[1].tag == Arg::IIMMEDIATE)
-                    std::swap(op_[1], op_[2]);
-                LOOPS_ASSERT(regOrSpi(op_[1]));
-                if (regOrSpi(op_[2]) && regOrSpiEq(op_[0], op_[2]) && !regOrSpiEq(op_[0], op_[1]))
-                    std::swap(op_[1], op_[2]);
-                if (!regOrSpiEq(op_[0], op_[1]))
-                {
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
-                    op_[1] = op_[0];
-                }
-                a_dest.program.push_back(op_);
-                break;
-            }
             case OP_SUB:
             {
                 LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
@@ -3554,19 +3542,6 @@ namespace loops
                     a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
                 if (unspillRdx)
                     a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
-                break;
-            }
-            case OP_NOT:
-            case OP_NEG:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));
-                if (!regOrSpiEq(op_[0], op_[1]))
-                {
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
-                    op_[1] = op_[0];
-                }
-                a_dest.program.push_back(op_);
                 break;
             }
             case OP_SELECT:

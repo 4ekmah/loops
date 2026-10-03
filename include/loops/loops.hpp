@@ -261,6 +261,22 @@ struct Arg
     inline Arg();
     inline Arg(const IReg& r);
     Arg(int64_t a_value);
+    bool operator==(const Arg& who) const 
+    {
+        if(tag != who.tag)
+            return false;
+        switch (tag)
+        {
+        case IREG: return idx == who.idx;
+        case VREG: return idx == who.idx && elemtype == who.elemtype;
+        case ISPILLED: case VSPILLED: case IIMMEDIATE: return value == who.value;
+        default: return true; //EMPTY is always equal to EMPTY
+        }
+    }
+    bool operator!=(const Arg& who) const
+    {
+        return !((*this) == who);
+    }
     template<typename _Tp>
     Arg(const VReg<_Tp>& vr);
     int idx;

@@ -88,6 +88,22 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
     return res;
 }
 
+AllocationRestriction AllocationRestriction::makeNone()
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_NONE;
+    return result;
+}
+AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_num, int input_num, int input_aux_num)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_INPLACE_COMMUTATIVE;
+    result.descr.inplace_comm.m_output_num = output_num;
+    result.descr.inplace_comm.m_input_num = input_num;
+    result.descr.inplace_comm.m_input_aux_num = input_aux_num;
+    return result;
+}
+
 Backend::~Backend()
 {}
 
@@ -128,8 +144,11 @@ std::set<int> Backend::filterStackPlaceable(const Syntop& /*a_op*/, const std::s
     return std::set<int>();
 }
 
-int Backend::reusingPreferences(const Syntop& /*a_op*/, const std::set<int>& /*undefinedArgNums*/) const
+int Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
 {
+    if(a_op.opcode == OP_MOV) 
+        if (undefinedArgNums.count(1))
+            return 1;
     return UNDEFINED_ARGUMENT_NUMBER;
 }
 
@@ -205,6 +224,12 @@ std::set<RegIdx> Backend::getOutRegisters(const Syntop& a_op, int basketNum) con
 std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegisters(a_op, basketNum, AF_INPUT);
+}
+
+AllocationRestriction Backend::getRestriction(const Syntop& a_op) const
+{
+    (void)a_op;
+    return AllocationRestriction::makeNone();
 }
 
 void Backend::fill_native_operand_flags(const Syntop* a_op, uint64_t* result) const

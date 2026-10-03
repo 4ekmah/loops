@@ -13,23 +13,8 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "pipeline.hpp"
 #include <map>
 #include <set>
-#include <unordered_set>
 
 namespace loops {
-/*
-TODO(ch): Implement with RISC-V RVV
-There will be needed modification for support of connected(nested) vectors:
-Nested vector register must be redefined on redefinition of container vector,
-but only if this nested register will be used after this redefinition.
-*/
-struct LiveInterval
-{
-    int start, end;
-    RegIdx idx;
-    //Priority is measured like sum of occurrences of usage, multilplied by 4^k, where k is hierarchical depth of loop.
-    uint64_t priority; //DUBUG: we need here saturation sums, if it max(uint64_t), let it be unchangeable.
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx), priority(0) {}
-};
 
 struct startordering
 {
@@ -41,20 +26,6 @@ struct endordering
     bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
 };
 
-struct BasicBlocksTree
-{
-    std::vector<std::shared_ptr<BasicBlocksTree> > children;
-    enum {BBT_IF, BBT_WHILE, BBT_FUNC};
-    int type;
-    int start_pos;
-    int end_pos;
-    int else_pos;
-    std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
-    BasicBlocksTree() {}
-    BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
-};
-
-typedef std::shared_ptr<BasicBlocksTree> BasicBlocksTreePtr;
 class LivenessAnalysisAlgo : public CompilerPass
 {
 public:
