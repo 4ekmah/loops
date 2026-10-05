@@ -47,7 +47,7 @@ public:
     virtual ~InplaceUnfolding() override {}
 private:
     std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_live_intervals;
-    static void shift_block_intervals(BasicBlocksTreePtr block, int opnum, int increment);
+    static void remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions);
     BasicBlocksTreePtr m_bbt;
 };
 
