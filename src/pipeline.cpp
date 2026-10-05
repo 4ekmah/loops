@@ -210,45 +210,129 @@ namespace loops
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.clear();
         a_dest.program.reserve(a_source.program.size() * 2);
+
+        std::vector<BasicBlocksTree*> bbt_stack;
+        bbt_stack.push_back(m_bbt.get());
+        std::stack<int> child_idx_stack;
+        child_idx_stack.push(0);
         for(int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
         {
+            const int destnum = (int)a_dest.program.size();
+            {//BasicBlocksTree iteration.
+                BasicBlocksTree* top = bbt_stack.back();
+                int next_child = child_idx_stack.top();
+                if(top->end_pos == destnum)
+                {
+                    bbt_stack.pop_back();
+                    child_idx_stack.pop();
+                    child_idx_stack.top()++;
+                }
+                else if(next_child < (int)top->children.size() && top->children[next_child]->start_pos == destnum)
+                {
+                    bbt_stack.push_back(top->children[next_child].get());
+                    child_idx_stack.push(0);
+                }
+            }
             const Syntop& op = a_source.program[opnum];
             AllocationRestriction restriction = m_backend->getRestriction(op);
-            if(restriction.type == AllocationRestriction::AR_INPLACE_COMMUTATIVE)
+            switch(restriction.type)
+            {
+            case (AllocationRestriction::AR_INPLACE):
+            {
+                int onum = restriction.descr.inplace.m_output_num;
+                int inum = restriction.descr.inplace.m_input_num;
+                if(op.args[onum] != op.args[inum])
+                {
+                    Syntop op2a = op;
+                    Arg& output = op2a.args[onum];
+                    Arg& input = op2a.args[inum];
+                    bool double_output = false;
+                    bool double_input = false;
+                    for(int anum = 0; anum < op2a.args_size; anum++) 
+                        if(anum != onum && anum != inum)
+                        {
+                            if(output == op2a.args[anum])
+                                double_output = true;
+                            if(input == op2a.args[anum])
+                                double_input = true;
+                        }
+                    const int shiftsize = double_output ? 2 : 1;
+                    const int input_mov_pos = destnum + shiftsize - 1;
+                    const int output_basket = (output.tag == Arg::IREG ? RB_INT : RB_VEC);
+                    const int input_basket = (input.tag == Arg::IREG ? RB_INT : RB_VEC);
+                    const bool input_non_used = (input.tag == Arg::IREG || input.tag == Arg::VREG) && !double_input;
+                    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++) //DUBUG: I don't like this loop. It is heavy. We have to optimize it by ordering.
+                        for(int linum = 0; linum < (int)(*m_live_intervals)[basket_num].size(); linum++) 
+                        {
+                            int& start = (*m_live_intervals)[basket_num][linum].start;
+                            int& end = (*m_live_intervals)[basket_num][linum].end;
+                            int idx = (*m_live_intervals)[basket_num][linum].idx;
+                            if(start > destnum)
+                                start += shiftsize;
+                            if(end > destnum)
+                                end += shiftsize;
+                            else if(end == destnum)
+                                end = (input_non_used && basket_num == input_basket && idx == input.idx) ? input_mov_pos : destnum + shiftsize;
+                        }
+                    shift_block_intervals(m_bbt, destnum, shiftsize);
+                    //Fixing liveinterals storages
+                    if(double_output)
+                    {
+                        Arg keeper = output;
+                        keeper.idx = a_dest.provideIdx(output_basket);
+                        LOOPS_ASSERT(keeper.idx == (int)(*m_live_intervals)[output_basket].size());
+                        LiveInterval keeper_interval(keeper.idx, destnum);
+                        keeper_interval.end = destnum + shiftsize;
+                        for(BasicBlocksTree* block : bbt_stack)
+                            block->reg_occurencies[output_basket].insert(keeper.idx);
+                        (*m_live_intervals)[output_basket].push_back(keeper_interval);
+                        a_dest.program.push_back(Syntop(OP_MOV, {keeper, output}));
+                        for(int anum = 0; anum < op2a.args_size; anum++) 
+                            if(anum != onum && anum != inum && op2a.args[anum] == output)
+                                op2a.args[anum] = keeper;
+                    }
+                    a_dest.program.push_back(Syntop(OP_MOV, {output, input}));
+                    op2a.args[inum] = output;
+                    a_dest.program.push_back(op2a);
+                }
+                else 
+                    a_dest.program.push_back(op);
+                break;
+            }
+            case (AllocationRestriction::AR_INPLACE_COMMUTATIVE):
             {
                 int onum = restriction.descr.inplace_comm.m_output_num;
                 int inum = restriction.descr.inplace_comm.m_input_num;
                 int ianum = restriction.descr.inplace_comm.m_input_aux_num;
                 if(op.args[onum] != op.args[inum])
                 {
-                    int newopnum = (int)a_dest.program.size();
                     Syntop op2a = op;
-                    // ianum == UNDEFINED_ARGUMENT_NUMBER means unary operation.
                     //It's better to use just ending interval as first input.
                     if(ianum != UNDEFINED_ARGUMENT_NUMBER && (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) &&
                         op2a.args[inum].tag == op2a.args[ianum].tag)
                     {
                         int basket_num = op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC;
                         int iaidx = op2a.args[ianum].idx;
-                        if((*m_live_intervals)[basket_num][iaidx].end == newopnum)
+                        if((*m_live_intervals)[basket_num][iaidx].end == destnum)
                             std::swap(op2a.args[inum], op2a.args[ianum]);
                     }
                     if(ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[onum] != op2a.args[ianum])
                     {
                         a_dest.program.push_back(Syntop(OP_MOV, {op2a.args[onum], op2a.args[inum]}));
                         const bool input_non_used = (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) && (ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[inum] != op2a.args[ianum]);
-                        for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                        const int input_basket = (op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC);
+                        for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++) //DUBUG: I don't like this loop. It is heavy. We have to optimize it by ordering.
                             for(int linum = 0; linum < (int)(*m_live_intervals)[basket_num].size(); linum++) 
                             {
                                 int& start = (*m_live_intervals)[basket_num][linum].start;
                                 int& end = (*m_live_intervals)[basket_num][linum].end;
                                 int idx = (*m_live_intervals)[basket_num][linum].idx;
-                                if(start > newopnum)
+                                if(start > destnum)
                                     start++;
-                                if(end > newopnum || (end == newopnum && !(input_non_used && idx == op2a.args[inum].idx)))
+                                if(end > destnum || (end == destnum && !(input_non_used && idx == op2a.args[inum].idx && basket_num == input_basket)))
                                     end++;
                             }
-                        shift_block_intervals(m_bbt, newopnum);
+                        shift_block_intervals(m_bbt, destnum, 1);
                         op2a.args[inum] = op2a.args[onum];
                     }
                     else
@@ -257,22 +341,23 @@ namespace loops
                 }
                 else 
                     a_dest.program.push_back(op);
-            }
-            else 
-                a_dest.program.push_back(op);
+                break;
+            }            
+            default: a_dest.program.push_back(op); break;
+            };
         }
     }
 
-    void InplaceUnfolding::shift_block_intervals(BasicBlocksTreePtr block, int opnum)
+    void InplaceUnfolding::shift_block_intervals(BasicBlocksTreePtr block, int opnum, int increment) //DUBUG: move to basic block???
     {
         if(block->end_pos < opnum)
             return;
         for(BasicBlocksTreePtr child : block->children)
-            shift_block_intervals(child, opnum);
+            shift_block_intervals(child, opnum, increment);
         if(block->start_pos > opnum)
-            block->start_pos++;
+            block->start_pos+=increment;
         if(block->end_pos > opnum)
-            block->end_pos++;
+            block->end_pos+=increment;
     }
 
     Cf2jumps::Cf2jumps(const Backend *a_backend, int a_epilogueSize) : CompilerPass(a_backend), m_epilogueSize(a_epilogueSize)

@@ -2478,7 +2478,6 @@ namespace loops
         case OP_SHR:
         case OP_SAR:
         case OP_SIGN:
-        case VOP_FMA:
         {
             if (undefinedArgNums.count(1))
                 return 1;
@@ -2529,10 +2528,6 @@ namespace loops
         else if(basketNum == RB_VEC)
             switch (a_op.opcode)
             {
-            case (VOP_FMA):
-                if(a_op.args_size == 4)
-                    return 1;
-                break;                
             case (OP_CALL):
             case (OP_CALL_NORET):
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -2727,6 +2722,9 @@ namespace loops
             case OP_NEG:
             case OP_NOT:
                 return AllocationRestriction::makeInplaceCommutative(0, 1, UNDEFINED_ARGUMENT_NUMBER);
+            case VOP_FMA:
+                return AllocationRestriction::makeInplace(0, 1);
+                    
             default: return AllocationRestriction::makeNone();
         }
     }
@@ -3599,36 +3597,6 @@ namespace loops
                 a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
                 a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
                 a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
-                break;
-            }
-            case VOP_FMA:
-            {
-                Syntop op_= op;
-                LOOPS_ASSERT(op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG);
-                if(op_[0].idx == op_[1].idx)
-                {
-                    a_dest.program.push_back(op_);
-                    break;
-                }
-                bool unspill = false;
-                Arg placeholder = op_[2];
-                int placeholderSPoff = 0;
-                if(op_[0].idx == op_[2].idx || op_[0].idx == op_[3].idx)
-                {
-                    placeholder.idx = lsb64(~makeBitmask64({(size_t)(op_[0].idx), size_t(op_[1].idx), (size_t)(op_[2].idx), (size_t)(op_[3].idx)}));
-                    a_dest.program.push_back(Syntop(OP_SPILL, { placeholderSPoff, placeholder }));
-                    a_dest.program.push_back(Syntop(OP_MOV , { placeholder, op_[0] }));
-                    unspill = true;
-                    if(op_[0].idx == op_[2].idx)
-                        op_[2] = placeholder;
-                    if(op_[0].idx == op_[3].idx)
-                        op_[3] = placeholder;
-                }
-                if(op_[0].idx != op_[1].idx)
-                    a_dest.program.push_back(Syntop(OP_MOV , { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(op_.opcode, { op_[0], op_[0], op_[2], op_[3] }));
-                if(unspill)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholder, placeholderSPoff }));
                 break;
             }
             case OP_CALL:

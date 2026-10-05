@@ -94,6 +94,16 @@ AllocationRestriction AllocationRestriction::makeNone()
     result.type = AllocationRestriction::AR_NONE;
     return result;
 }
+
+AllocationRestriction AllocationRestriction::makeInplace(int output_num, int input_num)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_INPLACE;
+    result.descr.inplace.m_output_num = output_num;
+    result.descr.inplace.m_input_num = input_num;
+    return result;
+}
+
 AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_num, int input_num, int input_aux_num)
 {
     AllocationRestriction result;

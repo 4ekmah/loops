@@ -97,13 +97,18 @@ namespace SyntopTranslationConstruction
 
 struct AllocationRestriction
 {
-    enum {AR_NONE, AR_INPLACE_COMMUTATIVE, AR_FIXED, AR_CONSECUTIVE};
+    enum {AR_NONE, AR_INPLACE, AR_INPLACE_COMMUTATIVE, AR_FIXED, AR_CONSECUTIVE};
     int type;
     struct InplaceCommutativeDescription
     {
         int m_output_num; 
         int m_input_num;
-        int m_input_aux_num;
+        int m_input_aux_num; // if equal to UNDEFINED_ARGUMENT_NUMBER, it's unary operation.
+    };
+    struct InplaceDescription
+    {
+        int m_output_num; 
+        int m_input_num;
     };
     struct FixedDescription
     {
@@ -118,10 +123,12 @@ struct AllocationRestriction
     union Description
     {
         InplaceCommutativeDescription inplace_comm;
+        InplaceDescription inplace;
         FixedDescription fixed;
         ConsecutiveDescription consecutive;
     } descr;
     static AllocationRestriction makeNone();
+    static AllocationRestriction makeInplace(int output_num, int input_num);
     static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
 };
 

@@ -267,8 +267,7 @@ struct Arg
             return false;
         switch (tag)
         {
-        case IREG: return idx == who.idx;
-        case VREG: return idx == who.idx && elemtype == who.elemtype;
+        case IREG: case VREG: return idx == who.idx;
         case ISPILLED: case VSPILLED: case IIMMEDIATE: return value == who.value;
         default: return true; //EMPTY is always equal to EMPTY
         }
