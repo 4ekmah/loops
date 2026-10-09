@@ -186,6 +186,7 @@ private:
 
     //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree.
     void allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
+                       const std::multiset<LiveInterval, startordering>& parentIntervals,
                        std::multiset<LiveInterval, endordering>& active,
                        std::vector<RegisterReassignment>& block_reassignment,
                        RegisterPool& result_pool);

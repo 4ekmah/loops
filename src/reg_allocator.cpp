@@ -637,7 +637,11 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
             }
         }
         m_poolBase = m_pool; //post-seeding snapshot: parameters(and callee) reserved; base for fresh per-block pools.
-        allocateBlock(basket_num, *m_bbt, a_source, active, result[basket_num], m_pool);
+        std::multiset<LiveInterval, startordering> blockIntervals;
+        for(const LiveInterval& li : (*m_liveintervals_raw)[basket_num])
+            if(!isParam(basket_num, li.idx))
+                blockIntervals.insert(li);
+        allocateBlock(basket_num, *m_bbt, a_source, blockIntervals, active, result[basket_num], m_pool);
         for(RegIdx idx = 0; idx < (RegIdx)result[basket_num].size(); idx++)
             for(const AssignedArg& arg : result[basket_num][idx].args)
                 LOOPS_ASSERT(arg->tag != Arg::EMPTY); //every hole must be filled: splits tile the whole live interval.
@@ -653,29 +657,34 @@ static inline bool isLiveInBlock(const LiveInterval& li, int start, int end)
 }
 
 void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
+    const std::multiset<LiveInterval, startordering>& parentIntervals,
     std::multiset<LiveInterval, endordering>& active,
     std::vector<RegisterReassignment>& block_reassignment,
     RegisterPool& result_pool)
 {
     //1. Collect this block's own intervals.
-    const bool isRoot = (node.type == BasicBlocksTree::BBT_FUNC);
-    const int nlo = isRoot ? 0 : node.start_pos;
-    const int nhi = node.end_pos;
-    //ULTRADUBUG: Well, I really don't like, that we are constructing blockIntervals many times by full passage over m_liveintervals_raw.
-    //It have to be done only once and this initial container have to be cut locally. It will be much faster.
     std::multiset<LiveInterval, startordering> blockIntervals;
-    const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
-    for(RegIdx idx = 0; idx < (RegIdx)raw_intervals.size(); idx++)
     {
-        const LiveInterval& li = raw_intervals[idx];
-        if(isParam(basket_num, idx) || !isLiveInBlock(li, nlo, nhi))
-            continue;
-        const int lo = std::max(li.start, nlo);
-        const int hi = std::min(li.end + 1, nhi);
-        LiveInterval clip(idx, lo);
-        clip.end = hi - 1;
-        clip.priority = li.priority;
-        blockIntervals.insert(clip);
+        const bool isRoot = (node.type == BasicBlocksTree::BBT_FUNC);
+        const int nlo = isRoot ? 0 : node.start_pos;
+        const int nhi = node.end_pos;
+        std::multiset<LiveInterval, startordering>::const_iterator iter = parentIntervals.begin();
+        while(iter != parentIntervals.end() && iter->start < nhi)
+        {
+            const LiveInterval& li = *iter;
+            if(!isLiveInBlock(li, nlo, nhi))
+            {
+                iter++;
+                continue;
+            }
+            const int lo = std::max(li.start, nlo);
+            const int hi = std::min(li.end + 1, nhi);
+            LiveInterval clip(li.idx, lo);
+            clip.end = hi - 1;
+            clip.priority = li.priority;
+            blockIntervals.insert(clip);
+            iter++;
+        }
     }
     //2. Allocate child loops first(innermost-first). Each child scans on a fresh pool(copy of m_poolBase, so
     //parameters/callee stay reserved) and a fresh active set into its own table: it is an independent allocation.
@@ -686,7 +695,7 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
     {
         children_reassignments[cnum].resize(block_reassignment.size());
         std::multiset<LiveInterval, endordering> childActive;
-        allocateBlock(basket_num, *node.children[cnum], a_source, childActive, children_reassignments[cnum], children_pools[cnum]);
+        allocateBlock(basket_num, *node.children[cnum], a_source, blockIntervals, childActive, children_reassignments[cnum], children_pools[cnum]);
         for(const LiveInterval& li : blockIntervals)
             if(isLiveInBlock(li, node.children[cnum]->start_pos, node.children[cnum]->end_pos))
                 children_live[cnum].insert(li.idx);
@@ -695,19 +704,7 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
                                                                                           node.children, children_live, children_pools);
     //3. Linear scan of block itself with geven hints from children and final merging.
     std::unordered_map<RegIdx, RegIdx> hints = makeBlocksHints(negotiated_assignments, node.children);
-    if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
-    {
-        LOOPS_ASSERT((node.end_pos - node.start_pos) == 1);
-        int opnum = node.start_pos;
-        AllocationRestriction restriction = m_backend->getRestriction(a_source.program[opnum]);
-        if(restriction.type & AllocationRestriction::AR_FIXED)
-        {
-            //ULTRADUBUG:
-
-        }
-    }
-    else
-        linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node.reg_occurencies[basket_num]);
+    linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node.reg_occurencies[basket_num]);
     //4. Overlay children splits over the block's own ones. A child's split that landed on the same register
     //as the block's is the same location: the objects are united, so a later renaming moves them together
     //and the boundary needs no transfer.
@@ -988,7 +985,7 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
     else
         packs.push_back(liveintervals);
     if(hints.size())
-        for(int pnum = packs.size() - 1; pnum >= 0; pnum--)
+        for(int pnum = (int)packs.size() - 1; pnum >= 0; pnum--)
         {
             std::multiset<LiveInterval, startordering> hinted;
             std::multiset<LiveInterval, startordering> nonhinted;
