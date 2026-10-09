@@ -237,7 +237,7 @@ LAEventIterator::LAEventIterator(const BasicBlocksTreePtr a_bbt, std::multimap<i
             CFEvent evnt(curr_block->type == BasicBlocksTree::BBT_IF ?
                                                     LAE_STARTBRANCH : 
                                                     LAE_STARTLOOP);
-            evnt.opposite_nesting_side = curr_block->end_pos;
+            evnt.opposite_nesting_side = curr_block->end_pos - 1;
             bbt_queue.insert(std::make_pair(curr_block->start_pos, evnt)); 
         }
         else
@@ -251,7 +251,7 @@ LAEventIterator::LAEventIterator(const BasicBlocksTreePtr a_bbt, std::multimap<i
                     evnt.else_pos = curr_block->else_pos;
                 }
                 evnt.opposite_nesting_side = curr_block->start_pos;
-                bbt_queue.insert(std::make_pair(curr_block->end_pos, evnt)); 
+                bbt_queue.insert(std::make_pair(curr_block->end_pos - 1, evnt)); 
             }
             bbt_stack.pop();
             child_idx_stack.pop();
@@ -357,7 +357,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             {
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
                 LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_IF);
-                bbtstack.top()->end_pos = opnum;
+                bbtstack.top()->end_pos = opnum + 1;
                 bbtstack.pop();
                 continue;
             }
@@ -374,7 +374,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             {
                 LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::IIMMEDIATE && op.args[1].tag == Arg::IIMMEDIATE);
                 LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_WHILE);
-                bbtstack.top()->end_pos = opnum;
+                bbtstack.top()->end_pos = opnum + 1;
                 bbtstack.pop();
                 priority_scale >>= 2;
                 continue;
@@ -631,22 +631,18 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
 
         for (int opnum = 0; opnum < (int)a_dest.program.size(); opnum++)
         {
-            //Keeping bbtstack actual
             {
-                int child_idx = child_idx_stack.top();
-                if(child_idx < (int)bbtstack.top()->children.size())
-                {
-                    if(bbtstack.top()->children[child_idx]->start_pos == opnum)
-                    {
-                        bbtstack.push(bbtstack.top()->children[child_idx].get());
-                        child_idx_stack.top()++;
-                        child_idx_stack.push(0);
-                    }
-                }
-                else if(bbtstack.top()->end_pos == opnum)
+                if(bbtstack.top()->end_pos == opnum)
                 {
                     bbtstack.pop();
                     child_idx_stack.pop();
+                }
+                int child_idx = child_idx_stack.top();
+                if(child_idx < (int)bbtstack.top()->children.size() && bbtstack.top()->children[child_idx]->start_pos == opnum)
+                {
+                    bbtstack.push(bbtstack.top()->children[child_idx].get());
+                    child_idx_stack.top()++;
+                    child_idx_stack.push(0);
                 }
             }
             BasicBlocksTree* bbtop = bbtstack.top();
@@ -679,6 +675,12 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 }
             }
         }
+    }
+    //Blocks closed by the last instruction of the program end at a_dest.program.size().
+    while(bbtstack.size() > 1 && bbtstack.top()->end_pos == (int)a_dest.program.size())
+    {
+        bbtstack.pop();
+        child_idx_stack.pop();
     }
     LOOPS_ASSERT(bbtstack.size() == 1);
 

@@ -660,7 +660,9 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
     //1. Collect this block's own intervals.
     const bool isRoot = (node.type == BasicBlocksTree::BBT_FUNC);
     const int nlo = isRoot ? 0 : node.start_pos;
-    const int nhi = isRoot ? (int)node.end_pos : node.end_pos + 1;
+    const int nhi = node.end_pos;
+    //ULTRADUBUG: Well, I really don't like, that we are constructing blockIntervals many times by full passage over m_liveintervals_raw.
+    //It have to be done only once and this initial container have to be cut locally. It will be much faster.
     std::multiset<LiveInterval, startordering> blockIntervals;
     const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
     for(RegIdx idx = 0; idx < (RegIdx)raw_intervals.size(); idx++)
@@ -686,14 +688,26 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
         std::multiset<LiveInterval, endordering> childActive;
         allocateBlock(basket_num, *node.children[cnum], a_source, childActive, children_reassignments[cnum], children_pools[cnum]);
         for(const LiveInterval& li : blockIntervals)
-            if(isLiveInBlock(li, node.children[cnum]->start_pos, node.children[cnum]->end_pos + 1))
+            if(isLiveInBlock(li, node.children[cnum]->start_pos, node.children[cnum]->end_pos))
                 children_live[cnum].insert(li.idx);
     }
     std::vector<RegisterReassignment> negotiated_assignments = negotiateAndMergeBlockAssignments(basket_num, children_reassignments,
                                                                                           node.children, children_live, children_pools);
     //3. Linear scan of block itself with geven hints from children and final merging.
     std::unordered_map<RegIdx, RegIdx> hints = makeBlocksHints(negotiated_assignments, node.children);
-    linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node.reg_occurencies[basket_num]);
+    if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
+    {
+        LOOPS_ASSERT((node.end_pos - node.start_pos) == 1);
+        int opnum = node.start_pos;
+        AllocationRestriction restriction = m_backend->getRestriction(a_source.program[opnum]);
+        if(restriction.type & AllocationRestriction::AR_FIXED)
+        {
+            //ULTRADUBUG:
+
+        }
+    }
+    else
+        linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node.reg_occurencies[basket_num]);
     //4. Overlay children splits over the block's own ones. A child's split that landed on the same register
     //as the block's is the same location: the objects are united, so a later renaming moves them together
     //and the boundary needs no transfer.
@@ -740,7 +754,7 @@ bool RegisterAllocator::RegisterReassignment::isSwappableInBlock(const BasicBloc
 {
     //The value can be born or die inside the block: probed is its own range there.
     int startSplitNum = splitNumAt(std::max(block->start_pos, bounds.front()));
-    int endSplitNum = splitNumAt(std::min(block->end_pos, bounds.back() - 1));
+    int endSplitNum = splitNumAt(std::min(block->end_pos, bounds.back()) - 1);
     AssignedArg startSplit = args[startSplitNum];
     if(startSplit->tag != Arg::IREG && startSplit->tag != Arg::VREG) 
         return false;
@@ -846,7 +860,7 @@ std::vector<RegisterAllocator::RegisterReassignment> RegisterAllocator::negotiat
                         lower_hw2reg[upper_hwidx] = vidx;
                         lower_hw2reg[lower_hwidx] = NOASSIGNED;
                         lower_pool.releaseReg(basket_num, lower_hwidx);
-                        lower_pool.provideRegFromPool(basket_num, upper_hwidx, lower_block.end_pos + 1);
+                        lower_pool.provideRegFromPool(basket_num, upper_hwidx, lower_block.end_pos);
                     }
                     else if(upper_hw2reg[lower_hwidx] == NOASSIGNED && deeplyNoAssigned(bnum - 1, upper_weights[vidx], lower_hwidx))
                     {
@@ -857,7 +871,7 @@ std::vector<RegisterAllocator::RegisterReassignment> RegisterAllocator::negotiat
                             hw2reg[ubnum][lower_hwidx] = vidx;
                             hw2reg[ubnum][upper_hwidx] = NOASSIGNED;
                             pools[ubnum].releaseReg(basket_num, upper_hwidx);
-                            pools[ubnum].provideRegFromPool(basket_num, lower_hwidx, blocks[ubnum]->end_pos + 1);
+                            pools[ubnum].provideRegFromPool(basket_num, lower_hwidx, blocks[ubnum]->end_pos);
                         }
                     }
                     else if(lower_hw2reg[upper_hwidx] >= 0 && lower_weights[lower_hw2reg[upper_hwidx]] > 0)
@@ -913,7 +927,7 @@ std::unordered_map<RegIdx, RegIdx> RegisterAllocator::makeBlocksHints(std::vecto
             if(re.bounds.empty())
                 continue;
             const int probe = std::max(start_pos, re.bounds.front());
-            if(probe > end_pos || probe >= re.bounds.back())
+            if(probe >= end_pos || probe >= re.bounds.back())
                 continue;
             const AssignedArg& arg = re.args[re.splitNumAt(probe)];
             if(arg->tag == Arg::IREG || arg->tag == Arg::VREG)
@@ -948,6 +962,7 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                                    const std::unordered_map<RegIdx, RegIdx>& hints,
                                    const std::unordered_set<RegIdx>& reg_occurencies)
 {
+    //ULTRADUBUG: Bad news: packs can break reusingHints, since just died interval can be located in later pack(And we have to fix it!) 
     //Sorting intervals into packs: used first, hinted first.
     std::vector<std::multiset<LiveInterval, startordering> > packs;
     if(reg_occurencies.size())
@@ -1276,7 +1291,7 @@ void RegisterAllocator::insertMultiLevelJumpTransfers(const Syntfunc& a_source,
         {
             const BasicBlocksTree* deeper = nullptr;
             for(const BasicBlocksTreePtr& child : node->children)
-                if(opnum >= child->start_pos && opnum <= child->end_pos)
+                if(opnum >= child->start_pos && opnum < child->end_pos)
                 {
                     deeper = child.get();
                     break;
@@ -1291,7 +1306,7 @@ void RegisterAllocator::insertMultiLevelJumpTransfers(const Syntfunc& a_source,
         const int owner_pos = owner->second;
         const BasicBlocksTree* target = nullptr;
         for(int depth = (int)enclosing.size() - 1; depth >= 0; depth--)
-            if(enclosing[depth]->start_pos == owner_pos || enclosing[depth]->end_pos == owner_pos)
+            if(enclosing[depth]->start_pos == owner_pos || enclosing[depth]->end_pos - 1 == owner_pos)
             {
                 target = enclosing[depth];
                 break;
@@ -1312,7 +1327,7 @@ void RegisterAllocator::insertMultiLevelJumpTransfers(const Syntfunc& a_source,
                 //Value must be alive at the jump and at the landing point(intervals are contiguous, and
                 //the jump op defines nothing, so front <= opnum - 1 still means alive at the jump).
                 if(to_head ? (ra.bounds.front() > owner_pos || ra.bounds.back() <= opnum)
-                           : (ra.bounds.front() > opnum - 1 || ra.bounds.back() <= target->end_pos + 1))
+                           : (ra.bounds.front() > opnum - 1 || ra.bounds.back() <= target->end_pos))
                     continue;
                 const Arg su = ra.getAt(opnum - 1), sv = ra.getAt(owner_pos);
                 if(sameLocation(su, sv))
@@ -1460,7 +1475,7 @@ static void collectBlockBoundaries(const BasicBlocksTree& node, std::vector<int>
     for(const BasicBlocksTreePtr& child : node.children)
     {
         boundaries.push_back(child->start_pos);
-        boundaries.push_back(child->end_pos + 1);
+        boundaries.push_back(child->end_pos);
         collectBlockBoundaries(*child, boundaries);
     }
 }

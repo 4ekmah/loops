@@ -221,7 +221,8 @@ Func make_min_max_select(Context ctx, const std::string& fname)
         IReg maxpos = CONST_(0);
         IReg minval = load_<int>(ptr);
         IReg maxval = minval;
-        n <<= 2;// sizeof(int) == 4;
+        // n <<= 2;// sizeof(int) == 4; //DUBUG:uncomment and delete next line
+        n = n << CONST_(2);
         WHILE_(i < n)
         {
             IReg x = load_<int>(ptr, i);

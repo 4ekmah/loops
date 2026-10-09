@@ -144,7 +144,7 @@ private:
         //Split holding the value on entry to a block starting at block_start(the value can be defined inside).
         inline int entrySplitNum(int block_start) const { return splitNumAt(std::max(block_start, bounds.front())); }
         inline Arg& getAtEntry(int block_start) { return *args[entrySplitNum(block_start)]; }
-        inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() > block.end_pos; }
+        inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
         bool isSwappableInBlock(const BasicBlocksTreePtr& block) const;
     };
 

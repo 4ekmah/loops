@@ -2474,9 +2474,6 @@ namespace loops
             break;
         }
         case OP_SUB:
-        case OP_SHL:
-        case OP_SHR:
-        case OP_SAR:
         case OP_SIGN:
         {
             if (undefinedArgNums.count(1))
@@ -2580,6 +2577,11 @@ namespace loops
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
                 }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
+                    bypass = false;
+                }
                 break;
             }
             case (OP_SELECT):
@@ -2590,6 +2592,11 @@ namespace loops
                     actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
                     inRegs = makeBitmask64({ 2, 3 });
                     outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
                     bypass = false;
                 }
                 break;
@@ -2607,6 +2614,11 @@ namespace loops
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
                 }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
+                    bypass = false;
+                }
                 break;
             }
             case (OP_IVERSON):
@@ -2617,6 +2629,11 @@ namespace loops
                     actualRegs = makeBitmask64({ 0 });
                     inRegs = makeBitmask64({ 0 });     //Note: This is lie, appended because Iverson bracket on intel work only with preliminarly zeroing of output. 
                     outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
                     bypass = false;
                 }
                 break;
@@ -2709,7 +2726,7 @@ namespace loops
     }
 
     AllocationRestriction Intel64Backend::getRestriction(const Syntop& a_op) const
-    {
+    {//DUBUG: Well, our best idea is to add specific rules SyT rules and extract this data from there
         switch (a_op.opcode)
         {
             case (OP_X86_ADC):
@@ -2721,7 +2738,17 @@ namespace loops
                 return AllocationRestriction::makeInplaceCommutative(0, 1, 2);
             case OP_NEG:
             case OP_NOT:
-                return AllocationRestriction::makeInplaceCommutative(0, 1, UNDEFINED_ARGUMENT_NUMBER);
+                return AllocationRestriction::makeInplaceUnary(0, 1);
+            case OP_SHL:
+            case OP_SHR:
+            case OP_SAR:
+            {
+                LOOPS_ASSERT(a_op.args_size == 3);
+                AllocationRestriction result = AllocationRestriction::makeInplace(0, 1);
+                if(a_op.args[2].tag == Arg::IREG)  
+                    result = result | AllocationRestriction::makeFixed(2, RCX);
+                return result;
+            }
             case VOP_FMA:
                 return AllocationRestriction::makeInplace(0, 1);
                     
@@ -3456,31 +3483,19 @@ namespace loops
                 LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && regOrSpi(op[1]));
                 if (op[2].tag == Arg::IIMMEDIATE)
                 {
-                    if (!regOrSpiEq(op[0], op[1]))
-                    {
-                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                    }
                     a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], op[2] }));
                 }
                 else
                 {
                     const bool rcx0 = op[0].tag == Arg::IREG && op[0].idx == RCX;
-                    const bool rcx1 = op[1].tag == Arg::IREG && op[1].idx == RCX;
                     const bool rcx2 = op[2].tag == Arg::IREG && op[2].idx == RCX;
-                    if (rcx0 && rcx1 && rcx2)
+                    if (rcx0 && rcx2)
                     {
                         a_dest.program.push_back(op);
                     }
                     else if (rcx0)
                     {
-                        if (op[1].tag == Arg::ISPILLED)
-                        {
-                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[2] }));
-                            a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), op[1].value }));
-                            a_dest.program.push_back(Syntop(OP_XCHG, { argReg(RB_INT, RCX), argSpilled(RB_INT, 0) }));
-                        }
-                        else
-                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
+                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
                         if(!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
                             a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
                         a_dest.program.push_back(Syntop(op.opcode, { argSpilled(RB_INT, 0), argSpilled(RB_INT, 0), argReg(RB_INT, RCX) }));
@@ -3489,8 +3504,6 @@ namespace loops
                     else
                     {
                         a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RCX) }));
-                        if(!regOrSpiEq(op[0], op[1]))
-                            a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
                         if (!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
                             a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
                         a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], argReg(RB_INT, RCX)}));
@@ -3586,7 +3599,7 @@ namespace loops
                 break;
             }
             case OP_SIGN:
-            {
+            {//DUBUG: I'm almost sure it can be done in BRA stage. And ABS. And MIN/MAX.
                 LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
                 Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
                 a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.

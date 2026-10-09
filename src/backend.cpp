@@ -99,18 +99,46 @@ AllocationRestriction AllocationRestriction::makeInplace(int output_num, int inp
 {
     AllocationRestriction result;
     result.type = AllocationRestriction::AR_INPLACE;
-    result.descr.inplace.m_output_num = output_num;
-    result.descr.inplace.m_input_num = input_num;
+    result.inplace.m_output_num = output_num;
+    result.inplace.m_input_num = input_num;
+    result.inplace.commutative = false;
     return result;
+}
+AllocationRestriction AllocationRestriction::makeInplaceUnary(int output_num, int input_num)
+{
+    return makeInplaceCommutative(output_num, input_num, UNDEFINED_ARGUMENT_NUMBER);
 }
 
 AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_num, int input_num, int input_aux_num)
 {
     AllocationRestriction result;
-    result.type = AllocationRestriction::AR_INPLACE_COMMUTATIVE;
-    result.descr.inplace_comm.m_output_num = output_num;
-    result.descr.inplace_comm.m_input_num = input_num;
-    result.descr.inplace_comm.m_input_aux_num = input_aux_num;
+    result.type = AllocationRestriction::AR_INPLACE;
+    result.inplace.m_output_num = output_num;
+    result.inplace.m_input_num = input_num;
+    result.inplace.m_input_aux_num = input_aux_num;
+    result.inplace.commutative = true;
+    return result;
+}
+AllocationRestriction AllocationRestriction::makeFixed(int arg_num, RegIdx fixed_reg)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_FIXED;
+    result.fixed.m_arg_num = arg_num;
+    result.fixed.m_fixed_reg = fixed_reg;
+    return result;
+}
+
+AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1)
+{
+    LOOPS_ASSERT((r0.type&r1.type) == 0);
+    AllocationRestriction result = r0;
+    result.type = result.type | r1.type;
+    if(r1.type&AllocationRestriction::AR_CONSECUTIVE)
+        result.consecutive = r1.consecutive; 
+    if(r1.type&AllocationRestriction::AR_FIXED)
+        result.fixed = r1.fixed; 
+    if(r1.type&AllocationRestriction::AR_INPLACE)
+        result.inplace = r1.inplace;
     return result;
 }
 

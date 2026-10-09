@@ -194,13 +194,13 @@ namespace loops
             };
     }
 
-    InplaceUnfolding::InplaceUnfolding(const Backend* a_backend, std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt): 
+    RestrictionsProcesssing::RestrictionsProcesssing(const Backend* a_backend, std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt): 
         CompilerPass(a_backend)
       , m_live_intervals(a_live_intervals)
       , m_bbt(a_bbt)
         {}
 
-    void InplaceUnfolding::process(Syntfunc& a_dest, const Syntfunc& a_source)
+    void RestrictionsProcesssing::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
         LOOPS_ASSERT(&a_dest != &a_source);
         a_dest.name = a_source.name;
@@ -212,8 +212,8 @@ namespace loops
         a_dest.program.reserve(a_source.program.size() * 2);
 
         const int source_size = (int)a_source.program.size();
-        std::vector<int> first_positions(source_size + 1, 0);
-        std::vector<int> op_positions(source_size + 1, 0);
+        std::vector<int> first_positions(source_size, 0);
+        std::vector<int> op_positions(source_size, 0);
         //Liveinterval of first input are stretched lesser if it dies on inplacing mov.
         struct InputDyingOnMov 
         {
@@ -226,118 +226,121 @@ namespace loops
         for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
             original_amount[basket_num] = (int)(*m_live_intervals)[basket_num].size();
 
+        //Information for packet insert of pseudoblocks for instructions with AR_FIXED restrictions. 
+        std::vector<int> fixed_blocks_markers;
+
         std::vector<BasicBlocksTree*> bbt_stack;
         bbt_stack.push_back(m_bbt.get());
-        std::stack<int> child_idx_stack;
-        child_idx_stack.push(0);
+        std::vector<int> child_idx_stack;
+        child_idx_stack.push_back(0);
         for(int opnum = 0; opnum < source_size; opnum++)
         {
             first_positions[opnum] = (int)a_dest.program.size();
             {//BasicBlocksTree iteration.
-                BasicBlocksTree* top = bbt_stack.back();
-                int next_child = child_idx_stack.top();
-                if(top->end_pos == opnum)
+                if(bbt_stack.back()->end_pos == opnum)
                 {
                     bbt_stack.pop_back();
-                    child_idx_stack.pop();
-                    child_idx_stack.top()++;
+                    child_idx_stack.pop_back();
+                    child_idx_stack.back()++;
                 }
-                else if(next_child < (int)top->children.size() && top->children[next_child]->start_pos == opnum)
+                BasicBlocksTree* top = bbt_stack.back();
+                int next_child = child_idx_stack.back();
+                if(next_child < (int)top->children.size() && top->children[next_child]->start_pos == opnum)
                 {
                     bbt_stack.push_back(top->children[next_child].get());
-                    child_idx_stack.push(0);
+                    child_idx_stack.push_back(0);
                 }
             }
             const Syntop& op = a_source.program[opnum];
             AllocationRestriction restriction = m_backend->getRestriction(op);
-            switch(restriction.type)
+            if(restriction.type & AllocationRestriction::AR_INPLACE)
             {
-            case (AllocationRestriction::AR_INPLACE):
-            {
-                int onum = restriction.descr.inplace.m_output_num;
-                int inum = restriction.descr.inplace.m_input_num;
-                if(op.args[onum] != op.args[inum])
+                if(restriction.inplace.commutative == false)
                 {
-                    Syntop op2a = op;
-                    Arg& output = op2a.args[onum];
-                    Arg& input = op2a.args[inum];
-                    bool double_output = false;
-                    bool double_input = false;
-                    for(int anum = 0; anum < op2a.args_size; anum++) 
-                        if(anum != onum && anum != inum)
-                        {
-                            if(output == op2a.args[anum])
-                                double_output = true; //Usage of output twice in arguments needs auxiallary MOV
-                            if(input == op2a.args[anum])
-                                double_input = true;  //If input is not used twiced, it can die on MOV.
-                        }
-                    const int output_basket = (output.tag == Arg::IREG ? RB_INT : RB_VEC);
-                    const int input_basket = (input.tag == Arg::IREG ? RB_INT : RB_VEC);
-                    const bool input_non_used = (input.tag == Arg::IREG || input.tag == Arg::VREG) && !double_input;
-                    if(double_output)
+                    int onum = restriction.inplace.m_output_num;
+                    int inum = restriction.inplace.m_input_num;
+                    if(op.args[onum] != op.args[inum])
                     {
-                        Arg keeper = output;
-                        keeper.idx = a_dest.provideIdx(output_basket);
-                        LOOPS_ASSERT(keeper.idx == (int)(*m_live_intervals)[output_basket].size());
-                        LiveInterval keeper_interval(keeper.idx, (int)a_dest.program.size());
-                        keeper_interval.end = keeper_interval.start + 2;
-                        for(BasicBlocksTree* block : bbt_stack)
-                            block->reg_occurencies[output_basket].insert(keeper.idx);
-                        (*m_live_intervals)[output_basket].push_back(keeper_interval);
-                        a_dest.program.push_back(Syntop(OP_MOV, {keeper, output}));
+                        Syntop op2a = op;
+                        Arg& output = op2a.args[onum];
+                        Arg& input = op2a.args[inum];
+                        bool double_output = false;
+                        bool double_input = false;
                         for(int anum = 0; anum < op2a.args_size; anum++) 
-                            if(anum != onum && anum != inum && op2a.args[anum] == output)
-                                op2a.args[anum] = keeper;
+                            if(anum != onum && anum != inum)
+                            {
+                                if(output == op2a.args[anum])
+                                    double_output = true; //Usage of output twice in arguments needs auxiallary MOV
+                                if(input == op2a.args[anum])
+                                    double_input = true;  //If input is not used twiced, it can die on MOV.
+                            }
+                        const int output_basket = (output.tag == Arg::IREG ? RB_INT : RB_VEC);
+                        const int input_basket = (input.tag == Arg::IREG ? RB_INT : RB_VEC);
+                        const bool input_non_used = (input.tag == Arg::IREG || input.tag == Arg::VREG) && !double_input;
+                        if(double_output)
+                        {
+                            Arg keeper = output;
+                            keeper.idx = a_dest.provideIdx(output_basket);
+                            LOOPS_ASSERT(keeper.idx == (int)(*m_live_intervals)[output_basket].size());
+                            LiveInterval keeper_interval(keeper.idx, (int)a_dest.program.size());
+                            keeper_interval.end = keeper_interval.start + 2;
+                            for(BasicBlocksTree* block : bbt_stack)
+                                block->reg_occurencies[output_basket].insert(keeper.idx);
+                            (*m_live_intervals)[output_basket].push_back(keeper_interval);
+                            a_dest.program.push_back(Syntop(OP_MOV, {keeper, output}));
+                            for(int anum = 0; anum < op2a.args_size; anum++) 
+                                if(anum != onum && anum != inum && op2a.args[anum] == output)
+                                    op2a.args[anum] = keeper;
+                        }
+                        if(input_non_used && (*m_live_intervals)[input_basket][input.idx].end == opnum)
+                            inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, input.idx, (int)a_dest.program.size()}));
+                        a_dest.program.push_back(Syntop(OP_MOV, {output, input}));
+                        op2a.args[inum] = output;
+                        a_dest.program.push_back(op2a);
                     }
-                    if(input_non_used && (*m_live_intervals)[input_basket][input.idx].end == opnum)
-                        inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, input.idx, (int)a_dest.program.size()}));
-                    a_dest.program.push_back(Syntop(OP_MOV, {output, input}));
-                    op2a.args[inum] = output;
-                    a_dest.program.push_back(op2a);
+                    else 
+                        a_dest.program.push_back(op);
                 }
-                else 
-                    a_dest.program.push_back(op);
-                break;
-            }
-            case (AllocationRestriction::AR_INPLACE_COMMUTATIVE):
-            {
-                int onum = restriction.descr.inplace_comm.m_output_num;
-                int inum = restriction.descr.inplace_comm.m_input_num;
-                int ianum = restriction.descr.inplace_comm.m_input_aux_num;
-                if(op.args[onum] != op.args[inum])
+                else //Commutative case.
                 {
-                    Syntop op2a = op;
-                    //It's better to use just ending interval as first input.
-                    if(ianum != UNDEFINED_ARGUMENT_NUMBER && (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) &&
-                        op2a.args[inum].tag == op2a.args[ianum].tag)
+                    int onum = restriction.inplace.m_output_num;
+                    int inum = restriction.inplace.m_input_num;
+                    int ianum = restriction.inplace.m_input_aux_num;
+                    if(op.args[onum] != op.args[inum])
                     {
-                        int basket_num = op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC;
-                        int iaidx = op2a.args[ianum].idx;
-                        if((*m_live_intervals)[basket_num][iaidx].end == opnum)
+                        Syntop op2a = op;
+                        //It's better to use just ending interval as first input.
+                        if(ianum != UNDEFINED_ARGUMENT_NUMBER && (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) &&
+                            op2a.args[inum].tag == op2a.args[ianum].tag)
+                        {
+                            int basket_num = op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC;
+                            int iaidx = op2a.args[ianum].idx;
+                            if((*m_live_intervals)[basket_num][iaidx].end == opnum)
+                                std::swap(op2a.args[inum], op2a.args[ianum]);
+                        }
+                        if(ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[onum] != op2a.args[ianum])
+                        {
+                            const bool input_non_used = (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) && (ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[inum] != op2a.args[ianum]);
+                            const int input_basket = (op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC);
+                            if(input_non_used && (*m_live_intervals)[input_basket][op2a.args[inum].idx].end == opnum)
+                                inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, op2a.args[inum].idx, (int)a_dest.program.size()}));
+                            a_dest.program.push_back(Syntop(OP_MOV, {op2a.args[onum], op2a.args[inum]}));
+                            op2a.args[inum] = op2a.args[onum];
+                        }
+                        else
                             std::swap(op2a.args[inum], op2a.args[ianum]);
+                        a_dest.program.push_back(op2a);
                     }
-                    if(ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[onum] != op2a.args[ianum])
-                    {
-                        const bool input_non_used = (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) && (ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[inum] != op2a.args[ianum]);
-                        const int input_basket = (op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC);
-                        if(input_non_used && (*m_live_intervals)[input_basket][op2a.args[inum].idx].end == opnum)
-                            inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, op2a.args[inum].idx, (int)a_dest.program.size()}));
-                        a_dest.program.push_back(Syntop(OP_MOV, {op2a.args[onum], op2a.args[inum]}));
-                        op2a.args[inum] = op2a.args[onum];
-                    }
-                    else
-                        std::swap(op2a.args[inum], op2a.args[ianum]);
-                    a_dest.program.push_back(op2a);
+                    else 
+                        a_dest.program.push_back(op);
                 }
-                else 
-                    a_dest.program.push_back(op);
-                break;
-            }            
-            default: a_dest.program.push_back(op); break;
-            };
+            }
+            else 
+                a_dest.program.push_back(op);
+            if(restriction.type & AllocationRestriction::AR_FIXED)
+                fixed_blocks_markers.push_back((int)a_dest.program.size()-1);
             op_positions[opnum] = (int)a_dest.program.size() - 1;
         }
-        first_positions[source_size] = op_positions[source_size] = (int)a_dest.program.size();
 
         for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
             for(int linum = 0; linum < original_amount[basket_num]; linum++)
@@ -348,15 +351,43 @@ namespace loops
             }
         for(const InputDyingOnMov& input : inputs_dying_on_mov)
             (*m_live_intervals)[input.basket_num][input.idx].end = input.mov_pos;
-        remap_block_positions(m_bbt, op_positions);
+        std::vector<int>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
+        remap_block_positions(m_bbt, op_positions, fixed_markers_iterator, fixed_blocks_markers.crend());
     }
 
-    void InplaceUnfolding::remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions)
+    void RestrictionsProcesssing::remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions,
+                                      std::vector<int>::const_reverse_iterator& fixed_markers_iterator,
+                                      std::vector<int>::const_reverse_iterator fixed_markers_end)
     {
-        for(BasicBlocksTreePtr child : block->children)
-            remap_block_positions(child, op_positions);
-        block->start_pos = op_positions[block->start_pos];
-        block->end_pos = op_positions[block->end_pos];
+        const int newstart = op_positions[block->start_pos];
+        const int newend = op_positions[block->end_pos - 1] + 1;
+        int intervalend = newend;
+        int cnum = (int)block->children.size() - 1;
+        while(cnum >= 0 || (fixed_markers_iterator != fixed_markers_end && *fixed_markers_iterator > newstart))
+        {
+            int intervalstart = newstart;
+            if(cnum >= 0)
+            {
+                intervalstart = op_positions[block->children[cnum]->end_pos - 1];
+            } 
+            if(fixed_markers_iterator != fixed_markers_end)
+            {
+                int markerpos = *fixed_markers_iterator;
+                if(markerpos > intervalstart && markerpos < intervalend)
+                {
+                    BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_ALLOCATION_RESTRICTION, markerpos); 
+                    bbttoadd->end_pos = markerpos + 1;
+                    block->children.insert(block->children.begin() + (cnum + 1), bbttoadd);
+                    fixed_markers_iterator++;
+                    continue;
+                }
+            }
+            remap_block_positions(block->children[cnum], op_positions, fixed_markers_iterator, fixed_markers_end);
+            intervalend = block->children[cnum]->start_pos;
+            cnum--;
+        }
+        block->start_pos = newstart;
+        block->end_pos = newend;
     }
 
     Cf2jumps::Cf2jumps(const Backend *a_backend, int a_epilogueSize) : CompilerPass(a_backend), m_epilogueSize(a_epilogueSize)
@@ -649,7 +680,7 @@ namespace loops
             run_pass(braPass.get());
         LivenessAnalysisAlgo LAalgo(m_backend);
         run_pass(&LAalgo); // inplace
-        InplaceUnfolding inplaceUnfolding(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree());
+        RestrictionsProcesssing inplaceUnfolding(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree());
         run_pass(&inplaceUnfolding); // inplace
         RegisterAllocator regalloc(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree(), LAalgo.getSnippetCausedSpills(), LAalgo.haveFunctionCalls());
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
