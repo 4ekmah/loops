@@ -662,6 +662,26 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
     std::vector<RegisterReassignment>& block_reassignment,
     RegisterPool& result_pool)
 {
+    //ULTRADUBUG: Uncomment and continue. 
+    // Main idea is very simple: we have to modify negotiating procedure
+    // to make is possible to handle non-assigned registers. 
+    // Than we can allocate just known and really used liveintervals in pseudoblocks
+    // (And, btw, we can work better in this manner with so-called riders)
+    // About certain modifications of negotiation: if register is live, but doesn't 
+    // have allocation in interval, it can be allocated and merged with any other block,
+    // upper or lower.
+    // if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION) 
+    // {
+    //     LOOPS_ASSERT((node.end_pos - node.start_pos) == 1);
+    //     int opnum = node.start_pos;
+    //     AllocationRestriction restriction = m_backend->getRestriction(a_source.program[opnum]);
+    //     if(restriction.type & AllocationRestriction::AR_FIXED)
+    //     {
+    //         //1.) block_reassignment
+    //         //2.) result_pool
+    //     }
+    // }
+
     //1. Collect this block's own intervals.
     std::multiset<LiveInterval, startordering> blockIntervals;
     {
@@ -789,6 +809,11 @@ void RegisterAllocator::formNegotiationHeader(int basket_num,
             }
     for(RegIdx rnum: live)
     {
+        if(assignment[rnum].bounds.empty()) //It's possible in pseudoblocks(instructions with allocation restrictions)
+        {
+            weights[rnum] = NOTASSIGNED_RIDER;
+            continue;
+        }
         const Arg& assigned = assignment[rnum].getAtEntry(block->start_pos);
         if((assigned.tag == Arg::IREG || assigned.tag == Arg::VREG) && hw2reg[assigned.idx] == rnum && assignment[rnum].isSwappableInBlock(block))
             weights[rnum] = 1;
@@ -897,7 +922,10 @@ std::vector<RegisterAllocator::RegisterReassignment> RegisterAllocator::negotiat
                     upper_assignment[vidx].args[upper_splitnum].merge(lower_assignment[vidx].args[lower_splitnum]);
                     lower_weights[vidx] = upper_weights[vidx] = upper_weights[vidx] + lower_weights[vidx];
                 }
-            }
+            } else if(lower_weights[vidx] > 0 && upper_weights[vidx] == NOTASSIGNED_RIDER)
+            {
+                
+            } 
         }
         //Cheapeast way to write upper_weights = lower_weights.
         upper_weights.swap(lower_weights);

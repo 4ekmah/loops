@@ -441,14 +441,6 @@ bool intermediate_representation_is_stable(loops::Func /*func*/, std::string& /*
 
 bool assembly_is_stable(loops::Func func, std::string&/* errmessage*/, bool/* tolerable_defect*/)
 {
-    //TEMPORARY(session tooling, do not commit): dump assembly listings for bitwise comparison.
-    const char* dumpdir = getenv("LOOPS_DUMP_ASM_DIR");
-    if(dumpdir != nullptr)
-    {
-        std::string filename = std::string(dumpdir) + "/" + func.name() + ".asm";
-        std::ofstream dumpstream(filename.c_str(), ::std::ios::out);
-        func.printAssembly(dumpstream);
-    }
     return true;
 }
 #endif

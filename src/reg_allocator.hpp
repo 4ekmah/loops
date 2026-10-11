@@ -106,7 +106,7 @@ M4 provide 8 highest-level registers of hierarchy depth = 5.
 M1 provide 32 highest-level registers of hierarchy depth = 3.
 MF8 provide 256 highest-level registers of hierarchy depth = 0.
 */
-
+#undef max
 class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
@@ -149,6 +149,7 @@ private:
     };
 
     enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
+    enum { NOTASSIGNED_RIDER = -1 };
     void formNegotiationHeader(int basket_num,
                             std::vector<RegisterReassignment>& assignment,
                             const BasicBlocksTreePtr& block,

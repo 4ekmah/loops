@@ -375,9 +375,10 @@ namespace loops
                 int markerpos = *fixed_markers_iterator;
                 if(markerpos > intervalstart && markerpos < intervalend)
                 {
-                    BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_ALLOCATION_RESTRICTION, markerpos); 
-                    bbttoadd->end_pos = markerpos + 1;
-                    block->children.insert(block->children.begin() + (cnum + 1), bbttoadd);
+                    //ULTRADUBUG: uncomment!
+                    // BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_ALLOCATION_RESTRICTION, markerpos); 
+                    // bbttoadd->end_pos = markerpos + 1;
+                    // block->children.insert(block->children.begin() + (cnum + 1), bbttoadd);
                     fixed_markers_iterator++;
                     continue;
                 }

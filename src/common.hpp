@@ -16,6 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <typeindex>
 #include <memory>
 #include <atomic>
+#include <array>
 
 namespace loops
 {
