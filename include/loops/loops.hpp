@@ -197,6 +197,7 @@ class Func;
 class Expr;
 class IExpr;
 
+enum {NOIDX = -1};
 struct IReg
 {
     IReg();
@@ -215,7 +216,6 @@ struct IReg
 
     int idx;
     Func* func;
-    enum {NOIDX = -1};
 };
 
 class Context;
@@ -241,7 +241,6 @@ template<typename _Tp> struct VReg
 
     int idx;
     Func* func;
-    enum {NOIDX = -1};
 };
 
 typedef VReg<uint8_t> VReg8u;

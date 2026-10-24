@@ -30,7 +30,7 @@ and nested one.
 excepts connected vectors.
 3.) And vice versa, container vector can be released only after releasing all components.
  */
-class RegisterPool
+class RegisterPool //DUBUG: it's not nice, that now RegisterPool have time measure. It's good idea to move this aspects to LinearScanSchedule class. Or not?
 {
 public:
     RegisterPool(const Backend* m_owner);
@@ -39,20 +39,26 @@ public:
     inline RegIdx maxRegisterNumber(int basket_num) const { return m_maxRegisterNumber[basket_num]; }
     RegIdx provideParamFromPool(int basket_num, int needed_until);  //Must be called first.
     // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
-    RegIdx provideRegFromPool(int basket_num, RegIdx a_hint, int needed_until);
+    // vidx is the virtual register, we want to allocate, we keep this information.
+    RegIdx provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until);
     size_t freeRegsAmount(int basket_num, int needed_until) const;
     inline bool havefreeRegs(int basket_num, int needed_until) const { return freeRegsAmount(basket_num, needed_until) > 0; }
     //Reservation mechanics for multipass linear scan, where registers are separated into different packs.
     //This packs scanned one after another, so previously allocated registers have stay at their allocations.
     //So, we are providing here tool for marking some registers, which will be allocated later and allocated 
     //to certain hardware registers.
-    void reserveReg(int basket_num, RegIdx reg, int from);
-    RegIdx provideReservedReg(int basket_num, RegIdx reg, int from, int needed_until);
+    //If reservation is weak, it works like negative hint: pool have to try take another register, but 
+    //if it is impossible, he can provide weakly reserved one.
+    void reserveReg(int basket_num, RegIdx reg, int from, bool weak_reservation = false);
+    RegIdx provideReservedReg(int basket_num, RegIdx reg, RegIdx vidx, int from, int needed_until);
     void dropReservation(int basket_num, RegIdx reg, int from); 
-    void clearReservations(int basket_num);
-    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount, int needed_until);
+    void clearReservations(int basket_num, bool weak = false);
+    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount, int from, int needed_until);
     RegIdx provideReturnFromPool(int basket_num);
     void releaseReg(int basket_num, RegIdx freeReg);
+
+    //Return virtual register assigned to hwidx and NOIDX if this hwidx is currenty free.
+    RegIdx getCurrentlyAssigned(int basket_num, RegIdx hwidx); 
 
     RegIdx provideSpillPlaceholder(int basket_num);
     void clearSpillPlaceholders(int basket_num);
@@ -75,9 +81,9 @@ private:
     // register to be erased from all of them.
     void removeFromAllVessels(int basket_num, int reg);
     RegIdx provideRegFromPool(int basket_num, RegIdx a_hint, uint64_t excluded);
-    uint64_t reservedMask(int basket_num, int needed_until) const; //Registers with a reservation before needed_until.
+    uint64_t reservedMask(int basket_num, int from, int needed_until, bool weak = false) const;
     enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
-    enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
+    enum { MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
     // Register pool have internal ordering of registers for supporting correct providing sequence.
     uint8_t m_reorderArch2Inner[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
     uint8_t m_reorderInner2Arch[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
@@ -87,8 +93,11 @@ private:
     uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
     std::set<RegIdx> m_usedCallee[RB_AMOUNT];
     std::vector<int> m_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
+    std::vector<int> m_weak_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
+    RegIdx m_assigned[RB_AMOUNT][REG_MAX]; //Virtual register owning the hardware one, NOIDX for free(or unknown owner).
     int m_reservationCursor[RB_AMOUNT][REG_MAX];
     uint64_t m_reservedRegs[RB_AMOUNT]; //Registers with reservations not consumed yet: the only ones worth looking at.
+    uint64_t m_reservedWeaklyRegs[RB_AMOUNT];
     std::vector<int> m_registersO[RB_AMOUNT][VESS_AMOUNT];
     int m_maxRegisterNumber[RB_AMOUNT];
 };
@@ -144,11 +153,11 @@ private:
         //Split holding the value on entry to a block starting at block_start(the value can be defined inside).
         inline int entrySplitNum(int block_start) const { return splitNumAt(std::max(block_start, bounds.front())); }
         inline Arg& getAtEntry(int block_start) { return *args[entrySplitNum(block_start)]; }
-        inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() > block.end_pos; }
-        bool isSwappableInBlock(const BasicBlocksTreePtr& block) const;
+        inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
     };
 
     enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
+    std::unordered_set<int> m_pseudoblock_opnums;
     void formNegotiationHeader(int basket_num,
                             std::vector<RegisterReassignment>& assignment,
                             const BasicBlocksTreePtr& block,
@@ -182,13 +191,16 @@ private:
                     std::vector<RegisterReassignment>& block_reassignment,
                     RegisterPool& result_pool,
                     const std::unordered_map<RegIdx, RegIdx>& hints,
-                    const std::unordered_set<RegIdx>& reg_occurencies); //Used regs have priority over non-used
+                    const BasicBlocksTree& block); //Used regs have priority over non-used
 
     //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree.
     void allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
+                       const std::multiset<LiveInterval, startordering>& parentIntervals,
                        std::multiset<LiveInterval, endordering>& active,
                        std::vector<RegisterReassignment>& block_reassignment,
                        RegisterPool& result_pool);
+    
+    void pushAllocationDuplicates(int basket_num, const Syntfunc& a_source, std::vector<RegisterReassignment>& block_reassignment);
 
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);

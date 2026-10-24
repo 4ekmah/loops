@@ -97,40 +97,36 @@ namespace SyntopTranslationConstruction
 
 struct AllocationRestriction
 {
-    enum {AR_NONE, AR_INPLACE, AR_INPLACE_COMMUTATIVE, AR_FIXED, AR_CONSECUTIVE};
+    enum {AR_NONE = 0, AR_INPLACE = 1, AR_FIXED = 2, AR_CONSECUTIVE = 4};
     int type;
-    struct InplaceCommutativeDescription
-    {
-        int m_output_num; 
-        int m_input_num;
-        int m_input_aux_num; // if equal to UNDEFINED_ARGUMENT_NUMBER, it's unary operation.
-    };
     struct InplaceDescription
     {
         int m_output_num; 
         int m_input_num;
+        int m_input_aux_num; // Only for commutative inplaces. if equal to UNDEFINED_ARGUMENT_NUMBER, and commutative, it's unary operation.
+        bool commutative;
     };
     struct FixedDescription
     {
         int m_arg_num;
-        RegIdx m_fixed_idx; 
+        RegIdx m_fixed_reg;
     };
     struct ConsecutiveDescription
     {
         int m_idx_start;
         int m_idx_end;
     };
-    union Description
-    {
-        InplaceCommutativeDescription inplace_comm;
-        InplaceDescription inplace;
-        FixedDescription fixed;
-        ConsecutiveDescription consecutive;
-    } descr;
+    InplaceDescription inplace;
+    FixedDescription fixed;
+    ConsecutiveDescription consecutive;
     static AllocationRestriction makeNone();
     static AllocationRestriction makeInplace(int output_num, int input_num);
+    static AllocationRestriction makeInplaceUnary(int output_num, int input_num);
     static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
+    static AllocationRestriction makeFixed(int arg_num, RegIdx fixed_reg);
 };
+
+AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1);
 
 class Backend
 {

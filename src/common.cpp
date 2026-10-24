@@ -267,7 +267,7 @@ const char* exception::what() const noexcept
         return (*this);
     }
 
-    Arg::Arg(int64_t a_value) : idx(IReg::NOIDX), tag(Arg::IIMMEDIATE), value(a_value), flags(0){}
+    Arg::Arg(int64_t a_value) : idx(NOIDX), tag(Arg::IIMMEDIATE), value(a_value), flags(0){}
 
     Func* Expr::infer_owner(Func* preinfered)
     {

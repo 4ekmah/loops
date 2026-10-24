@@ -16,6 +16,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <typeindex>
 #include <memory>
 #include <atomic>
+#include <array>
 
 namespace loops
 {
@@ -440,7 +441,9 @@ namespace loops
     struct BasicBlocksTree
     {
         std::vector<std::shared_ptr<BasicBlocksTree> > children;
-        enum {BBT_IF, BBT_WHILE, BBT_FUNC};
+        // BBT_ALLOCATION_RESTRICTION is pseudoblock, used for instructions which 
+        // have restrictions on registers to use.
+        enum {BBT_IF, BBT_WHILE, BBT_FUNC, BBT_ALLOCATION_RESTRICTION};
         int type;
         int start_pos;
         int end_pos;

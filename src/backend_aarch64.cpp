@@ -2649,7 +2649,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
             {
                 Arg divided = op[1];
                 Arg divisor = op[2];
-                RegIdx placeholder = IReg::NOIDX;
+                RegIdx placeholder = NOIDX;
                 if(op[0].idx == op[2].idx)
                 {
                     placeholder = lsb64(~makeBitmask64({(size_t)(op[0].idx), size_t(op[1].idx)}));
@@ -2667,7 +2667,7 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 a_dest.program.push_back(Syntop(OP_DIV, { op[0], divided, divisor }));
                 a_dest.program.push_back(Syntop(OP_MUL, { op[0], op[0], divisor }));
                 a_dest.program.push_back(Syntop(OP_SUB, { op[0], divided, op[0] }));
-                if(placeholder != IReg::NOIDX)
+                if(placeholder != NOIDX)
                     a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, placeholder), 0 }));
             }
             break;
