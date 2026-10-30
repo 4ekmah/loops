@@ -110,6 +110,7 @@ struct AllocationRestriction
     {
         int m_arg_num;
         RegIdx m_fixed_reg;
+        std::array<std::vector<RegIdx>, RB_AMOUNT> clobbers;
     };
     struct ConsecutiveDescription
     {

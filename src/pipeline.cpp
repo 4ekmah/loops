@@ -338,7 +338,20 @@ namespace loops
             else 
                 a_dest.program.push_back(op);
             if(restriction.type & AllocationRestriction::AR_FIXED)
-                fixed_blocks_markers.push_back((int)a_dest.program.size()-1);
+            {
+                int newopnum = (int)a_dest.program.size()-1;
+                fixed_blocks_markers.push_back(newopnum);
+                for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                    for(int cnum = 0; cnum < (int)restriction.fixed.clobbers.size(); cnum++)
+                    {
+                        RegIdx clobberidx = a_dest.provideIdx(basket_num);
+                        LiveInterval clobber_interval(clobberidx, newopnum);
+                        clobber_interval.end = clobber_interval.start + 1;
+                        for(BasicBlocksTree* block : bbt_stack)
+                            block->reg_occurencies[basket_num].insert(clobberidx);
+                        (*m_live_intervals)[basket_num].push_back(clobber_interval);
+                    }
+            }
             op_positions[opnum] = (int)a_dest.program.size() - 1;
         }
 

@@ -3593,9 +3593,6 @@ namespace loops
 
                 LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                Arg sp = argReg(RB_INT, RSP);
-#endif        
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
@@ -3643,6 +3640,7 @@ namespace loops
                 }
                 //3.) Call function
 #if __LOOPS_OS == __LOOPS_WINDOWS
+                Arg sp = argReg(RB_INT, RSP);
                 a_dest.program.push_back(Syntop(OP_SUB, { sp, sp, argIImm(32)})); //Reserving shadow space
 #endif        
                 a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));

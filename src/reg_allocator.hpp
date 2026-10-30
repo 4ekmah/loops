@@ -157,7 +157,7 @@ private:
     };
 
     enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
-    std::unordered_set<int> m_pseudoblock_opnums;
+    std::unordered_map<int, std::array<std::vector<RegIdx>, RB_AMOUNT> > m_pseudoblock_vidxs;
     void formNegotiationHeader(int basket_num,
                             std::vector<RegisterReassignment>& assignment,
                             const BasicBlocksTreePtr& block,
@@ -180,7 +180,7 @@ private:
     //Erases IF_ nodes from basic blocks tree, becase IF_ doesn't affects performance.
     void removeBranchesFromBBT(BasicBlocksTree& node);
 
-    //Pinned spill slot per register index(see linearScanBlock).
+    //Pinned spill slot per register index
     std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
     //Provide place for new spill or get already provided 
     int64_t getSpillSlot(RegIdx idx, int basket_num);
@@ -200,7 +200,7 @@ private:
                        std::vector<RegisterReassignment>& block_reassignment,
                        RegisterPool& result_pool);
     
-    void pushAllocationDuplicates(int basket_num, const Syntfunc& a_source, std::vector<RegisterReassignment>& block_reassignment);
+    void pushAllocationDuplicates(int basket_num, std::vector<RegisterReassignment>& block_reassignment);
 
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);

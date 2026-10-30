@@ -635,19 +635,23 @@ static bool poolActionOrder(const PoolAction& a, const PoolAction& b)
     return !a.is_start && b.is_start; //Have to end all inverals first.
 }
 
-void RegisterAllocator::pushAllocationDuplicates(int basket_num, const Syntfunc& a_source, std::vector<RegisterReassignment>& block_reassignment)
+void RegisterAllocator::pushAllocationDuplicates(int basket_num, std::vector<RegisterReassignment>& block_reassignment)
 {
     const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
     std::unordered_map<RegisterPin, RegIdx> pinned_u;
-    for(int opnum : m_pseudoblock_opnums) 
+
+    for(std::unordered_map<int, std::array<std::vector<RegIdx>, RB_AMOUNT> >::iterator pb_iter = m_pseudoblock_vidxs.begin(); pb_iter != m_pseudoblock_vidxs.end(); pb_iter++) 
     {
-        const Syntop& op = a_source.program[opnum];
-        AllocationRestriction restriction = m_backend->getRestriction(op);
-        if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
+        int opnum = pb_iter->first;
+        for(int anum = 0; anum < (int)pb_iter->second[basket_num].size(); anum++) 
         {
-            RegIdx vidx = op.args[restriction.fixed.m_arg_num].idx; 
-            RegIdx hwidx = restriction.fixed.m_fixed_reg;
-            pinned_u[RegisterPin{opnum, vidx}] = hwidx;
+            int vidx = pb_iter->second[basket_num][anum];
+            const Arg& assigned = block_reassignment[vidx].getAt(opnum);
+            if(assigned.tag == REGtag)
+            {
+                RegIdx hwidx = assigned.idx;
+                pinned_u[RegisterPin{opnum, vidx}] = hwidx;
+            }
         }
     }
     std::vector<PoolAction> actions;
@@ -776,7 +780,7 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
         for(RegIdx idx = 0; idx < (RegIdx)result[basket_num].size(); idx++)
             for(const AssignedArg& arg : result[basket_num][idx].args)
                 LOOPS_ASSERT(arg->tag != Arg::EMPTY); //every hole must be filled: splits tile the whole live interval.
-        pushAllocationDuplicates(basket_num, a_source, result[basket_num]);
+        pushAllocationDuplicates(basket_num, result[basket_num]);
     }
     return result;
 }
@@ -795,20 +799,6 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
     RegisterPool& result_pool)
 {
     const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
-    //0. Handling pseudoblocks
-    if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
-    {
-        m_pseudoblock_opnums.insert(node.start_pos);
-        const Syntop& op = a_source.program[node.start_pos];
-        AllocationRestriction restriction = m_backend->getRestriction(op);
-        if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
-        {
-            Arg hw = op.args[restriction.fixed.m_arg_num];
-            hw.idx = restriction.fixed.m_fixed_reg;
-            block_reassignment[op.args[restriction.fixed.m_arg_num].idx].overlaySplit(node.start_pos, node.end_pos, hw);
-        }
-        return;
-    }
     //1. Collect this block's own intervals.
     std::multiset<LiveInterval, startordering> blockIntervals;
     {
@@ -833,7 +823,40 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
             iter++;
         }
     }
-    //2. Allocate child loops first(innermost-first). Each child scans on a fresh pool(copy of m_poolBase, so
+    //2. Handling pseudoblocks
+    if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
+    {
+        const Syntop& op = a_source.program[node.start_pos];
+        AllocationRestriction restriction = m_backend->getRestriction(op);
+        if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
+        {
+            Arg hw = op.args[restriction.fixed.m_arg_num];
+            RegIdx vidx = hw.idx;
+            auto pb2add = std::make_pair(node.start_pos, std::array<std::vector<RegIdx>, RB_AMOUNT>());
+            pb2add.second[basket_num].push_back(vidx);
+            m_pseudoblock_vidxs.insert(pb2add);
+            hw.idx = restriction.fixed.m_fixed_reg;
+            block_reassignment[vidx].overlaySplit(node.start_pos, node.end_pos, hw);
+            std::vector<RegIdx>& hwclobbers = restriction.fixed.clobbers[basket_num];
+            if(hwclobbers.size())
+            {
+                std::unordered_set<RegIdx> vclobbers = node.reg_occurencies[basket_num];
+                for(int anum = 0; anum < op.args_size; anum++)
+                    if(op.args[anum].tag == REGtag)
+                        vclobbers.erase(op.args[anum].idx);
+                LOOPS_ASSERT(vclobbers.size() == hwclobbers.size());
+                for(int cnum = 0; cnum < (int)hwclobbers.size(); cnum++)
+                {
+                    RegIdx chwidx = hwclobbers[cnum];
+                    RegIdx cvidx = *(vclobbers.begin());
+                    vclobbers.erase(cvidx);
+                    block_reassignment[cvidx].overlaySplit(node.start_pos, node.end_pos, chwidx);
+                }
+            }
+        }
+        return;
+    }    
+    //3. Allocate child loops first(innermost-first). Each child scans on a fresh pool(copy of m_poolBase, so
     //parameters/callee stay reserved) and a fresh active set into its own table: it is an independent allocation.
     std::vector<std::vector<RegisterReassignment> > children_reassignments(node.children.size());
     std::vector<RegisterPool> children_pools(node.children.size(), m_poolBase);
@@ -849,19 +872,30 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
         // Adding information about fixed registers to pool
         if(node.children[cnum]->type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
         {
-            const Syntop& op = a_source.program[node.children[cnum]->start_pos];
-            AllocationRestriction restriction = m_backend->getRestriction(op);
-            if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
-                result_pool.reserveReg(basket_num, restriction.fixed.m_fixed_reg, node.children[cnum]->start_pos, true);
+            int opnum = node.children[cnum]->start_pos;
+            if(m_pseudoblock_vidxs.count(opnum) != 0) 
+            {
+                std::vector<RegIdx>& vidxs = m_pseudoblock_vidxs[opnum][basket_num];
+                for(int anum = 0; anum < (int)vidxs.size(); anum++) 
+                {
+                    int vidx = vidxs[anum];
+                    const Arg& assigned = children_reassignments[cnum][vidx].getAt(opnum);
+                    if(assigned.tag == REGtag)
+                    {
+                        RegIdx hwidx = assigned.idx;
+                        result_pool.reserveReg(basket_num, hwidx, opnum, true);
+                    }
+                }            
+            }
         }
     }
     std::vector<RegisterReassignment> negotiated_assignments = negotiateAndMergeBlockAssignments(basket_num, children_reassignments,
                                                                                           node.children, children_live, children_pools);
-    //3. Linear scan of block itself with geven hints from children and final merging.
+    //4. Linear scan of block itself with geven hints from children and final merging.
     std::unordered_map<RegIdx, RegIdx> hints = makeBlocksHints(negotiated_assignments, node.children);
     linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node);
     result_pool.clearReservations(basket_num, true);
-    //4. Overlay children splits over the block's own ones. A child's split that landed on the same register
+    //5. Overlay children splits over the block's own ones. A child's split that landed on the same register
     //as the block's is the same location: the objects are united, so a later renaming moves them together
     //and the boundary needs no transfer.
     for(RegIdx idx = 0; idx < (RegIdx)negotiated_assignments.size(); idx++)
@@ -877,7 +911,7 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
             const int end = negotiated.bounds[snum + 1];
             //A FIXED split is never merged: united objects are renamed together, and the fixed register must stay.
             //A transit value(e.g. a parameter) has no own split here, its table is just the children's pieces with holes.
-            const bool fixed_split = (m_pseudoblock_opnums.count(start) > 0);
+            const bool fixed_split = (m_pseudoblock_vidxs.count(start) > 0);
             if(!fixed_split && !own.bounds.empty() && start >= own.bounds.front() && start < own.bounds.back())
             {
                 AssignedArg own_arg = own.args[own.splitNumAt(start)];
@@ -930,7 +964,7 @@ void RegisterAllocator::formNegotiationHeader(int basket_num,
         {
             int anum = 0;
             int startpos = assignment[rnum].bounds[anum];
-            while(anum < (int)assignment[rnum].args.size() && m_pseudoblock_opnums.count(startpos) != 0)
+            while(anum < (int)assignment[rnum].args.size() && m_pseudoblock_vidxs.count(startpos) != 0)
             {
                 anum++;
                 startpos = assignment[rnum].bounds[anum];
@@ -1119,6 +1153,7 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                                    const std::unordered_map<RegIdx, RegIdx>& hints,
                                    const BasicBlocksTree& block)
 {
+    //ULTRADUBUG: Bad news: packs can break reusingHints, since just died interval can be located in later pack(And we have to fix it!)
     //Sorting intervals into packs: used first, hinted first.
     const std::unordered_set<RegIdx>& reg_occurencies = block.reg_occurencies[basket_num];
     std::vector<std::multiset<LiveInterval, startordering> > packs;
@@ -1293,6 +1328,15 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
             }
             if(pseudoblock_iterator != block.children.end() && interval->end > (*pseudoblock_iterator)->start_pos)
             {
+                //ULTRADUBUG: stub for LD-like instrustions.
+                // const Syntop& op = a_source.program[(*pseudoblock_iterator)->start_pos];
+                // AllocationRestriction restriction = m_backend->getRestriction(op);
+                // if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
+                // {
+                //     RegIdx vidx = op[restriction.fixed.m_arg_num].idx;
+                //     RegIdx hwidx = restriction.fixed.m_fixed_reg;
+                //     result_pool.reserveReg(basket_num, restriction.fixed.m_fixed_reg, node.children[cnum]->start_pos, true);
+                // }
                 while(pseudoblock_iterator != block.children.end() && (*pseudoblock_iterator)->type != BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
                     pseudoblock_iterator++;
             }
