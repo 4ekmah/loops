@@ -283,7 +283,7 @@ namespace loops
                             keeper.idx = a_dest.provideIdx(output_basket);
                             LOOPS_ASSERT(keeper.idx == (int)(*m_live_intervals)[output_basket].size());
                             LiveInterval keeper_interval(keeper.idx, (int)a_dest.program.size());
-                            keeper_interval.end = keeper_interval.start + 2;
+                            keeper_interval.end = keeper_interval.start + 3;
                             for(BasicBlocksTree* block : bbt_stack)
                                 block->reg_occurencies[output_basket].insert(keeper.idx);
                             (*m_live_intervals)[output_basket].push_back(keeper_interval);
@@ -292,7 +292,7 @@ namespace loops
                                 if(anum != onum && anum != inum && op2a.args[anum] == output)
                                     op2a.args[anum] = keeper;
                         }
-                        if(input_non_used && (*m_live_intervals)[input_basket][input.idx].end == opnum)
+                        if(input_non_used && (*m_live_intervals)[input_basket][input.idx].end == opnum + 1)
                             inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, input.idx, (int)a_dest.program.size()}));
                         a_dest.program.push_back(Syntop(OP_MOV, {output, input}));
                         op2a.args[inum] = output;
@@ -315,14 +315,14 @@ namespace loops
                         {
                             int basket_num = op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC;
                             int iaidx = op2a.args[ianum].idx;
-                            if((*m_live_intervals)[basket_num][iaidx].end == opnum)
+                            if((*m_live_intervals)[basket_num][iaidx].end == opnum + 1)
                                 std::swap(op2a.args[inum], op2a.args[ianum]);
                         }
                         if(ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[onum] != op2a.args[ianum])
                         {
                             const bool input_non_used = (op2a.args[inum].tag == Arg::IREG || op2a.args[inum].tag == Arg::VREG) && (ianum == UNDEFINED_ARGUMENT_NUMBER || op2a.args[inum] != op2a.args[ianum]);
                             const int input_basket = (op2a.args[inum].tag == Arg::IREG ? RB_INT : RB_VEC);
-                            if(input_non_used && (*m_live_intervals)[input_basket][op2a.args[inum].idx].end == opnum)
+                            if(input_non_used && (*m_live_intervals)[input_basket][op2a.args[inum].idx].end == opnum + 1)
                                 inputs_dying_on_mov.push_back(InputDyingOnMov({input_basket, op2a.args[inum].idx, (int)a_dest.program.size()}));
                             a_dest.program.push_back(Syntop(OP_MOV, {op2a.args[onum], op2a.args[inum]}));
                             op2a.args[inum] = op2a.args[onum];
@@ -346,7 +346,7 @@ namespace loops
                     {
                         RegIdx clobberidx = a_dest.provideIdx(basket_num);
                         LiveInterval clobber_interval(clobberidx, newopnum);
-                        clobber_interval.end = clobber_interval.start;
+                        clobber_interval.end = clobber_interval.start + 1;
                         for(BasicBlocksTree* block : bbt_stack)
                             block->reg_occurencies[basket_num].insert(clobberidx);
                         clobbers[basket_num].insert(clobberidx);
@@ -362,10 +362,10 @@ namespace loops
             {
                 LiveInterval& interval = (*m_live_intervals)[basket_num][linum];
                 interval.start = first_positions[interval.start];
-                interval.end = op_positions[interval.end];
+                interval.end = op_positions[interval.end - 1] + 1;
             }
         for(const InputDyingOnMov& input : inputs_dying_on_mov)
-            (*m_live_intervals)[input.basket_num][input.idx].end = input.mov_pos;
+            (*m_live_intervals)[input.basket_num][input.idx].end = input.mov_pos + 1;
         std::vector<FixedMarker>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
         remap_block_positions(m_bbt, op_positions, fixed_markers_iterator, fixed_blocks_markers.crend());
     }

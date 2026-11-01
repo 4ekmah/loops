@@ -742,10 +742,10 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];
                 RegIdx idx = interval.idx;
-                RegIdx attempt = m_pool.provideParamFromPool(basket_num, interval.end + 1);
+                RegIdx attempt = m_pool.provideParamFromPool(basket_num, interval.end);
                 if (attempt == NOIDX)
                     break;
-                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basket_num, attempt));
+                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end, argReg(basket_num, attempt));
                 if(isStackPassedParam(basket_num, idx))
                     result[basket_num][idx].overlaySplit(0, interval.start, argSpilled(basket_num, 0));
                 active.insert(parintervals[basket_num][parreg]);
@@ -754,10 +754,10 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];
                 RegIdx idx = interval.idx;
-                RegIdx attempt = m_pool.provideRegFromPool(basket_num, idx, NOIDX, interval.start, interval.end + 1);
+                RegIdx attempt = m_pool.provideRegFromPool(basket_num, idx, NOIDX, interval.start, interval.end);
                 if (attempt == NOIDX)
                     break;
-                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end + 1, argReg(basket_num, attempt));
+                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end, argReg(basket_num, attempt));
                 if(isStackPassedParam(basket_num, idx))
                     result[basket_num][idx].overlaySplit(0, interval.start, argSpilled(basket_num, 0));
                 active.insert(parintervals[basket_num][parreg]);
@@ -768,7 +768,7 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];
                 RegIdx idx = interval.idx;
-                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end + 1, argSpilled(basket_num, 0));
+                result[basket_num][idx] = RegisterReassignment(interval.start, interval.end, argSpilled(basket_num, 0));
             }
         }
         m_poolBase = m_pool; //post-seeding snapshot: parameters(and callee) reserved; base for fresh per-block pools.
@@ -788,7 +788,7 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
 static inline bool isLiveInBlock(const LiveInterval& li, int start, int end)
 {
     const int lo = std::max(li.start, start);
-    const int hi = std::min(li.end + 1, end);
+    const int hi = std::min(li.end, end);
     return lo < hi;
 }
 
@@ -815,9 +815,9 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
                 continue;
             }
             const int lo = std::max(li.start, nlo);
-            const int hi = std::min(li.end + 1, nhi);
+            const int hi = std::min(li.end, nhi);
             LiveInterval clip(li.idx, lo);
-            clip.end = hi - 1;
+            clip.end = hi;
             clip.priority = li.priority;
             blockIntervals.insert(clip);
             iter++;
@@ -1243,17 +1243,17 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
         for (auto interval = packs[pnum].begin(); interval != packs[pnum].end(); ++interval)
         {
             std::unordered_map<RegIdx, RegIdx> opUndefs; //TODO(ch): You also have to consider spilled undefs.
-            const int hi = interval->end + 1;
+            const int hi = interval->end;
             { //Dropping expired registers.
                 auto removerator = active.begin();
                 for (; removerator != active.end(); ++removerator)
-                    if (removerator->end <= interval->start)
+                    if (removerator->end <= interval->start + 1)
                     {
                         Arg curLoc = block_reassignment[removerator->idx].getAt(removerator->start);
                         LOOPS_ASSERT(curLoc.tag == REGtag);
                         int assigned_idx = curLoc.idx;
                         result_pool.releaseReg(basket_num, assigned_idx);
-                        if (removerator->end == interval->start) //Current line, line of definition of considered register
+                        if (removerator->end == interval->start + 1) //Current line, line of definition of considered register
                             opUndefs.insert(std::pair<RegIdx,RegIdx>(removerator->idx, assigned_idx));
                     }
                     else
@@ -1264,14 +1264,14 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
             for(; fixed_it != fixed.end() && fixed_it->start <= interval->start; ++fixed_it)
             {
                 const RegIdx fixed_reg = block_reassignment[fixed_it->idx].getAt(fixed_it->start).idx;
-                if(fixed_it->end <= interval->start)
+                if(fixed_it->end <= interval->start + 1)
                 {
                     result_pool.dropReservation(basket_num, fixed_reg, fixed_it->start);
-                    if(fixed_it->end == interval->start)
+                    if(fixed_it->end == interval->start + 1)
                         opUndefs.insert(std::pair<RegIdx,RegIdx>(fixed_it->idx, fixed_reg));
                     continue;
                 }
-                result_pool.provideReservedReg(basket_num, fixed_reg, fixed_it->idx, fixed_it->start, fixed_it->end);
+                result_pool.provideReservedReg(basket_num, fixed_reg, fixed_it->idx, fixed_it->start, fixed_it->end - 1);
                 active.insert(*fixed_it);
             }
             placed.push_back(*interval);
@@ -1343,7 +1343,7 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                 hwReg = result_pool.provideRegFromPool(basket_num, interval->idx, poolHint, interval->start, hi);
                 block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, argReg(basket_num, hwReg));
             }
-            if(pseudoblock_iterator != block.children.end() && interval->end > (*pseudoblock_iterator)->start_pos)
+            if(pseudoblock_iterator != block.children.end() && interval->end > (*pseudoblock_iterator)->start_pos + 1)
             {
                 while(pseudoblock_iterator != block.children.end() && (*pseudoblock_iterator)->type != BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
                     pseudoblock_iterator++;

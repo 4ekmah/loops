@@ -55,7 +55,7 @@ Algorithm have three stages:
     ends of subintervals activity.
 
     Container of active intervals uses different definition of interval ends. Subinterval uses
-    line of last use, there it's used new definition, because splicing condition needs last known
+    line just after last use, there it's used new definition, because splicing condition needs last known
     active value.
         Subintervals    Active Intervals
     1:        ^                ^
@@ -483,7 +483,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         int firstUseMain = UNDEFINED_OPERATION_NUMBER, firstDefMain = UNDEFINED_OPERATION_NUMBER;
                         int firstUseElse = UNDEFINED_OPERATION_NUMBER, firstDefElse = UNDEFINED_OPERATION_NUMBER;
                         const RegIdx idx = ifidrator->first;
-                        bool afterlife = m_subintervals[basket_num][idx].back().end > endifPos;
+                        bool afterlife = m_subintervals[basket_num][idx].back().end > endifPos + 1;
                         if (!haveElse && !afterlife)
                             continue;
                         const int initSinum = ifidrator->second;
@@ -508,11 +508,11 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                                 else if (firstDefMain == UNDEFINED_OPERATION_NUMBER)
                                     firstDefMain = sinum;
                             }
-                            if (siend > endifPos)
+                            if (siend > endifPos + 1)
                                 break;
-                            if (siend > ifPos)
+                            if (siend > ifPos + 1)
                             {
-                                if (haveElse && siend > else_pos && firstUseElse == UNDEFINED_OPERATION_NUMBER)
+                                if (haveElse && siend > else_pos + 1 && firstUseElse == UNDEFINED_OPERATION_NUMBER)
                                     firstUseElse = sinum;
                                 else if (firstUseMain == UNDEFINED_OPERATION_NUMBER)
                                     firstUseMain = sinum;
@@ -554,7 +554,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                             splice = false;
                         if (splice)
                         {
-                            const int switchIpos = isIterateable(basket_num, idx) ? getNextSubinterval(basket_num, idx).start : getCurrentSubinterval(basket_num, idx).end;
+                            const int switchIpos = isIterateable(basket_num, idx) ? getNextSubinterval(basket_num, idx).start : deactivationOpnum(basket_num, idx);
                             spliceUntilSinum(basket_num, idx, sinum, initSinum);
                             if(switchIpos > opnum)
                             {
@@ -584,10 +584,10 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     {
                         const RegIdx idx = ifidrator->first;
                         const int si_start = ifidrator->second;
-                        const int switchIpos = isIterateable(basket_num, idx) ? getNextSubinterval(basket_num, idx).start : getCurrentSubinterval(basket_num, idx).end;
-                        if(m_subintervals[basket_num][idx][si_start].end < endwhilePos)
+                        const int switchIpos = isIterateable(basket_num, idx) ? getNextSubinterval(basket_num, idx).start : deactivationOpnum(basket_num, idx);
+                        if(m_subintervals[basket_num][idx][si_start].end <= endwhilePos)
                         {
-                            expandUntilOpnum(basket_num, idx, endwhilePos, si_start);
+                            expandUntilOpnum(basket_num, idx, endwhilePos + 1, si_start);
                             auto removerator = lastActive[basket_num].find(LiveInterval(idx, switchIpos));
                             while(removerator != lastActive[basket_num].end() && removerator->end == switchIpos && removerator->idx != idx) ++removerator;
                             if(removerator != lastActive[basket_num].end())
@@ -663,7 +663,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     while (isIterateable(basket_num, arg.idx))
                     {
                         LiveInterval& li = getCurrentSubinterval(basket_num, arg.idx);
-                        if (opnum >= li.start && opnum <= li.end)
+                        if (opnum >= li.start && opnum < li.end)
                             break;
                         iterateSubinterval(basket_num, arg.idx);
                     }
@@ -776,6 +776,7 @@ void LivenessAnalysisAlgoImpl::def(int basket_num, RegIdx regNum, int opnum, uin
     {
         LOOPS_ASSERT(regNum != NOIDX && regNum < regAmount(basket_num));
         m_subintervals[basket_num][regNum].push_back(LiveInterval(regNum, opnum));
+        m_subintervals[basket_num][regNum].back().end = opnum + 1;
         m_subintervals[basket_num][regNum].back().priority = priority_scale;
     }
 }
@@ -786,7 +787,7 @@ void LivenessAnalysisAlgoImpl::use(int basket_num, RegIdx regNum, int opnum, uin
     {
         if (regNum != NOIDX && !defined(basket_num, regNum))
             throw loops::exception("Compile error: using uninitialized register");
-        m_subintervals[basket_num][regNum].back().end = opnum;
+        m_subintervals[basket_num][regNum].back().end = opnum + 1;
         m_subintervals[basket_num][regNum].back().priority += priority_scale;
     }
 }
@@ -827,7 +828,7 @@ int LivenessAnalysisAlgoImpl::expandUntilOpnum(int basket_num, RegIdx regNum, in
 int LivenessAnalysisAlgoImpl::deactivationOpnum(int basket_num, RegIdx regNum)
 {
     int sinum = m_subintervalHeaders[basket_num][regNum];
-    return (sinum + 1 < siAmount(basket_num, regNum)) ? m_subintervals[basket_num][regNum][sinum + 1].start : m_subintervals[basket_num][regNum][sinum].end;
+    return (sinum + 1 < siAmount(basket_num, regNum)) ? m_subintervals[basket_num][regNum][sinum + 1].start : m_subintervals[basket_num][regNum][sinum].end - 1;
 }
 
 void LivenessAnalysisAlgoImpl::initSubintervalHeaders(int initval)
