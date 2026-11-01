@@ -227,7 +227,7 @@ namespace loops
             original_amount[basket_num] = (int)(*m_live_intervals)[basket_num].size();
 
         //Information for packet insert of pseudoblocks for instructions with AR_FIXED restrictions. 
-        std::vector<int> fixed_blocks_markers;
+        std::vector<FixedMarker> fixed_blocks_markers;
 
         std::vector<BasicBlocksTree*> bbt_stack;
         bbt_stack.push_back(m_bbt.get());
@@ -338,7 +338,22 @@ namespace loops
             else 
                 a_dest.program.push_back(op);
             if(restriction.type & AllocationRestriction::AR_FIXED)
-                fixed_blocks_markers.push_back((int)a_dest.program.size()-1);
+            {
+                std::array<std::unordered_set<RegIdx>, RB_AMOUNT> clobbers; 
+                int newopnum = (int)a_dest.program.size() - 1;
+                for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                    for(int cnum = 0; cnum < (int)restriction.fixed.m_clobbers[basket_num].size(); cnum++)
+                    {
+                        RegIdx clobberidx = a_dest.provideIdx(basket_num);
+                        LiveInterval clobber_interval(clobberidx, newopnum);
+                        clobber_interval.end = clobber_interval.start;
+                        for(BasicBlocksTree* block : bbt_stack)
+                            block->reg_occurencies[basket_num].insert(clobberidx);
+                        clobbers[basket_num].insert(clobberidx);
+                        (*m_live_intervals)[basket_num].push_back(clobber_interval);
+                    }
+                fixed_blocks_markers.emplace_back(FixedMarker{newopnum, clobbers});
+            }
             op_positions[opnum] = (int)a_dest.program.size() - 1;
         }
 
@@ -351,19 +366,19 @@ namespace loops
             }
         for(const InputDyingOnMov& input : inputs_dying_on_mov)
             (*m_live_intervals)[input.basket_num][input.idx].end = input.mov_pos;
-        std::vector<int>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
+        std::vector<FixedMarker>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
         remap_block_positions(m_bbt, op_positions, fixed_markers_iterator, fixed_blocks_markers.crend());
     }
 
     void RestrictionsProcesssing::remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions,
-                                      std::vector<int>::const_reverse_iterator& fixed_markers_iterator,
-                                      std::vector<int>::const_reverse_iterator fixed_markers_end)
+                                      std::vector<FixedMarker>::const_reverse_iterator& fixed_markers_iterator,
+                                      std::vector<FixedMarker>::const_reverse_iterator fixed_markers_end)
     {
         const int newstart = op_positions[block->start_pos];
         const int newend = op_positions[block->end_pos - 1] + 1;
         int intervalend = newend;
         int cnum = (int)block->children.size() - 1;
-        while(cnum >= 0 || (fixed_markers_iterator != fixed_markers_end && *fixed_markers_iterator > newstart))
+        while(cnum >= 0 || (fixed_markers_iterator != fixed_markers_end && fixed_markers_iterator->newopnum > newstart))
         {
             int intervalstart = newstart;
             if(cnum >= 0)
@@ -372,11 +387,12 @@ namespace loops
             } 
             if(fixed_markers_iterator != fixed_markers_end)
             {
-                int markerpos = *fixed_markers_iterator;
+                int markerpos = fixed_markers_iterator->newopnum;
                 if(markerpos > intervalstart && markerpos < intervalend)
                 {
                     BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_ALLOCATION_RESTRICTION, markerpos); 
                     bbttoadd->end_pos = markerpos + 1;
+                    bbttoadd->reg_occurencies = fixed_markers_iterator->clobbers;
                     block->children.insert(block->children.begin() + (cnum + 1), bbttoadd);
                     fixed_markers_iterator++;
                     continue;

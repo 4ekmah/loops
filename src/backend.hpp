@@ -108,8 +108,8 @@ struct AllocationRestriction
     };
     struct FixedDescription
     {
-        int m_arg_num;
-        RegIdx m_fixed_reg;
+        std::vector<std::pair<int, RegIdx> > m_pins;
+        std::array<std::vector<RegIdx>, RB_AMOUNT> m_clobbers;
     };
     struct ConsecutiveDescription
     {
@@ -123,7 +123,7 @@ struct AllocationRestriction
     static AllocationRestriction makeInplace(int output_num, int input_num);
     static AllocationRestriction makeInplaceUnary(int output_num, int input_num);
     static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
-    static AllocationRestriction makeFixed(int arg_num, RegIdx fixed_reg);
+    static AllocationRestriction makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers = std::array<std::vector<RegIdx>, RB_AMOUNT>());
 };
 
 AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1);

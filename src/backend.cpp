@@ -119,12 +119,12 @@ AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_n
     result.inplace.commutative = true;
     return result;
 }
-AllocationRestriction AllocationRestriction::makeFixed(int arg_num, RegIdx fixed_reg)
+AllocationRestriction AllocationRestriction::makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers)
 {
     AllocationRestriction result;
     result.type = AllocationRestriction::AR_FIXED;
-    result.fixed.m_arg_num = arg_num;
-    result.fixed.m_fixed_reg = fixed_reg;
+    result.fixed.m_pins = pins;
+    result.fixed.m_clobbers = clobbers;
     return result;
 }
 

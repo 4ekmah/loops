@@ -2731,22 +2731,21 @@ namespace loops
             case (OP_OR):
             case (OP_XOR):
                 return AllocationRestriction::makeInplaceCommutative(0, 1, 2);
-            case OP_NEG:
-            case OP_NOT:
+            case (OP_NEG):
+            case (OP_NOT):
                 return AllocationRestriction::makeInplaceUnary(0, 1);
-            case OP_SHL:
-            case OP_SHR:
-            case OP_SAR:
+            case (OP_SHL):
+            case (OP_SHR):
+            case (OP_SAR):
             {
                 LOOPS_ASSERT(a_op.args_size == 3);
                 AllocationRestriction result = AllocationRestriction::makeInplace(0, 1);
                 if(a_op.args[2].tag == Arg::IREG)  
-                    result = result | AllocationRestriction::makeFixed(2, RCX);
+                    result = result | AllocationRestriction::makeFixed({{2, RCX}});
                 return result;
             }
-            case VOP_FMA:
+            case (VOP_FMA):
                 return AllocationRestriction::makeInplace(0, 1);
-                    
             default: return AllocationRestriction::makeNone();
         }
     }
@@ -3593,9 +3592,6 @@ namespace loops
 
                 LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                Arg sp = argReg(RB_INT, RSP);
-#endif        
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
@@ -3643,6 +3639,7 @@ namespace loops
                 }
                 //3.) Call function
 #if __LOOPS_OS == __LOOPS_WINDOWS
+                Arg sp = argReg(RB_INT, RSP);
                 a_dest.program.push_back(Syntop(OP_SUB, { sp, sp, argIImm(32)})); //Reserving shadow space
 #endif        
                 a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));
