@@ -2497,14 +2497,6 @@ namespace loops
         if(basketNum == RB_INT)
             switch (a_op.opcode)
             {
-            case (OP_DIV):
-            case (OP_MOD):
-                return 2;
-                break;
-            case (OP_ABS):
-            case (OP_SIGN):
-                return 1;
-                break;
             case (OP_CALL):
             case (OP_CALL_NORET):
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -2746,6 +2738,14 @@ namespace loops
             }
             case (VOP_FMA):
                 return AllocationRestriction::makeInplace(0, 1);
+            case (OP_DIV):
+            {
+                std::array<std::vector<RegIdx>, RB_AMOUNT> clobbers;
+                clobbers[RB_INT].push_back(RDX);
+                return AllocationRestriction::makeFixed({{1, RAX}}, clobbers) | AllocationRestriction::makeInplace(0, 1);
+            }
+            case (OP_MOD):
+                return AllocationRestriction::makeFixed({{0, RDX}, {1, RAX}});
             default: return AllocationRestriction::makeNone();
         }
     }
@@ -3103,6 +3103,47 @@ namespace loops
                 else
                     a_dest.program.push_back(op);
                 break;
+            case OP_SIGN:
+            {
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+                Arg scratch = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[1] }));
+                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
+                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
+                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
+                break;
+            }
+            case OP_ABS:
+            {
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+                bool inplace = op[0].idx == op[1].idx;
+                Arg original = inplace ? argReg(RB_INT, a_dest.provideIdx(RB_INT)) : op[1];
+                if(inplace)
+                    a_dest.program.push_back(Syntop(OP_MOV, { original, op[1] }));
+                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[1] }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, original, op[0] }));
+                break;
+            }
+            case OP_MIN:
+            case OP_MAX:
+            {
+                LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG);
+                Arg left = op[1];
+                Arg right = op[2];
+                if(left.tag == Arg::IIMMEDIATE)
+                {
+                    left = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                    a_dest.program.push_back(Syntop(OP_MOV, { left, op[1] }));
+                }
+                if(right.tag == Arg::IIMMEDIATE)
+                {
+                    right = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                    a_dest.program.push_back(Syntop(OP_MOV, { right, op[2] }));
+                }
+                a_dest.program.push_back(Syntop(OP_CMP, { left, right }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, left, right }));
+                break;
+            }            
             case (VOP_NEG):
                 LOOPS_ASSERT(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype);
                 {
@@ -3474,45 +3515,10 @@ namespace loops
             case OP_MOD:
             {
                 LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
-                bool unspillRax = false;;
-                if (op[0].idx != RAX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    unspillRax = true;
-                }
-                bool unspillRdx = false;
-                if (op[0].idx != RDX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    unspillRdx = true;
-                }
-                Arg effectiveDivider = op[2];
-                if (op[2].tag == Arg::IREG && op[2].idx == RAX)
-                {
-                    if (!unspillRax)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    effectiveDivider = argSpilled(RB_INT, 0);
-                }
-                else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
-                {
-                    if (!unspillRdx)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    effectiveDivider = argSpilled(RB_INT, 1);
-                }
-                if (op[1].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
                 a_dest.program.push_back(Syntop(OP_X86_CQO, {}));
-                a_dest.program.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
-                if(op.opcode == OP_DIV && op[0].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
-                if (op.opcode == OP_MOD && op[0].idx != RDX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
-                if (unspillRax)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
-                if (unspillRdx)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
+                a_dest.program.push_back(op);
                 break;
-            }
+            }            
             case OP_SELECT:
                 LOOPS_ASSERT(op.size() == 4 && op[0].tag == Arg::IREG && regOrSpi(op[2]) && op[3].tag == Arg::IREG);
                 if (regOrSpiEq(op[2], op[3]))
@@ -3529,47 +3535,6 @@ namespace loops
                 else
                     a_dest.program.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
                 break;
-            case OP_MIN:
-            case OP_MAX:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
-                if (regOrSpiEq(op_[0], op_[1]))
-                    std::swap(op_[1], op_[2]);
-                if (op_[2].tag == Arg::ISPILLED)
-                    std::swap(op_[1], op_[2]);
-                if (!regOrSpiEq(op_[0], op_[2]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
-                a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? OP_GT : OP_LT, op_[1], op_[0] }));
-                break;
-            }
-            case OP_ABS:
-            {
-                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
-                bool augAbs = regOrSpiEq(op[0], op[1]);
-                if (regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
-                else
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
-                break;
-            }
-            case OP_SIGN:
-            {//DUBUG: I'm almost sure it can be done in BRA stage. And ABS. And MIN/MAX.
-                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-                Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
-                a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
-                if (!regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[0] }));
-                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
-                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
-                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
-                break;
-            }
             case OP_CALL:
             case OP_CALL_NORET:
             {
