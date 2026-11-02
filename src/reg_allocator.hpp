@@ -40,7 +40,7 @@ public:
     RegIdx provideParamFromPool(int basket_num, int needed_until);  //Must be called first.
     // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
     // vidx is the virtual register, we want to allocate, we keep this information.
-    RegIdx provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until);
+    RegIdx provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until, int hint_needed_until = -1);
     size_t freeRegsAmount(int basket_num, int needed_until) const;
     inline bool havefreeRegs(int basket_num, int needed_until) const { return freeRegsAmount(basket_num, needed_until) > 0; }
     //Reservation mechanics for multipass linear scan, where registers are separated into different packs.

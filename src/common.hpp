@@ -156,9 +156,16 @@ namespace loops
 
     inline int invertCondition(int condition)
     {
-        return condition == OP_EQ ? OP_NE : (condition == OP_NE ? OP_EQ : (condition == OP_LT ? OP_GE : (condition == OP_GT ? OP_LE : (condition == OP_UGT ? OP_ULE : (condition == OP_LE ? OP_GT : (condition == OP_ULE ? OP_UGT : (condition == OP_GE ? OP_LT : OP_NOINIT)))))));
-        //    condition == IC_S   ? IC_NS : (
-        //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
+        return condition == OP_EQ ? OP_NE : 
+               condition == OP_NE ? OP_EQ : 
+               condition == OP_LT ? OP_GE : 
+               condition == OP_GT ? OP_LE : 
+               condition == OP_UGT ? OP_ULE : 
+               condition == OP_LE ? OP_GT : 
+               condition == OP_ULE ? OP_UGT : 
+               condition == OP_GE ? OP_LT : 
+               condition == OP_S ? OP_NS : 
+               condition == OP_NS ? OP_S : OP_NOINIT;
     }
 
     static inline uint64_t regBit(RegIdx hwidx)

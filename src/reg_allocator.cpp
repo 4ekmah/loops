@@ -214,10 +214,18 @@ RegIdx RegisterPool::provideParamFromPool(int basket_num, int needed_until)
     return res;
 }
 
-RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until)
+RegIdx RegisterPool::provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until, int hint_needed_until)
 {
-    const uint64_t hard = reservedMask(basket_num, from, needed_until);
-    const uint64_t weak = reservedMask(basket_num, from, needed_until, true);
+    uint64_t hard = reservedMask(basket_num, from, needed_until);
+    uint64_t weak = reservedMask(basket_num, from, needed_until, true);
+    if(a_hint != NOIDX && hint_needed_until >= 0)
+    {
+        const uint64_t hint_bit = (uint64_t(1) << a_hint);
+        if(!(reservedMask(basket_num, from, hint_needed_until) & hint_bit))
+            hard &= ~hint_bit;
+        if(!(reservedMask(basket_num, from, hint_needed_until, true) & hint_bit))
+            weak &= ~hint_bit;
+    }
     RegIdx res = provideRegFromPool(basket_num, a_hint, hard | weak);
     if(res == NOIDX && weak != 0) //weakly reserved registers are the last resort
         res = provideRegFromPool(basket_num, a_hint, hard);
@@ -341,7 +349,6 @@ size_t RegisterPool::freeRegsAmount(int basket_num, int needed_until) const
     return free_regs > MAXIMUM_SPILLS ? free_regs - MAXIMUM_SPILLS : 0;
 }
 
-//TODO(ch): this function is just a workaround for ld2/ld3/ld4 instructions
 std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amount, int from, int needed_until)
 {
     int amount_temp = amount; 
@@ -353,7 +360,7 @@ std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amo
     {
         RegIdx next = provideRegFromPool(basket_num, NOIDX, NOIDX, from, needed_until);
         if(next == NOIDX)
-            throw loops::exception("Register allocator: register space is too fragmented for ld2/ld3/ld4 workaround.");
+            throw loops::exception("Register allocator: register space is too fragmented for ld2/ld3/ld4.");
         if(res.empty() || next == res.back() + 1)
         {
             amount_temp--;
@@ -711,17 +718,6 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
 
     //Remove IF statements, because they doesn't affect performance on register allocation.
     removeBranchesFromBBT(*m_bbt);
-
-    //TODO(ch):This ugly workaround must be eliminated after introducing register allocation with restrictions.
-    std::array<std::unordered_map<RegIdx, std::pair<RegIdx, RegIdx> >, RB_AMOUNT> unspillableLd2;
-    std::array<std::unordered_map<RegIdx, RegIdx>, RB_AMOUNT> already_allocatedLd2;
-    for(const Syntop& op: a_source.program)
-        if(op.opcode == VOP_ARM_LD2)
-        {
-            std::pair<RegIdx, RegIdx> order = std::make_pair(op[0].idx, op[1].idx); 
-            unspillableLd2[RB_VEC].insert(std::make_pair(op[0].idx, order));
-            unspillableLd2[RB_VEC].insert(std::make_pair(op[1].idx, order));
-        }
 
     //Space in stack used by snippets will be located in the bottom,
     //so spilled variables will be located higher.
@@ -1322,6 +1318,7 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                 //out. This optimization is important, e.g., for add, sub and mul operation on Intel, where
                 //this operation are binary, not ternary.
                 RegIdx poolHint = NOIDX;
+                int hint_needed_until = -1;
                 if (opUndefs.size())
                 {
                     std::unordered_map<size_t, RegIdx> opUndefsIdxMap;
@@ -1338,9 +1335,61 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                     if (argnumHint != UNDEFINED_ARGUMENT_NUMBER)
                         poolHint = opUndefsIdxMap.at(argnumHint);
                 }
+                //If the result was allocated in an earlier pack, let its dying input take the result's register.
+                //The shortened hint boundary allows the donor and result to share that register at their common instruction.
+                if(poolHint == NOIDX && interval->end > 0 && interval->end <= (int)a_source.program.size())
+                {
+                    const int last_use = interval->end - 1;
+                    const Syntop& op = a_source.program[last_use];
+                    std::set<int> ins = m_backend->getInRegistersIdxs(op, basket_num);
+                    bool is_input = false;
+                    for(int in : ins)
+                        if(op[in].idx == interval->idx)
+                        {
+                            is_input = true;
+                            break;
+                        }
+                    if(is_input)
+                    {
+                        std::set<int> outs = m_backend->getOutRegistersIdxs(op, basket_num);
+                        for(int out : outs)
+                        {
+                            RegIdx output_idx = op[out].idx;
+                            if(output_idx < 0 || output_idx >= (RegIdx)block_reassignment.size())
+                                continue;
+                            const RegisterReassignment& output = block_reassignment[output_idx];
+                            if(output.bounds.empty() || last_use < output.bounds.front() || last_use >= output.bounds.back())
+                                continue;
+                            int output_split = output.splitNumAt(last_use);
+                            if(output_split < 0 || output_split >= (int)output.args.size() || output.args[output_split].isEmpty())
+                                continue;
+                            const Arg& assigned = *output.args[output_split];
+                            if(assigned.tag != REGtag)
+                                continue;
+                            std::set<int> undefined_arg_nums;
+                            const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
+                            for(int in : ins)
+                            {
+                                RegIdx input_idx = op[in].idx;
+                                if(input_idx < 0 || input_idx >= (RegIdx)raw_intervals.size())
+                                    continue;
+                                const LiveInterval& candidate = raw_intervals[input_idx];
+                                if(candidate.start < last_use && candidate.end == interval->end)
+                                    undefined_arg_nums.insert(in);
+                            }
+                            int argnum_hint = m_backend->reusingPreferences(op, undefined_arg_nums);
+                            if(argnum_hint != UNDEFINED_ARGUMENT_NUMBER && op[argnum_hint].idx == interval->idx)
+                            {
+                                poolHint = assigned.idx;
+                                hint_needed_until = last_use;
+                                break;
+                            }
+                        }
+                    }
+                }                
                 if(poolHint == NOIDX && hints.find(interval->idx) != hints.end())
                     poolHint = hints.at(interval->idx);
-                hwReg = result_pool.provideRegFromPool(basket_num, interval->idx, poolHint, interval->start, hi);
+                hwReg = result_pool.provideRegFromPool(basket_num, interval->idx, poolHint, interval->start, hi, hint_needed_until);
                 block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, argReg(basket_num, hwReg));
             }
             if(pseudoblock_iterator != block.children.end() && interval->end > (*pseudoblock_iterator)->start_pos + 1)
