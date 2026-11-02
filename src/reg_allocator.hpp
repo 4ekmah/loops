@@ -162,7 +162,7 @@ private:
         RegisterReassignment(int start, int end, const Arg& base_replace) :
             bounds({start, end}), args({AssignedArg(base_replace)}) {}
         //Split holding the value on entry to a block starting at block_start(the value can be defined inside).
-        inline int entrySplitNum(int block_start) const { return splitNumAt(std::max(block_start, bounds.front())); }
+        inline int entrySplitNum(int block_start) const { return splitNumAt(block_start > bounds.front() ? block_start : bounds.front()); }
         inline Arg& getAtEntry(int block_start) { return *args[entrySplitNum(block_start)]; }
         inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
     };
