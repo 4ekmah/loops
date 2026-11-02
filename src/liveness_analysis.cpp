@@ -172,8 +172,8 @@ private:
     inline int regAmount(int basket_num) const { return (int)m_subintervals[basket_num].size(); }
     inline int siAmount(int basket_num, RegIdx regNum) const;
     inline bool defined(int basket_num, RegIdx regNum) const { return siAmount(basket_num, regNum) > 0; }
-    inline void def(int basket_num, RegIdx regNum, int opnum, uint64_t priority_scale = 0);
-    inline void use(int basket_num, RegIdx regNum, int opnum, uint64_t priority_scale = 0);
+    inline void def(int basket_num, RegIdx regNum, int opnum);
+    inline void use(int basket_num, RegIdx regNum, int opnum);
     inline void spliceUntilSinum(int basket_num, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
     inline int expandUntilOpnum(int basket_num, RegIdx regNum, int opnum, int siStart);
     inline int deactivationOpnum(int basket_num, RegIdx regNum);
@@ -316,7 +316,6 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     
     //IMPORTANT: Think around situation 1-0-1, when register is defined inside of block and redefined in another of same depth.(0-1-0, obviously doesn't matter).
     RegIdx paramsAmount[RB_AMOUNT] = {0, 0};
-    int64_t priority_scale = 1;
     { //1.) Calculation of simplest [def-use] subintervals and collect precise info about borders of loops and branches.
         // std::deque<ControlFlowBracket> flowstack;
         for (const Arg& par : a_source.params)
@@ -364,7 +363,6 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             case (OP_WHILE_CSTART):
             {                
                 LOOPS_ASSERT(op.size() == 1 && op.args[0].tag == Arg::IIMMEDIATE);
-                priority_scale <<= 2;
                 BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_WHILE, opnum); 
                 bbtstack.top()->children.push_back(bbttoadd);
                 bbtstack.push(bbttoadd.get());
@@ -376,7 +374,6 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                 LOOPS_ASSERT(bbtstack.size() && bbtstack.top()->type == BasicBlocksTree::BBT_WHILE);
                 bbtstack.top()->end_pos = opnum + 1;
                 bbtstack.pop();
-                priority_scale >>= 2;
                 continue;
             }
             default:
@@ -391,9 +388,9 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         outRegs.erase(IO);
                     }
                     for (RegIdx inreg : inRegs)
-                        use(basket_num, inreg, opnum, priority_scale);
+                        use(basket_num, inreg, opnum);
                     for (RegIdx outreg : outRegs)
-                        def(basket_num, outreg, opnum, priority_scale);
+                        def(basket_num, outreg, opnum);
                 }
                 break;
             }
@@ -770,25 +767,23 @@ int LivenessAnalysisAlgoImpl::siAmount(int basket_num, RegIdx regNum) const
     return (int)m_subintervals[basket_num][regNum].size();
 }
 
-void LivenessAnalysisAlgoImpl::def(int basket_num, RegIdx regNum, int opnum, uint64_t priority_scale)
+void LivenessAnalysisAlgoImpl::def(int basket_num, RegIdx regNum, int opnum)
 {
     if (regNum != Syntfunc::RETREG)
     {
         LOOPS_ASSERT(regNum != NOIDX && regNum < regAmount(basket_num));
         m_subintervals[basket_num][regNum].push_back(LiveInterval(regNum, opnum));
         m_subintervals[basket_num][regNum].back().end = opnum + 1;
-        m_subintervals[basket_num][regNum].back().priority = priority_scale;
     }
 }
 
-void LivenessAnalysisAlgoImpl::use(int basket_num, RegIdx regNum, int opnum, uint64_t priority_scale)
+void LivenessAnalysisAlgoImpl::use(int basket_num, RegIdx regNum, int opnum)
 {
     if (regNum != Syntfunc::RETREG)
     {
         if (regNum != NOIDX && !defined(basket_num, regNum))
             throw loops::exception("Compile error: using uninitialized register");
         m_subintervals[basket_num][regNum].back().end = opnum + 1;
-        m_subintervals[basket_num][regNum].back().priority += priority_scale;
     }
 }
 
@@ -801,8 +796,6 @@ void LivenessAnalysisAlgoImpl::spliceUntilSinum(int basket_num, RegIdx regNum, i
     m_subintervals[basket_num][regNum][siStart].end = m_subintervals[basket_num][regNum][siEnd].end;
     std::vector<LiveInterval>::iterator remove_start = m_subintervals[basket_num][regNum].begin() + siStart + 1;
     std::vector<LiveInterval>::iterator remove_end = m_subintervals[basket_num][regNum].begin() + siEnd + 1;
-    for(std::vector<LiveInterval>::iterator sum_iterator = remove_start; sum_iterator < remove_end; sum_iterator++)
-        m_subintervals[basket_num][regNum][siStart].priority += sum_iterator->priority;
     m_subintervals[basket_num][regNum].erase(remove_start, remove_end);
 }
 

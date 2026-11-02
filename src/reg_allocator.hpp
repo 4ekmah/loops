@@ -30,7 +30,7 @@ and nested one.
 excepts connected vectors.
 3.) And vice versa, container vector can be released only after releasing all components.
  */
-class RegisterPool //DUBUG: it's not nice, that now RegisterPool have time measure. It's good idea to move this aspects to LinearScanSchedule class. Or not?
+class RegisterPool
 {
 public:
     RegisterPool(const Backend* m_owner);
@@ -131,12 +131,23 @@ public:
 private:
     const std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_liveintervals_raw;
     BasicBlocksTreePtr m_bbt;
+    //Pinned spill slot per register index
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
+    int64_t getSpillSlot(RegIdx idx, int basket_num);
+    inline Arg getReassigned(int basket_num, int opnum, int old);
+    inline int64_t getSpillOffset(int basket_num, RegIdx reg, Arg spilled);
+    inline int64_t getSpillOffset(int basket_num, int opnum, RegIdx reg);
+    
     void layOutLiveIntervals(const Syntfunc& a_source,
                              std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
                              std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+    //Erases IF_ nodes from basic blocks tree, becase IF_ doesn't affects performance.
+    void removeBranchesFromBBT(BasicBlocksTree& node);
+    RegisterPool m_pool;
+    RegisterPool m_poolBase; //Pool just after allocation parameters, cloned for every block allocation.
 
+    //===============Interval splitting===============
     typedef DisjointSetUnion<Arg> AssignedArg;
-
     struct RegisterReassignment
     {
         std::vector<int> bounds;
@@ -156,6 +167,7 @@ private:
         inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
     };
 
+    //===============Blocks negotiation===============
     enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
     std::unordered_map<int, std::array<std::vector<RegIdx>, RB_AMOUNT> > m_pseudoblock_vidxs;
     void formNegotiationHeader(int basket_num,
@@ -174,17 +186,7 @@ private:
     std::unordered_map<RegIdx, RegIdx> makeBlocksHints(std::vector<RegisterReassignment>& assignments,
                                                        const std::vector<BasicBlocksTreePtr>& blocks);
     
-    RegisterPool m_pool;
-    RegisterPool m_poolBase; //Pool just after allocation parameters, cloned for every block allocation.
-
-    //Erases IF_ nodes from basic blocks tree, becase IF_ doesn't affects performance.
-    void removeBranchesFromBBT(BasicBlocksTree& node);
-
-    //Pinned spill slot per register index
-    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
-    //Provide place for new spill or get already provided 
-    int64_t getSpillSlot(RegIdx idx, int basket_num);
-
+    //===============Allocation itself===============
     void linearScan(int basket_num, const Syntfunc& a_source,
                     const std::multiset<LiveInterval, startordering>& liveintervals,
                     std::multiset<LiveInterval, endordering>& active,
@@ -205,6 +207,7 @@ private:
     std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
         const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);
 
+    //===============Spills instructions appending===============
     struct SpillInfo
     {
         std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> unspilledRenaming;
@@ -217,9 +220,6 @@ private:
     };
 
     SpillInfo modelSpills(const Syntfunc& a_source);
-
-    inline int64_t getSpillOffset(int basket_num, RegIdx reg, Arg spilled);
-    inline int64_t getSpillOffset(int basket_num, int opnum, RegIdx reg);
 
     struct SplitTransfers
     {
@@ -236,12 +236,10 @@ private:
     void insertMultiLevelJumpTransfers(const Syntfunc& a_source,
                                        std::vector<std::vector<SplitTransfers> >& a_split_transfers);
 
-    void insertSpillInstructions(const Syntfunc& a_source,
-                                 Syntfunc& a_destination);
+    void insertSpillInstructions(const Syntfunc& a_source, Syntfunc& a_destination);
+
     void writePrologue(Syntfunc& a_destination);
     void writeEpilogue(Syntfunc& a_destination);
-
-    inline Arg getReassigned(int basket_num, int opnum, int old);
 
     int m_snippet_caused_spills;
     bool m_have_function_calls;
