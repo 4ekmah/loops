@@ -1971,21 +1971,21 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
     return SyntopTranslation();
 }
 
-class AArch64BigImmediates : public CompilerPass
+class AArch64BRASnippets : public CompilerPass
 {
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
-    virtual ~AArch64BigImmediates() override {}
+    virtual ~AArch64BRASnippets() override {}
     virtual bool is_inplace() const override final { return false; }
-    virtual std::string pass_id() const override final { return "CP_AARCH64_BIG_IMMEDIATES"; }
+    virtual std::string pass_id() const override final { return "CP_AARCH64_BRA_SNIPPETS"; }
     static CompilerPassPtr make(const Backend* a_backend)
     {
-        std::shared_ptr<AArch64BigImmediates> res;
-        res.reset(new AArch64BigImmediates(a_backend));
+        std::shared_ptr<AArch64BRASnippets> res;
+        res.reset(new AArch64BRASnippets(a_backend));
         return std::static_pointer_cast<CompilerPass>(res);
     } 
 private:
-    AArch64BigImmediates(const Backend* a_backend) : CompilerPass(a_backend) {}
+    AArch64BRASnippets(const Backend* a_backend) : CompilerPass(a_backend) {}
 };
 
 class AArch64ARASnippets : public CompilerPass
@@ -1993,7 +1993,7 @@ class AArch64ARASnippets : public CompilerPass
 public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
     virtual bool is_inplace() const override final { return false; }
-    virtual std::string pass_id() const override final { return "CP_AARCH64_SNIPPETS"; }
+    virtual std::string pass_id() const override final { return "CP_AARCH64_ARA_SNIPPETS"; }
     virtual ~AArch64ARASnippets() override {}
     static CompilerPassPtr make(const Backend* a_backend)
     {
@@ -2018,7 +2018,7 @@ Aarch64Backend::Aarch64Backend()
     m_postInstructionOffset = false;
     m_registersAmount = 7;
     m_name = "AArch64";
-    m_beforeRegAllocPasses.push_back(AArch64BigImmediates::make(this));
+    m_beforeRegAllocPasses.push_back(AArch64BRASnippets::make(this));
     m_afterRegAllocPasses.push_back(AArch64ARASnippets::make(this));
     m_parameterRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
     m_returnRegisters[RB_INT] = { R0, R1, R2, R3, R4, R5, R6, R7 };
@@ -2069,9 +2069,6 @@ int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
         case (OP_CALL):
         case (OP_CALL_NORET):
             return 18;
-        case (OP_MOD):
-            return 1;
-            break;
         default:
             break;
         }
@@ -2081,13 +2078,6 @@ int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
         case (OP_CALL):
         case (OP_CALL_NORET):
             return LOOPS_VCALLER_SAVED_AMOUNT;
-        case (VOP_FMA):
-        case (VOP_SELECT):
-            if(a_op.size() == 5) 
-                return 2;
-            if(a_op.size() == 4) 
-                return 1;
-            break;
         default:
             break;
         }
@@ -2213,6 +2203,17 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             break;
     };
     return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+}
+
+AllocationRestriction Aarch64Backend::getRestriction(const Syntop& a_op) const
+{
+    switch (a_op.opcode)
+    {
+        case (VOP_FMA):
+        case (VOP_SELECT):
+            return AllocationRestriction::makeInplace(0, 1);
+        default: return AllocationRestriction::makeNone();
+    }
 }
 
 std::array<std::map<RegIdx, int>, RB_AMOUNT> Aarch64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const
@@ -2550,7 +2551,7 @@ column_printer_ptr Aarch64Backend::get_hex_printer() const
     return std::make_shared<aarch64_hex_printer>();
 }
 
-void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
+void AArch64BRASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
 {
     //Note: Also handle some before-register-allocation snippets.
     a_dest.name = a_source.name;
@@ -2606,6 +2607,44 @@ void AArch64BigImmediates::process(Syntfunc& a_dest, const Syntfunc& a_source)
             a_dest.program.push_back(Syntop(VOP_ARM_SHRINK_HIGH, { op[0], op[2]}));
             break;
         }
+        case OP_MOD:
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
+            if(op[1].idx == op[2].idx)
+            {
+                a_dest.program.push_back(Syntop(OP_MOV, { op[0], argIImm(0) }));
+                a_dest.program.push_back(Syntop(OP_DIV, { op[0], op[0], op[1] })); //Mod have to throw div_by_zero exception if divisor is zero.
+            }
+            else
+            {
+                Arg divided = op[1];
+                divided.idx = a_dest.provideIdx(RB_INT);
+                a_dest.program.push_back(Syntop(OP_DIV, { divided, op[1], op[2] }));
+                a_dest.program.push_back(Syntop(OP_MUL, { divided, divided, op[2] }));
+                a_dest.program.push_back(Syntop(OP_SUB, { op[0], op[1], divided }));
+            }
+            break;
+        case OP_MIN:
+        case OP_MAX:
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
+            a_dest.program.push_back(Syntop(OP_CMP, { op[1], op[2] }));
+            a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, op[1], op[2] }));
+            break;
+        case OP_SIGN:
+            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+            a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
+            a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
+            a_dest.program.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(OP_GT) }));
+            break;
+        case OP_ABS:
+            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+            a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
+            a_dest.program.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(OP_LT) }));
+            break;
+        case VOP_NE:
+            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[1].elemtype == op[2].elemtype && elem_size(op[0].elemtype) == elem_size(op[1].elemtype) && isUnsignedInteger(op[0].elemtype));
+            a_dest.program.push_back(Syntop(VOP_EQ , { op[0], op[1], op[2] }));
+            a_dest.program.push_back(Syntop(VOP_NOT, { op[0], op[0] }));
+            break;            
         default:
 
             a_dest.program.push_back(op);
@@ -2632,111 +2671,6 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 && op[0].idx == op[1].idx))
                 a_dest.program.push_back(op);
             break;
-        case OP_MIN:
-        case OP_MAX:
-            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
-            a_dest.program.push_back(Syntop(OP_CMP, { op[1], op[2] }));
-            a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, op[1], op[2] }));
-            break;
-        case OP_MOD:
-            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && op[2].tag == Arg::IREG);
-            if(op[1].idx == op[2].idx)
-            {
-                a_dest.program.push_back(Syntop(OP_DIV, { op[0], op[1], op[1] }));
-                a_dest.program.push_back(Syntop(OP_MOV, { op[0], argIImm(0) }));
-            }
-            else
-            {
-                Arg divided = op[1];
-                Arg divisor = op[2];
-                RegIdx placeholder = NOIDX;
-                if(op[0].idx == op[2].idx)
-                {
-                    placeholder = lsb64(~makeBitmask64({(size_t)(op[0].idx), size_t(op[1].idx)}));
-                    divisor = argReg(RB_INT, placeholder);
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, divisor }));
-                    a_dest.program.push_back(Syntop(OP_MOV, { divisor, op[2] }));
-                }
-                if(op[0].idx == op[1].idx)
-                {
-                    placeholder = lsb64(~makeBitmask64({(size_t)(op[0].idx), size_t(op[2].idx)}));
-                    divided = argReg(RB_INT, placeholder);
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, divided }));
-                    a_dest.program.push_back(Syntop(OP_MOV, { divided, op[1] }));
-                }
-                a_dest.program.push_back(Syntop(OP_DIV, { op[0], divided, divisor }));
-                a_dest.program.push_back(Syntop(OP_MUL, { op[0], op[0], divisor }));
-                a_dest.program.push_back(Syntop(OP_SUB, { op[0], divided, op[0] }));
-                if(placeholder != NOIDX)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, placeholder), 0 }));
-            }
-            break;
-        case OP_SIGN:
-            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-            a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
-            a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
-            a_dest.program.push_back(Syntop(OP_ARM_CINC,{ op[0], op[0], argIImm(OP_GT) }));
-            break;
-        case OP_ABS:
-            LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-            a_dest.program.push_back(Syntop(OP_CMP, { op[1], argIImm(0) }));
-            a_dest.program.push_back(Syntop(OP_ARM_CNEG,{ op[0], op[1], argIImm(OP_LT) }));
-            break;
-        case VOP_NE:
-            LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG && op[1].elemtype == op[2].elemtype && elem_size(op[0].elemtype) == elem_size(op[1].elemtype) && isUnsignedInteger(op[0].elemtype));
-            a_dest.program.push_back(Syntop(VOP_EQ , { op[0], op[1], op[2] }));
-            a_dest.program.push_back(Syntop(VOP_NOT, { op[0], op[0] }));
-            break;
-        case VOP_FMA:
-        case VOP_SELECT:
-        {
-            Syntop op_= op;
-            LOOPS_ASSERT((op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG) ||
-                (op_.size() == 5 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG && op_[4].tag == Arg::IIMMEDIATE));
-            bool laneVersion = (op_.size() == 5);
-            if(op_[0].idx == op_[1].idx)
-            {
-                a_dest.program.push_back(op_);
-                break;
-            }
-            bool unspill = false;
-            bool unspillFp16 = false;
-            Arg placeholder = op_[2];
-            Arg placeholderfp16;
-            int placeholderSPoff = 0;
-            if(laneVersion && op_[0].elemtype == TYPE_FP16 && op_[3].idx > 15)
-            {
-                placeholderfp16 = op_[3];
-                placeholderfp16.idx = lsb64(~makeBitmask64({(size_t)(op_[0].idx), size_t(op_[1].idx), (size_t)(op_[2].idx)}));
-                a_dest.program.push_back(Syntop(OP_SPILL, { 0, placeholderfp16 })); 
-                a_dest.program.push_back(Syntop(OP_MOV , { placeholderfp16, op_[3] }));
-                op_[3] = placeholderfp16;
-                const int vectorSize = 16; //TODO(ch): replace with Backend::vectorSize call. 
-                placeholderSPoff = vectorSize / 8; 
-            }
-            if(op_[0].idx == op_[2].idx || op_[0].idx == op_[3].idx)
-            {
-                placeholder.idx = lsb64(~makeBitmask64({(size_t)(op_[0].idx), size_t(op_[1].idx), (size_t)(op_[2].idx), (size_t)(op_[3].idx)}));
-                a_dest.program.push_back(Syntop(OP_SPILL, { placeholderSPoff, placeholder }));
-                a_dest.program.push_back(Syntop(OP_MOV , { placeholder, op_[0] }));
-                unspill = true;
-                if(op_[0].idx == op_[2].idx)
-                    op_[2] = placeholder;
-                if(op_[0].idx == op_[3].idx)
-                    op_[3] = placeholder;
-            }
-            if(op_[0].idx != op_[1].idx)
-                a_dest.program.push_back(Syntop(OP_MOV , { op_[0], op_[1] }));
-            if(laneVersion)
-                a_dest.program.push_back(Syntop(op_.opcode, { op_[0], op_[0], op_[2], op_[3], op_[4] }));
-            else
-                a_dest.program.push_back(Syntop(op_.opcode, { op_[0], op_[0], op_[2], op_[3] }));
-            if(unspillFp16)
-                a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholderfp16, 0 }));
-            if(unspill)
-                a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholder, placeholderSPoff }));
-            break;
-        }
         case OP_CALL:
         case OP_CALL_NORET:
         {
