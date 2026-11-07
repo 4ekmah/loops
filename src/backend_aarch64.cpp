@@ -2078,6 +2078,10 @@ int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
         case (OP_CALL):
         case (OP_CALL_NORET):
             return LOOPS_VCALLER_SAVED_AMOUNT;
+        case (VOP_FMA):
+            if(a_op.size() == 5 && a_op[0].elemtype == TYPE_FP16)
+                return 1;
+            break;
         default:
             break;
         }
@@ -2671,6 +2675,23 @@ void AArch64ARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
                 && op[0].idx == op[1].idx))
                 a_dest.program.push_back(op);
             break;
+        case VOP_FMA:
+        {
+            if(op.size() == 5 && op[0].elemtype == TYPE_FP16 && op[3].tag == Arg::VREG && op[3].idx > 15)
+            {
+                Arg placeholder = op[3];
+                placeholder.idx = lsb64(~makeBitmask64({(size_t)(op[0].idx), (size_t)(op[1].idx), (size_t)(op[2].idx), (size_t)(op[3].idx)}) & 0xffff);
+                Syntop relocated = op;
+                relocated[3] = placeholder;
+                a_dest.program.push_back(Syntop(OP_SPILL, { 0, placeholder }));
+                a_dest.program.push_back(Syntop(OP_MOV, { placeholder, op[3] }));
+                a_dest.program.push_back(relocated);
+                a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholder, 0 }));
+            }
+            else
+                a_dest.program.push_back(op);
+            break;
+        }
         case OP_CALL:
         case OP_CALL_NORET:
         {

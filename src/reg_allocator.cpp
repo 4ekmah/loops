@@ -1492,7 +1492,10 @@ RegisterAllocator::SpillInfo RegisterAllocator::modelSpills(const Syntfunc& a_so
         if(need_transfer_scratch)
             largest_scratch_register = std::max(largest_scratch_register, m_basketElemX[basket_num]);
     }
-    const int first_non_scratch_stack_position = std::max(m_snippet_caused_spills, largest_scratch_register);
+    int first_non_scratch_stack_position = std::max(m_snippet_caused_spills, largest_scratch_register);
+    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+        if(first_non_scratch_stack_position % m_basketElemX[basket_num])
+            first_non_scratch_stack_position += m_basketElemX[basket_num] - (first_non_scratch_stack_position % m_basketElemX[basket_num]);
     to_fill.spAddAligned = first_non_scratch_stack_position;
 
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
