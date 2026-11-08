@@ -227,7 +227,7 @@ namespace loops
             original_amount[basket_num] = (int)(*m_live_intervals)[basket_num].size();
 
         //Information for packet insert of pseudoblocks for instructions with AR_FIXED restrictions. 
-        std::vector<FixedMarker> fixed_blocks_markers;
+        std::vector<RestrictionMarker> fixed_blocks_markers;
 
         std::vector<BasicBlocksTree*> bbt_stack;
         bbt_stack.push_back(m_bbt.get());
@@ -255,7 +255,7 @@ namespace loops
             AllocationRestriction restriction = m_backend->getRestriction(op);
             if(restriction.type & AllocationRestriction::AR_INPLACE)
             {
-                if(restriction.inplace.commutative == false)
+                if(restriction.inplace.m_commutative == false)
                 {
                     int onum = restriction.inplace.m_output_num;
                     int inum = restriction.inplace.m_input_num;
@@ -337,22 +337,26 @@ namespace loops
             }
             else 
                 a_dest.program.push_back(op);
-            if(restriction.type & AllocationRestriction::AR_FIXED)
+            const bool fixed_restriction = restriction.type & AllocationRestriction::AR_FIXED;
+            const bool consecutive_restriction = restriction.type & AllocationRestriction::AR_CONSECUTIVE;
+            if(fixed_restriction || consecutive_restriction)
             {
+                LOOPS_ASSERT(!(fixed_restriction && consecutive_restriction));
                 std::array<std::unordered_set<RegIdx>, RB_AMOUNT> clobbers; 
                 int newopnum = (int)a_dest.program.size() - 1;
-                for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
-                    for(int cnum = 0; cnum < (int)restriction.fixed.m_clobbers[basket_num].size(); cnum++)
-                    {
-                        RegIdx clobberidx = a_dest.provideIdx(basket_num);
-                        LiveInterval clobber_interval(clobberidx, newopnum);
-                        clobber_interval.end = clobber_interval.start + 1;
-                        for(BasicBlocksTree* block : bbt_stack)
-                            block->reg_occurencies[basket_num].insert(clobberidx);
-                        clobbers[basket_num].insert(clobberidx);
-                        (*m_live_intervals)[basket_num].push_back(clobber_interval);
-                    }
-                fixed_blocks_markers.emplace_back(FixedMarker{newopnum, clobbers});
+                if(fixed_restriction)
+                    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                        for(int cnum = 0; cnum < (int)restriction.fixed.m_clobbers[basket_num].size(); cnum++)
+                        {
+                            RegIdx clobberidx = a_dest.provideIdx(basket_num);
+                            LiveInterval clobber_interval(clobberidx, newopnum);
+                            clobber_interval.end = clobber_interval.start + 1;
+                            for(BasicBlocksTree* block : bbt_stack)
+                                block->reg_occurencies[basket_num].insert(clobberidx);
+                            clobbers[basket_num].insert(clobberidx);
+                            (*m_live_intervals)[basket_num].push_back(clobber_interval);
+                        }
+                fixed_blocks_markers.emplace_back(RestrictionMarker{newopnum, clobbers});
             }
             op_positions[opnum] = (int)a_dest.program.size() - 1;
         }
@@ -366,13 +370,13 @@ namespace loops
             }
         for(const InputDyingOnMov& input : inputs_dying_on_mov)
             (*m_live_intervals)[input.basket_num][input.idx].end = input.mov_pos + 1;
-        std::vector<FixedMarker>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
+        std::vector<RestrictionMarker>::const_reverse_iterator fixed_markers_iterator = fixed_blocks_markers.crbegin();
         remap_block_positions(m_bbt, op_positions, fixed_markers_iterator, fixed_blocks_markers.crend());
     }
 
     void RestrictionsProcesssing::remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions,
-                                      std::vector<FixedMarker>::const_reverse_iterator& fixed_markers_iterator,
-                                      std::vector<FixedMarker>::const_reverse_iterator fixed_markers_end)
+                                      std::vector<RestrictionMarker>::const_reverse_iterator& fixed_markers_iterator,
+                                      std::vector<RestrictionMarker>::const_reverse_iterator fixed_markers_end)
     {
         const int newstart = op_positions[block->start_pos];
         const int newend = op_positions[block->end_pos - 1] + 1;
@@ -696,8 +700,8 @@ namespace loops
             run_pass(braPass.get());
         LivenessAnalysisAlgo LAalgo(m_backend);
         run_pass(&LAalgo); // inplace
-        RestrictionsProcesssing inplaceUnfolding(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree());
-        run_pass(&inplaceUnfolding); // inplace
+        RestrictionsProcesssing restrictions_processsing(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree());
+        run_pass(&restrictions_processsing); // inplace
         RegisterAllocator regalloc(m_backend, LAalgo.live_intervals(), LAalgo.getBasicBlocksTree(), LAalgo.getSnippetCausedSpills(), LAalgo.haveFunctionCalls());
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             if (m_parameterRegistersO[basketNum].size() != 0 || m_returnRegistersO[basketNum].size() != 0 || m_callerSavedRegistersO[basketNum].size() != 0 || m_calleeSavedRegistersO[basketNum].size() != 0)

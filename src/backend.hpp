@@ -104,7 +104,7 @@ struct AllocationRestriction
         int m_output_num; 
         int m_input_num;
         int m_input_aux_num; // Only for commutative inplaces. if equal to UNDEFINED_ARGUMENT_NUMBER, and commutative, it's unary operation.
-        bool commutative;
+        bool m_commutative;
     };
     struct FixedDescription
     {
@@ -113,8 +113,9 @@ struct AllocationRestriction
     };
     struct ConsecutiveDescription
     {
-        int m_idx_start;
-        int m_idx_end;
+        int m_basket_num;
+        int m_arg_start;
+        int m_amount;
     };
     InplaceDescription inplace;
     FixedDescription fixed;
@@ -124,6 +125,7 @@ struct AllocationRestriction
     static AllocationRestriction makeInplaceUnary(int output_num, int input_num);
     static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
     static AllocationRestriction makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers = std::array<std::vector<RegIdx>, RB_AMOUNT>());
+    static AllocationRestriction makeConsecutive(int basket_num, int arg_start, int amount);
 };
 
 AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1);

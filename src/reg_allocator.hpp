@@ -53,7 +53,7 @@ public:
     RegIdx provideReservedReg(int basket_num, RegIdx reg, RegIdx vidx, int from, int needed_until);
     void dropReservation(int basket_num, RegIdx reg, int from); 
     void clearReservations(int basket_num, bool weak = false);
-    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount, int from, int needed_until);
+    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount, const std::vector<RegIdx>& hints, int from, const std::vector<int>& needed_until);
     RegIdx provideReturnFromPool(int basket_num);
     void releaseReg(int basket_num, RegIdx freeReg);
 
@@ -185,14 +185,21 @@ private:
 
     std::unordered_map<RegIdx, RegIdx> makeBlocksHints(std::vector<RegisterReassignment>& assignments,
                                                        const std::vector<BasicBlocksTreePtr>& blocks);
+    void handleConsecutiveRestriction(int basket_num, const Syntfunc& a_source,
+                                      const BasicBlocksTree& pseudoblock, const BasicBlocksTree& block,
+                                      std::vector<RegisterReassignment>& block_reassignment,
+                                      std::vector<RegisterReassignment>& negotiated_assignments,
+                                      RegisterPool& result_pool,
+                                      std::unordered_map<RegIdx, RegIdx>& hints);
     
     //===============Allocation itself===============
     void linearScan(int basket_num, const Syntfunc& a_source,
                     const std::multiset<LiveInterval, startordering>& liveintervals,
                     std::multiset<LiveInterval, endordering>& active,
                     std::vector<RegisterReassignment>& block_reassignment,
+                    std::vector<RegisterReassignment>& negotiated_assignments,
                     RegisterPool& result_pool,
-                    const std::unordered_map<RegIdx, RegIdx>& hints,
+                    std::unordered_map<RegIdx, RegIdx>& hints,
                     const BasicBlocksTree& block); //Used regs have priority over non-used
 
     //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree.

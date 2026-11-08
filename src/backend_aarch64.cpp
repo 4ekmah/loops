@@ -2216,6 +2216,8 @@ AllocationRestriction Aarch64Backend::getRestriction(const Syntop& a_op) const
         case (VOP_FMA):
         case (VOP_SELECT):
             return AllocationRestriction::makeInplace(0, 1);
+        case (VOP_ARM_LD2):
+            return AllocationRestriction::makeConsecutive(RB_VEC, 0, 2);
         default: return AllocationRestriction::makeNone();
     }
 }

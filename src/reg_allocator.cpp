@@ -349,32 +349,62 @@ size_t RegisterPool::freeRegsAmount(int basket_num, int needed_until) const
     return free_regs > MAXIMUM_SPILLS ? free_regs - MAXIMUM_SPILLS : 0;
 }
 
-std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amount, int from, int needed_until)
+std::vector<RegIdx> RegisterPool::provideConsecutiveRegs(int basket_num, int amount, const std::vector<RegIdx>& hints, int from, const std::vector<int>& needed_until)
 {
-    int amount_temp = amount; 
-    std::vector<RegIdx> res;
-    std::vector<RegIdx> fragmented;
-    res.reserve(amount);
-    fragmented.reserve(32);
-    while(amount_temp > 0)
+    LOOPS_ASSERT(amount > 0 && (int)hints.size() == amount && (int)needed_until.size() == amount);
+    const int last_start = m_maxRegisterNumber[basket_num] - amount + 1;
+    LOOPS_ASSERT(last_start >= 0);
+
+    std::vector<uint64_t> available(amount);
+    std::vector<uint64_t> preferred(amount);
+    for(int offset = 0; offset < amount; offset++)
     {
-        RegIdx next = provideRegFromPool(basket_num, NOIDX, NOIDX, from, needed_until);
-        if(next == NOIDX)
-            throw loops::exception("Register allocator: register space is too fragmented for ld2/ld3/ld4.");
-        if(res.empty() || next == res.back() + 1)
-        {
-            amount_temp--;
-        }
-        else
-        {
-            fragmented.insert(fragmented.end(), res.begin(), res.end());
-            res.clear();
-            amount_temp = amount - 1;
-        }
-        res.push_back(next);
+        const uint64_t hard = reservedMask(basket_num, from, needed_until[offset]);
+        const uint64_t weak = reservedMask(basket_num, from, needed_until[offset], true);
+        available[offset] = m_pool[basket_num] & ~hard;
+        preferred[offset] = available[offset] & ~weak;
     }
-    for(auto t_rel : fragmented)
-        releaseReg(basket_num, t_rel);
+
+    int best_start = 0;
+    int best_reusable = -1;
+    int best_hints = -1;
+    int best_preferred = -1;
+    for(int start = 0; start <= last_start; start++)
+    {
+        int reusable_amount = 0;
+        int hint_amount = 0;
+        int preferred_amount = 0;
+        for(int offset = 0; offset < amount; offset++)
+        {
+            const RegIdx reg = start + offset;
+            const uint64_t reg_bit = uint64_t(1) << reg;
+            const bool hint_match = hints[offset] == reg;
+            const bool is_available = (available[offset] & reg_bit) != 0;
+            const bool is_preferred = (preferred[offset] & reg_bit) != 0;
+            reusable_amount += hint_match || is_available;
+            hint_amount += hint_match;
+            preferred_amount += hint_match || is_preferred;
+        }
+        if(reusable_amount > best_reusable ||
+           (reusable_amount == best_reusable && hint_amount > best_hints) ||
+           (reusable_amount == best_reusable && hint_amount == best_hints && preferred_amount > best_preferred))
+        {
+            best_start = start;
+            best_reusable = reusable_amount;
+            best_hints = hint_amount;
+            best_preferred = preferred_amount;
+        }
+    }
+
+    std::vector<RegIdx> res;
+    res.reserve(amount);
+    for(int offset = 0; offset < amount; offset++)
+    {
+        const RegIdx reg = best_start + offset;
+        res.push_back(reg);
+        if(m_reorderArch2Inner[basket_num][CALLEE_VESS][reg] != REG_UNDEF)
+            m_usedCallee[basket_num].insert(reg);
+    }
     return res;
 }
 
@@ -895,12 +925,56 @@ std::unordered_map<RegIdx, RegIdx> RegisterAllocator::makeBlocksHints(std::vecto
     return result;
 }
 
+void RegisterAllocator::handleConsecutiveRestriction(int basket_num, const Syntfunc& a_source,
+                                                     const BasicBlocksTree& pseudoblock, const BasicBlocksTree& block,
+                                                     std::vector<RegisterReassignment>& block_reassignment,
+                                                     std::vector<RegisterReassignment>& negotiated_assignments,
+                                                     RegisterPool& result_pool,
+                                                     std::unordered_map<RegIdx, RegIdx>& hints)
+{
+    const int opnum = pseudoblock.start_pos;
+    const Syntop& op = a_source.program[opnum];
+    AllocationRestriction restriction = m_backend->getRestriction(op);
+    LOOPS_ASSERT(restriction.type & AllocationRestriction::AR_CONSECUTIVE);
+    LOOPS_ASSERT(restriction.consecutive.m_basket_num == basket_num);
+    const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
+    std::vector<RegIdx> vidxs(restriction.consecutive.m_amount);
+    std::vector<RegIdx> chints(restriction.consecutive.m_amount, NOIDX);
+    std::vector<int> needed_until(restriction.consecutive.m_amount, NOIDX);
+    std::array<std::vector<RegIdx>, RB_AMOUNT> pb2add;
+    for(int rnum = 0; rnum < (int)vidxs.size(); rnum++)
+    {
+        RegIdx vidx = op.args[restriction.consecutive.m_arg_start + rnum].idx;
+        vidxs[rnum] = vidx;
+        if(!block_reassignment[vidx].args.empty())
+        {
+            Arg& arg = block_reassignment[vidx].getAt(opnum);
+            if(arg.tag == (basket_num == RB_INT ? Arg::IREG : Arg::VREG))
+                chints[rnum] = arg.idx;
+        }
+        else if(hints.count(vidx) != 0)
+            chints[rnum] = hints.at(vidx);
+        needed_until[rnum] = std::min(raw_intervals[vidx].end, block.end_pos);
+        pb2add[basket_num].push_back(vidx);
+    }
+    m_pseudoblock_vidxs.insert(std::make_pair(opnum, pb2add));
+    std::vector<RegIdx> hwidxs = result_pool.provideConsecutiveRegs(basket_num, restriction.consecutive.m_amount, chints, opnum, needed_until);
+    for(int rnum = 0; rnum < (int)vidxs.size(); rnum++)
+    {
+        RegIdx vidx = vidxs[rnum];
+        if(chints[rnum] == NOIDX && hints.count(vidx) == 0)
+            hints[vidx] = hwidxs[rnum];
+        negotiated_assignments[vidx].overlaySplit(opnum, pseudoblock.end_pos, argReg(basket_num, hwidxs[rnum]));
+    }
+}
+
 void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                                    const std::multiset<LiveInterval, startordering>& liveintervals,
                                    std::multiset<LiveInterval, endordering>& active,
                                    std::vector<RegisterReassignment>& block_reassignment,
+                                   std::vector<RegisterReassignment>& negotiated_assignments,
                                    RegisterPool& result_pool,
-                                   const std::unordered_map<RegIdx, RegIdx>& hints,
+                                   std::unordered_map<RegIdx, RegIdx>& hints,
                                    const BasicBlocksTree& block)
 {
     //Sorting intervals into packs: used first, hinted first.
@@ -946,15 +1020,43 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
             }
         }
 
+    std::vector<std::vector<BasicBlocksTreePtr> > consecutive_packs(packs.size());
+    {
+        std::vector<int> pack_of(block_reassignment.size(), -1);
+        for(int pnum = 0; pnum < (int)packs.size(); pnum++)
+            for(const LiveInterval& interval : packs[pnum])
+                pack_of[interval.idx] = pnum;
+        for(const BasicBlocksTreePtr& child : block.children)
+            if(child->type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
+            {
+                const Syntop& op = a_source.program[child->start_pos];
+                AllocationRestriction restriction = m_backend->getRestriction(op);
+                if(restriction.type & AllocationRestriction::AR_CONSECUTIVE && restriction.consecutive.m_basket_num == basket_num)
+                {
+                    int assignment_pack = (int)packs.size();
+                    for(int rnum = 0; rnum < restriction.consecutive.m_amount; rnum++)
+                    {
+                        const RegIdx vidx = op.args[restriction.consecutive.m_arg_start + rnum].idx;
+                        LOOPS_ASSERT(vidx >= 0 && vidx < (RegIdx)pack_of.size());
+                        if(pack_of[vidx] >= 0)
+                            assignment_pack = std::min(assignment_pack, pack_of[vidx]);
+                    }
+                    if(assignment_pack == (int)packs.size())
+                        assignment_pack = 0;
+                    consecutive_packs[assignment_pack].push_back(child);
+                }
+            }
+    }
+
     const int REGtag = ((basket_num == RB_INT) ? Arg::IREG : Arg::VREG);
+    const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
     std::multiset<LiveInterval, startordering> fixed;
     std::unordered_set<RegIdx> fixed_idxs;
     std::vector<LiveInterval> placed(active.begin(), active.end()); //Intervals scanned since the last pack change.
     for(int pnum = 0; pnum < (int)packs.size(); pnum++)
     {
-        std::vector<BasicBlocksTreePtr>::const_iterator pseudoblock_iterator = block.children.begin();
-        while(pseudoblock_iterator != block.children.end() && (*pseudoblock_iterator)->type != BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
-            pseudoblock_iterator++;
+        size_t pseudoblock_counter = 0;
+        const std::vector<BasicBlocksTreePtr>& consecutive_restrictions_blocks = consecutive_packs[pnum];
         if(pnum > 0)
         {
             for(const LiveInterval& li : active)
@@ -1103,7 +1205,6 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                             if(assigned.tag != REGtag)
                                 continue;
                             std::set<int> undefined_arg_nums;
-                            const std::vector<LiveInterval>& raw_intervals = (*m_liveintervals_raw)[basket_num];
                             for(int in : ins)
                             {
                                 RegIdx input_idx = op[in].idx;
@@ -1128,20 +1229,36 @@ void RegisterAllocator::linearScan(int basket_num, const Syntfunc& a_source,
                 hwReg = result_pool.provideRegFromPool(basket_num, interval->idx, poolHint, interval->start, hi, hint_needed_until);
                 block_reassignment[interval->idx] = RegisterReassignment(interval->start, hi, argReg(basket_num, hwReg));
             }
-            if(pseudoblock_iterator != block.children.end() && interval->end > (*pseudoblock_iterator)->start_pos + 1)
+            while(pseudoblock_counter < consecutive_restrictions_blocks.size())
             {
-                //DUBUG: stub for LD-like instrustions.
-                // const Syntop& op = a_source.program[(*pseudoblock_iterator)->start_pos];
-                // AllocationRestriction restriction = m_backend->getRestriction(op);
-                // if(restriction.type & AllocationRestriction::AR_FIXED && op.args[restriction.fixed.m_arg_num].tag == REGtag)
-                // {
-                //     RegIdx vidx = op[restriction.fixed.m_arg_num].idx;
-                //     RegIdx hwidx = restriction.fixed.m_fixed_reg;
-                //     result_pool.reserveReg(basket_num, restriction.fixed.m_fixed_reg, node.children[cnum]->start_pos, true);
-                // }                
-                while(pseudoblock_iterator != block.children.end() && (*pseudoblock_iterator)->type != BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
-                    pseudoblock_iterator++;
+                const BasicBlocksTreePtr& pseudoblock = consecutive_restrictions_blocks[pseudoblock_counter];
+                const int opnum = pseudoblock->start_pos;
+                if(opnum > interval->start)
+                    break;
+                if(opnum == interval->start)
+                {
+                    const Syntop& op = a_source.program[opnum];
+                    AllocationRestriction restriction = m_backend->getRestriction(op);
+                    bool just_assigned_consecutive = false;
+                    for(int rnum = 0; rnum < restriction.consecutive.m_amount; rnum++)
+                        if(op.args[restriction.consecutive.m_arg_start + rnum].idx == interval->idx)
+                        {
+                            just_assigned_consecutive = true;
+                            break;
+                        }
+                    if(!just_assigned_consecutive)
+                        break;
+                }
+                handleConsecutiveRestriction(basket_num, a_source, *pseudoblock, block,
+                                             block_reassignment, negotiated_assignments, result_pool, hints);
+                pseudoblock_counter++;
             }
+        }
+        while(pseudoblock_counter < consecutive_restrictions_blocks.size())
+        {
+            handleConsecutiveRestriction(basket_num, a_source, *consecutive_restrictions_blocks[pseudoblock_counter], block,
+                                         block_reassignment, negotiated_assignments, result_pool, hints);
+            pseudoblock_counter++;
         }
     }
     result_pool.clearReservations(basket_num);
@@ -1184,7 +1301,7 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
             iter++;
         }
     }
-    //2. Handling pseudoblocks
+    //2. Handling AR_FIXED pseudoblocks
     if(node.type == BasicBlocksTree::BBT_ALLOCATION_RESTRICTION)
     {
         const Syntop& op = a_source.program[node.start_pos];
@@ -1272,7 +1389,7 @@ void RegisterAllocator::allocateBlock(int basket_num, const BasicBlocksTree& nod
                                                                                           node.children, children_live, children_pools);
     //4. Linear scan of block itself with geven hints from children and final merging.
     std::unordered_map<RegIdx, RegIdx> hints = makeBlocksHints(negotiated_assignments, node.children);
-    linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, result_pool, hints, node);
+    linearScan(basket_num, a_source, blockIntervals, active, block_reassignment, negotiated_assignments, result_pool, hints, node);
     result_pool.clearReservations(basket_num, true);
     //5. Overlay children splits over the block's own ones. A child's split that landed on the same register
     //as the block's is the same location: the objects are united, so a later renaming moves them together

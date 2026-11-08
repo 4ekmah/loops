@@ -101,7 +101,7 @@ AllocationRestriction AllocationRestriction::makeInplace(int output_num, int inp
     result.type = AllocationRestriction::AR_INPLACE;
     result.inplace.m_output_num = output_num;
     result.inplace.m_input_num = input_num;
-    result.inplace.commutative = false;
+    result.inplace.m_commutative = false;
     return result;
 }
 AllocationRestriction AllocationRestriction::makeInplaceUnary(int output_num, int input_num)
@@ -116,15 +116,26 @@ AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_n
     result.inplace.m_output_num = output_num;
     result.inplace.m_input_num = input_num;
     result.inplace.m_input_aux_num = input_aux_num;
-    result.inplace.commutative = true;
+    result.inplace.m_commutative = true;
     return result;
 }
+
 AllocationRestriction AllocationRestriction::makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers)
 {
     AllocationRestriction result;
     result.type = AllocationRestriction::AR_FIXED;
     result.fixed.m_pins = pins;
     result.fixed.m_clobbers = clobbers;
+    return result;
+}
+
+AllocationRestriction AllocationRestriction::makeConsecutive(int basket_num, int arg_start, int amount)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_CONSECUTIVE;
+    result.consecutive.m_basket_num = basket_num;
+    result.consecutive.m_arg_start = arg_start;
+    result.consecutive.m_amount = amount;
     return result;
 }
 
