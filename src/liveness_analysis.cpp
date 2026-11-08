@@ -145,7 +145,7 @@ public:
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual std::array<std::vector<LiveInterval>, RB_AMOUNT>* live_intervals() override final { return &m_liveintervals; }
     virtual int getSnippetCausedSpills() const override final { return m_snippetCausedSpills; }
-    virtual BasicBlocksTreePtr getBasicBlocksTree() const { return m_basic_blocks_tree; }
+    virtual BasicBlocksTreePtr getBasicBlocksTree() const override final { return m_basic_blocks_tree; }
     virtual bool haveFunctionCalls() const override final { return m_haveFunctionCalls; }
 private:
     struct SIEvent //Subinterval Event
