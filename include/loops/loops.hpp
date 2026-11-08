@@ -197,6 +197,7 @@ class Func;
 class Expr;
 class IExpr;
 
+enum {NOIDX = -1};
 struct IReg
 {
     IReg();
@@ -215,7 +216,6 @@ struct IReg
 
     int idx;
     Func* func;
-    enum {NOIDX = -1};
 };
 
 class Context;
@@ -241,7 +241,6 @@ template<typename _Tp> struct VReg
 
     int idx;
     Func* func;
-    enum {NOIDX = -1};
 };
 
 typedef VReg<uint8_t> VReg8u;
@@ -261,6 +260,21 @@ struct Arg
     inline Arg();
     inline Arg(const IReg& r);
     Arg(int64_t a_value);
+    bool operator==(const Arg& who) const 
+    {
+        if(tag != who.tag)
+            return false;
+        switch (tag)
+        {
+        case IREG: case VREG: return idx == who.idx;
+        case ISPILLED: case VSPILLED: case IIMMEDIATE: return value == who.value;
+        default: return true; //EMPTY is always equal to EMPTY
+        }
+    }
+    bool operator!=(const Arg& who) const
+    {
+        return !((*this) == who);
+    }
     template<typename _Tp>
     Arg(const VReg<_Tp>& vr);
     int idx;
@@ -468,7 +482,7 @@ typedef int64_t (*funcptr8_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64
 //     //end of 2 loop<──┘
 // }
 #define BREAK_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).break_(__VA_ARGS__)
-#define CONTINUE_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_()
+#define CONTINUE_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).continue_(__VA_ARGS__)
 #define RETURN_(...) loops::__Loops_CF_rvalue_(&__loops_ctx__).return_(__VA_ARGS__)
 
 //Call signature:

@@ -37,6 +37,29 @@ public:
     virtual ~ElifElimination() {}
 };
 
+//Unfortunately, only inplaces can be handled here. Other are just marked. 
+class RestrictionsProcesssing : public CompilerPass
+{
+public:
+    RestrictionsProcesssing(const Backend* a_backend, std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt);
+    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
+    virtual bool is_inplace() const override final { return false; }
+    virtual std::string pass_id() const override final { return "CP_RESTRICTIONS_PROCESSING"; }
+    virtual ~RestrictionsProcesssing() override {}
+private:
+    struct RestrictionMarker
+    {
+        int newopnum;
+        std::array<std::unordered_set<RegIdx>, RB_AMOUNT> clobbers;
+    };
+    
+    std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_live_intervals;
+    static void remap_block_positions(BasicBlocksTreePtr block, const std::vector<int>& op_positions,
+                                      std::vector<RestrictionMarker>::const_reverse_iterator& fixed_markers_iterator,
+                                      std::vector<RestrictionMarker>::const_reverse_iterator fixed_markers_end);
+    BasicBlocksTreePtr m_bbt;
+};
+
 class Cf2jumps: public CompilerPass
 {
 public:

@@ -88,6 +88,71 @@ int SyntopTranslation::targetArgNum(int a_srcnum) const
     return res;
 }
 
+AllocationRestriction AllocationRestriction::makeNone()
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_NONE;
+    return result;
+}
+
+AllocationRestriction AllocationRestriction::makeInplace(int output_num, int input_num)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_INPLACE;
+    result.inplace.m_output_num = output_num;
+    result.inplace.m_input_num = input_num;
+    result.inplace.m_commutative = false;
+    return result;
+}
+AllocationRestriction AllocationRestriction::makeInplaceUnary(int output_num, int input_num)
+{
+    return makeInplaceCommutative(output_num, input_num, UNDEFINED_ARGUMENT_NUMBER);
+}
+
+AllocationRestriction AllocationRestriction::makeInplaceCommutative(int output_num, int input_num, int input_aux_num)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_INPLACE;
+    result.inplace.m_output_num = output_num;
+    result.inplace.m_input_num = input_num;
+    result.inplace.m_input_aux_num = input_aux_num;
+    result.inplace.m_commutative = true;
+    return result;
+}
+
+AllocationRestriction AllocationRestriction::makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_FIXED;
+    result.fixed.m_pins = pins;
+    result.fixed.m_clobbers = clobbers;
+    return result;
+}
+
+AllocationRestriction AllocationRestriction::makeConsecutive(int basket_num, int arg_start, int amount)
+{
+    AllocationRestriction result;
+    result.type = AllocationRestriction::AR_CONSECUTIVE;
+    result.consecutive.m_basket_num = basket_num;
+    result.consecutive.m_arg_start = arg_start;
+    result.consecutive.m_amount = amount;
+    return result;
+}
+
+AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1)
+{
+    LOOPS_ASSERT((r0.type&r1.type) == 0);
+    AllocationRestriction result = r0;
+    result.type = result.type | r1.type;
+    if(r1.type&AllocationRestriction::AR_CONSECUTIVE)
+        result.consecutive = r1.consecutive; 
+    if(r1.type&AllocationRestriction::AR_FIXED)
+        result.fixed = r1.fixed; 
+    if(r1.type&AllocationRestriction::AR_INPLACE)
+        result.inplace = r1.inplace;
+    return result;
+}
+
 Backend::~Backend()
 {}
 
@@ -128,8 +193,11 @@ std::set<int> Backend::filterStackPlaceable(const Syntop& /*a_op*/, const std::s
     return std::set<int>();
 }
 
-int Backend::reusingPreferences(const Syntop& /*a_op*/, const std::set<int>& /*undefinedArgNums*/) const
+int Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
 {
+    if(a_op.opcode == OP_MOV) 
+        if (undefinedArgNums.count(1))
+            return 1;
     return UNDEFINED_ARGUMENT_NUMBER;
 }
 
@@ -205,6 +273,12 @@ std::set<RegIdx> Backend::getOutRegisters(const Syntop& a_op, int basketNum) con
 std::set<RegIdx> Backend::getInRegisters(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegisters(a_op, basketNum, AF_INPUT);
+}
+
+AllocationRestriction Backend::getRestriction(const Syntop& a_op) const
+{
+    (void)a_op;
+    return AllocationRestriction::makeNone();
 }
 
 void Backend::fill_native_operand_flags(const Syntop* a_op, uint64_t* result) const

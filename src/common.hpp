@@ -12,9 +12,11 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <set>
 #include <stack>
 #include <unordered_map>
+#include <unordered_set>
 #include <typeindex>
 #include <memory>
 #include <atomic>
+#include <array>
 
 namespace loops
 {
@@ -154,16 +156,28 @@ namespace loops
 
     inline int invertCondition(int condition)
     {
-        return condition == OP_EQ ? OP_NE : (condition == OP_NE ? OP_EQ : (condition == OP_LT ? OP_GE : (condition == OP_GT ? OP_LE : (condition == OP_UGT ? OP_ULE : (condition == OP_LE ? OP_GT : (condition == OP_ULE ? OP_UGT : (condition == OP_GE ? OP_LT : OP_NOINIT)))))));
-        //    condition == IC_S   ? IC_NS : (
-        //    condition == IC_NS  ? IC_S  : OP_NOINIT)))))))));
+        return condition == OP_EQ ? OP_NE : 
+               condition == OP_NE ? OP_EQ : 
+               condition == OP_LT ? OP_GE : 
+               condition == OP_GT ? OP_LE : 
+               condition == OP_UGT ? OP_ULE : 
+               condition == OP_LE ? OP_GT : 
+               condition == OP_ULE ? OP_UGT : 
+               condition == OP_GE ? OP_LT : 
+               condition == OP_S ? OP_NS : 
+               condition == OP_NS ? OP_S : OP_NOINIT;
+    }
+
+    static inline uint64_t regBit(RegIdx hwidx)
+    {
+        return uint64_t(1) << hwidx;
     }
 
     static inline uint64_t makeBitmask64(std::initializer_list<size_t> regNumbers)
     {
         uint64_t res = 0;
         for (size_t bitnum : regNumbers)
-            res |= (static_cast<uint64_t>(1) << bitnum);
+            res |= regBit((RegIdx)bitnum);
         return res;
     }
 
@@ -373,6 +387,76 @@ namespace loops
         LOOPS_ASSERT(wrapper);
         return static_cast<ContextImpl *>(_getImpl(wrapper));
     }
-}
+    template <typename _Tp>
+    class DisjointSetUnion
+    {
+        struct Node
+        {
+            _Tp value;
+            std::shared_ptr<Node> parent;
+        };
+        std::shared_ptr<Node> node;
+        static std::shared_ptr<Node> find(std::shared_ptr<Node> n)
+        {
+            while (n->parent)
+            {
+                if (n->parent->parent)
+                    n->parent = n->parent->parent;
+                n = n->parent;
+            }
+            return n;
+        }
+    public:
+        DisjointSetUnion(){}
+        DisjointSetUnion(const _Tp& initVal) : node(std::make_shared<Node>(Node{initVal, nullptr})) {}
+        bool isConnected(const DisjointSetUnion& who) const
+        {
+            return node && who.node && find(node) == find(who.node);
+        }
+        bool isEmpty() const
+        {
+            return node.get() == nullptr;
+        }
+        void merge(const DisjointSetUnion& who)
+        {
+            LOOPS_ASSERT(node && who.node);
+            auto a = find(node), b = find(who.node);
+            if(a != b)
+                a->parent = b;
+        }
+        _Tp* operator->() const { return &find(node)->value; }
+        _Tp* operator->() { return &find(node)->value; }
+        _Tp& operator*()  const { return find(node)->value; }
+        _Tp& operator*() { return find(node)->value; }
+    };
 
+    /*
+    TODO(ch): Implement with RISC-V RVV
+    There will be needed modification for support of connected(nested) vectors:
+    Nested vector register must be redefined on redefinition of container vector,
+    but only if this nested register will be used after this redefinition.
+    */
+    struct LiveInterval
+    {
+        int start, end;
+        RegIdx idx;
+        LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx) {}
+    };
+
+    struct BasicBlocksTree
+    {
+        std::vector<std::shared_ptr<BasicBlocksTree> > children;
+        // BBT_ALLOCATION_RESTRICTION is pseudoblock, used for instructions which 
+        // have restrictions on registers to use.
+        enum {BBT_IF, BBT_WHILE, BBT_FUNC, BBT_ALLOCATION_RESTRICTION};
+        int type;
+        int start_pos;
+        int end_pos;
+        int else_pos;
+        std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
+        BasicBlocksTree() {}
+        BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
+    };
+    typedef std::shared_ptr<BasicBlocksTree> BasicBlocksTreePtr;
+}
 #endif //__LOOPS_COMMON_HPP__

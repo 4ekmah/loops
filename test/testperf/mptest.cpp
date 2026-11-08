@@ -534,7 +534,7 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
     for(int ntask = 0; ntask < threads; ntask++)
     {
         int NCtask = (ntask < tailTaskNum) ? NCtask_ + 1: NCtask_;
-        dwc_algs_limits* algs_limits = (ntask < tailTaskNum) ? &algs_limits_ : &algs_limits_tail;
+        dwc_algs_limits* algs_limits = (ntask < tailTaskNum || !tailTaskNum) ? &algs_limits_ : &algs_limits_tail;
 
         std::vector<_Tp> outdata(H0*W0*NCtask * 3, empty_value);
         _Tp* optr = &(outdata[0]) + H0*W0*NCtask;
@@ -557,7 +557,7 @@ bool MaxpoolTestImpl::handleFixtureMultithread(const std::vector<int>& fxt)
     for(int ntask = 0; ntask < threads; ntask++)
     {
         int NCtask = (ntask < tailTaskNum) ? NCtask_ + 1: NCtask_;
-        dwc_algs_limits* algs_limits = (ntask < tailTaskNum) ? &algs_limits_ : &algs_limits_tail;
+        dwc_algs_limits* algs_limits = (ntask < tailTaskNum || !tailTaskNum) ? &algs_limits_ : &algs_limits_tail;
         mtdatas[ntask] = mtCallData<_Tp>(func, inptr + NC0 * H * W, H, W, NCtask, optr + NC0 * H0 * W0, H0, W0, algs_limits);
         tpool.push_back(std::thread(&(mtCall<_Tp>), &(mtdatas[ntask])));
         NC0 += NCtask;

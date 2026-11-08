@@ -12,6 +12,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "composer.hpp"
 #include "printer.hpp"
 #include <vector>
+#include <array>
 #include <set>
 #include <map>
 
@@ -94,6 +95,41 @@ namespace SyntopTranslationConstruction
     inline SyntopTranslation::ArgTranslation SAcopelt(int argnum, int elemtype, uint64_t flags = 0) { return SyntopTranslation::ArgTranslation(argnum, elemtype, flags); }
 }
 
+struct AllocationRestriction
+{
+    enum {AR_NONE = 0, AR_INPLACE = 1, AR_FIXED = 2, AR_CONSECUTIVE = 4};
+    int type;
+    struct InplaceDescription
+    {
+        int m_output_num; 
+        int m_input_num;
+        int m_input_aux_num; // Only for commutative inplaces. if equal to UNDEFINED_ARGUMENT_NUMBER, and commutative, it's unary operation.
+        bool m_commutative;
+    };
+    struct FixedDescription
+    {
+        std::vector<std::pair<int, RegIdx> > m_pins;
+        std::array<std::vector<RegIdx>, RB_AMOUNT> m_clobbers;
+    };
+    struct ConsecutiveDescription
+    {
+        int m_basket_num;
+        int m_arg_start;
+        int m_amount;
+    };
+    InplaceDescription inplace;
+    FixedDescription fixed;
+    ConsecutiveDescription consecutive;
+    static AllocationRestriction makeNone();
+    static AllocationRestriction makeInplace(int output_num, int input_num);
+    static AllocationRestriction makeInplaceUnary(int output_num, int input_num);
+    static AllocationRestriction makeInplaceCommutative(int output_num, int input_num, int input_aux_num);
+    static AllocationRestriction makeFixed(const std::vector<std::pair<int, RegIdx> >& pins, const std::array<std::vector<RegIdx>, RB_AMOUNT>& clobbers = std::array<std::vector<RegIdx>, RB_AMOUNT>());
+    static AllocationRestriction makeConsecutive(int basket_num, int arg_start, int amount);
+};
+
+AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1);
+
 class Backend
 {
 public:
@@ -115,6 +151,8 @@ public:
     std::set<RegIdx> getOutRegisters(const Syntop& a_op, int basketNum) const;
     std::set<RegIdx> getInRegisters(const Syntop& a_op, int basketNum) const;
 
+    virtual AllocationRestriction getRestriction(const Syntop& a_op) const;
+
     //It's assumed here, that Syntop is native, not IR. Return argument flags.
     //Result array have to be allocated before and have to be of (Syntop::SYNTOP_ARGS_MAX) size.
     void fill_native_operand_flags(const Syntop* a_op, uint64_t* result) const;
@@ -126,7 +164,7 @@ public:
     It's assumed offset from SP just after function call(without prologue).
     Offset measured not in bytes, each unit = 8 bytes. 
     */
-    virtual void getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const = 0;
+    virtual std::array<std::map<RegIdx, int>, RB_AMOUNT> getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const = 0;
     virtual int stackGrowthAlignment(int stackGrowth) const = 0;
     virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const = 0;
     virtual void writeCallerEpilogue(Syntfunc& prog, int stackGrowth) const = 0;
@@ -150,10 +188,10 @@ public:
     //In some architectures jumps are measured from start of jump instruction(Arm), on other
     //from first byte after end of instruction.
     inline bool postInstructionOffset() const { return m_postInstructionOffset; }
-    virtual std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
-    virtual std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
-    virtual std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
-    virtual std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
+    std::vector<int> parameterRegisters(int basketNum) const { return m_parameterRegisters[basketNum]; }
+    std::vector<int> returnRegisters(int basketNum) const { return m_returnRegisters[basketNum]; }
+    std::vector<int> callerSavedRegisters(int basketNum) const { return m_callerSavedRegisters[basketNum]; }
+    std::vector<int> calleeSavedRegisters(int basketNum) const { return m_calleeSavedRegisters[basketNum]; }
     inline std::string name() const { return m_name; };
 
     const std::vector<CompilerPassPtr>& getAfterRegAllocPasses() const { return m_afterRegAllocPasses; }

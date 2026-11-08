@@ -8,52 +8,18 @@ See https://github.com/4ekmah/loops/LICENSE
 #define __LOOPS_REG_ALLOCATOR_HPP__
 
 #include "loops/loops.hpp"
+#include "liveness_analysis.hpp"
 #include "backend.hpp"
 #include "common.hpp"
 #include "pipeline.hpp"
+#include <algorithm>
 #include <map>
+#include <memory>
+#include <set>
+#include <unordered_set>
 
 namespace loops {
-/*
-TODO(ch): Implement with RISC-V RVV
-There will be needed modification for support of connected(nested) vectors:
-Nested vector register must be redefined on redefinition of container vector,
-but only if this nested register will be used after this redefinition.
-*/
-struct LiveInterval
-{
-    int start, end;
-    RegIdx idx;
-    LiveInterval(RegIdx a_idx, int a_start) : start(a_start), end(a_start), idx(a_idx) {}
-};
 
-struct startordering
-{
-    bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.start < b.start; }
-};
-
-struct endordering
-{
-    bool operator() (const LiveInterval& a, const LiveInterval& b) const { return a.end < b.end; }
-};
-
-class LivenessAnalysisAlgo : public CompilerPass
-{
-public:
-    LivenessAnalysisAlgo(const Backend* a_owner);
-    virtual ~LivenessAnalysisAlgo();
-    virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override;
-        virtual bool is_inplace() const override final { return true; }
-        virtual std::string pass_id() const override final { return "CP_LIVENESS_ANALYSIS"; }
-
-    virtual std::vector<LiveInterval>* live_intervals();
-    virtual int getSnippetCausedSpills() const;
-    virtual bool haveFunctionCalls() const;
-protected:
-    LivenessAnalysisAlgo(const Backend* a_owner, int);
-private:
-    LivenessAnalysisAlgo* impl;
-};
 /*
 TODO(ch): Implement with RISC-V RVV
 For RVV support Register pool must be modified to support connected vectors(fractions and splices):
@@ -67,36 +33,57 @@ excepts connected vectors.
 class RegisterPool
 {
 public:
-    RegisterPool(Backend* m_owner);
+    RegisterPool(const Backend* m_owner);
 
     void initRegisterPool();
-    size_t freeRegsAmount(int basketNum) const;
-    inline bool havefreeRegs(int basketNum) const { return freeRegsAmount(basketNum) > 0; }
-    RegIdx provideParamFromPool(int basketNum);  //Must be called first.
+    inline RegIdx maxRegisterNumber(int basket_num) const { return m_maxRegisterNumber[basket_num]; }
+    RegIdx provideParamFromPool(int basket_num, int needed_until);  //Must be called first.
     // (There must be provided first registers from parameter vessel, further: return - callerSaved - calleeSaved).
-    RegIdx provideRegFromPool(int basketNum, RegIdx a_hint = IReg::NOIDX);
-    std::vector<RegIdx> provideConsecutiveRegs(int basketNum, int amount);
-    RegIdx provideReturnFromPool(int basketNum); //Must be called last.
-    void releaseReg(int basketNum, RegIdx freeReg);
+    // vidx is the virtual register, we want to allocate, we keep this information.
+    RegIdx provideRegFromPool(int basket_num, RegIdx vidx, RegIdx a_hint, int from, int needed_until, int hint_needed_until = -1);
+    size_t freeRegsAmount(int basket_num, int needed_until) const;
+    inline bool havefreeRegs(int basket_num, int needed_until) const { return freeRegsAmount(basket_num, needed_until) > 0; }
+    //Reservation mechanics for multipass linear scan, where registers are separated into different packs.
+    //This packs scanned one after another, so previously allocated registers have stay at their allocations.
+    //So, we are providing here tool for marking some registers, which will be allocated later and allocated 
+    //to certain hardware registers.
+    //If reservation is weak, it works like negative hint: pool have to try take another register, but 
+    //if it is impossible, he can provide weakly reserved one.
+    void reserveReg(int basket_num, RegIdx reg, int from, bool weak_reservation = false);
+    RegIdx provideReservedReg(int basket_num, RegIdx reg, RegIdx vidx, int from, int needed_until);
+    void dropReservation(int basket_num, RegIdx reg, int from); 
+    void clearReservations(int basket_num, bool weak = false);
+    std::vector<RegIdx> provideConsecutiveRegs(int basket_num, int amount, const std::vector<RegIdx>& hints, int from, const std::vector<int>& needed_until);
+    RegIdx provideReturnFromPool(int basket_num);
+    void releaseReg(int basket_num, RegIdx freeReg);
 
-    RegIdx provideSpillPlaceholder(int basketNum);
-    void clearSpillPlaceholders(int basketNum);
+    //Return virtual register assigned to hwidx and NOIDX if this hwidx is currenty free.
+    RegIdx getCurrentlyAssigned(int basket_num, RegIdx hwidx); 
 
-    inline std::set<RegIdx> usedCallee(int basketNum) const { return m_usedCallee[basketNum]; }
-    void overrideRegisterSet(int basketNum, const std::vector<int>&  a_parameterRegisters,
+    RegIdx provideSpillPlaceholder(int basket_num);
+    void clearSpillPlaceholders(int basket_num);
+
+    inline std::set<RegIdx> usedCallee(int basket_num) const { return m_usedCallee[basket_num]; }
+
+    //Functions for summarizing information about separate register allocations.
+    inline void mergeSpillPlaceholders(const RegisterPool& other);
+    inline void mergeUsedCallee(const RegisterPool& other);
+
+    void overrideRegisterSet(int basket_num, const std::vector<int>&  a_parameterRegisters,
                                             const std::vector<int>&  a_returnRegisters,
                                             const std::vector<int>&  a_callerSavedRegisters,
                                             const std::vector<int>&  a_calleeSavedRegisters);
         
-    void getOverridenParams(std::vector<int> (&regParsOverride)[RB_AMOUNT]) const;
+    std::array<std::vector<int>, RB_AMOUNT> getOverridenParams() const;
 private:
-    Backend* m_backend;
+    const Backend* m_backend;
     // Sometimes register can exist in more than one vessel(like parameter and return), so we have to trace
     // register to be erased from all of them.
-    void removeFromAllVessels(int basketNum, int reg);
-
+    void removeFromAllVessels(int basket_num, int reg);
+    RegIdx provideRegFromPool(int basket_num, RegIdx a_hint, uint64_t excluded);
+    uint64_t reservedMask(int basket_num, int from, int needed_until, bool weak = false) const;
     enum { PARAMS_VESS = 0, RETURN_VESS = 1, CALLER_VESS = 2, CALLEE_VESS = 3, VESS_AMOUNT = 4, REG_MAX = 64, REG_UNDEF = 255 };
-    enum { NOREGISTER = -1, MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
+    enum { MAXIMUM_SPILLS = 3}; //TODO(ch):need more detailed spill scheme, than just 3 spills.
     // Register pool have internal ordering of registers for supporting correct providing sequence.
     uint8_t m_reorderArch2Inner[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
     uint8_t m_reorderInner2Arch[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
@@ -105,7 +92,14 @@ private:
     uint64_t m_spillPlaceholders[RB_AMOUNT]; //There used outer register ordering
     uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
     std::set<RegIdx> m_usedCallee[RB_AMOUNT];
+    std::vector<int> m_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
+    std::vector<int> m_weak_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
+    RegIdx m_assigned[RB_AMOUNT][REG_MAX]; //Virtual register owning the hardware one, NOIDX for free(or unknown owner).
+    int m_reservationCursor[RB_AMOUNT][REG_MAX];
+    uint64_t m_reservedRegs[RB_AMOUNT]; //Registers with reservations not consumed yet: the only ones worth looking at.
+    uint64_t m_reservedWeaklyRegs[RB_AMOUNT];
     std::vector<int> m_registersO[RB_AMOUNT][VESS_AMOUNT];
+    int m_maxRegisterNumber[RB_AMOUNT];
 };
 
 /*
@@ -121,11 +115,12 @@ M4 provide 8 highest-level registers of hierarchy depth = 5.
 M1 provide 32 highest-level registers of hierarchy depth = 3.
 MF8 provide 256 highest-level registers of hierarchy depth = 0.
 */
+
 class FuncImpl;
 class RegisterAllocator : public CompilerPass
 {
 public:
-    RegisterAllocator(Backend* a_backend, const std::vector<LiveInterval>* a_live_intervals, int a_snippet_caused_spills, bool a_have_function_calls);
+    RegisterAllocator(Backend* a_backend, const std::array<std::vector<LiveInterval>, RB_AMOUNT>* a_live_intervals, BasicBlocksTreePtr a_bbt, int a_snippet_caused_spills, bool a_have_function_calls);
     virtual ~RegisterAllocator() override {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return false; } 
@@ -134,11 +129,142 @@ public:
     inline int epilogueSize() const { return m_epilogueSize; }
     RegisterPool& getRegisterPool() { return m_pool; }
 private:
+    const std::array<std::vector<LiveInterval>, RB_AMOUNT>* m_liveintervals_raw;
+    BasicBlocksTreePtr m_bbt;
+    //Pinned spill slot per register index
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_spill_slot_of;
+    int64_t getSpillSlot(RegIdx idx, int basket_num);
+    inline Arg getReassigned(int basket_num, int opnum, int old);
+    inline int64_t getSpillOffset(int basket_num, RegIdx reg, Arg spilled);
+    inline int64_t getSpillOffset(int basket_num, int opnum, RegIdx reg);
+    
+    void layOutLiveIntervals(const Syntfunc& a_source,
+                             std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals,
+                             std::array<std::vector<RegIdx>, RB_AMOUNT>& params_sorted);
+    //Erases IF_ nodes from basic blocks tree, becase IF_ doesn't affects performance.
+    void removeBranchesFromBBT(BasicBlocksTree& node);
     RegisterPool m_pool;
-    const std::vector<LiveInterval>* m_live_intervals;
+    RegisterPool m_poolBase; //Pool just after allocation parameters, cloned for every block allocation.
+
+    //===============Interval splitting===============
+    typedef DisjointSetUnion<Arg> AssignedArg;
+    struct RegisterReassignment
+    {
+        std::vector<int> bounds;
+        std::vector<AssignedArg> args;
+        int splitNumAt(int opnum) const;
+        Arg& getAt(int opnum);
+        const Arg& getAt(int opnum) const;
+        void overlaySplit(int start, int end, AssignedArg arg);
+        void overlaySplit(int start, int end, const Arg& arg) { overlaySplit(start, end, AssignedArg(arg)); }
+        void appendSplits(const RegisterReassignment& tail);
+        RegisterReassignment() {}
+        RegisterReassignment(int start, int end, const Arg& base_replace) :
+            bounds({start, end}), args({AssignedArg(base_replace)}) {}
+        //Split holding the value on entry to a block starting at block_start(the value can be defined inside).
+        inline int entrySplitNum(int block_start) const { return splitNumAt(block_start > bounds.front() ? block_start : bounds.front()); }
+        inline Arg& getAtEntry(int block_start) { return *args[entrySplitNum(block_start)]; }
+        inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
+    };
+
+    //===============Blocks negotiation===============
+    enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
+    std::unordered_map<int, std::array<std::vector<RegIdx>, RB_AMOUNT> > m_pseudoblock_vidxs;
+    void formNegotiationHeader(int basket_num,
+                            std::vector<RegisterReassignment>& assignment,
+                            const BasicBlocksTreePtr& block,
+                            const std::unordered_set<RegIdx>& live,
+                            std::vector<int>& weights,
+                            std::vector<RegIdx>& hw2reg);
+
+    std::vector<RegisterReassignment> negotiateAndMergeBlockAssignments(int basket_num,
+                                                                        std::vector<std::vector<RegisterReassignment>>& assignments,
+                                                                        const std::vector<BasicBlocksTreePtr>& blocks,
+                                                                        const std::vector<std::unordered_set<RegIdx>>& live,
+                                                                        std::vector<RegisterPool>& pools);
+
+    std::unordered_map<RegIdx, RegIdx> makeBlocksHints(std::vector<RegisterReassignment>& assignments,
+                                                       const std::vector<BasicBlocksTreePtr>& blocks);
+    void handleConsecutiveRestriction(int basket_num, const Syntfunc& a_source,
+                                      const BasicBlocksTree& pseudoblock, const BasicBlocksTree& block,
+                                      std::vector<RegisterReassignment>& block_reassignment,
+                                      std::vector<RegisterReassignment>& negotiated_assignments,
+                                      RegisterPool& result_pool,
+                                      std::unordered_map<RegIdx, RegIdx>& hints);
+    
+    //===============Allocation itself===============
+    void linearScan(int basket_num, const Syntfunc& a_source,
+                    const std::multiset<LiveInterval, startordering>& liveintervals,
+                    std::multiset<LiveInterval, endordering>& active,
+                    std::vector<RegisterReassignment>& block_reassignment,
+                    std::vector<RegisterReassignment>& negotiated_assignments,
+                    RegisterPool& result_pool,
+                    std::unordered_map<RegIdx, RegIdx>& hints,
+                    const BasicBlocksTree& block); //Used regs have priority over non-used
+
+    //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree.
+    void allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
+                       const std::multiset<LiveInterval, startordering>& parentIntervals,
+                       std::multiset<LiveInterval, endordering>& active,
+                       std::vector<RegisterReassignment>& block_reassignment,
+                       RegisterPool& result_pool);
+    
+    void pushAllocationDuplicates(int basket_num, std::vector<RegisterReassignment>& block_reassignment);
+
+    std::array<std::vector<RegisterReassignment>, RB_AMOUNT> assignRegisters(const Syntfunc& a_source,
+        const std::array<std::vector<LiveInterval>, RB_AMOUNT>& parintervals);
+
+    //===============Spills instructions appending===============
+    struct SpillInfo
+    {
+        std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> unspilledRenaming;
+        std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> spilledRenaming;
+        std::array<std::vector<std::set<int> >, RB_AMOUNT> stackPlaceable;
+        int nettoSpills[RB_AMOUNT] = {0, 0};
+        size_t basket_offset[RB_AMOUNT]; //Start postions of scalar and vector baskets in stack
+        int64_t m_spoffset[RB_AMOUNT] = {0, 0}; 
+        int spAddAligned;
+    };
+
+    SpillInfo modelSpills(const Syntfunc& a_source);
+
+    struct SplitTransfers
+    {
+        RegIdx vidx;
+        Arg src;
+        Arg dst;
+        int basket_num;
+        bool src_scratch;
+    };
+
+    void emitParallelCopy(Syntfunc& a_destination, const std::vector<SplitTransfers>& transfersHere);
+
+    //Inserts register transfers after to Handle BREAK_(n) and CONTINUE_(n) with n>1.
+    void insertMultiLevelJumpTransfers(const Syntfunc& a_source,
+                                       std::vector<std::vector<SplitTransfers> >& a_split_transfers);
+
+    void insertSpillInstructions(const Syntfunc& a_source, Syntfunc& a_destination);
+
+    void writePrologue(Syntfunc& a_destination);
+    void writeEpilogue(Syntfunc& a_destination);
+
     int m_snippet_caused_spills;
     bool m_have_function_calls;
     int m_epilogueSize;
+
+    //Algorithm constants:
+    int m_basketElemX[RB_AMOUNT];
+    Arg m_retreg;
+    
+    //Widely used algorithm variables:
+    std::array<std::vector<RegisterReassignment>, RB_AMOUNT> m_reg_reassignment;
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> m_stackParamLayout;
+    std::array<std::vector<RegIdx>, RB_AMOUNT> m_params_sorted;
+    SpillInfo m_spill_info;
+
+    inline bool isParam(int basket_num, int idx);
+    inline bool isRegisterPassedParam(int basket_num, int idx);
+    inline bool isStackPassedParam(int basket_num, int idx);
 };
 }
 #endif // __LOOPS_REG_ALLOCATOR_HPP__

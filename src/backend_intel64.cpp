@@ -398,10 +398,15 @@ namespace loops
             if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::IREG && (index.args[1].flags & AF_ADDRESS) != 0 && 
                (index.args[2].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask0, index, 0))
             {
-                mod = 0;
                 sib_byte_present = true;
                 sib_reg0_argnum = 2;
                 sib_reg1_argnum = 1;
+                mod = ((index.args[sib_reg1_argnum].idx & 0b111) == 0b101) ? 1 : 0;
+                if ((index.args[sib_reg1_argnum].idx & 0b111) == 0b101)
+                {
+                    postfix_static = true;
+                    ib = 0;
+                }
             }
             else if(index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::IREG && index.args[2].tag == Arg::VREG && (index.args[0].flags & AF_ADDRESS) != 0 && 
                (index.args[1].flags & AF_ADDRESS) != 0 && bm64_exists(supportedTypesBitmask2, index, 2))
@@ -1573,10 +1578,10 @@ namespace loops
         case (INTEL64_VPEXTRW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0xC5, 0,     Out, In|Xmm,      0,  0,                       0,             BM64_ALL16,                       0,                       0);
         case (INTEL64_VPEXTRD):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x16, 0,     Out, In|Xmm,      0,  0,                       0,             BM64_ALL32,                       0,                       0, VX_SWAP_MODRM_REGS);
         case (INTEL64_VPEXTRQ):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 0, 0x16, 0,     Out, In|Xmm,      0,  0,                       0,             BM64_ALL64,                       0,                       0, VX_SWAP_MODRM_REGS);
-        case (INTEL64_VPINSRB):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x20, 0, Out|Xmm, In|Xmm,     In,  0,               BM64_ALL8, bm64({TYPE_SAME_AS_0}),                       0,                       0);
-        case (INTEL64_VPINSRW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0xC4, 0, Out|Xmm, In|Xmm,     In,  0,              BM64_ALL16, bm64({TYPE_SAME_AS_0}),                       0,                       0);
-        case (INTEL64_VPINSRD):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x22, 0, Out|Xmm, In|Xmm,     In,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}),                       0,                       0);
-        case (INTEL64_VPINSRQ):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 0, 0x22, 0, Out|Xmm, In|Xmm,     In,  0,              BM64_ALL64, bm64({TYPE_SAME_AS_0}),                       0,                       0);
+        case (INTEL64_VPINSRB):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x20, 0, Out|Xmm, IO|Xmm,     In,  0,               BM64_ALL8, bm64({TYPE_SAME_AS_0}),                       0,                       0);
+        case (INTEL64_VPINSRW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0xC4, 0, Out|Xmm, IO|Xmm,     In,  0,              BM64_ALL16, bm64({TYPE_SAME_AS_0}),                       0,                       0);
+        case (INTEL64_VPINSRD):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 0, 0x22, 0, Out|Xmm, IO|Xmm,     In,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}),                       0,                       0);
+        case (INTEL64_VPINSRQ):      return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 0, 0x22, 0, Out|Xmm, IO|Xmm,     In,  0,              BM64_ALL64, bm64({TYPE_SAME_AS_0}),                       0,                       0);
         case (INTEL64_VMOVD):        return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x6E, 0, Out|Xmm,     In,      0,  0,              BM64_ALL32,                      0,                       0,                       0);
         case (INTEL64_VMOVQ):        return VEX_instuction(index, scs, 0x66,   0x0F, 1, 0, 0x6E, 0, Out|Xmm,     In,      0,  0,              BM64_ALL64,                      0,                       0,                       0);
         case (INTEL64_VPBROADCASTB): return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x78, 0,     Out, In|Xmm,      0,  0,               BM64_ALL8, bm64({TYPE_SAME_AS_0}),                       0,                       0);
@@ -2459,12 +2464,6 @@ namespace loops
     {
         switch (a_op.opcode)
         {
-        case OP_X86_ADC:
-        case OP_ADD:
-        case OP_MUL:
-        case OP_AND:
-        case OP_OR:
-        case OP_XOR:
         case OP_MIN:
         case OP_MAX:
         {
@@ -2474,12 +2473,7 @@ namespace loops
                 return 2;
             break;
         }
-        case OP_NEG:
         case OP_SUB:
-        case OP_SHL:
-        case OP_SHR:
-        case OP_SAR:
-        case OP_NOT:
         case OP_SIGN:
         {
             if (undefinedArgNums.count(1))
@@ -2492,10 +2486,6 @@ namespace loops
                 return 3;
             break;
         }
-        case (VOP_FMA):
-            if (undefinedArgNums.count(1))
-                return 1;
-            break;
         default:
             break;
         }
@@ -2507,19 +2497,6 @@ namespace loops
         if(basketNum == RB_INT)
             switch (a_op.opcode)
             {
-            case (OP_DIV):
-            case (OP_MOD):
-                return 2;
-                break;
-            case (OP_SHL):
-            case (OP_SHR):
-            case (OP_SAR):
-                LOOPS_ASSERT(a_op.size() == 3);
-                return a_op[2].tag == Arg::IREG ? 1 : 0;
-            case (OP_ABS):
-            case (OP_SIGN):
-                return 1;
-                break;
             case (OP_CALL):
             case (OP_CALL_NORET):
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -2535,10 +2512,6 @@ namespace loops
         else if(basketNum == RB_VEC)
             switch (a_op.opcode)
             {
-            case (VOP_FMA):
-                if(a_op.args_size == 4)
-                    return 1;
-                break;                
             case (OP_CALL):
             case (OP_CALL_NORET):
 #if __LOOPS_OS == __LOOPS_WINDOWS
@@ -2591,6 +2564,11 @@ namespace loops
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
                 }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
+                    bypass = false;
+                }
                 break;
             }
             case (OP_SELECT):
@@ -2601,6 +2579,11 @@ namespace loops
                     actualRegs = (a_op[3].tag == Arg::IREG ? makeBitmask64({ 0,2,3 }) : makeBitmask64({ 0,2 }));
                     inRegs = makeBitmask64({ 2, 3 });
                     outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
                     bypass = false;
                 }
                 break;
@@ -2618,6 +2601,11 @@ namespace loops
                     outRegs = makeBitmask64({ 0 });
                     bypass = false;
                 }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
+                    bypass = false;
+                }
                 break;
             }
             case (OP_IVERSON):
@@ -2628,6 +2616,11 @@ namespace loops
                     actualRegs = makeBitmask64({ 0 });
                     inRegs = makeBitmask64({ 0 });     //Note: This is lie, appended because Iverson bracket on intel work only with preliminarly zeroing of output. 
                     outRegs = makeBitmask64({ 0 });
+                    bypass = false;
+                }
+                else if(basketNum == RB_VEC)
+                {
+                    actualRegs = inRegs = outRegs = makeBitmask64({});
                     bypass = false;
                 }
                 break;
@@ -2719,8 +2712,47 @@ namespace loops
             return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
     }
 
-    void Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::vector<int> (&regParsOverride)[RB_AMOUNT], std::map<RegIdx, int> (&parLayout)[RB_AMOUNT]) const
+    AllocationRestriction Intel64Backend::getRestriction(const Syntop& a_op) const
     {
+        switch (a_op.opcode)
+        {
+            case (OP_X86_ADC):
+            case (OP_ADD):
+            case (OP_MUL):
+            case (OP_AND):
+            case (OP_OR):
+            case (OP_XOR):
+                return AllocationRestriction::makeInplaceCommutative(0, 1, 2);
+            case (OP_NEG):
+            case (OP_NOT):
+                return AllocationRestriction::makeInplaceUnary(0, 1);
+            case (OP_SHL):
+            case (OP_SHR):
+            case (OP_SAR):
+            {
+                LOOPS_ASSERT(a_op.args_size == 3);
+                AllocationRestriction result = AllocationRestriction::makeInplace(0, 1);
+                if(a_op.args[2].tag == Arg::IREG)  
+                    result = result | AllocationRestriction::makeFixed({{2, RCX}});
+                return result;
+            }
+            case (VOP_FMA):
+                return AllocationRestriction::makeInplace(0, 1);
+            case (OP_DIV):
+            {
+                std::array<std::vector<RegIdx>, RB_AMOUNT> clobbers;
+                clobbers[RB_INT].push_back(RDX);
+                return AllocationRestriction::makeFixed({{1, RAX}}, clobbers) | AllocationRestriction::makeInplace(0, 1);
+            }
+            case (OP_MOD):
+                return AllocationRestriction::makeFixed({{0, RDX}, {1, RAX}});
+            default: return AllocationRestriction::makeNone();
+        }
+    }
+
+    std::array<std::map<RegIdx, int>, RB_AMOUNT> Intel64Backend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const
+    {
+        std::array<std::map<RegIdx, int>, RB_AMOUNT> result;
     #if __LOOPS_OS == __LOOPS_WINDOWS
         int sp2parShift = 5; //+5 is because of return address kept in stack + 32 bytes of shadow space
     #elif __LOOPS_OS == __LOOPS_LINUX
@@ -2746,9 +2778,10 @@ namespace loops
             }
             if(currOffset%xBasket[basketNum])
                 currOffset = currOffset - currOffset%xBasket[basketNum] + xBasket[basketNum];
-            parLayout[basketNum][arg.idx] = currOffset + sp2parShift;
+            result[basketNum][arg.idx] = currOffset + sp2parShift;
             currOffset+=xBasket[basketNum];
         }
+        return result;
     }
 
     int Intel64Backend::stackGrowthAlignment(int stackGrowth) const
@@ -3070,6 +3103,47 @@ namespace loops
                 else
                     a_dest.program.push_back(op);
                 break;
+            case OP_SIGN:
+            {
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+                Arg scratch = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[1] }));
+                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[1], argIImm(63) }));
+                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
+                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
+                break;
+            }
+            case OP_ABS:
+            {
+                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
+                bool inplace = op[0].idx == op[1].idx;
+                Arg original = inplace ? argReg(RB_INT, a_dest.provideIdx(RB_INT)) : op[1];
+                if(inplace)
+                    a_dest.program.push_back(Syntop(OP_MOV, { original, op[1] }));
+                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[1] }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, original, op[0] }));
+                break;
+            }
+            case OP_MIN:
+            case OP_MAX:
+            {
+                LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG);
+                Arg left = op[1];
+                Arg right = op[2];
+                if(left.tag == Arg::IIMMEDIATE)
+                {
+                    left = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                    a_dest.program.push_back(Syntop(OP_MOV, { left, op[1] }));
+                }
+                if(right.tag == Arg::IIMMEDIATE)
+                {
+                    right = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                    a_dest.program.push_back(Syntop(OP_MOV, { right, op[2] }));
+                }
+                a_dest.program.push_back(Syntop(OP_CMP, { left, right }));
+                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], op.opcode == OP_MIN ? OP_LT : OP_GT, left, right }));
+                break;
+            }            
             case (VOP_NEG):
                 LOOPS_ASSERT(op.args_size == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG && op.args[0].elemtype == op.args[1].elemtype);
                 {
@@ -3418,28 +3492,6 @@ namespace loops
                         && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
-            case OP_AND:
-            case OP_OR:
-            case OP_XOR:
-            case OP_X86_ADC:
-            case OP_ADD:
-            case OP_MUL:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 3 && regOrSpi(op_[0]));
-                if (op_[1].tag == Arg::IIMMEDIATE)
-                    std::swap(op_[1], op_[2]);
-                LOOPS_ASSERT(regOrSpi(op_[1]));
-                if (regOrSpi(op_[2]) && regOrSpiEq(op_[0], op_[2]) && !regOrSpiEq(op_[0], op_[1]))
-                    std::swap(op_[1], op_[2]);
-                if (!regOrSpiEq(op_[0], op_[1]))
-                {
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
-                    op_[1] = op_[0];
-                }
-                a_dest.program.push_back(op_);
-                break;
-            }
             case OP_SUB:
             {
                 LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && (regOrSpi(op[1])||regOrSpi(op[2])));
@@ -3459,112 +3511,14 @@ namespace loops
                 }
                 break;
             }
-            case OP_SHL:
-            case OP_SHR:
-            case OP_SAR:
-            {
-                LOOPS_ASSERT(op.size() == 3 && regOrSpi(op[0]) && regOrSpi(op[1]));
-                if (op[2].tag == Arg::IIMMEDIATE)
-                {
-                    if (!regOrSpiEq(op[0], op[1]))
-                    {
-                        a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                    }
-                    a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], op[2] }));
-                }
-                else
-                {
-                    const bool rcx0 = op[0].tag == Arg::IREG && op[0].idx == RCX;
-                    const bool rcx1 = op[1].tag == Arg::IREG && op[1].idx == RCX;
-                    const bool rcx2 = op[2].tag == Arg::IREG && op[2].idx == RCX;
-                    if (rcx0 && rcx1 && rcx2)
-                    {
-                        a_dest.program.push_back(op);
-                    }
-                    else if (rcx0)
-                    {
-                        if (op[1].tag == Arg::ISPILLED)
-                        {
-                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[2] }));
-                            a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), op[1].value }));
-                            a_dest.program.push_back(Syntop(OP_XCHG, { argReg(RB_INT, RCX), argSpilled(RB_INT, 0) }));
-                        }
-                        else
-                            a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
-                        if(!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
-                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
-                        a_dest.program.push_back(Syntop(op.opcode, { argSpilled(RB_INT, 0), argSpilled(RB_INT, 0), argReg(RB_INT, RCX) }));
-                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
-                    }
-                    else
-                    {
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RCX) }));
-                        if(!regOrSpiEq(op[0], op[1]))
-                            a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                        if (!regOrSpiEq(argReg(RB_INT, RCX), op[2]))
-                            a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RCX), op[2] }));
-                        a_dest.program.push_back(Syntop(op.opcode, { op[0], op[0], argReg(RB_INT, RCX)}));
-                        a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RCX), 0 }));
-                    }
-                }
-                break;
-            }
             case OP_DIV:
             case OP_MOD:
             {
                 LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG && regOrSpi(op[2]));
-                bool unspillRax = false;;
-                if (op[0].idx != RAX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    unspillRax = true;
-                }
-                bool unspillRdx = false;
-                if (op[0].idx != RDX)
-                {
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    unspillRdx = true;
-                }
-                Arg effectiveDivider = op[2];
-                if (op[2].tag == Arg::IREG && op[2].idx == RAX)
-                {
-                    if (!unspillRax)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 0, argReg(RB_INT, RAX) }));
-                    effectiveDivider = argSpilled(RB_INT, 0);
-                }
-                else if (op[2].tag == Arg::IREG && op[2].idx == RDX)
-                {
-                    if (!unspillRdx)
-                        a_dest.program.push_back(Syntop(OP_SPILL, { 1, argReg(RB_INT, RDX) }));
-                    effectiveDivider = argSpilled(RB_INT, 1);
-                }
-                if (op[1].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { argReg(RB_INT, RAX), op[1] }));
                 a_dest.program.push_back(Syntop(OP_X86_CQO, {}));
-                a_dest.program.push_back(Syntop(op.opcode, { argReg(RB_INT, RAX), argReg(RB_INT, RAX), effectiveDivider }));
-                if(op.opcode == OP_DIV && op[0].idx != RAX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RAX) }));
-                if (op.opcode == OP_MOD && op[0].idx != RDX)
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], argReg(RB_INT, RDX) }));
-                if (unspillRax)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RAX), 0 }));
-                if (unspillRdx)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { argReg(RB_INT, RDX), 1 }));
+                a_dest.program.push_back(op);
                 break;
-            }
-            case OP_NOT:
-            case OP_NEG:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 2 && regOrSpi(op_[0]) && regOrSpi(op_[1]));
-                if (!regOrSpiEq(op_[0], op_[1]))
-                {
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0],op_[1] }));
-                    op_[1] = op_[0];
-                }
-                a_dest.program.push_back(op_);
-                break;
-            }
+            }            
             case OP_SELECT:
                 LOOPS_ASSERT(op.size() == 4 && op[0].tag == Arg::IREG && regOrSpi(op[2]) && op[3].tag == Arg::IREG);
                 if (regOrSpiEq(op[2], op[3]))
@@ -3581,77 +3535,6 @@ namespace loops
                 else
                     a_dest.program.push_back(Syntop(OP_SELECT, { op[0], argIImm(invertCondition((int)op[1].value)), op[3], op[2]}));
                 break;
-            case OP_MIN:
-            case OP_MAX:
-            {
-                Syntop op_ = op;
-                LOOPS_ASSERT(op_.size() == 3 && op_[0].tag == Arg::IREG && regOrSpi(op_[1]) && regOrSpi(op_[2]));
-                if (regOrSpiEq(op_[0], op_[1]))
-                    std::swap(op_[1], op_[2]);
-                if (op_[2].tag == Arg::ISPILLED)
-                    std::swap(op_[1], op_[2]);
-                if (!regOrSpiEq(op_[0], op_[2]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op_[0], op_[2] }));
-                a_dest.program.push_back(Syntop(OP_CMP, { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op_[0], op_.opcode == OP_MIN ? OP_GT : OP_LT, op_[1], op_[0] }));
-                break;
-            }
-            case OP_ABS:
-            {
-                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && regOrSpi(op[1]));
-                bool augAbs = regOrSpiEq(op[0], op[1]);
-                if (regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_SPILL, { 0, op[0] }));
-                else
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_NEG, { op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_SELECT, { op[0], OP_S, augAbs ? argSpilled(RB_INT, 0) : op[1] , op[0]}));
-                break;
-            }
-            case OP_SIGN:
-            {
-                LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::IREG && op[1].tag == Arg::IREG);
-                Arg scratch = argReg(RB_INT, op[0].idx != RCX && op[1].idx != RCX ? RCX : (op[0].idx != RDX && op[1].idx != RDX ? RDX : RAX));
-                a_dest.program.push_back(Syntop(OP_SPILL, { 0, scratch })); //TODO(ch): there we could try ask register pool about free regs instead of spilling arbitrary register.
-                if (!regOrSpiEq(op[0], op[1]))
-                    a_dest.program.push_back(Syntop(OP_MOV, { op[0], op[1] }));
-                a_dest.program.push_back(Syntop(OP_MOV, { scratch, op[0] }));
-                a_dest.program.push_back(Syntop(OP_SAR, { op[0], op[0], argIImm(63) }));
-                a_dest.program.push_back(Syntop(OP_NEG, { scratch, scratch }));
-                a_dest.program.push_back(Syntop(OP_X86_ADC, { op[0], op[0], op[0] }));
-                a_dest.program.push_back(Syntop(OP_UNSPILL, { scratch, 0 }));
-                break;
-            }
-            case VOP_FMA:
-            {
-                Syntop op_= op;
-                LOOPS_ASSERT(op_.size() == 4 && op_[0].tag == Arg::VREG && op_[1].tag == Arg::VREG && op_[2].tag == Arg::VREG && op_[3].tag == Arg::VREG);
-                if(op_[0].idx == op_[1].idx)
-                {
-                    a_dest.program.push_back(op_);
-                    break;
-                }
-                bool unspill = false;
-                Arg placeholder = op_[2];
-                int placeholderSPoff = 0;
-                if(op_[0].idx == op_[2].idx || op_[0].idx == op_[3].idx)
-                {
-                    placeholder.idx = lsb64(~makeBitmask64({(size_t)(op_[0].idx), size_t(op_[1].idx), (size_t)(op_[2].idx), (size_t)(op_[3].idx)}));
-                    a_dest.program.push_back(Syntop(OP_SPILL, { placeholderSPoff, placeholder }));
-                    a_dest.program.push_back(Syntop(OP_MOV , { placeholder, op_[0] }));
-                    unspill = true;
-                    if(op_[0].idx == op_[2].idx)
-                        op_[2] = placeholder;
-                    if(op_[0].idx == op_[3].idx)
-                        op_[3] = placeholder;
-                }
-                if(op_[0].idx != op_[1].idx)
-                    a_dest.program.push_back(Syntop(OP_MOV , { op_[0], op_[1] }));
-                a_dest.program.push_back(Syntop(op_.opcode, { op_[0], op_[0], op_[2], op_[3] }));
-                if(unspill)
-                    a_dest.program.push_back(Syntop(OP_UNSPILL, { placeholder, placeholderSPoff }));
-                break;
-            }
             case OP_CALL:
             case OP_CALL_NORET:
             {
@@ -3674,9 +3557,6 @@ namespace loops
 
                 LOOPS_ASSERT((op.opcode == OP_CALL && op.size() >= 2 && op.size() <= ((int)parameterRegisters.size() + 2)) ||
                        (op.opcode == OP_CALL_NORET && op.size() >= 1 && op.size() <= ((int)parameterRegisters.size() + 1)));
-#if __LOOPS_OS == __LOOPS_WINDOWS
-                Arg sp = argReg(RB_INT, RSP);
-#endif        
                 int retidx = op.opcode == OP_CALL ? op[0].idx : 0;
 
                 Arg addrkeeper = op.opcode == OP_CALL ? op[1]: op[0];
@@ -3724,6 +3604,7 @@ namespace loops
                 }
                 //3.) Call function
 #if __LOOPS_OS == __LOOPS_WINDOWS
+                Arg sp = argReg(RB_INT, RSP);
                 a_dest.program.push_back(Syntop(OP_SUB, { sp, sp, argIImm(32)})); //Reserving shadow space
 #endif        
                 a_dest.program.push_back(Syntop(OP_CALL_NORET, { addrkeeper }));

@@ -115,6 +115,58 @@ TEST(basic, min_max_scalar)
     test_min_max_scalar(func);
 }
 
+//Two sibling loops in one block, the first one holds a temporary(x) defined and dying inside its body: the
+//temporary is alive in the loop, so it takes part in the negotiation of the loops, but its table doesn't reach
+//the loop boundaries.
+Func make_sibling_loops(Context ctx, const std::string& fname)
+{
+    USE_CONTEXT_(ctx);
+    IReg ptr, n, out;
+    STARTFUNC_(fname, &ptr, &n, &out)
+    {
+        IReg i = CONST_(0);
+        IReg sum = CONST_(0);
+        WHILE_(i < n)
+        {
+            IReg x = load_<int>(ptr, i);
+            sum += x;
+            i += sizeof(int);
+        }
+        IReg count = CONST_(0);
+        WHILE_(i > 0)
+        {
+            count += 1;
+            i -= sizeof(int);
+        }
+        store_<int>(out, sum);
+        store_<int>(out, 4, count);
+        RETURN_(0);
+    }
+    return ctx.getFunc(fname);
+}
+
+void test_sibling_loops(Func func)
+{
+    typedef int64_t (*sibling_loops_f)(const int* ptr, int64_t n, int* out);
+    sibling_loops_f tested = reinterpret_cast<sibling_loops_f>(func.ptr());
+    std::vector<int> v = { 8, 2, -5, 7, 6 };
+    int res[2] = { 0, 0 };
+    int64_t retval = tested(&v[0], v.size() * sizeof(int), res);
+    ASSERT_EQ(res[0], 8 + 2 - 5 + 7 + 6);
+    ASSERT_EQ(res[1], (int)v.size());
+    ASSERT_EQ(retval, 0);
+}
+
+TEST(basic, sibling_loops)
+{
+    Context ctx;
+    loops::Func func = make_sibling_loops(ctx, test_info_->name());
+    switch_spill_stress_test_mode_on(func);
+    EXPECT_IR_CORRECT(func);
+    EXPECT_ASSEMBLY_CORRECT(func);
+    test_sibling_loops(func);
+}
+
 Func make_ten_args_to_sum(Context ctx, const std::string& fname)
 {
     USE_CONTEXT_(ctx);
@@ -936,6 +988,7 @@ TEST(basic, compile_all)
     Context ctx;
     loops::Func a_plus_b_func = make_a_plus_b(ctx, "a_plus_b");
     loops::Func min_max_scalar_func = make_min_max_scalar(ctx, "min_max_scalar");
+    loops::Func sibling_loops_func = make_sibling_loops(ctx, "sibling_loops");
     loops::Func ten_args_to_sum_func = make_ten_args_to_sum(ctx, "ten_args_to_sum");
     loops::Func min_max_select_func = make_min_max_select(ctx, "min_max_select");
     loops::Func triangle_types_func = make_triangle_types(ctx, "triangle_types");
@@ -951,6 +1004,7 @@ TEST(basic, compile_all)
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
+    test_sibling_loops(sibling_loops_func);
     test_ten_args_to_sum(ten_args_to_sum_func);
     test_min_max_select(min_max_select_func);
     test_triangle_types(triangle_types_func);

@@ -141,7 +141,7 @@ namespace loops
         if (rator == m_cflowStack.rend())
             throw loops::exception("Control flow bracket issue: there is no \"while\" for \"continue\".");
         int continuelabel = rator->label_or_pos;
-        m_data.program.push_back(Syntop(OP_BREAK, {Arg(continuelabel)}));
+        m_data.program.push_back(Syntop(OP_CONTINUE, {Arg(continuelabel)}));
     }
 
     void CodeCollecting::if_(Expr &r)
