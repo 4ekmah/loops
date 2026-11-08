@@ -156,7 +156,7 @@ void RegisterPool::initRegisterPool()
                 origRegistersV[vessNum] = m_registersO[basket_num][vessNum];
         
         m_pool[basket_num] = 0;
-        m_maxRegisterNumber[basket_num] = origRegistersV[0][0];
+        m_maxRegisterNumber[basket_num] = 0;
         for(int vessNum = 0; vessNum < VESS_AMOUNT; vessNum++)
         {
             LOOPS_ASSERT(origRegistersV[vessNum].size() < REG_MAX);

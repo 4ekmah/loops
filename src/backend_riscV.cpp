@@ -767,7 +767,7 @@ namespace loops
         m_isLittleEndianInstructions = true;
         m_isLittleEndianOperands = false;
         m_isMonowidthInstruction = false;
-        m_callerStackIncrement = 1;
+        m_callerStackIncrement = 2;
         m_postInstructionOffset = false;
         m_registersAmount = 40;
         m_name = "Risc-V";
