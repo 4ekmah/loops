@@ -14,8 +14,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "common.hpp"
 #include "func_impl.hpp"
 
-//DUBUG list:
-//1.) I know certainly, that loops cannot call functions with more arguments, than calling convention grants to copy in registers. 
 /*
 Register allocator fits unlimited amount of virtual register to fixed set of registers of
 target CPU. Other purpose of algorithm is to collect some data needed to write function's
@@ -1531,8 +1529,6 @@ std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT> Regi
                     result[basket_num][idx].overlaySplit(0, interval.start, argSpilled(basket_num, 0));
                 active.insert(parintervals[basket_num][parreg]);
             }
-            //DUBUG: At least here we can use space provided by calling convention. But, probably, in previous case, 
-            //when we have enough registers, but variable is already allocated in stack we can do it too.
             for (; parreg < (int)parintervals[basket_num].size(); parreg++)
             {
                 const LiveInterval& interval = parintervals[basket_num][parreg];

@@ -2713,7 +2713,7 @@ namespace loops
     }
 
     AllocationRestriction Intel64Backend::getRestriction(const Syntop& a_op) const
-    {//DUBUG: Well, our best idea is to add specific rules SyT rules and extract this data from there
+    {
         switch (a_op.opcode)
         {
             case (OP_X86_ADC):
