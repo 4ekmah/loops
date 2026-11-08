@@ -16,7 +16,6 @@ See https://github.com/4ekmah/loops/LICENSE
 
 //DUBUG list:
 //1.) I know certainly, that loops cannot call functions with more arguments, than calling convention grants to copy in registers. 
-//2.) Restore LD2 solution.
 /*
 Register allocator fits unlimited amount of virtual register to fixed set of registers of
 target CPU. Other purpose of algorithm is to collect some data needed to write function's
@@ -119,30 +118,6 @@ struct hash<RegisterPin>
 
 namespace loops
 {
-void DUBUGprint_allocation(const std::array<std::vector<RegisterAllocator::RegisterReassignment>, RB_AMOUNT>& m_reg_reassignment)
-{
-    for(int basket_num = 0; basket_num < (int)m_reg_reassignment.size(); basket_num++)
-    {
-        if (basket_num == RB_INT)
-            printf("Scalar registers reassignment:\n");
-        else 
-            printf("Vector registers reassignment:\n");
-        for(int idx = 0; idx < (int)m_reg_reassignment[basket_num].size(); idx++)
-        {
-            const RegisterAllocator::RegisterReassignment& ra = m_reg_reassignment[basket_num][idx];
-            printf("    %d ->", idx);
-            for(int sinum = 0; sinum < (int)ra.args.size(); sinum++)
-            {
-                bool spilled = ra.args[sinum]->tag == Arg::ISPILLED || ra.args[sinum]->tag == Arg::VSPILLED;
-                printf("(%d-%d:", ra.bounds[sinum], ra.bounds[sinum + 1]);
-                printf("%s%d)|", spilled ? "s" : "r", (int)(spilled ? ra.args[sinum]->value : ra.args[sinum]->idx));
-            }
-            printf("\n");
-        }
-            
-    } 
-}
-
 inline RegIdx pickFirstBit64(uint64_t& bigNum)
 {
     LOOPS_ASSERT(bigNum != 0);
