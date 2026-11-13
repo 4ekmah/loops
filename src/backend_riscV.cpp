@@ -64,6 +64,93 @@ namespace loops
         case (RISCV_JALR ): return "jalr" ;
         case (RISCV_LABEL): return ""     ;
         case (RISCV_RET  ): return "ret"  ;
+        case (RISCV_VSETVLI): return "vsetvli";
+        case (RISCV_VSETIVLI): return "vsetivli";
+        case (RISCV_VSETVL): return "vsetvl";
+        case (RISCV_VLE8): return "vle8.v";
+        case (RISCV_VLE16): return "vle16.v";
+        case (RISCV_VLE32): return "vle32.v";
+        case (RISCV_VLE64): return "vle64.v";
+        case (RISCV_VSE8): return "vse8.v";
+        case (RISCV_VSE16): return "vse16.v";
+        case (RISCV_VSE32): return "vse32.v";
+        case (RISCV_VSE64): return "vse64.v";
+        case (RISCV_VL1RE8): return "vl1re8.v";
+        case (RISCV_VS1R): return "vs1r.v";
+        case (RISCV_VLSEG2E8): return "vlseg2e8.v";
+        case (RISCV_VLSEG2E16): return "vlseg2e16.v";
+        case (RISCV_VLSEG2E32): return "vlseg2e32.v";
+        case (RISCV_VLSEG2E64): return "vlseg2e64.v";
+        case (RISCV_VMV_V_V): return "vmv.v.v";
+        case (RISCV_VMV_V_X): return "vmv.v.x";
+        case (RISCV_VMV_V_I): return "vmv.v.i";
+        case (RISCV_VMV1R): return "vmv1r.v";
+        case (RISCV_VRGATHER_VI): return "vrgather.vi";
+        case (RISCV_VRGATHER_VX): return "vrgather.vx";
+        case (RISCV_VSLIDEUP_VI): return "vslideup.vi";
+        case (RISCV_VSLIDEUP_VX): return "vslideup.vx";
+        case (RISCV_VSLIDEDOWN_VI): return "vslidedown.vi";
+        case (RISCV_VSLIDEDOWN_VX): return "vslidedown.vx";
+        case (RISCV_VMV_X_S): return "vmv.x.s";
+        case (RISCV_VMV_S_X): return "vmv.s.x";
+        case (RISCV_VMERGE_VVM): return "vmerge.vvm";
+        case (RISCV_VMERGE_VXM): return "vmerge.vxm";
+        case (RISCV_VMERGE_VIM): return "vmerge.vim";
+        case (RISCV_VMSNE_VI): return "vmsne.vi";
+        case (RISCV_VADD_VV): return "vadd.vv";
+        case (RISCV_VSUB_VV): return "vsub.vv";
+        case (RISCV_VMUL_VV): return "vmul.vv";
+        case (RISCV_VMIN_VV): return "vmin.vv";
+        case (RISCV_VMINU_VV): return "vminu.vv";
+        case (RISCV_VMAX_VV): return "vmax.vv";
+        case (RISCV_VMAXU_VV): return "vmaxu.vv";
+        case (RISCV_VSLL_VV): return "vsll.vv";
+        case (RISCV_VSLL_VI): return "vsll.vi";
+        case (RISCV_VSLL_VX): return "vsll.vx";
+        case (RISCV_VSRL_VV): return "vsrl.vv";
+        case (RISCV_VSRL_VI): return "vsrl.vi";
+        case (RISCV_VSRL_VX): return "vsrl.vx";
+        case (RISCV_VSRA_VV): return "vsra.vv";
+        case (RISCV_VSRA_VI): return "vsra.vi";
+        case (RISCV_VSRA_VX): return "vsra.vx";
+        case (RISCV_VAND_VV): return "vand.vv";
+        case (RISCV_VOR_VV): return "vor.vv";
+        case (RISCV_VXOR_VV): return "vxor.vv";
+        case (RISCV_VXOR_VI): return "vxor.vi";
+        case (RISCV_VRSUB_VX): return "vrsub.vx";
+        case (RISCV_VFADD_VV): return "vfadd.vv";
+        case (RISCV_VFSUB_VV): return "vfsub.vv";
+        case (RISCV_VFMUL_VV): return "vfmul.vv";
+        case (RISCV_VFDIV_VV): return "vfdiv.vv";
+        case (RISCV_VFMACC_VV): return "vfmacc.vv";
+        case (RISCV_VFMIN_VV): return "vfmin.vv";
+        case (RISCV_VFMAX_VV): return "vfmax.vv";
+        case (RISCV_VFSGNJN_VV): return "vfsgnjn.vv";
+        case (RISCV_VMSEQ_VV): return "vmseq.vv";
+        case (RISCV_VMSNE_VV): return "vmsne.vv";
+        case (RISCV_VMSLT_VV): return "vmslt.vv";
+        case (RISCV_VMSLTU_VV): return "vmsltu.vv";
+        case (RISCV_VMSLE_VV): return "vmsle.vv";
+        case (RISCV_VMSLEU_VV): return "vmsleu.vv";
+        case (RISCV_VMFEQ_VV): return "vmfeq.vv";
+        case (RISCV_VMFNE_VV): return "vmfne.vv";
+        case (RISCV_VMFLT_VV): return "vmflt.vv";
+        case (RISCV_VMFLE_VV): return "vmfle.vv";
+        case (RISCV_VFCVT_F_X_V): return "vfcvt.f.x.v";
+        case (RISCV_VFCVT_X_F_V): return "vfcvt.x.f.v";
+        case (RISCV_VFCVT_RTZ_X_F_V): return "vfcvt.rtz.x.f.v";
+        case (RISCV_VFNCVT_X_F_W): return "vfncvt.x.f.w";
+        case (RISCV_VSEXT_VF2): return "vsext.vf2";
+        case (RISCV_VZEXT_VF2): return "vzext.vf2";
+        case (RISCV_VFWCVT_F_F_V): return "vfwcvt.f.f.v";
+        case (RISCV_VFNCVT_F_F_W): return "vfncvt.f.f.w";
+        case (RISCV_VREDSUM_VS): return "vredsum.vs";
+        case (RISCV_VFREDUSUM_VS): return "vfredusum.vs";
+        case (RISCV_VWREDSUM_VS): return "vwredsum.vs";
+        case (RISCV_VWREDSUMU_VS): return "vwredsumu.vs";
+        case (RISCV_VFREDOSUM_VS): return "vfredosum.vs";
+        case (RISCV_CSRRWI): return "csrrwi";
+        case (RISCV_CSRRW): return "csrrw";
         };
         return nullptr;
     };
@@ -103,6 +190,42 @@ namespace loops
         T5   = 30,
         T6   = 31,
     }; 
+
+    enum RiscV_VReg
+    {
+        V0  =  0,
+        V1  =  1,
+        V2  =  2,
+        V3  =  3,
+        V4  =  4,
+        V5  =  5,
+        V6  =  6,
+        V7  =  7,
+        V8  =  8,
+        V9  =  9,
+        V10 = 10,
+        V11 = 11,
+        V12 = 12,
+        V13 = 13,
+        V14 = 14,
+        V15 = 15,
+        V16 = 16,
+        V17 = 17,
+        V18 = 18,
+        V19 = 19,
+        V20 = 20,
+        V21 = 21,
+        V22 = 22,
+        V23 = 23,
+        V24 = 24,
+        V25 = 25,
+        V26 = 26,
+        V27 = 27,
+        V28 = 28,
+        V29 = 29,
+        V30 = 30,
+        V31 = 31,
+    };
 
     enum {ARG0_FIXED = 1, ARG1_FIXED = 2, ARG2_FIXED = 4 };
 
@@ -407,6 +530,149 @@ namespace loops
         return BinTranslation();
     }
 
+    //OPIVV/OPFVV/OPMVV:
+    //|static|static|register|register|static|register|static|
+    //|funct6|vm    |vs2     |vs1     |funct3|vd/rd   |opcode|
+    //|6 bits|1 bit |5 bits  |5 bits  |3 bits|5 bits  |7 bits|
+    static inline BinTranslation op_vv(const Syntop& index, bool& scs, uint64_t funct6, uint64_t vm, uint64_t funct3, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    {
+        using namespace BinTranslationConstruction;
+        LOOPS_ASSERT(((funct6 & ~(uint64_t(0b111111))) == 0) && (vm <= 1) && (funct3 == 0b000 || funct3 == 0b001 || funct3 == 0b010));
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);
+        if(index.size() == effargnum &&
+           (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::VREG || index.args[effargidxs[0]].tag == Arg::IREG) &&
+           (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::VREG) &&
+           (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::VREG))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(7);
+            tokens.push_back(BTsta(funct6, 6));
+            tokens.push_back(BTsta(vm, 1));
+            put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
+            put_reg_token(tokens, effargidxs, 2, fixed2, flags2);
+            tokens.push_back(BTsta(funct3, 3));
+            put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
+            tokens.push_back(BTsta(0b1010111, 7));
+            return BinTranslation(tokens);
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+    //OPIVX:
+    //|static|static|register|register|static|register|static|
+    //|funct6|vm    |vs2     |rs1     |funct3|vd      |opcode|
+    //|6 bits|1 bit |5 bits  |5 bits  |3 bits|5 bits  |7 bits|
+    static inline BinTranslation opivx(const Syntop& index, bool& scs, uint64_t funct6, uint64_t vm, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    {
+        using namespace BinTranslationConstruction;
+        LOOPS_ASSERT(((funct6 & ~(uint64_t(0b111111))) == 0) && (vm <= 1));
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);
+        if(index.size() == effargnum &&
+           (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::VREG) &&
+           (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::VREG) &&
+           (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(7);
+            tokens.push_back(BTsta(funct6, 6));
+            tokens.push_back(BTsta(vm, 1));
+            put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
+            put_reg_token(tokens, effargidxs, 2, fixed2, flags2);
+            tokens.push_back(BTsta(0b100, 3));
+            put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
+            tokens.push_back(BTsta(0b1010111, 7));
+            return BinTranslation(tokens);
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+    //OPMVX:
+    //|static|static|register|register|static|register|static|
+    //|funct6|vm    |vs2     |rs1     |funct3|vd/rd   |opcode|
+    //|6 bits|1 bit |5 bits  |5 bits  |3 bits|5 bits  |7 bits|
+    static inline BinTranslation opmvx(const Syntop& index, bool& scs, uint64_t funct6, uint64_t vm, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    {
+        using namespace BinTranslationConstruction;
+        LOOPS_ASSERT(((funct6 & ~(uint64_t(0b111111))) == 0) && (vm <= 1));
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_reg(fixed, 2, effargidxs, 3, effargnum, fixed2);
+        if(index.size() == effargnum &&
+           (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::VREG || index.args[effargidxs[0]].tag == Arg::IREG) &&
+           (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::VREG) &&
+           (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IREG))
+        {
+            std::vector<BinTranslation::Token> tokens;
+            tokens.reserve(7);
+            tokens.push_back(BTsta(funct6, 6));
+            tokens.push_back(BTsta(vm, 1));
+            put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
+            put_reg_token(tokens, effargidxs, 2, fixed2, flags2);
+            tokens.push_back(BTsta(0b110, 3));
+            put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
+            tokens.push_back(BTsta(0b1010111, 7));
+            return BinTranslation(tokens);
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
+    //OPIVI:
+    //|static|static|register|immediate|static|register|static|
+    //|funct6|vm    |vs2     |imm[4:0]|funct3|vd      |opcode|
+    //|6 bits|1 bit |5 bits  |5 bits   |3 bits|5 bits  |7 bits|
+    static inline BinTranslation opivi(const Syntop& index, bool& scs, uint64_t funct6, uint64_t vm, bool is_signed, uint64_t flags0, uint64_t flags1, uint64_t flags2, uint64_t fixed, uint64_t fixed0, uint64_t fixed1, uint64_t fixed2)
+    {
+        using namespace BinTranslationConstruction;
+        LOOPS_ASSERT(((funct6 & ~(uint64_t(0b111111))) == 0) && (vm <= 1));
+        scs = true;
+        int effargidxs[3] = {0,1,2};
+        int effargnum = 3;
+        check_fixed_reg(fixed, 0, effargidxs, 3, effargnum, fixed0);
+        check_fixed_reg(fixed, 1, effargidxs, 3, effargnum, fixed1);
+        check_fixed_imm(fixed, 2, effargidxs, 3, effargnum, fixed2, 5, is_signed);
+        if(index.size() == effargnum &&
+           (effargidxs[0] == -1 || index.args[effargidxs[0]].tag == Arg::VREG) &&
+           (effargidxs[1] == -1 || index.args[effargidxs[1]].tag == Arg::VREG) &&
+           (effargidxs[2] == -1 || index.args[effargidxs[2]].tag == Arg::IIMMEDIATE))
+        {
+            uint64_t value2 = (fixed & ARG2_FIXED) ? fixed2 : (uint64_t)index.args[effargidxs[2]].value;
+            if((is_signed && signed_fits(value2, 5)) || (!is_signed && (value2 & ~(uint64_t(0b11111))) == 0))
+            {
+                std::vector<BinTranslation::Token> tokens;
+                tokens.reserve(7);
+                tokens.push_back(BTsta(funct6, 6));
+                tokens.push_back(BTsta(vm, 1));
+                put_reg_token(tokens, effargidxs, 1, fixed1, flags1);
+                if(fixed & ARG2_FIXED)
+                    tokens.push_back(BTsta(fixed2, 5));
+                else
+                    tokens.push_back(BTimm(effargidxs[2], 5, flags2));
+                tokens.push_back(BTsta(0b011, 3));
+                put_reg_token(tokens, effargidxs, 0, fixed0, flags0);
+                tokens.push_back(BTsta(0b1010111, 7));
+                return BinTranslation(tokens);
+            }
+        }
+        scs = false;
+        return BinTranslation();
+    }
+
     BinTranslation r64BTLookup(const Syntop& index, bool& scs)
     {
         using namespace BinTranslationConstruction;
@@ -480,6 +746,149 @@ namespace loops
         case (RISCV_LD): 
             if (index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && signed_fits((uint64_t)index.args[1].value, 12))
                 return BiT({ BTimm(1, 12, Addr64), BTreg(2, 5, In| Addr64), BTsta(0b011, 3), BTreg(0, 5, Out), BTsta(0b0000011, 7) });
+            break;
+        case (RISCV_VSETVLI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && index[2].value >= 0 && index[2].value <= 0x7ff)
+                return itype(index, scs, 0b111, 0b1010111, Out, In, 0, 0, 0, 0, 0);
+            break;
+        case (RISCV_VSETIVLI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
+               index[1].value >= 0 && index[1].value <= 31 && index[2].value >= 0 && index[2].value <= 0x3ff)
+                return BiT({ BTsta(0b11, 2), BTimm(2, 10), BTimm(1, 5), BTsta(0b111, 3), BTreg(0, 5, Out), BTsta(0b1010111, 7) });
+            break;
+        case (RISCV_VSETVL):
+            return rtype(index, scs, 0b1000000, 0b111, 0b1010111, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VLE8):
+        case (RISCV_VLE16):
+        case (RISCV_VLE32):
+        case (RISCV_VLE64):
+        case (RISCV_VL1RE8):
+        case (RISCV_VLSEG2E8):
+        case (RISCV_VLSEG2E16):
+        case (RISCV_VLSEG2E32):
+        case (RISCV_VLSEG2E64):
+        {
+            uint64_t nf = 0;
+            uint64_t lumop = index.opcode == RISCV_VL1RE8 ? 0b01000 : 0;
+            uint64_t width = 0;
+            bool segment = false;
+            switch(index.opcode)
+            {
+            case (RISCV_VLE16): width = 0b101; break;
+            case (RISCV_VLE32): width = 0b110; break;
+            case (RISCV_VLE64): width = 0b111; break;
+            case (RISCV_VLSEG2E8): nf = 0b001; segment = true; break;
+            case (RISCV_VLSEG2E16): nf = 0b001; width = 0b101; segment = true; break;
+            case (RISCV_VLSEG2E32): nf = 0b001; width = 0b110; segment = true; break;
+            case (RISCV_VLSEG2E64): nf = 0b001; width = 0b111; segment = true; break;
+            default: break;
+            }
+            if(segment && index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG &&
+               index[0].idx < 31 && index[1].idx == index[0].idx + 1)
+                return BiT({ BTsta(nf, 3), BTsta(0, 1), BTsta(0, 2), BTsta(1, 1), BTsta(lumop, 5), BTreg(2, 5, In | Addr64), BTsta(width, 3), BTreg(0, 5, Out | VecRng), BTsta(0b0000111, 7), BTomm(1, Out | VecRng) });
+            if(!segment && index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return BiT({ BTsta(nf, 3), BTsta(0, 1), BTsta(0, 2), BTsta(1, 1), BTsta(lumop, 5), BTreg(1, 5, In | Addr64), BTsta(width, 3), BTreg(0, 5, Out), BTsta(0b0000111, 7) });
+            break;
+        }
+        case (RISCV_VSE8):
+        case (RISCV_VSE16):
+        case (RISCV_VSE32):
+        case (RISCV_VSE64):
+        case (RISCV_VS1R):
+        {
+            uint64_t sumop = index.opcode == RISCV_VS1R ? 0b01000 : 0;
+            uint64_t width = index.opcode == RISCV_VSE16 ? 0b101 : index.opcode == RISCV_VSE32 ? 0b110 : index.opcode == RISCV_VSE64 ? 0b111 : 0;
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return BiT({ BTsta(0, 3), BTsta(0, 1), BTsta(0, 2), BTsta(1, 1), BTsta(sumop, 5), BTreg(1, 5, In | Addr64), BTsta(width, 3), BTreg(0, 5, In), BTsta(0b0100111, 7) });
+            break;
+        }
+        case (RISCV_VMV_V_V): return op_vv(index, scs, 0b010111, 1, 0b000, Out, 0, In, ARG1_FIXED, 0, V0, 0);
+        case (RISCV_VMV_V_X): return opivx(index, scs, 0b010111, 1, Out, 0, In, ARG1_FIXED, 0, V0, 0);
+        case (RISCV_VMV_V_I): return opivi(index, scs, 0b010111, 1, true, Out, 0, 0, ARG1_FIXED, 0, V0, 0);
+        case (RISCV_VMV1R): return op_vv(index, scs, 0b100111, 1, 0b000, Out, In, 0, ARG2_FIXED, 0, 0, V0);
+        case (RISCV_VRGATHER_VI): return opivi(index, scs, 0b001100, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VRGATHER_VX): return opivx(index, scs, 0b001100, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSLIDEUP_VI): return opivi(index, scs, 0b001110, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSLIDEUP_VX): return opivx(index, scs, 0b001110, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSLIDEDOWN_VI): return opivi(index, scs, 0b001111, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSLIDEDOWN_VX): return opivx(index, scs, 0b001111, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMV_X_S): return op_vv(index, scs, 0b010000, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, V0);
+        case (RISCV_VMV_S_X): return opmvx(index, scs, 0b010000, 1, Out, 0, In, ARG1_FIXED, 0, V0, 0);
+        case (RISCV_VMERGE_VVM):
+        case (RISCV_VMERGE_VXM):
+        case (RISCV_VMERGE_VIM):
+            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[3].tag == Arg::VREG && index[3].idx == V0)
+            {
+                uint64_t funct3 = index.opcode == RISCV_VMERGE_VVM ? 0b000 : index.opcode == RISCV_VMERGE_VXM ? 0b100 : 0b011;
+                if(index.opcode == RISCV_VMERGE_VVM && index[2].tag == Arg::VREG)
+                    return BiT({ BTsta(0b010111, 6), BTsta(0, 1), BTreg(1, 5, In), BTreg(2, 5, In), BTsta(funct3, 3), BTreg(0, 5, Out), BTsta(0b1010111, 7), BTomm(3, In) });
+                if(index.opcode == RISCV_VMERGE_VXM && index[2].tag == Arg::IREG)
+                    return BiT({ BTsta(0b010111, 6), BTsta(0, 1), BTreg(1, 5, In), BTreg(2, 5, In), BTsta(funct3, 3), BTreg(0, 5, Out), BTsta(0b1010111, 7), BTomm(3, In) });
+                if(index.opcode == RISCV_VMERGE_VIM && index[2].tag == Arg::IIMMEDIATE && signed_fits((uint64_t)index[2].value, 5))
+                    return BiT({ BTsta(0b010111, 6), BTsta(0, 1), BTreg(1, 5, In), BTimm(2, 5), BTsta(funct3, 3), BTreg(0, 5, Out), BTsta(0b1010111, 7), BTomm(3, In) });
+            }
+            break;
+        case (RISCV_VMSNE_VI): return opivi(index, scs, 0b011001, 1, true, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VADD_VV): return op_vv(index, scs, 0b000000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSUB_VV): return op_vv(index, scs, 0b000010, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMUL_VV): return op_vv(index, scs, 0b100101, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMIN_VV): return op_vv(index, scs, 0b000101, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMINU_VV): return op_vv(index, scs, 0b000100, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMAX_VV): return op_vv(index, scs, 0b000111, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMAXU_VV): return op_vv(index, scs, 0b000110, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSLL_VV): return op_vv(index, scs, 0b100101, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSLL_VI): return opivi(index, scs, 0b100101, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSLL_VX): return opivx(index, scs, 0b100101, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSRL_VV): return op_vv(index, scs, 0b101000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSRL_VI): return opivi(index, scs, 0b101000, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSRL_VX): return opivx(index, scs, 0b101000, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSRA_VV): return op_vv(index, scs, 0b101001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSRA_VI): return opivi(index, scs, 0b101001, 1, false, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSRA_VX): return opivx(index, scs, 0b101001, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VAND_VV): return op_vv(index, scs, 0b001001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VOR_VV): return op_vv(index, scs, 0b001010, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VXOR_VV): return op_vv(index, scs, 0b001011, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VXOR_VI): return opivi(index, scs, 0b001011, 1, true, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VRSUB_VX): return opivx(index, scs, 0b000011, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFADD_VV): return op_vv(index, scs, 0b000000, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFSUB_VV): return op_vv(index, scs, 0b000010, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFMUL_VV): return op_vv(index, scs, 0b100100, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFDIV_VV): return op_vv(index, scs, 0b100000, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFMACC_VV): return op_vv(index, scs, 0b101100, 1, 0b001, IO, In, In, 0, 0, 0, 0);
+        case (RISCV_VFMIN_VV): return op_vv(index, scs, 0b000100, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFMAX_VV): return op_vv(index, scs, 0b000110, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFSGNJN_VV): return op_vv(index, scs, 0b001001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSEQ_VV): return op_vv(index, scs, 0b011000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSNE_VV): return op_vv(index, scs, 0b011001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSLT_VV): return op_vv(index, scs, 0b011011, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSLTU_VV): return op_vv(index, scs, 0b011010, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSLE_VV): return op_vv(index, scs, 0b011101, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMSLEU_VV): return op_vv(index, scs, 0b011100, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMFEQ_VV): return op_vv(index, scs, 0b011000, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMFNE_VV): return op_vv(index, scs, 0b011100, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMFLT_VV): return op_vv(index, scs, 0b011011, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VMFLE_VV): return op_vv(index, scs, 0b011001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFCVT_F_X_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00011);
+        case (RISCV_VFCVT_X_F_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00001);
+        case (RISCV_VFCVT_RTZ_X_F_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00111);
+        case (RISCV_VFNCVT_X_F_W): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b10001);
+        case (RISCV_VSEXT_VF2): return op_vv(index, scs, 0b010010, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, 0b00111);
+        case (RISCV_VZEXT_VF2): return op_vv(index, scs, 0b010010, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, 0b00110);
+        case (RISCV_VFWCVT_F_F_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b01100);
+        case (RISCV_VFNCVT_F_F_W): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b10100);
+        case (RISCV_VREDSUM_VS): return op_vv(index, scs, 0b000000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFREDUSUM_VS): return op_vv(index, scs, 0b000001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VWREDSUM_VS): return op_vv(index, scs, 0b110001, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VWREDSUMU_VS): return op_vv(index, scs, 0b110000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFREDOSUM_VS): return op_vv(index, scs, 0b000011, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_CSRRWI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
+               index[1].value >= 0 && index[1].value <= 0xfff && index[2].value >= 0 && index[2].value <= 31)
+                return BiT({ BTimm(1, 12), BTimm(2, 5), BTsta(0b101, 3), BTreg(0, 5, Out), BTsta(0b1110011, 7) });
+            break;
+        case (RISCV_CSRRW):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && index[1].value >= 0 && index[1].value <= 0xfff)
+                return BiT({ BTimm(1, 12), BTreg(2, 5, In), BTsta(0b001, 3), BTreg(0, 5, Out), BTsta(0b1110011, 7) });
             break;
         default:
             break;
@@ -592,6 +1001,8 @@ namespace loops
                         return SyT(RISCV_ADDI,  { SAcop(0), SAreg(ZERO), SAcop(1)});
                 }
             }
+            else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+                return SyT(RISCV_VMV_V_V, { SAcop(0), SAcop(1) });
             break;
         case (OP_RV_LUI):
             if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
@@ -700,6 +1111,283 @@ namespace loops
         case (OP_JMP):     return SyT(RISCV_J, { SAcop(0) });
         case (OP_LABEL):   return SyT(RISCV_LABEL, { SAcop(0) });
         case (OP_RET):     return SyT(RISCV_RET, {});
+        case (OP_RV_VSETVLI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_VSETVLI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_RV_VSETIVLI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_VSETIVLI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_RV_VSETVL):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
+                return SyT(RISCV_VSETVL, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (VOP_LOAD):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+            {
+                int opcode = -1;
+                switch(elem_size(index[0].elemtype))
+                {
+                case 1: opcode = RISCV_VLE8; break;
+                case 2: opcode = RISCV_VLE16; break;
+                case 4: opcode = RISCV_VLE32; break;
+                case 8: opcode = RISCV_VLE64; break;
+                default: break;
+                }
+                if(opcode != -1)
+                    return SyT(opcode, { SAcop(0), SAcop(1) });
+            }
+            break;
+        case (VOP_STORE):
+            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+            {
+                int opcode = -1;
+                switch(elem_size(index[1].elemtype))
+                {
+                case 1: opcode = RISCV_VSE8; break;
+                case 2: opcode = RISCV_VSE16; break;
+                case 4: opcode = RISCV_VSE32; break;
+                case 8: opcode = RISCV_VSE64; break;
+                default: break;
+                }
+                if(opcode != -1)
+                    return SyT(opcode, { SAcop(1), SAcop(0) });
+            }
+            break;
+        case (VOP_RV_VL1RE8):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return SyT(RISCV_VL1RE8, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VS1R):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return SyT(RISCV_VS1R, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VLSEG2):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype)
+            {
+                int opcode = -1;
+                switch(elem_size(index[0].elemtype))
+                {
+                case 1: opcode = RISCV_VLSEG2E8; break;
+                case 2: opcode = RISCV_VLSEG2E16; break;
+                case 4: opcode = RISCV_VLSEG2E32; break;
+                case 8: opcode = RISCV_VLSEG2E64; break;
+                default: break;
+                }
+                if(opcode != -1)
+                    return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_BROADCAST):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return SyT(RISCV_VMV_V_X, { SAcop(0), SAcop(1) });
+            else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_VMV_V_I, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VMV1R):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+                return SyT(RISCV_VMV1R, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VRGATHER):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG)
+                return SyT(RISCV_VRGATHER_VX, { SAcop(0), SAcop(1), SAcop(2) });
+            else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_VRGATHER_VI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (VOP_RV_VSLIDEUP):
+        case (VOP_RV_VSLIDEDOWN):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG)
+                return SyT(index.opcode == VOP_RV_VSLIDEUP ? RISCV_VSLIDEUP_VX : RISCV_VSLIDEDOWN_VX, { SAcop(0), SAcop(1), SAcop(2) });
+            else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(index.opcode == VOP_RV_VSLIDEUP ? RISCV_VSLIDEUP_VI : RISCV_VSLIDEDOWN_VI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_RV_VMV_X_S):
+            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+                return SyT(RISCV_VMV_X_S, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VMV_S_X):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
+                return SyT(RISCV_VMV_S_X, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VMERGE):
+            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[3].tag == Arg::VREG)
+            {
+                if(index[2].tag == Arg::VREG)
+                    return SyT(RISCV_VMERGE_VVM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                else if(index[2].tag == Arg::IREG)
+                    return SyT(RISCV_VMERGE_VXM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                else if(index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_VMERGE_VIM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+            }
+            break;
+        case (VOP_RV_VMSNE_VI):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_VMSNE_VI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (VOP_RV_VMSEQ):
+        case (VOP_RV_VMSNE):
+        case (VOP_RV_VMSLT):
+        case (VOP_RV_VMSLTU):
+        case (VOP_RV_VMSLE):
+        case (VOP_RV_VMSLEU):
+        case (VOP_RV_VMFEQ):
+        case (VOP_RV_VMFNE):
+        case (VOP_RV_VMFLT):
+        case (VOP_RV_VMFLE):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+            {
+                int opcode = index.opcode == VOP_RV_VMSEQ ? RISCV_VMSEQ_VV :
+                             index.opcode == VOP_RV_VMSNE ? RISCV_VMSNE_VV :
+                             index.opcode == VOP_RV_VMSLT ? RISCV_VMSLT_VV :
+                             index.opcode == VOP_RV_VMSLTU ? RISCV_VMSLTU_VV :
+                             index.opcode == VOP_RV_VMSLE ? RISCV_VMSLE_VV :
+                             index.opcode == VOP_RV_VMSLEU ? RISCV_VMSLEU_VV :
+                             index.opcode == VOP_RV_VMFEQ ? RISCV_VMFEQ_VV :
+                             index.opcode == VOP_RV_VMFNE ? RISCV_VMFNE_VV :
+                             index.opcode == VOP_RV_VMFLT ? RISCV_VMFLT_VV : RISCV_VMFLE_VV;
+                return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_RV_VFCVT_X_F):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+                return SyT(RISCV_VFCVT_X_F_V, { SAcop(0), SAcop(1) });
+            break;
+        case (VOP_RV_VREDSUM):
+        case (VOP_RV_VFREDUSUM):
+        case (VOP_RV_VWREDSUM):
+        case (VOP_RV_VWREDSUMU):
+        case (VOP_RV_VFREDOSUM):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+            {
+                int opcode = index.opcode == VOP_RV_VREDSUM ? RISCV_VREDSUM_VS :
+                             index.opcode == VOP_RV_VFREDUSUM ? RISCV_VFREDUSUM_VS :
+                             index.opcode == VOP_RV_VWREDSUM ? RISCV_VWREDSUM_VS :
+                             index.opcode == VOP_RV_VWREDSUMU ? RISCV_VWREDSUMU_VS : RISCV_VFREDOSUM_VS;
+                return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (OP_RV_CSRRWI):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE)
+                return SyT(RISCV_CSRRWI, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (OP_RV_CSRRW):
+            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
+                return SyT(RISCV_CSRRW, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (VOP_ADD):
+        case (VOP_SUB):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
+            {
+                if(isFloat(index[0].elemtype))
+                    return SyT(index.opcode == VOP_ADD ? RISCV_VFADD_VV : RISCV_VFSUB_VV, { SAcop(0), SAcop(1), SAcop(2) });
+                if(isInteger(index[0].elemtype))
+                    return SyT(index.opcode == VOP_ADD ? RISCV_VADD_VV : RISCV_VSUB_VV, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            else if(index.opcode == VOP_SUB && index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG && index[2].tag == Arg::VREG)
+                return SyT(RISCV_VRSUB_VX, { SAcop(0), SAcop(2), SAcop(1) });
+            break;
+        case (VOP_MUL):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
+            {
+                if(isFloat(index[0].elemtype))
+                    return SyT(RISCV_VFMUL_VV, { SAcop(0), SAcop(1), SAcop(2) });
+                if(isInteger(index[0].elemtype))
+                    return SyT(RISCV_VMUL_VV, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_DIV):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && isFloat(index[0].elemtype))
+                return SyT(RISCV_VFDIV_VV, { SAcop(0), SAcop(1), SAcop(2) });
+            break;
+        case (VOP_FMA):
+            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && index[3].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype && index[0].elemtype == index[3].elemtype &&
+               index[0].idx == index[1].idx && isFloat(index[0].elemtype))
+                return SyT(RISCV_VFMACC_VV, { SAcop(0), SAcop(2), SAcop(3) });
+            break;
+        case (VOP_MIN):
+        case (VOP_MAX):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
+            {
+                if(isFloat(index[0].elemtype))
+                    return SyT(index.opcode == VOP_MIN ? RISCV_VFMIN_VV : RISCV_VFMAX_VV, { SAcop(0), SAcop(1), SAcop(2) });
+                if(isSignedInteger(index[0].elemtype))
+                    return SyT(index.opcode == VOP_MIN ? RISCV_VMIN_VV : RISCV_VMAX_VV, { SAcop(0), SAcop(1), SAcop(2) });
+                if(isUnsignedInteger(index[0].elemtype))
+                    return SyT(index.opcode == VOP_MIN ? RISCV_VMINU_VV : RISCV_VMAXU_VV, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_SAL):
+        case (VOP_SHL):
+        case (VOP_SHR):
+        case (VOP_SAR):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype && isInteger(index[0].elemtype))
+            {
+                int opcode = (index.opcode == VOP_SAL || index.opcode == VOP_SHL) ? RISCV_VSLL_VV :
+                             index.opcode == VOP_SHR || isUnsignedInteger(index[0].elemtype) ? RISCV_VSRL_VV : RISCV_VSRA_VV;
+                if(index[2].tag == Arg::VREG)
+                    return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[2].tag == Arg::IREG)
+                    return SyT(opcode == RISCV_VSLL_VV ? RISCV_VSLL_VX : opcode == RISCV_VSRL_VV ? RISCV_VSRL_VX : RISCV_VSRA_VX, { SAcop(0), SAcop(1), SAcop(2) });
+                if(index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(opcode == RISCV_VSLL_VV ? RISCV_VSLL_VI : opcode == RISCV_VSRL_VV ? RISCV_VSRL_VI : RISCV_VSRA_VI, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_AND):
+        case (VOP_OR):
+        case (VOP_XOR):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isInteger(index[0].elemtype))
+            {
+                int opcode = index.opcode == VOP_AND ? RISCV_VAND_VV : index.opcode == VOP_OR ? RISCV_VOR_VV : RISCV_VXOR_VV;
+                if(index[2].tag == Arg::VREG)
+                    return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+                if(index.opcode == VOP_XOR && index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_VXOR_VI, { SAcop(0), SAcop(1), SAcop(2) });
+            }
+            break;
+        case (VOP_NOT):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isInteger(index[0].elemtype))
+                return SyT(RISCV_VXOR_VI, { SAcop(0), SAcop(1), SAimm(-1) });
+            break;
+        case (VOP_NEG):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[0].elemtype == index[1].elemtype)
+            {
+                if(isSignedInteger(index[0].elemtype))
+                    return SyT(RISCV_VRSUB_VX, { SAcop(0), SAcop(1), SAreg(ZERO) });
+                if(isFloat(index[0].elemtype))
+                    return SyT(RISCV_VFSGNJN_VV, { SAcop(0), SAcop(1), SAcop(1) });
+            }
+            break;
+        case (VOP_CAST):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+            {
+                if(isFloat(index[0].elemtype) && isSignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                    return SyT(RISCV_VFCVT_F_X_V, { SAcop(0), SAcop(1) });
+                if(isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                    return SyT(RISCV_VFCVT_RTZ_X_F_V, { SAcop(0), SAcop(1) });
+                if(index[0].elemtype == TYPE_I32 && index[1].elemtype == TYPE_FP64)
+                    return SyT(RISCV_VFNCVT_X_F_W, { SAcop(0), SAcop(1) });
+                if(index[0].elemtype == TYPE_FP32 && index[1].elemtype == TYPE_FP64)
+                    return SyT(RISCV_VFNCVT_F_F_W, { SAcop(0), SAcop(1) });
+            }
+            break;
+        case (VOP_CAST_LOW):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+            {
+                if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
+                    return SyT(RISCV_VSEXT_VF2, { SAcop(0), SAcop(1) });
+                if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
+                    return SyT(RISCV_VZEXT_VF2, { SAcop(0), SAcop(1) });
+                if(index[0].elemtype == TYPE_FP64 && index[1].elemtype == TYPE_FP32)
+                    return SyT(RISCV_VFWCVT_F_F_V, { SAcop(0), SAcop(1) });
+            }
+            break;
         default:
             break;
         }
@@ -1001,6 +1689,9 @@ namespace loops
                         loops_printf(printer, ")");
                     break;
                 }
+                case Arg::VREG:
+                    loops_printf(printer, "v%d", arg.idx);
+                    break;
                 case Arg::IIMMEDIATE:
                     if(op->opcode == RISCV_LABEL)
                     {
