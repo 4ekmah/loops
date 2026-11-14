@@ -178,7 +178,9 @@ namespace loops
         INTEL64_JBE          = 161,
         INTEL64_CALL         = 162,
         INTEL64_LABEL        = 163,
-        INTEL64_RET          = 164
+        INTEL64_RET          = 164,
+        INTEL64_VPSHUFB      = 165,
+        INTEL64_VPERMQ       = 166
 };
 
     class Intel64Backend : public Backend

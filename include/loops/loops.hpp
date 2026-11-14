@@ -184,7 +184,9 @@ enum {
     OP_DEF               = 127,
     VOP_DEF              = 128,
 
-    OP_NOINIT            = 129,
+    VOP_X86_VPSHUFB      = 129,
+    VOP_X86_VPERMQ       = 130,
+    OP_NOINIT            = 131,
 };
 
 enum

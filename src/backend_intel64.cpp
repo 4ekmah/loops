@@ -163,6 +163,8 @@ namespace loops
         case (INTEL64_VPMOVZXDQ   ) : return "vpmovzxdq"   ;
         case (INTEL64_VCVTPS2PD   ) : return "vcvtps2pd"   ;
         case (INTEL64_VPALIGNR    ) : return "vpalignr"    ;
+        case (INTEL64_VPSHUFB): return "vpshufb";
+        case (INTEL64_VPERMQ): return "vpermq";
         case (INTEL64_VPSHUFD     ) : return "vpshufd"     ;
         case (INTEL64_VPSADBW     ) : return "vpsadbw"     ;
         case (INTEL64_VPHADDD     ) : return "vphaddd"     ;
@@ -1672,6 +1674,8 @@ namespace loops
         case (INTEL64_VPMOVZXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x35, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U32}),                       0,                       0);
         case (INTEL64_VCVTPS2PD):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5A, 0,     Out, In|Xmm,      0,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP32}),                       0,                       0);
         case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
+        case (INTEL64_VPSHUFB): return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x00, 0, Out, In, In, 0, BM64_ALL_INTS, bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPERMQ): return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 1, 0x00, 0, Out, In, 0, 0, bm64({TYPE_U64}), bm64({TYPE_U64}));
         case (INTEL64_VPSHUFD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x70, 0, Out|Xmm, In|Xmm,      0,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U32}),        bm64({TYPE_U8}),   bm64({TYPE_SAME_AS_1}));
         case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,         BM64_ALL_INTS32, bm64({TYPE_SAME_AS_0}),   bm64({TYPE_SAME_AS_0}));
@@ -2201,6 +2205,14 @@ namespace loops
             if(index.size() == 4 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
                index.args[2].tag == Arg::VREG && index.args[3].tag == Arg::IIMMEDIATE && index.args[3].value < 16)
                 return SyT(INTEL64_VPALIGNR, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+            break;
+        case VOP_X86_VPSHUFB:
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+                return SyT(INTEL64_VPSHUFB, { SAcopelt(0, TYPE_U8), SAcopelt(1, TYPE_U8), SAcopelt(2, TYPE_U8) });
+            break;
+        case VOP_X86_VPERMQ:
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE && index[2].value >= 0 && index[2].value < 256)
+                return SyT(INTEL64_VPERMQ, { SAcopelt(0, TYPE_U64), SAcopelt(1, TYPE_U64), SAcop(2) });
             break;
         case VOP_X86_VPSHUFD:
             if(index.size() == 3 && index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG &&
@@ -3153,6 +3165,36 @@ namespace loops
                     a_dest.program.push_back(Syntop(VOP_SUB, { op.args[0], zero, op.args[1] }));
                 }
                 break;
+            case VOP_SHRINK:
+            {
+                LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG &&
+                    op[1].elemtype == op[2].elemtype && 2 * elem_size(op[0].elemtype) == elem_size(op[1].elemtype));
+                if (!isInteger(op[0].elemtype) || !isInteger(op[1].elemtype))
+                    throw loops::exception("Intel64 shrink currently supports integer elements only");
+                // Keep the low bytes of each element, without saturation. VPSHUFB
+                // operates within 128-bit lanes; compact its two halves with
+                // VPERMQ, then concatenate the low halves of both inputs.
+                int outbytes = elem_size(op[0].elemtype);
+                uint64_t selection = 0;
+                for (int byte = 0; byte < 8; ++byte)
+                    selection |= uint64_t((byte / outbytes) * (2 * outbytes) + byte % outbytes) << (byte * 8);
+                Arg mask = op[0]; mask.elemtype = TYPE_U64;
+                mask.idx = a_dest.provideIdx(RB_VEC);
+                handle_mov_imm2vec(a_dest, mask, (int64_t)selection);
+                Arg zero_bytes = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                a_dest.program.push_back(Syntop(OP_MOV, { zero_bytes, argIImm((int64_t)UINT64_C(0x8080808080808080)) }));
+                a_dest.program.push_back(Syntop(VOP_SETLANE, { mask, argIImm(1), zero_bytes }));
+                a_dest.program.push_back(Syntop(VOP_X86_VPERM2I128, { mask, mask, mask, argIImm(0) }));
+                Arg packed[2] = {op[1], op[2]};
+                for (int input = 0; input < 2; ++input) {
+                    packed[input].idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_X86_VPSHUFB, { packed[input], op[input + 1], mask }));
+                    a_dest.program.push_back(Syntop(VOP_X86_VPERMQ, { packed[input], packed[input], argIImm(0xd8) }));
+                    packed[input].elemtype = op[0].elemtype;
+                }
+                a_dest.program.push_back(Syntop(VOP_X86_VPERM2I128, { op[0], packed[0], packed[1], argIImm(0x20) }));
+                break;
+            }
             case VOP_CAST:
                 LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
                 if(op.args[0].elemtype == TYPE_I64 && op.args[1].elemtype == TYPE_FP64)
