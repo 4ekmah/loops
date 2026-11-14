@@ -155,6 +155,7 @@ namespace loops
         virtual ~RiscVBackend() override;
         virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
         virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
+        virtual AllocationRestriction getRestriction(const Syntop& a_op) const override final;
         virtual std::array<std::map<RegIdx, int>, RB_AMOUNT> getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const;
         virtual int stackGrowthAlignment(int stackGrowth) const override final;
         virtual void writeCallerPrologue(Syntfunc& prog, int stackGrowth) const override final;
