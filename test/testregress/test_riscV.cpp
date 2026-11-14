@@ -73,6 +73,7 @@ TEST(riscV, instruction_set_test)
         PREPARE_ASSEMBLY_TESTING(test_info_->name());
 
         DEFINE_ASSEMBLY_REG(zero, 0);
+        DEFINE_ASSEMBLY_REG(t0, 5);
         DEFINE_ASSEMBLY_REG(t6, 31);
         DEFINE_ASSEMBLY_VREG(uint8_t, u8v0, 0);
         DEFINE_ASSEMBLY_VREG(uint8_t, u8v31, 31);
@@ -102,6 +103,7 @@ TEST(riscV, instruction_set_test)
         DEFINE_ASSEMBLY_VREG(double, dv31, 31);
 
         newiopNoret(OP_MOV, { zero, zero});
+        newiopNoret(OP_MOV, { t0  , zero});
         newiopNoret(OP_MOV, { t6  , zero});
         newiopNoret(OP_MOV, { zero, t6  });
         newiopNoret(OP_MOV, { zero, immtyped<int64_t>(0    , _f)});
@@ -338,6 +340,9 @@ TEST(riscV, instruction_set_test)
         newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0) });
         newiopNoret(OP_RV_VSETVLI, { t6, zero, argIImm(0) });
         newiopNoret(OP_RV_VSETVLI, { zero, t6, argIImm(0) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x4a) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x90) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x9d) });
         newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x7ff) });
 
         newiopNoret(VOP_LOAD, {   u8v0, zero});
