@@ -159,7 +159,7 @@ namespace loops
         SP   =  2,
         GP   =  3,
         TP   =  4,
-        LR   =  5,
+        T0   =  5,
         T1   =  6,
         T2   =  7,
         FP   =  8,
@@ -1597,12 +1597,23 @@ namespace loops
         uint64_t operand_flags[Syntop::SYNTOP_ARGS_MAX];
         printer->backend->fill_native_operand_flags(op, operand_flags);
         int aamount = op->args_size;
+        bool need_comma = false;
 
         for(int anum = 0; anum < aamount ; anum++)
         {
             Arg arg = op->args[anum];
-            //Exceptions block:
-            if (operand_flags[anum] & AF_PRINTOFFSET)
+            uint64_t argflags = operand_flags[anum];
+            bool vrange = (argflags & AF_VREGRANGE);
+            if(vrange && anum > 0 && (operand_flags[anum - 1] & AF_VREGRANGE))
+            {
+                LOOPS_ASSERT(arg.tag == Arg::VREG);
+                continue;
+            }
+            bool address = (argflags & AF_ADDRESS);
+            bool address_continue = address && anum > 0 && (operand_flags[anum - 1] & AF_ADDRESS);
+            if(need_comma && !address_continue)
+                loops_printf(printer, ", ");
+            if (argflags & AF_PRINTOFFSET)
             {
                 int targetline;
                 if (arg.tag != Arg::IIMMEDIATE)
@@ -1618,18 +1629,16 @@ namespace loops
                 LOOPS_ASSERT(labelop->opcode == RISCV_LABEL && labelop->args_size == 1);
                 LOOPS_ASSERT(labelop->opcode == RISCV_LABEL && labelop->args_size == 1 && labelop->args[0].tag == Arg::IIMMEDIATE);
                 loops_printf(printer, "__loops_label_%d", (int)(labelop->args[0].value));
+                need_comma = true;
                 continue;
             }
-            uint64_t argflags = operand_flags[anum];
-            bool address = (argflags & AF_ADDRESS);
-            bool inhibit_comma = false;
             switch (arg.tag)
             {
                 case Arg::IREG:
                 {
                     if(address)
                         loops_printf(printer, "(");
-                    static const char* rnames[32] = { "zero", "ra", "sp", "gp", "tp", "lr", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" };
+                    static const char* rnames[32] = { "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6" };
                     loops_printf(printer, "%s", rnames[arg.idx]);
                     if(address)
                         loops_printf(printer, ")");
@@ -1639,13 +1648,22 @@ namespace loops
                     loops_printf(printer, "v%d", arg.idx);
                     break;
                 case Arg::IIMMEDIATE:
+                {
                     if(op->opcode == RISCV_LABEL)
                     {
                         loops_printf(printer, "__loops_label_%d:", arg.value);
                     }
                     else
                     {
-                        if(arg.value == 0)
+                        int vsew = (arg.value >> 3) & 0b111;
+                        int vlmul = arg.value & 0b111;
+                        if(op->opcode == RISCV_VSETVLI && anum == 2 && arg.value >= 0 && arg.value <= 0xff && vsew < 4 && vlmul != 4)
+                        {
+                            static const char* sew_names[] = {"e8", "e16", "e32", "e64"};
+                            static const char* lmul_names[] = {"m1", "m2", "m4", "m8", nullptr, "mf8", "mf4", "mf2"};
+                            loops_printf(printer, "%s, %s, %s, %s", sew_names[vsew], lmul_names[vlmul], (arg.value & 0x40) ? "ta" : "tu", (arg.value & 0x80) ? "ma" : "mu");
+                        }
+                        else if(arg.value == 0)
                             loops_printf(printer, "0");
                         else
                         {
@@ -1669,15 +1687,13 @@ namespace loops
                             else
                                 loops_printf(printer, "%s0x%02x", (negative ? "-": ""), lower32);
                         }
-                        if(address)
-                            inhibit_comma = true;
                     }
                     break;
+                }
                 default:
                     throw loops::exception(LOOPS_ERR_UNKNOWN_ARGUMENT_TYPE);
             };
-            if (anum < aamount - 1 && !inhibit_comma)
-                loops_printf(printer, ", ");
+            need_comma = true;
         }
         printer->close_printer_cell();
     }
