@@ -795,7 +795,7 @@ namespace loops
         case (RISCV_VMV_V_V): return op_vv(index, scs, 0b010111, 1, 0b000, Out, 0, In, ARG1_FIXED, 0, V0, 0);
         case (RISCV_VMV_V_X): return opivx(index, scs, 0b010111, 1, Out, 0, In, ARG1_FIXED, 0, V0, 0);
         case (RISCV_VMV_V_I): return opivi(index, scs, 0b010111, 1, true, Out, 0, 0, ARG1_FIXED, 0, V0, 0);
-        case (RISCV_VMV1R): return op_vv(index, scs, 0b100111, 1, 0b000, Out, In, 0, ARG2_FIXED, 0, 0, V0);
+        case (RISCV_VMV1R): return opivi(index, scs, 0b100111, 1, false, Out, In, 0, ARG2_FIXED, 0, 0, 0);
         case (RISCV_VRGATHER_VI): return opivi(index, scs, 0b001100, 1, false, Out, In, 0, 0, 0, 0, 0);
         case (RISCV_VRGATHER_VX): return opivx(index, scs, 0b001100, 1, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VSLIDEUP_VI): return opivi(index, scs, 0b001110, 1, false, Out, In, 0, 0, 0, 0, 0);
@@ -844,7 +844,10 @@ namespace loops
         case (RISCV_VFSUB_VV): return op_vv(index, scs, 0b000010, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFMUL_VV): return op_vv(index, scs, 0b100100, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFDIV_VV): return op_vv(index, scs, 0b100000, 1, 0b001, Out, In, In, 0, 0, 0, 0);
-        case (RISCV_VFMACC_VV): return op_vv(index, scs, 0b101100, 1, 0b001, IO, In, In, 0, 0, 0, 0);
+        case (RISCV_VFMACC_VV):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+                return BiT({ BTsta(0b101100, 6), BTsta(1, 1), BTreg(2, 5, In), BTreg(1, 5, In), BTsta(0b001, 3), BTreg(0, 5, IO), BTsta(0b1010111, 7) });
+            break;
         case (RISCV_VFMIN_VV): return op_vv(index, scs, 0b000100, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFMAX_VV): return op_vv(index, scs, 0b000110, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFSGNJN_VV): return op_vv(index, scs, 0b001001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
@@ -868,8 +871,8 @@ namespace loops
         case (RISCV_VFNCVT_F_F_W): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b10100);
         case (RISCV_VREDSUM_VS): return op_vv(index, scs, 0b000000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFREDUSUM_VS): return op_vv(index, scs, 0b000001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
-        case (RISCV_VWREDSUM_VS): return op_vv(index, scs, 0b110001, 1, 0b010, Out, In, In, 0, 0, 0, 0);
-        case (RISCV_VWREDSUMU_VS): return op_vv(index, scs, 0b110000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VWREDSUM_VS): return op_vv(index, scs, 0b110001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VWREDSUMU_VS): return op_vv(index, scs, 0b110000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_CSRRWI):
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
                index[1].value >= 0 && index[1].value <= 0xfff && index[2].value >= 0 && index[2].value <= 31)
