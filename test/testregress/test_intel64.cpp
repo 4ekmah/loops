@@ -8,6 +8,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "src/common.hpp"
+#include "src/backend_intel64.hpp"
 #include "src/func_impl.hpp"
 #include "src/reg_allocator.hpp"
 #include "tests.hpp"
@@ -234,6 +235,75 @@ TEST(intel64, integer_shrink)
     check_integer_shrink<uint32_t>();
     check_integer_shrink<int16_t>();
     check_integer_shrink<uint16_t>();
+}
+
+TEST(intel64, call_register_usage)
+{
+    Intel64Backend backend;
+    for (int opcode : {OP_CALL, OP_CALL_NORET})
+        for (int nargs = 0; nargs <= 8; ++nargs)
+        {
+            SCOPED_TRACE(opcode);
+            SCOPED_TRACE(nargs);
+            const int first_input = opcode == OP_CALL ? 1 : 0;
+            std::vector<Arg> args;
+            std::set<int> inputs, outputs;
+            if (opcode == OP_CALL)
+                outputs.insert(0);
+            for (int i = 0; i < nargs + first_input + 1; ++i)
+            {
+                args.push_back(argReg(RB_INT, i));
+                if (i >= first_input)
+                    inputs.insert(i);
+            }
+            Syntop op(opcode, args);
+            EXPECT_EQ(inputs, backend.getUsedRegistersIdxs(op, RB_INT, AF_INPUT));
+            EXPECT_EQ(outputs, backend.getUsedRegistersIdxs(op, RB_INT, AF_OUTPUT));
+            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_INT, AF_INPUT | AF_OUTPUT).empty());
+            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_VEC, AF_INPUT).empty());
+            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_VEC, AF_OUTPUT).empty());
+        }
+}
+
+static int64_t weighted_sum4(int64_t a, int64_t b, int64_t c, int64_t d)
+{
+    return a + 3*b + 5*c + 7*d;
+}
+
+static void store_weighted_sum(int64_t a, int64_t b, int64_t c, int64_t output)
+{
+    *reinterpret_cast<int64_t*>(output) = a + 3*b + 5*c;
+}
+
+TEST(intel64, four_argument_calls)
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    {
+        IReg a, b, c, d;
+        STARTFUNC_("sum4", &a, &b, &c, &d)
+        {
+            IReg result = CALL_(weighted_sum4, a, b, c, d);
+            RETURN_(result);
+        }
+    }
+    {
+        IReg a, b, c, d;
+        STARTFUNC_("store3", &a, &b, &c, &d)
+        {
+            VOID_CALL_(store_weighted_sum, a, b, c, d);
+            RETURN_();
+        }
+    }
+    auto sum4 = reinterpret_cast<int64_t(*)(int64_t, int64_t, int64_t, int64_t)>(ctx.getFunc("sum4").ptr());
+    auto store3 = reinterpret_cast<void(*)(int64_t, int64_t, int64_t, int64_t)>(ctx.getFunc("store3").ptr());
+    for (int64_t i = -10; i <= 10; ++i)
+    {
+        EXPECT_EQ(weighted_sum4(i, i + 1, i + 2, i + 3), sum4(i, i + 1, i + 2, i + 3));
+        int64_t result = 0;
+        store3(i, i + 1, i + 2, reinterpret_cast<int64_t>(&result));
+        EXPECT_EQ(i + 3*(i + 1) + 5*(i + 2), result);
+    }
 }
 
 TEST(intel64, instruction_set_test)

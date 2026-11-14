@@ -2687,7 +2687,7 @@ namespace loops
                 LOOPS_ASSERT(allRegs);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
-                    outRegs = actualRegs = makeBitmask64({ 0 });
+                    outRegs = actualRegs = a_op.opcode == OP_CALL ? makeBitmask64({ 0 }) : uint64_t(0);
                     inRegs = makeBitmask64({});
                     for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
                     {
@@ -2713,10 +2713,8 @@ namespace loops
                 actualRegs &= inRegs;
             if (AF_OUTPUT & flagmask)
                 actualRegs &= outRegs;
-            checkAndAdd(actualRegs, 0);
-            checkAndAdd(actualRegs, 1);
-            checkAndAdd(actualRegs, 2);
-            checkAndAdd(actualRegs, 3);
+            for (int arnum = 0; arnum < a_op.size(); ++arnum)
+                checkAndAdd(actualRegs, arnum);
             bypass = false;
             return res;
         }
