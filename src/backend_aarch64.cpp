@@ -1580,7 +1580,7 @@ SyntopTranslation a64STLookup(const Backend* backend, const Syntop& index, bool&
             return SyT(AARCH64_LD1, { SAcop(0), SAvreg((index[0].idx + 1) % 32, index[0].elemtype), 
                                                 SAvreg((index[0].idx + 2) % 32, index[0].elemtype), SAvreg((index[0].idx + 3) % 32, index[0].elemtype), SAcop(1), SAimm(64) });
         break;
-    case (VOP_ARM_LD2):
+    case (VOP_LD2):
         if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype && index[1].idx == ((index[0].idx + 1) % 32))
             return SyT(AARCH64_LD2, { SAcop(0), SAcop(1), SAcop(2) });
         break;
@@ -2164,7 +2164,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             }
             break;
         }
-        case (VOP_ARM_LD2):
+        case (VOP_LD2):
         {
             LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -2209,7 +2209,7 @@ AllocationRestriction Aarch64Backend::getRestriction(const Syntop& a_op) const
         case (VOP_FMA):
         case (VOP_SELECT):
             return AllocationRestriction::makeInplace(0, 1);
-        case (VOP_ARM_LD2):
+        case (VOP_LD2):
             return AllocationRestriction::makeConsecutive(RB_VEC, 0, 2);
         default: return AllocationRestriction::makeNone();
     }

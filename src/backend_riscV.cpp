@@ -65,8 +65,6 @@ namespace loops
         case (RISCV_LABEL): return ""     ;
         case (RISCV_RET  ): return "ret"  ;
         case (RISCV_VSETVLI): return "vsetvli";
-        case (RISCV_VSETIVLI): return "vsetivli";
-        case (RISCV_VSETVL): return "vsetvl";
         case (RISCV_VLE8): return "vle8.v";
         case (RISCV_VLE16): return "vle16.v";
         case (RISCV_VLE32): return "vle32.v";
@@ -148,7 +146,6 @@ namespace loops
         case (RISCV_VFREDUSUM_VS): return "vfredusum.vs";
         case (RISCV_VWREDSUM_VS): return "vwredsum.vs";
         case (RISCV_VWREDSUMU_VS): return "vwredsumu.vs";
-        case (RISCV_VFREDOSUM_VS): return "vfredosum.vs";
         case (RISCV_CSRRWI): return "csrrwi";
         case (RISCV_CSRRW): return "csrrw";
         };
@@ -751,13 +748,6 @@ namespace loops
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE && index[2].value >= 0 && index[2].value <= 0x7ff)
                 return itype(index, scs, 0b111, 0b1010111, Out, In, 0, 0, 0, 0, 0);
             break;
-        case (RISCV_VSETIVLI):
-            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
-               index[1].value >= 0 && index[1].value <= 31 && index[2].value >= 0 && index[2].value <= 0x3ff)
-                return BiT({ BTsta(0b11, 2), BTimm(2, 10), BTimm(1, 5), BTsta(0b111, 3), BTreg(0, 5, Out), BTsta(0b1010111, 7) });
-            break;
-        case (RISCV_VSETVL):
-            return rtype(index, scs, 0b1000000, 0b111, 0b1010111, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VLE8):
         case (RISCV_VLE16):
         case (RISCV_VLE32):
@@ -880,7 +870,6 @@ namespace loops
         case (RISCV_VFREDUSUM_VS): return op_vv(index, scs, 0b000001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VWREDSUM_VS): return op_vv(index, scs, 0b110001, 1, 0b010, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VWREDSUMU_VS): return op_vv(index, scs, 0b110000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
-        case (RISCV_VFREDOSUM_VS): return op_vv(index, scs, 0b000011, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_CSRRWI):
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE &&
                index[1].value >= 0 && index[1].value <= 0xfff && index[2].value >= 0 && index[2].value <= 31)
@@ -1002,7 +991,7 @@ namespace loops
                 }
             }
             else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
-                return SyT(RISCV_VMV_V_V, { SAcop(0), SAcop(1) });
+                return SyT(RISCV_VMV1R, { SAcop(0), SAcop(1) });
             break;
         case (OP_RV_LUI):
             if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE)
@@ -1115,55 +1104,15 @@ namespace loops
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IIMMEDIATE)
                 return SyT(RISCV_VSETVLI, { SAcop(0), SAcop(1), SAcop(2) });
             break;
-        case (OP_RV_VSETIVLI):
-            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE)
-                return SyT(RISCV_VSETIVLI, { SAcop(0), SAcop(1), SAcop(2) });
-            break;
-        case (OP_RV_VSETVL):
-            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IREG && index[2].tag == Arg::IREG)
-                return SyT(RISCV_VSETVL, { SAcop(0), SAcop(1), SAcop(2) });
-            break;
         case (VOP_LOAD):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
-            {
-                int opcode = -1;
-                switch(elem_size(index[0].elemtype))
-                {
-                case 1: opcode = RISCV_VLE8; break;
-                case 2: opcode = RISCV_VLE16; break;
-                case 4: opcode = RISCV_VLE32; break;
-                case 8: opcode = RISCV_VLE64; break;
-                default: break;
-                }
-                if(opcode != -1)
-                    return SyT(opcode, { SAcop(0), SAcop(1) });
-            }
-            break;
-        case (VOP_STORE):
-            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
-            {
-                int opcode = -1;
-                switch(elem_size(index[1].elemtype))
-                {
-                case 1: opcode = RISCV_VSE8; break;
-                case 2: opcode = RISCV_VSE16; break;
-                case 4: opcode = RISCV_VSE32; break;
-                case 8: opcode = RISCV_VSE64; break;
-                default: break;
-                }
-                if(opcode != -1)
-                    return SyT(opcode, { SAcop(1), SAcop(0) });
-            }
-            break;
-        case (VOP_RV_VL1RE8):
             if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
                 return SyT(RISCV_VL1RE8, { SAcop(0), SAcop(1) });
             break;
-        case (VOP_RV_VS1R):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
-                return SyT(RISCV_VS1R, { SAcop(0), SAcop(1) });
+        case (VOP_STORE):
+            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+                return SyT(RISCV_VS1R, { SAcop(1), SAcop(0) });
             break;
-        case (VOP_RV_VLSEG2):
+        case (VOP_LD2):
             if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG && index[0].elemtype == index[1].elemtype)
             {
                 int opcode = -1;
@@ -1184,13 +1133,7 @@ namespace loops
                 return SyT(RISCV_VMV_V_X, { SAcop(0), SAcop(1) });
             else if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE)
                 return SyT(RISCV_VMV_V_I, { SAcop(0), SAcop(1) });
-            break;
-        case (VOP_RV_VMV1R):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
-                return SyT(RISCV_VMV1R, { SAcop(0), SAcop(1) });
-            break;
-        case (VOP_RV_VRGATHER):
-            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG)
+            else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IREG)
                 return SyT(RISCV_VRGATHER_VX, { SAcop(0), SAcop(1), SAcop(2) });
             else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
                 return SyT(RISCV_VRGATHER_VI, { SAcop(0), SAcop(1), SAcop(2) });
@@ -1202,78 +1145,76 @@ namespace loops
             else if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
                 return SyT(index.opcode == VOP_RV_VSLIDEUP ? RISCV_VSLIDEUP_VI : RISCV_VSLIDEDOWN_VI, { SAcop(0), SAcop(1), SAcop(2) });
             break;
-        case (OP_RV_VMV_X_S):
-            if(index.size() == 2 && index[0].tag == Arg::IREG && index[1].tag == Arg::VREG)
+        case (VOP_GETLANE):
+            if(index.args_size == 3 && index.args[0].tag == Arg::IREG && index.args[1].tag == Arg::VREG && index.args[2].tag == Arg::IIMMEDIATE && index.args[2].value == 0)
                 return SyT(RISCV_VMV_X_S, { SAcop(0), SAcop(1) });
             break;
-        case (VOP_RV_VMV_S_X):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::IREG)
-                return SyT(RISCV_VMV_S_X, { SAcop(0), SAcop(1) });
+        case (VOP_SETLANE):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG && index.args[1].value == 0)
+                return SyT(RISCV_VMV_S_X, { SAcop(0), SAcop(2) });
             break;
-        case (VOP_RV_VMERGE):
-            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[3].tag == Arg::VREG)
+        case (VOP_SELECT):
+            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
             {
-                if(index[2].tag == Arg::VREG)
-                    return SyT(RISCV_VMERGE_VVM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
-                else if(index[2].tag == Arg::IREG)
-                    return SyT(RISCV_VMERGE_VXM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
-                else if(index[2].tag == Arg::IIMMEDIATE)
-                    return SyT(RISCV_VMERGE_VIM, { SAcop(0), SAcop(1), SAcop(2), SAcop(3) });
+                if(index[3].tag == Arg::VREG)
+                    return SyT(RISCV_VMERGE_VVM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
+                else if(index[3].tag == Arg::IREG)
+                    return SyT(RISCV_VMERGE_VXM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
+                else if(index[3].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_VMERGE_VIM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
             }
             break;
-        case (VOP_RV_VMSNE_VI):
-            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::IIMMEDIATE)
-                return SyT(RISCV_VMSNE_VI, { SAcop(0), SAcop(1), SAcop(2) });
-            break;
-        case (VOP_RV_VMSEQ):
-        case (VOP_RV_VMSNE):
-        case (VOP_RV_VMSLT):
-        case (VOP_RV_VMSLTU):
-        case (VOP_RV_VMSLE):
-        case (VOP_RV_VMSLEU):
-        case (VOP_RV_VMFEQ):
-        case (VOP_RV_VMFNE):
-        case (VOP_RV_VMFLT):
-        case (VOP_RV_VMFLE):
-            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+        case (VOP_EQ):
+        case (VOP_NE):
+        case (VOP_LT):
+        case (VOP_LE):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isUnsignedInteger(index[0].elemtype) &&
+                elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
             {
-                int opcode = index.opcode == VOP_RV_VMSEQ ? RISCV_VMSEQ_VV :
-                             index.opcode == VOP_RV_VMSNE ? RISCV_VMSNE_VV :
-                             index.opcode == VOP_RV_VMSLT ? RISCV_VMSLT_VV :
-                             index.opcode == VOP_RV_VMSLTU ? RISCV_VMSLTU_VV :
-                             index.opcode == VOP_RV_VMSLE ? RISCV_VMSLE_VV :
-                             index.opcode == VOP_RV_VMSLEU ? RISCV_VMSLEU_VV :
-                             index.opcode == VOP_RV_VMFEQ ? RISCV_VMFEQ_VV :
-                             index.opcode == VOP_RV_VMFNE ? RISCV_VMFNE_VV :
-                             index.opcode == VOP_RV_VMFLT ? RISCV_VMFLT_VV : RISCV_VMFLE_VV;
+                if (index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype)
+                {
+                    int opcode = index.opcode == VOP_EQ ? RISCV_VMSEQ_VV : 
+                                 index.opcode == VOP_NE ? RISCV_VMSNE_VV : 
+                                 index.opcode == VOP_LT ? RISCV_VMSLT_VV : 
+                               /*index.opcode == VOP_LE?*/RISCV_VMSLE_VV;
+                    if(isFloat(index[1].elemtype))
+                        opcode = index.opcode == RISCV_VMSEQ_VV ? RISCV_VMFEQ_VV : 
+                                 index.opcode == RISCV_VMSNE_VV ? RISCV_VMFNE_VV : 
+                                 index.opcode == RISCV_VMSLT_VV ? RISCV_VMFLT_VV : 
+                               /*index.opcode == RISCV_VMSLE_VV?*/RISCV_VMFLE_VV;
+                    else if(isUnsignedInteger(index[1].elemtype))
+                        opcode = index.opcode == RISCV_VMSLT_VV ? RISCV_VMSLTU_VV : 
+                                 index.opcode == RISCV_VMSLE_VV ? RISCV_VMSLEU_VV : opcode;
+                    return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
+                }
+                if (index[2].tag == Arg::IIMMEDIATE)
+                {
+                    return SyT(RISCV_VMSNE_VI, { SAcop(0), SAcop(1), SAcop(2) });                    
+                }
+            }
+            break;
+        case (VOP_REDUCE_SUM):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && 
+               index[0].elemtype == index[1].elemtype && index[0].elemtype == index[2].elemtype)
+            {
+                int opcode = isInteger(index[0].elemtype) ? RISCV_VREDSUM_VS :
+                             isFloat(index[0].elemtype) ? RISCV_VFREDUSUM_VS : -1;
+                if(opcode == -1)
+                    break;
                 return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
             }
             break;
-        case (VOP_RV_VFCVT_X_F):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
-                return SyT(RISCV_VFCVT_X_F_V, { SAcop(0), SAcop(1) });
-            break;
-        case (VOP_RV_VREDSUM):
-        case (VOP_RV_VFREDUSUM):
-        case (VOP_RV_VWREDSUM):
-        case (VOP_RV_VWREDSUMU):
-        case (VOP_RV_VFREDOSUM):
-            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
-            {
-                int opcode = index.opcode == VOP_RV_VREDSUM ? RISCV_VREDSUM_VS :
-                             index.opcode == VOP_RV_VFREDUSUM ? RISCV_VFREDUSUM_VS :
-                             index.opcode == VOP_RV_VWREDSUM ? RISCV_VWREDSUM_VS :
-                             index.opcode == VOP_RV_VWREDSUMU ? RISCV_VWREDSUMU_VS : RISCV_VFREDOSUM_VS;
-                return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
-            }
+        case (VOP_REDUCE_WSUM):
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && 
+               index[1].elemtype == index[2].elemtype &&
+               ((isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype)) || 
+               (isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))) &&
+                elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
+                return SyT(isUnsignedInteger(index[0].elemtype) ? RISCV_VWREDSUMU_VS : RISCV_VWREDSUM_VS, { SAcop(0), SAcop(1), SAcop(2) });
             break;
         case (OP_RV_CSRRWI):
             if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IIMMEDIATE)
                 return SyT(RISCV_CSRRWI, { SAcop(0), SAcop(1), SAcop(2) });
-            break;
-        case (OP_RV_CSRRW):
-            if(index.size() == 3 && index[0].tag == Arg::IREG && index[1].tag == Arg::IIMMEDIATE && index[2].tag == Arg::IREG)
-                return SyT(RISCV_CSRRW, { SAcop(0), SAcop(1), SAcop(2) });
             break;
         case (VOP_ADD):
         case (VOP_SUB):
@@ -1363,6 +1304,11 @@ namespace loops
                 if(isFloat(index[0].elemtype))
                     return SyT(RISCV_VFSGNJN_VV, { SAcop(0), SAcop(1), SAcop(1) });
             }
+            break;
+        case (VOP_FLOOR):
+        case (VOP_TRUNC):
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                return SyT(RISCV_VFCVT_X_F_V, { SAcop(0), SAcop(1) });
             break;
         case (VOP_CAST):
             if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)

@@ -31,7 +31,7 @@ namespace loops
         Arg base_ = unpack_expr(b);
         res1.idx = m_data.provideIdx(RB_VEC);
         res2.idx = m_data.provideIdx(RB_VEC);
-        m_data.program.emplace_back(Syntop(VOP_ARM_LD2, {res1, res2, base_}));
+        m_data.program.emplace_back(Syntop(VOP_LD2, {res1, res2, base_}));
     }
 
     void CodeCollecting::process(Syntfunc& /*a_dest*/, const Syntfunc& /*a_source*/)
