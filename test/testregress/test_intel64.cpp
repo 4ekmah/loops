@@ -14,6 +14,10 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "tests.hpp"
 #include <iostream>
 #include <limits>
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min // Windows.h implements min and max as macro.
+#undef max //
+#endif
 
 using namespace loops;
 
