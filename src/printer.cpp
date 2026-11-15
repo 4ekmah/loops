@@ -97,8 +97,6 @@ static inline cstring opstrings_ir_getter(int opcode)
     case (VOP_X86_VINSERT128 ) : return "x86_vinsert128"        ;
     case (VOP_X86_VPERM2I128 ) : return "x86_vperm2i128"        ;
     case (VOP_X86_VPALIGNR   ) : return "x86_vpalignr"          ;
-    case (VOP_X86_VPSHUFB) : return "x86_vpshufb";
-    case (VOP_X86_VPERMQ) : return "x86_vpermq";
     case (VOP_X86_VPSHUFD    ) : return "x86_vpshufd"           ;
     case (VOP_X86_VPSADBW    ) : return "x86_vpsadbw"           ;
     case (VOP_X86_VPHADDD    ) : return "x86_vphaddd"           ;
@@ -106,6 +104,8 @@ static inline cstring opstrings_ir_getter(int opcode)
     case (VOP_X86_VADDSS     ) : return "x86_vaddss"            ;
     case (VOP_X86_VHADDPD    ) : return "x86_vhaddpd"           ;
     case (VOP_X86_VADDSD     ) : return "x86_vaddsd"            ;
+    case (VOP_X86_VPSHUFB    ) : return "x86_vpshufb"           ;
+    case (VOP_X86_VPERMQ     ) : return "x86_vpermq"            ;
     case (OP_ARM_CINC        ) : return "arm_cinc"              ;
     case (OP_ARM_CNEG        ) : return "arm_cneg"              ;
     case (OP_ARM_MOVK        ) : return "arm_movk"              ;

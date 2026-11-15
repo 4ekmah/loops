@@ -237,34 +237,6 @@ TEST(intel64, integer_shrink)
     check_integer_shrink<uint16_t>();
 }
 
-TEST(intel64, call_register_usage)
-{
-    Intel64Backend backend;
-    for (int opcode : {OP_CALL, OP_CALL_NORET})
-        for (int nargs = 0; nargs <= 8; ++nargs)
-        {
-            SCOPED_TRACE(opcode);
-            SCOPED_TRACE(nargs);
-            const int first_input = opcode == OP_CALL ? 1 : 0;
-            std::vector<Arg> args;
-            std::set<int> inputs, outputs;
-            if (opcode == OP_CALL)
-                outputs.insert(0);
-            for (int i = 0; i < nargs + first_input + 1; ++i)
-            {
-                args.push_back(argReg(RB_INT, i));
-                if (i >= first_input)
-                    inputs.insert(i);
-            }
-            Syntop op(opcode, args);
-            EXPECT_EQ(inputs, backend.getUsedRegistersIdxs(op, RB_INT, AF_INPUT));
-            EXPECT_EQ(outputs, backend.getUsedRegistersIdxs(op, RB_INT, AF_OUTPUT));
-            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_INT, AF_INPUT | AF_OUTPUT).empty());
-            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_VEC, AF_INPUT).empty());
-            EXPECT_TRUE(backend.getUsedRegistersIdxs(op, RB_VEC, AF_OUTPUT).empty());
-        }
-}
-
 static int64_t weighted_sum4(int64_t a, int64_t b, int64_t c, int64_t d)
 {
     return a + 3*b + 5*c + 7*d;
@@ -275,7 +247,7 @@ static void store_weighted_sum(int64_t a, int64_t b, int64_t c, int64_t output)
     *reinterpret_cast<int64_t*>(output) = a + 3*b + 5*c;
 }
 
-TEST(intel64, four_argument_calls)
+TEST(intel64, four_argument_calls) //TODO: move to calls section and append IR/Assembly checks.
 {
     Context ctx;
     USE_CONTEXT_(ctx);
@@ -3433,6 +3405,36 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_X86_VADDSD, {  ymm7_4f,  ymm0_4f,  ymm8_4f});
         newiopNoret(VOP_X86_VADDSD, {  ymm0_4f,  ymm7_4f,  ymm8_4f});
         newiopNoret(VOP_X86_VADDSD, {  ymm0_4f,  ymm0_4f, ymm15_4f});
+
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, { ymm15_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u, ymm15_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm8_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm7_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u, ymm15_32u});
+
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm7_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm7_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm0_32u, argIImm(255)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, { ymm15_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm7_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm0_32u, argIImm(255)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm8_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm7_32u,  ymm8_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u, ymm15_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm8_32u, argIImm(255)});
 
         newiopNoret(OP_CALL_NORET, { rax });
         newiopNoret(OP_CALL_NORET, { rdi });

@@ -163,8 +163,6 @@ namespace loops
         case (INTEL64_VPMOVZXDQ   ) : return "vpmovzxdq"   ;
         case (INTEL64_VCVTPS2PD   ) : return "vcvtps2pd"   ;
         case (INTEL64_VPALIGNR    ) : return "vpalignr"    ;
-        case (INTEL64_VPSHUFB): return "vpshufb";
-        case (INTEL64_VPERMQ): return "vpermq";
         case (INTEL64_VPSHUFD     ) : return "vpshufd"     ;
         case (INTEL64_VPSADBW     ) : return "vpsadbw"     ;
         case (INTEL64_VPHADDD     ) : return "vphaddd"     ;
@@ -172,6 +170,8 @@ namespace loops
         case (INTEL64_VADDSS      ) : return "vaddss"      ;
         case (INTEL64_VHADDPD     ) : return "vhaddpd"     ;
         case (INTEL64_VADDSD      ) : return "vaddsd"      ;
+        case (INTEL64_VPSHUFB     ) : return "vpshufb"     ;
+        case (INTEL64_VPERMQ      ) : return "vpermq"      ;
         case (INTEL64_JMP         ) : return "jmp"         ;
         case (INTEL64_JNE         ) : return "jne"         ;
         case (INTEL64_JE          ) : return "je"          ;
@@ -1674,8 +1674,6 @@ namespace loops
         case (INTEL64_VPMOVZXDQ):    return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x35, 0,     Out, In|Xmm,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U32}),                       0,                       0);
         case (INTEL64_VCVTPS2PD):    return VEX_instuction(index, scs,    0,   0x0F, 0, 1, 0x5A, 0,     Out, In|Xmm,      0,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP32}),                       0,                       0);
         case (INTEL64_VPALIGNR):     return VEX_instuction(index, scs, 0x66, 0x0F3A, 0, 1, 0x0F, 0,     Out,     In,     In,  0,                BM64_ALL, bm64({TYPE_SAME_AS_0}),  bm64({TYPE_SAME_AS_0}),                       0);
-        case (INTEL64_VPSHUFB): return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x00, 0, Out, In, In, 0, BM64_ALL_INTS, bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
-        case (INTEL64_VPERMQ): return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 1, 0x00, 0, Out, In, 0, 0, bm64({TYPE_U64}), bm64({TYPE_U64}));
         case (INTEL64_VPSHUFD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 0, 0x70, 0, Out|Xmm, In|Xmm,      0,  0,              BM64_ALL32, bm64({TYPE_SAME_AS_0}));
         case (INTEL64_VPSADBW):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0xF6, 0,     Out,     In,     In,  0,        bm64({TYPE_U32}),        bm64({TYPE_U8}),   bm64({TYPE_SAME_AS_1}));
         case (INTEL64_VPHADDD):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x02, 0,     Out,     In,     In,  0,         BM64_ALL_INTS32, bm64({TYPE_SAME_AS_0}),   bm64({TYPE_SAME_AS_0}));
@@ -1683,10 +1681,12 @@ namespace loops
         case (INTEL64_VADDSS):       return VEX_instuction(index, scs, 0xF3,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP32}),      bm64({TYPE_FP32}),        bm64({TYPE_FP32}));
         case (INTEL64_VHADDPD):      return VEX_instuction(index, scs, 0x66,   0x0F, 0, 1, 0x7C, 0,     Out,     In,     In,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
         case (INTEL64_VADDSD):       return VEX_instuction(index, scs, 0xF2,   0x0F, 0, 0, 0x58, 0, Out|Xmm, In|Xmm, In|Xmm,  0,       bm64({TYPE_FP64}),      bm64({TYPE_FP64}),        bm64({TYPE_FP64}));
+        case (INTEL64_VPSHUFB):      return VEX_instuction(index, scs, 0x66, 0x0F38, 0, 1, 0x00, 0,     Out,     In,     In,  0,           BM64_ALL_INTS, bm64({TYPE_SAME_AS_0}), bm64({TYPE_SAME_AS_0}));
+        case (INTEL64_VPERMQ):       return VEX_instuction(index, scs, 0x66, 0x0F3A, 1, 1, 0x00, 0,     Out,     In,      0,  0,        bm64({TYPE_U64}),       bm64({TYPE_U64}));
         case (INTEL64_JMP): return BiT({ BTsta(0xE9,8), BTimm(0, 32, Lab) });
         case (INTEL64_JNE): return BiT({ BTsta(0xf85,16), BTimm(0, 32, Lab) });
         case (INTEL64_JE):  return BiT({ BTsta(0xf84,16), BTimm(0, 32, Lab) });
-        case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BTimm(0, 32, Lab) });
+        case (INTEL64_JL):  return BiT({ BTsta(0xf8c,16), BTimm(0, 32, Lab) }); 
         case (INTEL64_JG):  return BiT({ BTsta(0xf8f,16), BTimm(0, 32, Lab) });
         case (INTEL64_JGE): return BiT({ BTsta(0xf8d,16), BTimm(0, 32, Lab) });
         case (INTEL64_JA):  return BiT({ BTsta(0xf87,16), BTimm(0, 32, Lab) });
@@ -2687,7 +2687,7 @@ namespace loops
                 LOOPS_ASSERT(allRegs);
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
-                    outRegs = actualRegs = a_op.opcode == OP_CALL ? makeBitmask64({ 0 }) : uint64_t(0);
+                    outRegs = actualRegs = a_op.opcode == OP_CALL ? makeBitmask64({ 0 }) : makeBitmask64({});
                     inRegs = makeBitmask64({});
                     for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ )
                     {
