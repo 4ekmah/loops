@@ -8,10 +8,16 @@ See https://github.com/4ekmah/loops/LICENSE
 #if __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "src/common.hpp"
+#include "src/backend_intel64.hpp"
 #include "src/func_impl.hpp"
 #include "src/reg_allocator.hpp"
 #include "tests.hpp"
 #include <iostream>
+#include <limits>
+#if __LOOPS_OS == __LOOPS_WINDOWS
+#undef min // Windows.h implements min and max as macro.
+#undef max //
+#endif
 
 using namespace loops;
 
@@ -174,6 +180,105 @@ TEST(intel64, all_vector_comparings)
         check_vector_cmp_func<float>(cmpoperations[cnum], t);
         t = make_vector_cmp_func<double>(ctx, cmpoperations[cnum]);
         check_vector_cmp_func<double>(cmpoperations[cnum], t);
+    }
+}
+
+template<typename T> static void check_integer_shrink()
+{
+    using U = typename ElemTraits<T>::halftype;
+    for (int alias = 0; alias < 3; ++alias)
+    {
+        SCOPED_TRACE(sizeof(T));
+        SCOPED_TRACE(alias);
+        Context ctx;
+        USE_CONTEXT_(ctx);
+        IReg pa, pb, po;
+        STARTFUNC_("shrink", &pa, &pb, &po)
+        {
+            VReg<T> a = loadvec<T>(pa), b = loadvec<T>(pb);
+            VReg<U> result;
+            if (alias == 0)
+                result.copyidx(shrink(a, b));
+            else
+            {
+                const VReg<T>& input = alias == 1 ? a : b;
+                result.idx = input.idx;
+                result.func = input.func;
+                result = shrink(a, b);
+            }
+            storevec(po, result);
+            RETURN_();
+        }
+        auto f = reinterpret_cast<void(*)(const T*, const T*, U*)>(ctx.getFunc("shrink").ptr());
+        int n = ctx.vlanes<T>();
+        std::vector<T> a(n), b(n);
+        std::vector<U> result(2*n);
+        for (int iter = 0; iter < 20; ++iter)
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                uint64_t value = UINT64_C(0x9e3779b97f4a7c15) * (i + 1 + iter*13);
+                a[i] = static_cast<T>(value);
+                b[i] = static_cast<T>(~value);
+            }
+            a[0] = std::numeric_limits<T>::min();
+            b[0] = std::numeric_limits<T>::max();
+            f(a.data(), b.data(), result.data());
+            for (int i = 0; i < 2*n; ++i)
+                EXPECT_EQ(static_cast<U>(i < n ? a[i] : b[i - n]), result[i])
+                    << "lane " << i << ", iteration " << iter;
+        }
+    }
+}
+
+TEST(intel64, integer_shrink)
+{
+    check_integer_shrink<int64_t>();
+    check_integer_shrink<uint64_t>();
+    check_integer_shrink<int32_t>();
+    check_integer_shrink<uint32_t>();
+    check_integer_shrink<int16_t>();
+    check_integer_shrink<uint16_t>();
+}
+
+static int64_t weighted_sum4(int64_t a, int64_t b, int64_t c, int64_t d)
+{
+    return a + 3*b + 5*c + 7*d;
+}
+
+static void store_weighted_sum(int64_t a, int64_t b, int64_t c, int64_t output)
+{
+    *reinterpret_cast<int64_t*>(output) = a + 3*b + 5*c;
+}
+
+TEST(intel64, four_argument_calls) //TODO: move to calls section and append IR/Assembly checks.
+{
+    Context ctx;
+    USE_CONTEXT_(ctx);
+    {
+        IReg a, b, c, d;
+        STARTFUNC_("sum4", &a, &b, &c, &d)
+        {
+            IReg result = CALL_(weighted_sum4, a, b, c, d);
+            RETURN_(result);
+        }
+    }
+    {
+        IReg a, b, c, d;
+        STARTFUNC_("store3", &a, &b, &c, &d)
+        {
+            VOID_CALL_(store_weighted_sum, a, b, c, d);
+            RETURN_();
+        }
+    }
+    auto sum4 = reinterpret_cast<int64_t(*)(int64_t, int64_t, int64_t, int64_t)>(ctx.getFunc("sum4").ptr());
+    auto store3 = reinterpret_cast<void(*)(int64_t, int64_t, int64_t, int64_t)>(ctx.getFunc("store3").ptr());
+    for (int64_t i = -10; i <= 10; ++i)
+    {
+        EXPECT_EQ(weighted_sum4(i, i + 1, i + 2, i + 3), sum4(i, i + 1, i + 2, i + 3));
+        int64_t result = 0;
+        store3(i, i + 1, i + 2, reinterpret_cast<int64_t>(&result));
+        EXPECT_EQ(i + 3*(i + 1) + 5*(i + 2), result);
     }
 }
 
@@ -3304,6 +3409,36 @@ TEST(intel64, instruction_set_test)
         newiopNoret(VOP_X86_VADDSD, {  ymm7_4f,  ymm0_4f,  ymm8_4f});
         newiopNoret(VOP_X86_VADDSD, {  ymm0_4f,  ymm7_4f,  ymm8_4f});
         newiopNoret(VOP_X86_VADDSD, {  ymm0_4f,  ymm0_4f, ymm15_4f});
+
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, { ymm15_32u,  ymm0_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm7_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm8_32u,  ymm0_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm8_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u, ymm15_32u,  ymm0_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm8_32u,  ymm7_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm7_32u,  ymm0_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm7_32u,  ymm8_32u});
+        newiopNoret(VOP_X86_VPSHUFB, {  ymm0_32u,  ymm0_32u, ymm15_32u});
+
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm7_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm7_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm0_32u, argIImm(255)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, { ymm15_32u,  ymm0_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm7_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm8_32u,  ymm0_32u, argIImm(255)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm8_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm7_32u,  ymm8_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u, ymm15_32u,   argIImm(0)});
+        newiopNoret(VOP_X86_VPERMQ, {  ymm0_32u,  ymm8_32u, argIImm(255)});
 
         newiopNoret(OP_CALL_NORET, { rax });
         newiopNoret(OP_CALL_NORET, { rdi });

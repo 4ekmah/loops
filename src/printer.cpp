@@ -104,6 +104,8 @@ static inline cstring opstrings_ir_getter(int opcode)
     case (VOP_X86_VADDSS     ) : return "x86_vaddss"            ;
     case (VOP_X86_VHADDPD    ) : return "x86_vhaddpd"           ;
     case (VOP_X86_VADDSD     ) : return "x86_vaddsd"            ;
+    case (VOP_X86_VPSHUFB    ) : return "x86_vpshufb"           ;
+    case (VOP_X86_VPERMQ     ) : return "x86_vpermq"            ;
     case (OP_ARM_CINC        ) : return "arm_cinc"              ;
     case (OP_ARM_CNEG        ) : return "arm_cneg"              ;
     case (OP_ARM_MOVK        ) : return "arm_movk"              ;
