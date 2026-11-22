@@ -251,7 +251,7 @@ static void store_weighted_sum(int64_t a, int64_t b, int64_t c, int64_t output)
     *reinterpret_cast<int64_t*>(output) = a + 3*b + 5*c;
 }
 
-TEST(intel64, four_argument_calls) //TODO: move to calls section and append IR/Assembly checks.
+TEST(intel64, four_argument_calls) //DUBUG: move to calls section and append IR/Assembly checks.
 {
     Context ctx;
     USE_CONTEXT_(ctx);

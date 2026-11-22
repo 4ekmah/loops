@@ -433,14 +433,14 @@ TEST(riscV, instruction_set_test)
         newiopNoret(VOP_SELECT, { uv31, uv0,  uv0,         uv0});
         newiopNoret(VOP_SELECT, {  uv0, uv0, uv31,         uv0});
         newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,        uv31});
-        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,        zero});
-        newiopNoret(VOP_SELECT, { uv31, uv0,  uv0,        zero});
-        newiopNoret(VOP_SELECT, {  uv0, uv0, uv31,        zero});
-        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,          t6});
-        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,  argIImm(0)});
-        newiopNoret(VOP_SELECT, { uv31, uv0,  uv0,  argIImm(0)});
-        newiopNoret(VOP_SELECT, {  uv0, uv0, uv31,  argIImm(0)});
-        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0, argIImm(15)});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, zero,         uv0});
+        newiopNoret(VOP_SELECT, { uv31, uv0, zero,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, zero,        uv31});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,   t6,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  argIImm(0),  uv0});
+        newiopNoret(VOP_SELECT, { uv31, uv0,  argIImm(0),  uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  argIImm(0), uv31});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, argIImm(15),  uv0});
 
         newiopNoret(VOP_NE, {  uv0,  uv0,  argIImm(0)});
         newiopNoret(VOP_NE, { uv31,  uv0,  argIImm(0)});

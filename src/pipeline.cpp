@@ -538,12 +538,11 @@ namespace loops
                     || (op.opcode == OP_JCC && op.size() == 2 && op[1].tag == Arg::IIMMEDIATE));
 #endif
                 int64_t target_label = op[labarg].value;
-                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), mentionarg, current_offset);
                 Syntop toTransform(op);
-                toTransform[labarg].value = current_offset;
+                toTransform[labarg].value = 0;
                 Syntop tarop = m_backend->lookS2s(toTransform).apply(toTransform, m_backend);
-                if (m_backend->postInstructionOffset())
-                    tarop[0].value += m_backend->lookS2b(tarop).size();
+                const int base_offset = current_offset + (m_backend->postInstructionOffset() ? m_backend->lookS2b(tarop).size() : 0);
+                label_ref_map[target_label].emplace_back((int)a_dest.program.size(), mentionarg, base_offset);
                 a_dest.program.emplace_back(tarop);
                 break;
             }
@@ -584,7 +583,7 @@ namespace loops
                 if (a_dest.program[lref.opnum][lref.argnum].tag != Arg::IIMMEDIATE)
                     throw loops::exception("Internal error: operation don't have so much arguments");
                 int64_t &opoff = a_dest.program[lref.opnum][lref.argnum].value;
-                opoff = (loff - opoff);
+                opoff = loff - lref.base_offset;
             }
         }
     }
@@ -733,6 +732,7 @@ namespace loops
         int passnum = m_pass_ordering.at(a_pass->pass_id());
         if (passnum >= m_current_pass && passnum <= m_target_pass)
         {
+            m_data.owner = this;
             if (a_pass->is_inplace())
                 a_pass->process(m_data, m_data);
             else

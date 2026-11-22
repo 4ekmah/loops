@@ -319,7 +319,7 @@ namespace loops
             return args[args_size - 1];
         }
     };
-
+    class Pipeline;
     struct Syntfunc
     {
         std::vector<Syntop> program;
@@ -335,6 +335,7 @@ namespace loops
         Syntfunc() : regAmount{0, 0}, nextLabel(0) {}
         inline RegIdx provideIdx(int basketNum) { return regAmount[basketNum]++; }
         inline int provideLabel() { return nextLabel++; }
+        Pipeline* owner;
     };
 
     class Backend;

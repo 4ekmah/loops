@@ -798,12 +798,12 @@ namespace loops
         case (RISCV_VMV1R):         return opivi(index, scs, 0b100111, 1, false, Out, In, 0, ARG2_FIXED, 0, 0, 0);
         case (RISCV_VRGATHER_VI):   return opivi(index, scs, 0b001100, 1, false, Out, In, 0, 0, 0, 0, 0);
         case (RISCV_VRGATHER_VX):   return opivx(index, scs, 0b001100, 1, Out, In, In, 0, 0, 0, 0);
-        case (RISCV_VSLIDEUP_VI):   return opivi(index, scs, 0b001110, 1, false, Out, In, 0, 0, 0, 0, 0);
-        case (RISCV_VSLIDEUP_VX):   return opivx(index, scs, 0b001110, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VSLIDEUP_VI):   return opivi(index, scs, 0b001110, 1, false, IO, In, 0, 0, 0, 0, 0);
+        case (RISCV_VSLIDEUP_VX):   return opivx(index, scs, 0b001110, 1, IO, In, In, 0, 0, 0, 0);
         case (RISCV_VSLIDEDOWN_VI): return opivi(index, scs, 0b001111, 1, false, Out, In, 0, 0, 0, 0, 0);
         case (RISCV_VSLIDEDOWN_VX): return opivx(index, scs, 0b001111, 1, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VMV_X_S):       return op_vv(index, scs, 0b010000, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, V0);
-        case (RISCV_VMV_S_X):       return opmvx(index, scs, 0b010000, 1, Out, 0, In, ARG1_FIXED, 0, V0, 0);
+        case (RISCV_VMV_S_X):       return opmvx(index, scs, 0b010000, 1, IO, 0, In, ARG1_FIXED, 0, V0, 0);
         case (RISCV_VMERGE_VVM):
         case (RISCV_VMERGE_VXM):
         case (RISCV_VMERGE_VIM):
@@ -1158,14 +1158,14 @@ namespace loops
                 return SyT(RISCV_VMV_S_X, { SAcop(0), SAcop(2) });
             break;
         case (VOP_SELECT):
-            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG)
+            if(index.size() == 4 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[3].tag == Arg::VREG)
             {
-                if(index[3].tag == Arg::VREG)
-                    return SyT(RISCV_VMERGE_VVM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
-                else if(index[3].tag == Arg::IREG)
-                    return SyT(RISCV_VMERGE_VXM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
-                else if(index[3].tag == Arg::IIMMEDIATE)
-                    return SyT(RISCV_VMERGE_VIM, { SAcop(0), SAcop(2), SAcop(3), SAcop(1) });
+                if(index[2].tag == Arg::VREG)
+                    return SyT(RISCV_VMERGE_VVM, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
+                else if(index[2].tag == Arg::IREG)
+                    return SyT(RISCV_VMERGE_VXM, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
+                else if(index[2].tag == Arg::IIMMEDIATE)
+                    return SyT(RISCV_VMERGE_VIM, { SAcop(0), SAcop(3), SAcop(2), SAcop(1) });
             }
             break;
         case (VOP_EQ):
@@ -1182,13 +1182,13 @@ namespace loops
                                  index.opcode == VOP_LT ? RISCV_VMSLT_VV : 
                                /*index.opcode == VOP_LE?*/RISCV_VMSLE_VV;
                     if(isFloat(index[1].elemtype))
-                        opcode = index.opcode == RISCV_VMSEQ_VV ? RISCV_VMFEQ_VV : 
-                                 index.opcode == RISCV_VMSNE_VV ? RISCV_VMFNE_VV : 
-                                 index.opcode == RISCV_VMSLT_VV ? RISCV_VMFLT_VV : 
-                               /*index.opcode == RISCV_VMSLE_VV?*/RISCV_VMFLE_VV;
+                        opcode = index.opcode == VOP_EQ ? RISCV_VMFEQ_VV :
+                                 index.opcode == VOP_NE ? RISCV_VMFNE_VV :
+                                 index.opcode == VOP_LT ? RISCV_VMFLT_VV :
+                               /*index.opcode == VOP_LE?*/RISCV_VMFLE_VV;
                     else if(isUnsignedInteger(index[1].elemtype))
-                        opcode = index.opcode == RISCV_VMSLT_VV ? RISCV_VMSLTU_VV : 
-                                 index.opcode == RISCV_VMSLE_VV ? RISCV_VMSLEU_VV : opcode;
+                        opcode = index.opcode == VOP_LT ? RISCV_VMSLTU_VV :
+                                 index.opcode == VOP_LE ? RISCV_VMSLEU_VV : opcode;
                     return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
                 }
                 if (index[2].tag == Arg::IIMMEDIATE)
@@ -1451,6 +1451,8 @@ namespace loops
         {
         case VOP_FMA:
             return AllocationRestriction::makeInplace(0, 1);
+        case VOP_LD2:
+            return AllocationRestriction::makeConsecutive(RB_VEC, 0, 2);
         case VOP_SELECT:
             LOOPS_ASSERT(a_op.size() == 4 && a_op.args[1].tag == Arg::VREG);
             return AllocationRestriction::makeFixed({{1, V0}});
@@ -1491,6 +1493,23 @@ namespace loops
                 }
                 break;
             }
+            case (VOP_LD2):
+                LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
+                if(basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+                {
+                    if(AF_INPUT & flagmask)
+                        return std::set<int>({2});
+                    if(AF_OUTPUT & flagmask)
+                        return std::set<int>({});
+                }
+                else if(basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+                {
+                    if(AF_INPUT & flagmask)
+                        return std::set<int>({});
+                    if(AF_OUTPUT & flagmask)
+                        return std::set<int>({0, 1});
+                }
+                break;
             case (VOP_FMA):
                 LOOPS_ASSERT(a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG);
                 if((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -1514,8 +1533,11 @@ namespace loops
                         if(basketNum == RB_VEC)
                         {
                             result.insert(1);
-                            result.insert(2);
+                            if(a_op.args[2].tag == Arg::VREG)
+                                result.insert(2);
                         }
+                        if(basketNum == RB_INT && a_op.args[2].tag == Arg::IREG)
+                            result.insert(2);
                         if((basketNum == RB_VEC && a_op.args[3].tag == Arg::VREG) || (basketNum == RB_INT && a_op.args[3].tag == Arg::IREG))
                             result.insert(3);
                     }
@@ -1986,6 +2008,7 @@ namespace loops
         a_dest.program.reserve(2 * a_source.program.size());
         int current_vtype = -1;
         int current_frm = -1;
+        bool have_vectors = false;
         for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
         {
             const Syntop& op = a_source.program[opnum];
@@ -1994,6 +2017,7 @@ namespace loops
             int required_vtype = riscv_required_vtype(op);
             if(required_vtype != -1 && current_vtype != required_vtype)
             {
+                have_vectors = true;
                 Arg scratch = argReg(RB_INT, a_dest.provideIdx(RB_INT));
                 a_dest.program.push_back(Syntop(OP_RV_VSETVLI, { scratch, argIImm(0), argIImm(required_vtype) }));
                 current_vtype = required_vtype;
@@ -2028,7 +2052,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case VOP_LOAD:
-                if(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG) //DUBUG: what if immediate == 0?
+                if(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::IREG)
                 {
                     Arg newaddr = op.args[1]; newaddr.idx = a_dest.provideIdx(RB_INT);
                     a_dest.program.push_back(Syntop(OP_ADD,  { newaddr, op.args[1], op.args[2] }));
@@ -2038,7 +2062,7 @@ namespace loops
                     a_dest.program.push_back(op);
                 break;
             case VOP_STORE:
-                if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::VREG) //DUBUG: what if immediate == 0?
+                if(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::IREG && op.args[2].tag == Arg::VREG)
                 {
                     Arg newaddr = op.args[0]; newaddr.idx = a_dest.provideIdx(RB_INT);
                     a_dest.program.push_back(Syntop(OP_ADD,  { newaddr, op.args[0], op.args[1] }));
@@ -2110,6 +2134,105 @@ namespace loops
                 else
                     a_dest.program.push_back(op);
                 break;
+            case VOP_EQ:
+            case VOP_NE:
+            case VOP_LT:
+            case VOP_LE:
+            {
+                Arg condition = op.args[0];
+                condition.idx = a_dest.provideIdx(RB_VEC);
+                Arg zero_values = condition;
+                zero_values.idx = a_dest.provideIdx(RB_VEC);
+                Syntop comparison = op;
+                comparison.args[0] = condition;
+                a_dest.program.push_back(comparison);
+                a_dest.program.push_back(Syntop(VOP_BROADCAST, { zero_values, argIImm(0) }));
+                a_dest.program.push_back(Syntop(VOP_SELECT, { op.args[0], condition, argIImm(-1), zero_values }));
+                break;
+            }
+            case VOP_SELECT:
+            {
+                LOOPS_ASSERT(op.size() == 4 && op.args[1].tag == Arg::VREG);
+                Arg condition = op.args[1];
+                condition.idx = a_dest.provideIdx(RB_VEC);
+                a_dest.program.push_back(Syntop(VOP_NE, { condition, op.args[1], argIImm(0) }));
+                Syntop converted = op;
+                converted.args[1] = condition;
+                if(converted.args[3].tag != Arg::VREG)
+                {
+                    Arg false_values = op.args[0];
+                    false_values.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { false_values, op.args[3] }));
+                    converted.args[3] = false_values;
+                }
+                a_dest.program.push_back(converted);
+                break;
+            }
+            case VOP_SETLANE:
+            {
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG);
+                const int64_t lane = op.args[1].value;
+                LOOPS_ASSERT(lane >= 0 && lane < m_backend->vlanes(op.args[0].elemtype));
+                if(lane == 0)
+                    a_dest.program.push_back(op);
+                else
+                {
+                    Arg temp = op.args[0];
+                    temp.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { temp, op.args[0], op.args[1] }));
+                    a_dest.program.push_back(Syntop(VOP_SETLANE, { temp, argIImm(0), op.args[2] }));
+                    a_dest.program.push_back(Syntop(VOP_RV_VSLIDEUP, { op.args[0], temp, op.args[1] }));
+                }
+                break;
+            }
+            case VOP_EXT:
+            {
+                LOOPS_ASSERT(op.size() == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG &&
+                             op.args[2].tag == Arg::VREG && op.args[3].tag == Arg::IIMMEDIATE &&
+                             op.args[0].elemtype == op.args[1].elemtype && op.args[0].elemtype == op.args[2].elemtype);
+                const int64_t lane = op.args[3].value;
+                const int lanes = m_backend->vlanes(op.args[0].elemtype);
+                LOOPS_ASSERT(lane >= 0 && lane <= lanes);
+                if(lane == 0)
+                    a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], op.args[1] }));
+                else if(lane == lanes)
+                    a_dest.program.push_back(Syntop(OP_MOV, { op.args[0], op.args[2] }));
+                else
+                {
+                    int bitwise_elemtype = TYPE_U8;
+                    switch(elem_size(op.args[0].elemtype))
+                    {
+                    case 1: break;
+                    case 2: bitwise_elemtype = TYPE_U16; break;
+                    case 4: bitwise_elemtype = TYPE_U32; break;
+                    case 8: bitwise_elemtype = TYPE_U64; break;
+                    default: LOOPS_ASSERT(false);
+                    }
+                    Arg low = op.args[0];
+                    low.idx = a_dest.provideIdx(RB_VEC);
+                    low.elemtype = bitwise_elemtype;
+                    Arg high = low;
+                    high.idx = a_dest.provideIdx(RB_VEC);
+                    Arg dest = op.args[0];
+                    dest.elemtype = bitwise_elemtype;
+                    a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { low, op.args[1], op.args[3] }));
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { high, argIImm(0) }));  //DUBUG: OP_MOV -> VOP_XOR ?
+                    a_dest.program.push_back(Syntop(VOP_RV_VSLIDEUP, { high, op.args[2], argIImm(lanes - lane) }));
+                    a_dest.program.push_back(Syntop(VOP_OR, { dest, low, high }));
+                }
+                break;
+            }
+            case VOP_BROADCAST:
+                if(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG &&
+                   op.args[2].tag == Arg::IIMMEDIATE && op.args[2].value > 31)
+                {
+                    Arg scalar = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                    mov64(a_dest, scalar, op.args[2].value);
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { op.args[0], op.args[1], scalar }));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
             default:
                 a_dest.program.push_back(op);
                 break;
@@ -2120,6 +2243,17 @@ namespace loops
                 current_frm = (int)op.args[2].value;
             if(op.opcode == OP_CALL || op.opcode == OP_CALL_NORET || riscv_types_invalidation(op.opcode))
                 current_vtype = current_frm = -1;
+        }
+        if(have_vectors)
+        {
+            std::vector<int> caller_saved = m_backend->callerSavedRegisters(RB_INT);
+            std::vector<int>::iterator found = std::find(caller_saved.begin(), caller_saved.end(), T6);
+            if(found != caller_saved.end()) 
+                caller_saved.erase(found);
+            a_source.owner->overrideRegisterSet(RB_INT, m_backend->parameterRegisters(RB_INT)
+                                                      , m_backend->returnRegisters(RB_INT)
+                                                      , caller_saved
+                                                      , m_backend->calleeSavedRegisters(RB_INT));
         }
     }
 
@@ -2189,12 +2323,21 @@ namespace loops
 
     void RiscVARASnippets::process(Syntfunc& a_dest, const Syntfunc& a_source)
     {
-        a_dest.name = a_source.name;
-        a_dest.params = a_source.params;
         for(int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.reserve(2 * a_source.program.size());
+        int current_offset = 0;
+        std::unordered_map<int64_t, int64_t> label_positions;
+        struct condition_jump
+        {
+            int jump_opnum;
+            int jump_position;
+            int label_offset;
+        };
+        std::vector<condition_jump> cond_jumps;
         for (const Syntop& op : a_source.program)
+        {
+            int size_diff = (int)a_dest.program.size();
             switch (op.opcode)
             {
             case OP_MOV:
@@ -2205,6 +2348,26 @@ namespace loops
                     && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
+            case OP_SPILL:
+            case OP_UNSPILL:
+            {
+                LOOPS_ASSERT(op.size() == 2);
+                const int vreg_argnum = op.opcode == OP_SPILL ? 1 : 0;
+                const int slot_argnum = 1 - vreg_argnum;
+                LOOPS_ASSERT(op[slot_argnum].tag == Arg::IIMMEDIATE);
+                if(op[vreg_argnum].tag == Arg::VREG)
+                {
+                    Arg scratch = argReg(RB_INT, T6);
+                    a_dest.program.push_back(Syntop(OP_ADD, { scratch, argReg(RB_INT, SP), argIImm(op[slot_argnum].value * 8) }));
+                    if(op.opcode == OP_SPILL)
+                        a_dest.program.push_back(Syntop(VOP_STORE, { scratch, op[vreg_argnum] }));
+                    else
+                        a_dest.program.push_back(Syntop(VOP_LOAD, { op[vreg_argnum], scratch }));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
+            }
             case OP_CALL:
             case OP_CALL_NORET:
             {
@@ -2278,6 +2441,84 @@ namespace loops
                 a_dest.program.push_back(op);
                 break;
             }
+            size_diff = ((int)a_dest.program.size() - size_diff)*4;
+            if(op.opcode == OP_LABEL)
+                label_positions[op.args[0].value] = current_offset;
+            else if(op.opcode == OP_JCC)
+            {
+                cond_jumps.push_back(condition_jump{(int)a_dest.program.size() - 1, current_offset, (int)op.args[3].value});
+                current_offset += size_diff;
+            }
+            else if(op.opcode != OP_DEF && op.opcode != VOP_DEF)
+                current_offset += size_diff;
+        }
+        //Expanding conditional jumps with offsets outside the signed 13-bit range.
+        for(int jnum = 0; jnum < (int)cond_jumps.size(); jnum++)
+        {
+            condition_jump& jump = cond_jumps[jnum];
+            jump.label_offset = label_positions.at(jump.label_offset) - jump.jump_position;
+        }
+        std::vector<int> expanded_jumps;
+        expanded_jumps.reserve(cond_jumps.size());
+        {
+            bool expanded = true;
+            do
+            {
+                expanded = false;
+                for(int jnum = 0; jnum < (int)cond_jumps.size(); jnum++)
+                    if(!signed_fits(uint64_t(cond_jumps[jnum].label_offset), 13))
+                    {
+                        const int expanded_position = cond_jumps[jnum].jump_position;
+                        for(int jnum1 = 0; jnum1 < (int)cond_jumps.size(); jnum1++)
+                            if(jnum1 != jnum)
+                            {
+                                int start = cond_jumps[jnum1].jump_position;
+                                int end = start + cond_jumps[jnum1].label_offset;
+                                if(start > end)
+                                    std::swap(start, end);
+                                if(start < expanded_position && expanded_position < end)
+                                {
+                                    const int offset_growth = cond_jumps[jnum1].label_offset > 0 ? 8 : -8;
+                                    cond_jumps[jnum1].label_offset += offset_growth;
+                                }
+                            }
+                        expanded_jumps.push_back(cond_jumps[jnum].jump_opnum);
+                        cond_jumps.erase(cond_jumps.begin() + jnum);
+                        jnum--;
+                        expanded = true;
+                    }
+            } while(expanded);
+        }
+        std::sort(expanded_jumps.begin(), expanded_jumps.end());
+        if(expanded_jumps.size())
+        {
+            std::vector<Syntop> newprogram;
+            newprogram.reserve(a_dest.program.size() + 2*expanded_jumps.size());
+            std::vector<int>::iterator jump_iter = expanded_jumps.begin();
+            for(int opnum = 0; opnum < (int)a_dest.program.size(); opnum++)
+            {
+                if(jump_iter < expanded_jumps.end() && *jump_iter == opnum)
+                {
+                    const Syntop& op = a_dest.program[opnum];
+                    LOOPS_ASSERT(op.opcode == OP_JCC && op.size() == 4 && op.args[3].tag == Arg::IIMMEDIATE);
+
+                    const int target_label = (int)op.args[3].value;
+                    const int skip_label = a_dest.provideLabel();
+                    Syntop inverted = op;
+                    inverted.args[0].value = invertCondition(op.args[0].value);
+                    LOOPS_ASSERT(inverted.args[0].value != OP_NOINIT);
+                    inverted.args[3].value = skip_label;
+                    newprogram.push_back(inverted);
+                    newprogram.push_back(Syntop(OP_JMP, { argIImm(target_label) }));
+                    newprogram.push_back(Syntop(OP_LABEL, { argIImm(skip_label) }));
+
+                    jump_iter++;
+                }
+                else
+                    newprogram.push_back(a_dest.program[opnum]);
+            }
+            a_dest.program.swap(newprogram);
+        }
     }
 }
 #endif // __LOOPS_ARCH == __LOOPS_RISCV
