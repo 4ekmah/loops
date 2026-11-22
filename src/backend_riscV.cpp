@@ -9,9 +9,64 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <algorithm>
 #include <iomanip>
 #include <unordered_map>
+#if __LOOPS_OS == __LOOPS_LINUX
+#include <setjmp.h>
+#include <signal.h>
+#endif
 
 namespace loops
 {
+#if defined(__linux__)
+    static sigjmp_buf rv_init_env;
+    static void rv_init_sigill(int)
+    {
+        siglongjmp(rv_init_env, 1);
+    }
+#endif
+
+    class rv_init
+    {
+    public:
+        rv_init();
+        int m_vectorRegisterBits;
+    } _rv_init;
+    rv_init::rv_init()
+    {
+        uint8_t funcbody[] = {0x57, 0x75, 0x00, 0x0c,  //vsetvli a0,zero,e8,m1,ta,ma
+                              0x67, 0x80, 0x00, 0x00}; //ret
+        Allocator alloc;
+        void* compiled = alloc.allocate(sizeof(funcbody));
+        memcpy(compiled, funcbody, sizeof(funcbody));
+        alloc.protect2Execution((uint8_t*)compiled);
+        typedef int64_t (*getwidth_t)();
+        getwidth_t getwidth = reinterpret_cast<getwidth_t>(compiled);
+        m_vectorRegisterBits = 128;
+#if __LOOPS_OS == __LOOPS_LINUX
+        struct sigaction probe_action = {};
+        struct sigaction previous_action;
+        probe_action.sa_handler = rv_init_sigill;
+        sigemptyset(&probe_action.sa_mask);
+        if (sigaction(SIGILL, &probe_action, &previous_action) != 0)
+        {
+            LOOPS_WARNING("Failed to install SIGILL handler for RVV probing.");
+            return;
+        }
+        if (sigsetjmp(rv_init_env, 1) == 0)
+        {
+            m_vectorRegisterBits = (int)getwidth() * 8;
+            sigaction(SIGILL, &previous_action, NULL);
+        }
+        else
+        {
+            sigaction(SIGILL, &previous_action, NULL);
+            LOOPS_WARNING("RVV is not supported on this CPU.");
+        }
+#else
+#error Unknown OS
+#endif
+    }
+
+
     static inline cstring opstrings_getter(int opcode)
     {
         switch (opcode)
@@ -1405,7 +1460,7 @@ namespace loops
     {
         m_s2blookup = r64BTLookup;
         m_s2slookup = r64STLookup;
-        m_vectorRegisterBits = 256; // DUBUG: implement checking size of vector.
+        m_vectorRegisterBits = _rv_init.m_vectorRegisterBits;
         m_isLittleEndianInstructions = true;
         m_isLittleEndianOperands = false;
         m_isMonowidthInstruction = false;
@@ -2216,7 +2271,7 @@ namespace loops
                     Arg dest = op.args[0];
                     dest.elemtype = bitwise_elemtype;
                     a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { low, op.args[1], op.args[3] }));
-                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { high, argIImm(0) }));  //DUBUG: OP_MOV -> VOP_XOR ?
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { high, argIImm(0) }));
                     a_dest.program.push_back(Syntop(VOP_RV_VSLIDEUP, { high, op.args[2], argIImm(lanes - lane) }));
                     a_dest.program.push_back(Syntop(VOP_OR, { dest, low, high }));
                 }
