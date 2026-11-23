@@ -73,9 +73,39 @@ TEST(riscV, instruction_set_test)
         PREPARE_ASSEMBLY_TESTING(test_info_->name());
 
         DEFINE_ASSEMBLY_REG(zero, 0);
+        DEFINE_ASSEMBLY_REG(t0, 5);
         DEFINE_ASSEMBLY_REG(t6, 31);
+        DEFINE_ASSEMBLY_VREG(uint8_t, u8v0, 0);
+        DEFINE_ASSEMBLY_VREG(uint8_t, u8v31, 31);
+        DEFINE_ASSEMBLY_VREG(uint16_t, u16v0, 0);
+        DEFINE_ASSEMBLY_VREG(uint16_t, u16v31, 31);
+        DEFINE_ASSEMBLY_VREG(uint32_t, uv0, 0);
+        DEFINE_ASSEMBLY_VREG(uint32_t, uv31, 31);
+        DEFINE_ASSEMBLY_VREG(uint64_t, u64v0, 0);
+        DEFINE_ASSEMBLY_VREG(uint64_t, u64v31, 31);
+        DEFINE_ASSEMBLY_VREG(uint8_t, u8v1, 1);
+        DEFINE_ASSEMBLY_VREG(uint8_t, u8v30, 30);
+        DEFINE_ASSEMBLY_VREG(uint16_t, u16v1, 1);
+        DEFINE_ASSEMBLY_VREG(uint16_t, u16v30, 30);
+        DEFINE_ASSEMBLY_VREG(uint32_t, uv1, 1);
+        DEFINE_ASSEMBLY_VREG(uint32_t, uv30, 30);
+        DEFINE_ASSEMBLY_VREG(uint64_t, u64v1, 1);
+        DEFINE_ASSEMBLY_VREG(uint64_t, u64v30, 30);
+        DEFINE_ASSEMBLY_VREG(int8_t, i8v0, 0);
+        DEFINE_ASSEMBLY_VREG(int8_t, i8v31, 31);
+        DEFINE_ASSEMBLY_VREG(int16_t, i16v0, 0);
+        DEFINE_ASSEMBLY_VREG(int16_t, i16v1, 1);
+        DEFINE_ASSEMBLY_VREG(int16_t, i16v30, 30);
+        DEFINE_ASSEMBLY_VREG(int16_t, i16v31, 31);
+        DEFINE_ASSEMBLY_VREG(int32_t, iv0, 0);
+        DEFINE_ASSEMBLY_VREG(int32_t, iv31, 31);
+        DEFINE_ASSEMBLY_VREG(float, fv0, 0);
+        DEFINE_ASSEMBLY_VREG(float, fv31, 31);
+        DEFINE_ASSEMBLY_VREG(double, dv0, 0);
+        DEFINE_ASSEMBLY_VREG(double, dv31, 31);
 
         newiopNoret(OP_MOV, { zero, zero});
+        newiopNoret(OP_MOV, { t0  , zero});
         newiopNoret(OP_MOV, { t6  , zero});
         newiopNoret(OP_MOV, { zero, t6  });
         newiopNoret(OP_MOV, { zero, immtyped<int64_t>(0    , _f)});
@@ -308,6 +338,406 @@ TEST(riscV, instruction_set_test)
 
         newiopNoret(OP_CALL_NORET, { zero });
         newiopNoret(OP_CALL_NORET, { t6   });
+
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0) });
+        newiopNoret(OP_RV_VSETVLI, { t6, zero, argIImm(0) });
+        newiopNoret(OP_RV_VSETVLI, { zero, t6, argIImm(0) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x4a) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x90) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x9d) });
+        newiopNoret(OP_RV_VSETVLI, { zero, zero, argIImm(0x7ff) });
+
+        newiopNoret(VOP_LOAD, {   u8v0, zero});
+        newiopNoret(VOP_LOAD, {  u8v31, zero});
+        newiopNoret(VOP_LOAD, {   u8v0,   t6});
+        newiopNoret(VOP_LOAD, {  u16v0, zero});
+        newiopNoret(VOP_LOAD, { u16v31, zero});
+        newiopNoret(VOP_LOAD, {  u16v0,   t6});
+        newiopNoret(VOP_LOAD, {    uv0, zero});
+        newiopNoret(VOP_LOAD, {   uv31, zero});
+        newiopNoret(VOP_LOAD, {    uv0,   t6});
+        newiopNoret(VOP_LOAD, {  u64v0, zero});
+        newiopNoret(VOP_LOAD, { u64v31, zero});
+        newiopNoret(VOP_LOAD, {  u64v0,   t6});
+
+        newiopNoret(VOP_STORE, { zero,   u8v0});
+        newiopNoret(VOP_STORE, { zero,  u8v31});
+        newiopNoret(VOP_STORE, {   t6,   u8v0});
+        newiopNoret(VOP_STORE, { zero,  u16v0});
+        newiopNoret(VOP_STORE, { zero, u16v31});
+        newiopNoret(VOP_STORE, {   t6,  u16v0});
+        newiopNoret(VOP_STORE, { zero,    uv0});
+        newiopNoret(VOP_STORE, { zero,   uv31});
+        newiopNoret(VOP_STORE, {   t6,    uv0});
+        newiopNoret(VOP_STORE, { zero,  u64v0});
+        newiopNoret(VOP_STORE, { zero, u64v31});
+        newiopNoret(VOP_STORE, {   t6,  u64v0});
+
+        newiopNoret(VOP_LD2, {   u8v0,   u8v1, zero});
+        newiopNoret(VOP_LD2, {  u8v30,  u8v31, zero});
+        newiopNoret(VOP_LD2, {   u8v0,   u8v1,   t6});
+        newiopNoret(VOP_LD2, {  u16v0,  u16v1, zero});
+        newiopNoret(VOP_LD2, { u16v30, u16v31, zero});
+        newiopNoret(VOP_LD2, {  u16v0,  u16v1,   t6});
+        newiopNoret(VOP_LD2, {    uv0,    uv1, zero});
+        newiopNoret(VOP_LD2, {   uv30,   uv31, zero});
+        newiopNoret(VOP_LD2, {    uv0,    uv1,   t6});
+        newiopNoret(VOP_LD2, {  u64v0,  u64v1, zero});
+        newiopNoret(VOP_LD2, { u64v30, u64v31, zero});
+        newiopNoret(VOP_LD2, {  u64v0,  u64v1,   t6});
+
+        newiopNoret(OP_MOV, {  uv0,  uv0});
+        newiopNoret(OP_MOV, { uv31,  uv0});
+        newiopNoret(OP_MOV, {  uv0, uv31});
+
+        newiopNoret(VOP_BROADCAST, {  uv0,        zero});
+        newiopNoret(VOP_BROADCAST, { uv31,        zero});
+        newiopNoret(VOP_BROADCAST, {  uv0,          t6});
+        newiopNoret(VOP_BROADCAST, {  uv0,  argIImm(0)});
+        newiopNoret(VOP_BROADCAST, { uv31,  argIImm(0)});
+        newiopNoret(VOP_BROADCAST, {  uv0, argIImm(15)});
+
+        newiopNoret(VOP_BROADCAST, {  uv0,  uv0,        zero});
+        newiopNoret(VOP_BROADCAST, { uv31,  uv0,        zero});
+        newiopNoret(VOP_BROADCAST, {  uv0, uv31,        zero});
+        newiopNoret(VOP_BROADCAST, {  uv0,  uv0,          t6});
+        newiopNoret(VOP_BROADCAST, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_BROADCAST, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_BROADCAST, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_BROADCAST, {  uv0,  uv0, argIImm(31)});
+
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0,  uv0,        zero});
+        newiopNoret(VOP_RV_VSLIDEUP, { uv31,  uv0,        zero});
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0, uv31,        zero});
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0,  uv0,          t6});
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEUP, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEUP, {  uv0,  uv0, argIImm(31)});
+
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0,  uv0,        zero});
+        newiopNoret(VOP_RV_VSLIDEDOWN, { uv31,  uv0,        zero});
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0, uv31,        zero});
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0,  uv0,          t6});
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEDOWN, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_RV_VSLIDEDOWN, {  uv0,  uv0, argIImm(31)});
+
+        newiopNoret(VOP_GETLANE, { zero,  uv0,    0});
+        newiopNoret(VOP_GETLANE, {   t6,  uv0,    0});
+        newiopNoret(VOP_GETLANE, { zero, uv31,    0});
+        newiopNoret(VOP_SETLANE, {  uv0,    0, zero});
+        newiopNoret(VOP_SETLANE, { uv31,    0, zero});
+        newiopNoret(VOP_SETLANE, {  uv0,    0,   t6});
+
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,         uv0});
+        newiopNoret(VOP_SELECT, { uv31, uv0,  uv0,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, uv31,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  uv0,        uv31});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, zero,         uv0});
+        newiopNoret(VOP_SELECT, { uv31, uv0, zero,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, zero,        uv31});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,   t6,         uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  argIImm(0),  uv0});
+        newiopNoret(VOP_SELECT, { uv31, uv0,  argIImm(0),  uv0});
+        newiopNoret(VOP_SELECT, {  uv0, uv0,  argIImm(0), uv31});
+        newiopNoret(VOP_SELECT, {  uv0, uv0, argIImm(15),  uv0});
+
+        newiopNoret(VOP_NE, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_NE, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_NE, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_NE, {  uv0,  uv0, argIImm(15)});
+        newiopNoret(VOP_EQ, {  uv0,  uv0, argIImm(0)});
+        newiopNoret(VOP_EQ, { uv31,  uv0, argIImm(0)});
+        newiopNoret(VOP_EQ, {  uv0, uv31, argIImm(0)});
+        newiopNoret(VOP_EQ, {  uv0,  uv0, argIImm(15)});
+        newiopNoret(VOP_LT, {  uv0,  iv0, argIImm(16)});
+        newiopNoret(VOP_LT, { uv31,  iv0, argIImm(16)});
+        newiopNoret(VOP_LT, {  uv0, iv31, argIImm(16)});
+        newiopNoret(VOP_LE, {  uv0,  iv0, argIImm(15)});
+        newiopNoret(VOP_LE, { uv31,  iv0, argIImm(15)});
+        newiopNoret(VOP_LE, {  uv0, iv31, argIImm(15)});
+        newiopNoret(VOP_LT, {  uv0,  uv0, argIImm(16)});
+        newiopNoret(VOP_LE, {  uv0,  uv0, argIImm(15)});
+        newiopNoret(VOP_LT, {  uv0,  uv0, argIImm(0)});
+
+        newiopNoret(VOP_EQ, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_EQ, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_EQ, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_EQ, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_NE, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_NE, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_NE, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_NE, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_LT, {  uv0,  iv0,  iv0});
+        newiopNoret(VOP_LT, { uv31,  iv0,  iv0});
+        newiopNoret(VOP_LT, {  uv0, iv31,  iv0});
+        newiopNoret(VOP_LT, {  uv0,  iv0, iv31});
+        newiopNoret(VOP_LT, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_LT, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_LT, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_LT, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_LE, {  uv0,  iv0,  iv0});
+        newiopNoret(VOP_LE, { uv31,  iv0,  iv0});
+        newiopNoret(VOP_LE, {  uv0, iv31,  iv0});
+        newiopNoret(VOP_LE, {  uv0,  iv0, iv31});
+        newiopNoret(VOP_LE, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_LE, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_LE, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_LE, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_EQ, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_EQ, { uv31,  fv0,  fv0});
+        newiopNoret(VOP_EQ, {  uv0, fv31,  fv0});
+        newiopNoret(VOP_EQ, {  uv0,  fv0, fv31});
+        newiopNoret(VOP_NE, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_NE, { uv31,  fv0,  fv0});
+        newiopNoret(VOP_NE, {  uv0, fv31,  fv0});
+        newiopNoret(VOP_NE, {  uv0,  fv0, fv31});
+        newiopNoret(VOP_LT, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_LT, { uv31,  fv0,  fv0});
+        newiopNoret(VOP_LT, {  uv0, fv31,  fv0});
+        newiopNoret(VOP_LT, {  uv0,  fv0, fv31});
+        newiopNoret(VOP_LE, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_LE, { uv31,  fv0,  fv0});
+        newiopNoret(VOP_LE, {  uv0, fv31,  fv0});
+        newiopNoret(VOP_LE, {  uv0,  fv0, fv31});
+        newiopNoret(VOP_GT, {  uv0,  iv0,  iv0});
+        newiopNoret(VOP_GT, { uv31,  iv0,  iv0});
+        newiopNoret(VOP_GT, {  uv0, iv31,  iv0});
+        newiopNoret(VOP_GT, {  uv0,  iv0, iv31});
+        newiopNoret(VOP_GT, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_GT, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_GT, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_GT, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_GT, {  uv0,  fv0, fv31});
+        newiopNoret(VOP_GE, {  uv0,  iv0,  iv0});
+        newiopNoret(VOP_GE, { uv31,  iv0,  iv0});
+        newiopNoret(VOP_GE, {  uv0, iv31,  iv0});
+        newiopNoret(VOP_GE, {  uv0,  iv0, iv31});
+        newiopNoret(VOP_GE, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_GE, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_GE, {  uv0,  uv0, uv31});
+        newiopNoret(VOP_GE, {  uv0,  fv0,  fv0});
+        newiopNoret(VOP_GE, {  uv0,  fv0, fv31});
+
+        newiopNoret(VOP_ADD, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_ADD, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_ADD, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_ADD, {  iv0,  iv0, iv31});
+        newiopNoret(VOP_SUB, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_SUB, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_SUB, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_SUB, {  iv0,  iv0, iv31});
+        newiopNoret(VOP_SUB, {  uv0, zero,  uv0});
+        newiopNoret(VOP_SUB, { uv31, zero,  uv0});
+        newiopNoret(VOP_SUB, {  uv0,   t6,  uv0});
+        newiopNoret(VOP_SUB, {  uv0, zero, uv31});
+        newiopNoret(VOP_MUL, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_MUL, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_MUL, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_MUL, {  iv0,  iv0, iv31});
+
+        newiopNoret(VOP_MIN, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_MIN, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_MIN, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_MIN, {  iv0,  iv0, iv31});
+        newiopNoret(VOP_MIN, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_MIN, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_MIN, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_MIN, {  uv0,  uv0, uv31});
+
+        newiopNoret(VOP_MAX, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_MAX, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_MAX, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_MAX, {  iv0,  iv0, iv31});
+        newiopNoret(VOP_MAX, {  uv0,  uv0,  uv0});
+        newiopNoret(VOP_MAX, { uv31,  uv0,  uv0});
+        newiopNoret(VOP_MAX, {  uv0, uv31,  uv0});
+        newiopNoret(VOP_MAX, {  uv0,  uv0, uv31});
+
+        newiopNoret(VOP_SHL, {  uv0,  uv0,         uv0});
+        newiopNoret(VOP_SHL, { uv31,  uv0,         uv0});
+        newiopNoret(VOP_SHL, {  uv0, uv31,         uv0});
+        newiopNoret(VOP_SHL, {  uv0,  uv0,        uv31});
+        newiopNoret(VOP_SHL, {  uv0,  uv0,        zero});
+        newiopNoret(VOP_SHL, { uv31,  uv0,        zero});
+        newiopNoret(VOP_SHL, {  uv0, uv31,        zero});
+        newiopNoret(VOP_SHL, {  uv0,  uv0,          t6});
+        newiopNoret(VOP_SHL, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_SHL, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_SHL, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_SHL, {  uv0,  uv0, argIImm(31)});
+
+        newiopNoret(VOP_SHR, {  uv0,  uv0,         uv0 });
+        newiopNoret(VOP_SHR, { uv31,  uv0,         uv0 });
+        newiopNoret(VOP_SHR, {  uv0, uv31,         uv0 });
+        newiopNoret(VOP_SHR, {  uv0,  uv0,        uv31 });
+        newiopNoret(VOP_SHR, {  uv0,  uv0,        zero });
+        newiopNoret(VOP_SHR, { uv31,  uv0,        zero });
+        newiopNoret(VOP_SHR, {  uv0, uv31,        zero });
+        newiopNoret(VOP_SHR, {  uv0,  uv0,          t6 });
+        newiopNoret(VOP_SHR, {  uv0,  uv0,  argIImm(0) });
+        newiopNoret(VOP_SHR, { uv31,  uv0,  argIImm(0) });
+        newiopNoret(VOP_SHR, {  uv0, uv31,  argIImm(0) });
+        newiopNoret(VOP_SHR, {  uv0,  uv0, argIImm(31) });
+
+        newiopNoret(VOP_SAR, {  iv0,  iv0,         iv0});
+        newiopNoret(VOP_SAR, { iv31,  iv0,         iv0});
+        newiopNoret(VOP_SAR, {  iv0, iv31,         iv0});
+        newiopNoret(VOP_SAR, {  iv0,  iv0,        iv31});
+        newiopNoret(VOP_SAR, {  iv0,  iv0,        zero});
+        newiopNoret(VOP_SAR, { iv31,  iv0,        zero});
+        newiopNoret(VOP_SAR, {  iv0, iv31,        zero});
+        newiopNoret(VOP_SAR, {  iv0,  iv0,          t6});
+        newiopNoret(VOP_SAR, {  iv0,  iv0,  argIImm(0)});
+        newiopNoret(VOP_SAR, { iv31,  iv0,  argIImm(0)});
+        newiopNoret(VOP_SAR, {  iv0, iv31,  argIImm(0)});
+        newiopNoret(VOP_SAR, {  iv0,  iv0, argIImm(31)});
+
+        newiopNoret(VOP_AND, { uv0, uv0, uv0 });
+        newiopNoret(VOP_AND, { uv31, uv0, uv0 });
+        newiopNoret(VOP_AND, { uv0, uv31, uv0 });
+        newiopNoret(VOP_AND, { uv0, uv0, uv31 });
+
+        newiopNoret(VOP_OR, {  uv0,  uv0,  uv0 });
+        newiopNoret(VOP_OR, { uv31,  uv0,  uv0 });
+        newiopNoret(VOP_OR, {  uv0, uv31,  uv0 });
+        newiopNoret(VOP_OR, {  uv0,  uv0, uv31 });
+
+        newiopNoret(VOP_XOR, {  uv0,  uv0,         uv0});
+        newiopNoret(VOP_XOR, { uv31,  uv0,         uv0});
+        newiopNoret(VOP_XOR, {  uv0, uv31,         uv0});
+        newiopNoret(VOP_XOR, {  uv0,  uv0,        uv31});
+        newiopNoret(VOP_XOR, {  uv0,  uv0,  argIImm(0)});
+        newiopNoret(VOP_XOR, { uv31,  uv0,  argIImm(0)});
+        newiopNoret(VOP_XOR, {  uv0, uv31,  argIImm(0)});
+        newiopNoret(VOP_XOR, {  uv0,  uv0, argIImm(15)});
+
+        newiopNoret(VOP_ADD, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_ADD, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_ADD, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_ADD, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_SUB, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_SUB, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_SUB, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_SUB, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_MUL, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_MUL, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_MUL, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_MUL, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_DIV, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_DIV, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_DIV, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_DIV, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_FMA, {  fv0,  fv0,  fv0,  fv0});
+        newiopNoret(VOP_FMA, { fv31, fv31,  fv0,  fv0});
+        newiopNoret(VOP_FMA, {  fv0,  fv0, fv31,  fv0});
+        newiopNoret(VOP_FMA, {  fv0,  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_MIN, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_MIN, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_MIN, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_MIN, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_MAX, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_MAX, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_MAX, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_MAX, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_NEG, {  fv0,  fv0});
+        newiopNoret(VOP_NEG, { fv31,  fv0});
+        newiopNoret(VOP_NEG, {  fv0, fv31});
+
+        newiopNoret(VOP_TRUNC, {  iv0,  fv0});
+        newiopNoret(VOP_TRUNC, { iv31,  fv0});
+        newiopNoret(VOP_TRUNC, {  iv0, fv31});
+        newiopNoret(VOP_TRUNC, {  uv0,  fv0});
+        newiopNoret(VOP_TRUNC, { uv31,  fv0});
+        newiopNoret(VOP_TRUNC, {  uv0, fv31});
+        newiopNoret(VOP_FLOOR, {  uv0,  fv0});
+        newiopNoret(VOP_FLOOR, { uv31,  fv0});
+        newiopNoret(VOP_FLOOR, {  uv0, fv31});
+
+        newiopNoret(VOP_CAST, {  fv0,  iv0});
+        newiopNoret(VOP_CAST, { fv31,  iv0});
+        newiopNoret(VOP_CAST, {  fv0, iv31});
+        newiopNoret(VOP_CAST, {  fv0,  uv0});
+        newiopNoret(VOP_CAST, { fv31,  uv0});
+        newiopNoret(VOP_CAST, {  fv0, uv31});
+        newiopNoret(VOP_CAST, {  iv0,  fv0});
+        newiopNoret(VOP_CAST, { iv31,  fv0});
+        newiopNoret(VOP_CAST, {  iv0, fv31});
+        newiopNoret(VOP_CAST, {  uv0,  fv0});
+        newiopNoret(VOP_CAST, { uv31,  fv0});
+        newiopNoret(VOP_CAST, {  uv0, fv31});
+        newiopNoret(VOP_CAST, {  iv0,  dv0});
+        newiopNoret(VOP_CAST, { iv31,  dv0});
+        newiopNoret(VOP_CAST, {  iv0, dv31});
+        newiopNoret(VOP_CAST, {  fv0,  dv0});
+        newiopNoret(VOP_CAST, { fv31,  dv0});
+        newiopNoret(VOP_CAST, {  fv0, dv31});
+
+        // newiopNoret(VOP_CAST_LOW, {  i16v0,  i8v0});
+        // newiopNoret(VOP_CAST_LOW, { i16v31,  i8v0});
+        // newiopNoret(VOP_CAST_LOW, {  i16v0, i8v31});
+        // newiopNoret(VOP_CAST_LOW, {  u16v0,  u8v0});
+        // newiopNoret(VOP_CAST_LOW, { u16v31,  u8v0});
+        // newiopNoret(VOP_CAST_LOW, {  u16v0, u8v31});
+        // newiopNoret(VOP_CAST_LOW, {    dv0,   fv0});
+        // newiopNoret(VOP_CAST_LOW, {   dv31,   fv0});
+        // newiopNoret(VOP_CAST_LOW, {    dv0,  fv31});
+
+        // newiopNoret(VOP_SHRINK, {  i8v0, i16v0,  i16v1});
+        // newiopNoret(VOP_SHRINK, { i8v31, i16v0,  i16v1});
+        // newiopNoret(VOP_SHRINK, {  i8v0, i16v30, i16v31});
+        // newiopNoret(VOP_SHRINK, { u8v31, u16v30, u16v31});
+
+        newiopNoret(VOP_REDUCE_MAX, {  iv0,  iv0});
+        newiopNoret(VOP_REDUCE_MAX, { iv31,  iv0});
+        newiopNoret(VOP_REDUCE_MAX, {  iv0, iv31});
+        newiopNoret(VOP_REDUCE_MAX, {  uv0,  uv0});
+        newiopNoret(VOP_REDUCE_MAX, { uv31,  uv0});
+        newiopNoret(VOP_REDUCE_MAX, {  uv0, uv31});
+        newiopNoret(VOP_REDUCE_MAX, {  fv0,  fv0});
+        newiopNoret(VOP_REDUCE_MAX, { fv31,  fv0});
+        newiopNoret(VOP_REDUCE_MAX, {  fv0, fv31});
+        newiopNoret(VOP_REDUCE_MIN, {  iv0,  iv0});
+        newiopNoret(VOP_REDUCE_MIN, { iv31,  iv0});
+        newiopNoret(VOP_REDUCE_MIN, {  iv0, iv31});
+        newiopNoret(VOP_REDUCE_MIN, {  uv0,  uv0});
+        newiopNoret(VOP_REDUCE_MIN, { uv31,  uv0});
+        newiopNoret(VOP_REDUCE_MIN, {  uv0, uv31});
+        newiopNoret(VOP_REDUCE_MIN, {  fv0,  fv0});
+        newiopNoret(VOP_REDUCE_MIN, { fv31,  fv0});
+        newiopNoret(VOP_REDUCE_MIN, {  fv0, fv31});
+
+        newiopNoret(VOP_REDUCE_SUM, {  iv0,  iv0,  iv0});
+        newiopNoret(VOP_REDUCE_SUM, { iv31,  iv0,  iv0});
+        newiopNoret(VOP_REDUCE_SUM, {  iv0, iv31,  iv0});
+        newiopNoret(VOP_REDUCE_SUM, {  iv0,  iv0, iv31});
+        newiopNoret(VOP_REDUCE_SUM, {  fv0,  fv0,  fv0});
+        newiopNoret(VOP_REDUCE_SUM, { fv31,  fv0,  fv0});
+        newiopNoret(VOP_REDUCE_SUM, {  fv0, fv31,  fv0});
+        newiopNoret(VOP_REDUCE_SUM, {  fv0,  fv0, fv31});
+
+        newiopNoret(VOP_REDUCE_WSUM, {  iv0,  i16v0,   iv0});
+        newiopNoret(VOP_REDUCE_WSUM, { iv31,  i16v0,   iv0});
+        newiopNoret(VOP_REDUCE_WSUM, {  iv0, i16v31,   iv0});
+        newiopNoret(VOP_REDUCE_WSUM, {  iv0,  i16v0,  iv31});
+        newiopNoret(VOP_REDUCE_WSUM, {  uv0,  u16v0,   uv0});
+        newiopNoret(VOP_REDUCE_WSUM, { uv31,  u16v0,   uv0});
+        newiopNoret(VOP_REDUCE_WSUM, {  uv0, u16v31,   uv0});
+        newiopNoret(VOP_REDUCE_WSUM, {  uv0,  u16v0,  uv31});
+
+        newiopNoret(OP_RV_CSRRWI, { zero,     argIImm(0),  argIImm(0)});
+        newiopNoret(OP_RV_CSRRWI, {   t6,     argIImm(0),  argIImm(0)});
+        newiopNoret(OP_RV_CSRRWI, { zero, argIImm(0xfff),  argIImm(0)});
+        newiopNoret(OP_RV_CSRRWI, { zero,     argIImm(0), argIImm(31)});
 
         // newiopNoret(OP_RET, {}); //No registers, no immediates, no way to point function.
     }

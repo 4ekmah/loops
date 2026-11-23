@@ -4,7 +4,6 @@ Distributed under Apache 2 license.
 See https://github.com/4ekmah/loops/LICENSE
 */
 #include "mptest.hpp"
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64
 
 #include "loops/loops.hpp"
 #include "mptest.hpp"
@@ -358,10 +357,8 @@ bool MaxpoolTestImpl::isFixtureSupported(const std::vector<int>& fxt)
     const int typ = fxt[0];
     const int stride_x = fxt[11];
     return (typ == TYPE_FP32) && stride_x == 1;
-#elif __LOOPS_ARCH == __LOOPS_AARCH64
-    return true;
 #else
-#error Unsupported CPU
+    return true;
 #endif
 }
 
@@ -847,4 +844,3 @@ void print_algs_limits(const dwc_algs_limits& toprint, std::ostream* out)
 #if __LOOPS_OS == __LOOPS_WINDOWS
 #pragma warning(pop)
 #endif 
-#endif //__LOOPS_ARCH ==  __LOOPS_AARCH64 || __LOOPS_ARCH ==  __LOOPS_INTEL64

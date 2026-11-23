@@ -112,6 +112,10 @@ static inline cstring opstrings_ir_getter(int opcode)
     case (OP_ARM_LDP         ) : return "arm_ldp"               ;
     case (OP_ARM_STP         ) : return "arm_stp"               ;
     case (OP_RV_LUI          ) : return "rv_lui"                ;
+    case (OP_RV_VSETVLI      ) : return "rv_vsetvli"            ;
+    case (VOP_RV_VSLIDEUP    ) : return "rv_vslideup"           ;
+    case (VOP_RV_VSLIDEDOWN  ) : return "rv_vslidedown"         ;
+    case (OP_RV_CSRRWI       ) : return "rv_csrrwi"             ;
     case (OP_DEF             ) : return "def"                   ;
     };
     return nullptr;
@@ -201,7 +205,7 @@ std::unordered_map<int, suffixed_opname> suffixed_opnames =
     {VOP_REDUCE_WSUM      , {2, {{"reduce.wsum."      , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}}}},
     {VOP_ARM_LD1          , {1, {{"vld_lane."         , 0, SUFFIX_ELEMTYPE, 0}}}},
     {VOP_ARM_ST1          , {1, {{"vst_lane."         , 1, SUFFIX_ELEMTYPE, 0}}}},
-    {VOP_ARM_LD2          , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}},
+    {VOP_LD2              , {1, {{"vld_deinterleave2.", 0, SUFFIX_ELEMTYPE, 0}}}},
     {VOP_EXT              , {1, {{"ext."              , 0, SUFFIX_ELEMTYPE, 0}}}},
     {VOP_ARM_SHRINK_LOW   , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".low" , 0, SUFFIX_VOID, 0}}}},
     {VOP_ARM_SHRINK_HIGH  , {3, {{"cast."             , 0, SUFFIX_ELEMTYPE, 0}, {".from.", 1, SUFFIX_ELEMTYPE, 0}, {".high", 0, SUFFIX_VOID, 0}}}},

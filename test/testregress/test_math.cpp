@@ -40,7 +40,6 @@ TEST_P(fixed_power, fixed_power)
 
 INSTANTIATE_TEST_SUITE_P(math, fixed_power, ::testing::Values(0, 1, 9));
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 template <typename _Tp, int _p>
 struct fpv_param
 {
@@ -148,4 +147,3 @@ TEST(math, exp_f32)
     for (size_t i = 0; i < src.size(); i++ )
         ASSERT_NEAR((float)(dest[i]), (float)(::exp(src[i])), 1.e-39f);
 }
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64  || __LOOPS_ARCH == __LOOPS_INTEL64

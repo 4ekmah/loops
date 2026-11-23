@@ -10,6 +10,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <stdexcept>
 #include <exception>
 #include <string>
+#include <cstdio>
 
 #define LOOPS_ASSERT_LINE_(x) #x
 #define LOOPS_ASSERT_LINE(x) LOOPS_ASSERT_LINE_(x)
@@ -25,6 +26,13 @@ See https://github.com/4ekmah/loops/LICENSE
         ;                    \
     else                     \
         throw loops::exception(msg)
+
+#define LOOPS_WARNING(...)                 \
+    do {                                   \
+        std::fprintf(stderr, "Loops: ");   \
+        std::fprintf(stderr, __VA_ARGS__); \
+        std::fprintf(stderr, "\n");        \
+    } while (false)
 
 namespace loops
 {

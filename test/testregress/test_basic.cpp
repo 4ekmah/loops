@@ -916,8 +916,6 @@ TEST(basic, has_in_join_cascade)
     test_has_in_join_cascade(func);
 }
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
-
 Func make_nullify_msb_lsb_v(Context ctx, const std::string& fname)
 {
     USE_CONTEXT_(ctx);
@@ -981,7 +979,6 @@ TEST(basic, nullify_msb_lsb_v)
     EXPECT_ASSEMBLY_CORRECT(func);
     test_nullify_msb_lsb_v(func);
 }
-#endif // __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 
 TEST(basic, compile_all)
 {
@@ -998,9 +995,7 @@ TEST(basic, compile_all)
     loops::Func bresenham_func = make_bresenham(ctx, "bresenham");
     loops::Func conditionpainter_func = make_conditionpainter(ctx, "conditionpainter");
     loops::Func has_in_join_cascade_func = make_has_in_join_cascade(ctx, "has_in_join_cascade");
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
     loops::Func nullify_msb_lsb_v_func = make_nullify_msb_lsb_v(ctx, "nullify_msb_lsb_v");
-#endif
     ctx.compileAll();
     test_a_plus_b(a_plus_b_func);
     test_min_max_scalar(min_max_scalar_func);
@@ -1014,7 +1009,5 @@ TEST(basic, compile_all)
     test_bresenham(bresenham_func);
     test_conditionpainter(conditionpainter_func);
     test_has_in_join_cascade(has_in_join_cascade_func);
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
     test_nullify_msb_lsb_v(nullify_msb_lsb_v_func);
-#endif
 }

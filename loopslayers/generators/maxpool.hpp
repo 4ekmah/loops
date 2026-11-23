@@ -7,7 +7,6 @@ See https://github.com/4ekmah/loops/LICENSE
 #ifndef __LOOPS_MAXPOOL_HPP__
 #define __LOOPS_MAXPOOL_HPP__
 
-#if __LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 #include "loops/loops.hpp"
 #include "loopslayers/loopslayers.h"
 #include <algorithm>
@@ -104,7 +103,7 @@ private:
     //Find such a maximum U, that for each u<U
     //inequality: u*ratio < add is always correct 
     inline int upperBorder(int add, int ratio)
-    { return upDiv(add, ratio); }
+    { return std::max(0, upDiv(add, ratio)); }
     //lower border for all c, satisfies inequality
     //c*H*W + Y*W + X >= 0
     inline int downC(int /*C*/, int H, int W, int y, int x)
@@ -926,5 +925,4 @@ IExpr MaxpoolGenerator<_Tp>::effective_const_mul(const IReg& m1, int m2)
 #pragma warning(pop)
 #endif 
 
-#endif //__LOOPS_ARCH == __LOOPS_AARCH64 || __LOOPS_ARCH == __LOOPS_INTEL64
 #endif //__LOOPS_MAXPOOL_HPP__
