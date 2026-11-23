@@ -150,6 +150,9 @@ namespace loops
         case (RISCV_VMERGE_VXM): return "vmerge.vxm";
         case (RISCV_VMERGE_VIM): return "vmerge.vim";
         case (RISCV_VMSNE_VI): return "vmsne.vi";
+        case (RISCV_VMSEQ_VI): return "vmseq.vi";
+        case (RISCV_VMSLE_VI): return "vmsle.vi";
+        case (RISCV_VMSLEU_VI): return "vmsleu.vi";
         case (RISCV_VADD_VV): return "vadd.vv";
         case (RISCV_VSUB_VV): return "vsub.vv";
         case (RISCV_VMUL_VV): return "vmul.vv";
@@ -166,6 +169,7 @@ namespace loops
         case (RISCV_VSRA_VV): return "vsra.vv";
         case (RISCV_VSRA_VI): return "vsra.vi";
         case (RISCV_VSRA_VX): return "vsra.vx";
+        case (RISCV_VNSRL_WX): return "vnsrl.wx";
         case (RISCV_VAND_VV): return "vand.vv";
         case (RISCV_VOR_VV): return "vor.vv";
         case (RISCV_VXOR_VV): return "vxor.vv";
@@ -190,15 +194,24 @@ namespace loops
         case (RISCV_VMFLT_VV): return "vmflt.vv";
         case (RISCV_VMFLE_VV): return "vmfle.vv";
         case (RISCV_VFCVT_F_X_V): return "vfcvt.f.x.v";
+        case (RISCV_VFCVT_F_XU_V): return "vfcvt.f.xu.v";
         case (RISCV_VFCVT_X_F_V): return "vfcvt.x.f.v";
+        case (RISCV_VFCVT_XU_F_V): return "vfcvt.xu.f.v";
         case (RISCV_VFCVT_RTZ_X_F_V): return "vfcvt.rtz.x.f.v";
+        case (RISCV_VFCVT_RTZ_XU_F_V): return "vfcvt.rtz.xu.f.v";
         case (RISCV_VFNCVT_X_F_W): return "vfncvt.x.f.w";
         case (RISCV_VSEXT_VF2): return "vsext.vf2";
         case (RISCV_VZEXT_VF2): return "vzext.vf2";
         case (RISCV_VFWCVT_F_F_V): return "vfwcvt.f.f.v";
         case (RISCV_VFNCVT_F_F_W): return "vfncvt.f.f.w";
         case (RISCV_VREDSUM_VS): return "vredsum.vs";
+        case (RISCV_VREDMAX_VS): return "vredmax.vs";
+        case (RISCV_VREDMAXU_VS): return "vredmaxu.vs";
+        case (RISCV_VREDMIN_VS): return "vredmin.vs";
+        case (RISCV_VREDMINU_VS): return "vredminu.vs";
         case (RISCV_VFREDUSUM_VS): return "vfredusum.vs";
+        case (RISCV_VFREDMAX_VS): return "vfredmax.vs";
+        case (RISCV_VFREDMIN_VS): return "vfredmin.vs";
         case (RISCV_VWREDSUM_VS): return "vwredsum.vs";
         case (RISCV_VWREDSUMU_VS): return "vwredsumu.vs";
         case (RISCV_CSRRWI): return "csrrwi";
@@ -874,6 +887,9 @@ namespace loops
             }
             break;
         case (RISCV_VMSNE_VI): return opivi(index, scs, 0b011001, 1, true, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VMSEQ_VI): return opivi(index, scs, 0b011000, 1, true, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VMSLE_VI): return opivi(index, scs, 0b011101, 1, true, Out, In, 0, 0, 0, 0, 0);
+        case (RISCV_VMSLEU_VI): return opivi(index, scs, 0b011100, 1, false, Out, In, 0, 0, 0, 0, 0);
         case (RISCV_VADD_VV):  return op_vv(index, scs, 0b000000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VSUB_VV):  return op_vv(index, scs, 0b000010, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VMUL_VV):  return op_vv(index, scs, 0b100101, 1, 0b010, Out, In, In, 0, 0, 0, 0);
@@ -890,6 +906,7 @@ namespace loops
         case (RISCV_VSRA_VV):  return op_vv(index, scs, 0b101001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VSRA_VI):  return opivi(index, scs, 0b101001, 1, false, Out, In, 0, 0, 0, 0, 0);
         case (RISCV_VSRA_VX):  return opivx(index, scs, 0b101001, 1, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VNSRL_WX): return opivx(index, scs, 0b101100, 1, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VAND_VV):  return op_vv(index, scs, 0b001001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VOR_VV):   return op_vv(index, scs, 0b001010, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VXOR_VV):  return op_vv(index, scs, 0b001011, 1, 0b000, Out, In, In, 0, 0, 0, 0);
@@ -917,15 +934,24 @@ namespace loops
         case (RISCV_VMFLT_VV):        return op_vv(index, scs, 0b011011, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VMFLE_VV):        return op_vv(index, scs, 0b011001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFCVT_F_X_V):     return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00011);
+        case (RISCV_VFCVT_F_XU_V):    return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00010);
         case (RISCV_VFCVT_X_F_V):     return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00001);
+        case (RISCV_VFCVT_XU_F_V):    return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00000);
         case (RISCV_VFCVT_RTZ_X_F_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00111);
+        case (RISCV_VFCVT_RTZ_XU_F_V): return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b00110);
         case (RISCV_VFNCVT_X_F_W):    return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b10001);
         case (RISCV_VSEXT_VF2):       return op_vv(index, scs, 0b010010, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, 0b00111);
         case (RISCV_VZEXT_VF2):       return op_vv(index, scs, 0b010010, 1, 0b010, Out, In, 0, ARG2_FIXED, 0, 0, 0b00110);
         case (RISCV_VFWCVT_F_F_V):    return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b01100);
         case (RISCV_VFNCVT_F_F_W):    return op_vv(index, scs, 0b010010, 1, 0b001, Out, In, 0, ARG2_FIXED, 0, 0, 0b10100);
         case (RISCV_VREDSUM_VS):      return op_vv(index, scs, 0b000000, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VREDMAX_VS):      return op_vv(index, scs, 0b000111, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VREDMAXU_VS):     return op_vv(index, scs, 0b000110, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VREDMIN_VS):      return op_vv(index, scs, 0b000101, 1, 0b010, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VREDMINU_VS):     return op_vv(index, scs, 0b000100, 1, 0b010, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VFREDUSUM_VS):    return op_vv(index, scs, 0b000001, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFREDMAX_VS):     return op_vv(index, scs, 0b000111, 1, 0b001, Out, In, In, 0, 0, 0, 0);
+        case (RISCV_VFREDMIN_VS):     return op_vv(index, scs, 0b000101, 1, 0b001, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VWREDSUM_VS):     return op_vv(index, scs, 0b110001, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_VWREDSUMU_VS):    return op_vv(index, scs, 0b110000, 1, 0b000, Out, In, In, 0, 0, 0, 0);
         case (RISCV_CSRRWI):
@@ -1227,29 +1253,62 @@ namespace loops
         case (VOP_NE):
         case (VOP_LT):
         case (VOP_LE):
+        case (VOP_GT):
+        case (VOP_GE):
             if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isUnsignedInteger(index[0].elemtype) &&
                 elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
             {
                 if (index[2].tag == Arg::VREG && index[1].elemtype == index[2].elemtype)
                 {
-                    int opcode = index.opcode == VOP_EQ ? RISCV_VMSEQ_VV : 
-                                 index.opcode == VOP_NE ? RISCV_VMSNE_VV : 
-                                 index.opcode == VOP_LT ? RISCV_VMSLT_VV : 
-                               /*index.opcode == VOP_LE?*/RISCV_VMSLE_VV;
+                    int opcode = index.opcode == VOP_EQ ? RISCV_VMSEQ_VV :
+                                 index.opcode == VOP_NE ? RISCV_VMSNE_VV :
+                                 (index.opcode == VOP_LT || index.opcode == VOP_GT) ? RISCV_VMSLT_VV : RISCV_VMSLE_VV;
                     if(isFloat(index[1].elemtype))
                         opcode = index.opcode == VOP_EQ ? RISCV_VMFEQ_VV :
                                  index.opcode == VOP_NE ? RISCV_VMFNE_VV :
-                                 index.opcode == VOP_LT ? RISCV_VMFLT_VV :
-                               /*index.opcode == VOP_LE?*/RISCV_VMFLE_VV;
+                                 (index.opcode == VOP_LT || index.opcode == VOP_GT) ? RISCV_VMFLT_VV : RISCV_VMFLE_VV;
                     else if(isUnsignedInteger(index[1].elemtype))
-                        opcode = index.opcode == VOP_LT ? RISCV_VMSLTU_VV :
-                                 index.opcode == VOP_LE ? RISCV_VMSLEU_VV : opcode;
+                        opcode = (index.opcode == VOP_LT || index.opcode == VOP_GT) ? RISCV_VMSLTU_VV :
+                                 (index.opcode == VOP_LE || index.opcode == VOP_GE) ? RISCV_VMSLEU_VV : opcode;
+                    if(index.opcode == VOP_GT || index.opcode == VOP_GE)
+                        return SyT(opcode, { SAcop(0), SAcop(2), SAcop(1) });
                     return SyT(opcode, { SAcop(0), SAcop(1), SAcop(2) });
                 }
-                if (index[2].tag == Arg::IIMMEDIATE)
+                if (index[2].tag == Arg::IIMMEDIATE && isInteger(index[1].elemtype))
                 {
-                    return SyT(RISCV_VMSNE_VI, { SAcop(0), SAcop(1), SAcop(2) });                    
+                    const bool is_unsigned = isUnsignedInteger(index[1].elemtype);
+                    if(index.opcode == VOP_EQ)
+                        return SyT(RISCV_VMSEQ_VI, { SAcop(0), SAcop(1), SAcop(2) });
+                    if(index.opcode == VOP_NE)
+                        return SyT(RISCV_VMSNE_VI, { SAcop(0), SAcop(1), SAcop(2) });
+                    if(index.opcode == VOP_LE)
+                        return SyT(is_unsigned ? RISCV_VMSLEU_VI : RISCV_VMSLE_VI, { SAcop(0), SAcop(1), SAcop(2) });
+                    if(index.opcode == VOP_LT)
+                    {
+                        const int64_t immediate = index[2].value;
+                        if(is_unsigned && immediate == 0)
+                            return SyT(RISCV_VMSNE_VV, { SAcop(0), SAcop(1), SAcop(1) });
+                        if((is_unsigned && immediate >= 1 && immediate <= 16) || (!is_unsigned && immediate >= -15 && immediate <= 16))
+                            return SyT(is_unsigned ? RISCV_VMSLEU_VI : RISCV_VMSLE_VI, { SAcop(0), SAcop(1), SAimm(immediate - 1) });
+                    }
                 }
+            }
+            break;
+        case (VOP_REDUCE_MAX):
+        case (VOP_REDUCE_MIN):
+            if((index.size() == 2 || index.size() == 3) && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG &&
+               index[0].elemtype == index[1].elemtype &&
+               (index.size() == 2 || (index[2].tag == Arg::VREG && index[0].elemtype == index[2].elemtype)))
+            {
+                int opcode = -1;
+                if(isSignedInteger(index[0].elemtype))
+                    opcode = index.opcode == VOP_REDUCE_MAX ? RISCV_VREDMAX_VS : RISCV_VREDMIN_VS;
+                else if(isUnsignedInteger(index[0].elemtype))
+                    opcode = index.opcode == VOP_REDUCE_MAX ? RISCV_VREDMAXU_VS : RISCV_VREDMINU_VS;
+                else if(isFloat(index[0].elemtype))
+                    opcode = index.opcode == VOP_REDUCE_MAX ? RISCV_VFREDMAX_VS : RISCV_VFREDMIN_VS;
+                if(opcode != -1)
+                    return SyT(opcode, { SAcop(0), SAcop(1), SAcop(index.size() == 2 ? 1 : 2) });
             }
             break;
         case (VOP_REDUCE_SUM):
@@ -1264,8 +1323,8 @@ namespace loops
             }
             break;
         case (VOP_REDUCE_WSUM):
-            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG && 
-               index[1].elemtype == index[2].elemtype &&
+            if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+               index[0].elemtype == index[2].elemtype &&
                ((isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype)) || 
                (isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype))) &&
                 elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
@@ -1365,37 +1424,43 @@ namespace loops
             }
             break;
         case (VOP_FLOOR):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
-                return SyT(RISCV_VFCVT_X_F_V, { SAcop(0), SAcop(1) });
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                return SyT(isUnsignedInteger(index[0].elemtype) ? RISCV_VFCVT_XU_F_V : RISCV_VFCVT_X_F_V, { SAcop(0), SAcop(1) });
             break;
         case (VOP_TRUNC):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
-                return SyT(RISCV_VFCVT_RTZ_X_F_V, { SAcop(0), SAcop(1) });
+            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && isInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                return SyT(isUnsignedInteger(index[0].elemtype) ? RISCV_VFCVT_RTZ_XU_F_V : RISCV_VFCVT_RTZ_X_F_V, { SAcop(0), SAcop(1) });
             break;
         case (VOP_CAST):
             if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
             {
-                if(isFloat(index[0].elemtype) && isSignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
-                    return SyT(RISCV_VFCVT_F_X_V, { SAcop(0), SAcop(1) });
-                if(isSignedInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
-                    return SyT(RISCV_VFCVT_RTZ_X_F_V, { SAcop(0), SAcop(1) });
+                if(isFloat(index[0].elemtype) && isInteger(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                    return SyT(isUnsignedInteger(index[1].elemtype) ? RISCV_VFCVT_F_XU_V : RISCV_VFCVT_F_X_V, { SAcop(0), SAcop(1) });
+                if(isInteger(index[0].elemtype) && isFloat(index[1].elemtype) && elem_size(index[0].elemtype) == elem_size(index[1].elemtype))
+                    return SyT(isUnsignedInteger(index[0].elemtype) ? RISCV_VFCVT_RTZ_XU_F_V : RISCV_VFCVT_RTZ_X_F_V, { SAcop(0), SAcop(1) });
                 if(index[0].elemtype == TYPE_I32 && index[1].elemtype == TYPE_FP64)
                     return SyT(RISCV_VFNCVT_X_F_W, { SAcop(0), SAcop(1) });
                 if(index[0].elemtype == TYPE_FP32 && index[1].elemtype == TYPE_FP64)
                     return SyT(RISCV_VFNCVT_F_F_W, { SAcop(0), SAcop(1) });
             }
             break;
-        case (VOP_CAST_LOW):
-            if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
-            {
-                if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
-                    return SyT(RISCV_VSEXT_VF2, { SAcop(0), SAcop(1) });
-                if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
-                    return SyT(RISCV_VZEXT_VF2, { SAcop(0), SAcop(1) });
-                if(index[0].elemtype == TYPE_FP64 && index[1].elemtype == TYPE_FP32)
-                    return SyT(RISCV_VFWCVT_F_F_V, { SAcop(0), SAcop(1) });
-            }
-            break;
+        // case (VOP_SHRINK):
+        //     if(index.size() == 3 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG && index[2].tag == Arg::VREG &&
+        //        index[1].elemtype == index[2].elemtype && 2 * elem_size(index[0].elemtype) == elem_size(index[1].elemtype) &&
+        //        isInteger(index[0].elemtype) && isInteger(index[1].elemtype))
+        //         return SyT(RISCV_VNSRL_WX, { SAcop(0), SAcop(1), SAreg(ZERO) });
+        //     break;
+        // case (VOP_CAST_LOW):
+        //     if(index.size() == 2 && index[0].tag == Arg::VREG && index[1].tag == Arg::VREG)
+        //     {
+        //         if(isSignedInteger(index[0].elemtype) && isSignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
+        //             return SyT(RISCV_VSEXT_VF2, { SAcop(0), SAcop(1) });
+        //         if(isUnsignedInteger(index[0].elemtype) && isUnsignedInteger(index[1].elemtype) && elem_size(index[0].elemtype) == 2 * elem_size(index[1].elemtype))
+        //             return SyT(RISCV_VZEXT_VF2, { SAcop(0), SAcop(1) });
+        //         if(index[0].elemtype == TYPE_FP64 && index[1].elemtype == TYPE_FP32)
+        //             return SyT(RISCV_VFWCVT_F_F_V, { SAcop(0), SAcop(1) });
+        //     }
+        //     break;
         default:
             break;
         }
@@ -1506,6 +1571,8 @@ namespace loops
         {
         case VOP_FMA:
             return AllocationRestriction::makeInplace(0, 1);
+        case VOP_SHRINK:
+            return AllocationRestriction::makeConsecutive(RB_VEC, 1, 2);
         case VOP_LD2:
             return AllocationRestriction::makeConsecutive(RB_VEC, 0, 2);
         case VOP_SELECT:
@@ -1548,6 +1615,18 @@ namespace loops
                 }
                 break;
             }
+            case (VOP_SHRINK):
+                LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG);
+                if((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
+                {
+                    if(basketNum != RB_VEC || flagmask == (AF_INPUT | AF_OUTPUT))
+                        return std::set<int>({});
+                    if(flagmask == AF_INPUT)
+                        return std::set<int>({1, 2});
+                    if(flagmask == AF_OUTPUT)
+                        return std::set<int>({0});
+                }
+                break;
             case (VOP_LD2):
                 LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::IREG && a_op[0].elemtype == a_op[1].elemtype);
                 if(basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
@@ -2007,8 +2086,12 @@ namespace loops
             if(op.size() > 1)
                 elemtype = op.args[1].elemtype;
             break;
-        case VOP_CAST:
         case VOP_CAST_LOW:
+            if(op.size() > 0)
+                elemtype = op.args[0].elemtype;
+            break;
+        case VOP_CAST:
+        case VOP_CAST_HIGH:
         case VOP_REDUCE_WSUM:
             if(op.size() > 1)
                 elemtype = elem_size(op.args[0].elemtype) < elem_size(op.args[1].elemtype) ? op.args[0].elemtype : op.args[1].elemtype;
@@ -2044,8 +2127,11 @@ namespace loops
         case VOP_REDUCE_SUM:
             return isFloat(op.args[0].elemtype) ? RISCV_FRM_RNE : -1;
         case VOP_CAST:
-            if(op.size() == 2 && ((isFloat(op.args[0].elemtype) && isSignedInteger(op.args[1].elemtype)) ||
-               (op.args[0].elemtype == TYPE_FP32 && op.args[1].elemtype == TYPE_FP64)))
+        case VOP_CAST_LOW:
+        case VOP_CAST_HIGH:
+            if(op.size() == 2 && ((isFloat(op.args[0].elemtype) && isInteger(op.args[1].elemtype)) ||
+               (op.args[0].elemtype == TYPE_FP32 && op.args[1].elemtype == TYPE_FP64) ||
+               (op.args[0].elemtype == TYPE_FP64 && op.args[1].elemtype == TYPE_FP32)))
                 return RISCV_FRM_RNE;
             break;
         default:
@@ -2064,6 +2150,13 @@ namespace loops
         int current_vtype = -1;
         int current_frm = -1;
         bool have_vectors = false;
+        // bool reserve_vector_scratch = false;
+        // for(const Syntop& op : a_source.program)
+        //     if(op.opcode == VOP_CAST_LOW || op.opcode == VOP_CAST_HIGH || op.opcode == VOP_SHRINK)
+        //     {
+        //         reserve_vector_scratch = true;
+        //         break;
+        //     }
         for (int opnum = 0; opnum < (int)a_source.program.size(); opnum++)
         {
             const Syntop& op = a_source.program[opnum];
@@ -2193,6 +2286,8 @@ namespace loops
             case VOP_NE:
             case VOP_LT:
             case VOP_LE:
+            case VOP_GT:
+            case VOP_GE:
             {
                 Arg condition = op.args[0];
                 condition.idx = a_dest.provideIdx(RB_VEC);
@@ -2223,6 +2318,36 @@ namespace loops
                 a_dest.program.push_back(converted);
                 break;
             }
+            case VOP_GETLANE:
+            {
+                LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::IREG && op.args[1].tag == Arg::VREG && op.args[2].tag == Arg::IIMMEDIATE);
+                const int64_t lane = op.args[2].value;
+                LOOPS_ASSERT(lane >= 0 && lane < m_backend->vlanes(op.args[1].elemtype));
+                if(lane == 0)
+                    a_dest.program.push_back(op);
+                else
+                {
+                    Arg shifted = op.args[1];
+                    shifted.idx = a_dest.provideIdx(RB_VEC);
+                    if(lane <= 31)
+                        a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { shifted, op.args[1], argIImm(lane) }));
+                    else
+                    {
+                        Arg offset = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+                        mov64(a_dest, offset, lane);
+                        a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { shifted, op.args[1], offset }));
+                    }
+                    a_dest.program.push_back(Syntop(VOP_GETLANE, { op.args[0], shifted, argIImm(0) }));
+                }
+                const int elem_bits = 8 * elem_size(op.args[1].elemtype);
+                if(elem_bits < 64 && (isUnsignedInteger(op.args[1].elemtype) || isFloat(op.args[1].elemtype)))
+                {
+                    const int64_t shift = 64 - elem_bits;
+                    a_dest.program.push_back(Syntop(OP_SHL, { op.args[0], op.args[0], argIImm(shift) }));
+                    a_dest.program.push_back(Syntop(OP_SHR, { op.args[0], op.args[0], argIImm(shift) }));
+                }
+                break;
+            }
             case VOP_SETLANE:
             {
                 LOOPS_ASSERT(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::IIMMEDIATE && op.args[2].tag == Arg::IREG);
@@ -2240,6 +2365,29 @@ namespace loops
                 }
                 break;
             }
+            // case VOP_CAST_HIGH:
+            // {
+            //     LOOPS_ASSERT(op.size() == 2 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG &&
+            //                  elem_size(op.args[0].elemtype) == 2 * elem_size(op.args[1].elemtype));
+            //     const int64_t high_offset = m_backend->vlanes(op.args[1].elemtype) / 2;
+            //     Arg shifted = op.args[1];
+            //     shifted.idx = a_dest.provideIdx(RB_VEC);
+            //     if(high_offset <= 31)
+            //         a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { shifted, op.args[1], argIImm(high_offset) }));
+            //     else
+            //     {
+            //         Arg offset = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+            //         mov64(a_dest, offset, high_offset);
+            //         a_dest.program.push_back(Syntop(VOP_RV_VSLIDEDOWN, { shifted, op.args[1], offset }));
+            //     }
+            //     Syntop cast_low(VOP_CAST_LOW, { op.args[0], shifted });
+            //     const int widened_vtype = riscv_required_vtype(cast_low);
+            //     Arg scratch = argReg(RB_INT, a_dest.provideIdx(RB_INT));
+            //     a_dest.program.push_back(Syntop(OP_RV_VSETVLI, { scratch, argIImm(0), argIImm(widened_vtype) }));
+            //     current_vtype = widened_vtype;
+            //     a_dest.program.push_back(cast_low);
+            //     break;
+            // }
             case VOP_EXT:
             {
                 LOOPS_ASSERT(op.size() == 4 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG &&
@@ -2277,6 +2425,19 @@ namespace loops
                 }
                 break;
             }
+            case VOP_REDUCE_SUM:
+            case VOP_REDUCE_WSUM:
+                if(op.size() == 2)
+                {
+                    LOOPS_ASSERT(op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG);
+                    Arg zero = op.args[0];
+                    zero.idx = a_dest.provideIdx(RB_VEC);
+                    a_dest.program.push_back(Syntop(VOP_BROADCAST, { zero, argIImm(0) }));
+                    a_dest.program.push_back(Syntop(op.opcode, { op.args[0], op.args[1], zero }));
+                }
+                else
+                    a_dest.program.push_back(op);
+                break;
             case VOP_BROADCAST:
                 if(op.size() == 3 && op.args[0].tag == Arg::VREG && op.args[1].tag == Arg::VREG &&
                    op.args[2].tag == Arg::IIMMEDIATE && op.args[2].value > 31)
@@ -2310,6 +2471,17 @@ namespace loops
                                                       , caller_saved
                                                       , m_backend->calleeSavedRegisters(RB_INT));
         }
+        // if(reserve_vector_scratch)
+        // {
+        //     std::vector<int> caller_saved = m_backend->callerSavedRegisters(RB_VEC);
+        //     caller_saved.erase(std::remove(caller_saved.begin(), caller_saved.end(), V29), caller_saved.end());
+        //     caller_saved.erase(std::remove(caller_saved.begin(), caller_saved.end(), V30), caller_saved.end());
+        //     caller_saved.erase(std::remove(caller_saved.begin(), caller_saved.end(), V31), caller_saved.end());
+        //     a_source.owner->overrideRegisterSet(RB_VEC, m_backend->parameterRegisters(RB_VEC)
+        //                                               , m_backend->returnRegisters(RB_VEC)
+        //                                               , caller_saved
+        //                                               , m_backend->calleeSavedRegisters(RB_VEC));
+        // }
     }
 
     void RiscVBRASnippets2::mov64(Syntfunc& a_dest, Arg destarg, int64_t val)
@@ -2403,6 +2575,41 @@ namespace loops
                     && op[0].idx == op[1].idx))
                     a_dest.program.push_back(op);
                 break;
+            // case VOP_SHRINK:
+            // {
+            //     LOOPS_ASSERT(op.size() == 3 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG && op[2].tag == Arg::VREG &&
+            //                  op[2].idx == op[1].idx + 1);
+            //     Syntop lowered = op;
+            //     if((op[1].idx & 1) != 0 || op[0].idx == op[2].idx)
+            //     {
+            //         Arg source0 = op[1];
+            //         source0.idx = V30;
+            //         Arg source1 = op[2];
+            //         source1.idx = V31;
+            //         a_dest.program.push_back(Syntop(OP_MOV, { source0, op[1] }));
+            //         a_dest.program.push_back(Syntop(OP_MOV, { source1, op[2] }));
+            //         lowered[1] = source0;
+            //         lowered[2] = source1;
+            //     }
+            //     a_dest.program.push_back(lowered);
+            //     break;
+            // }
+            // case VOP_CAST_LOW:
+            // {
+            //     LOOPS_ASSERT(op.size() == 2 && op[0].tag == Arg::VREG && op[1].tag == Arg::VREG);
+            //     if(op[0].idx == op[1].idx)
+            //     {
+            //         Arg source = op[1];
+            //         source.idx = V29;
+            //         a_dest.program.push_back(Syntop(OP_MOV, { source, op[1] }));
+            //         Syntop converted = op;
+            //         converted[1] = source;
+            //         a_dest.program.push_back(converted);
+            //     }
+            //     else
+            //         a_dest.program.push_back(op);
+            //     break;
+            // }
             case OP_SPILL:
             case OP_UNSPILL:
             {

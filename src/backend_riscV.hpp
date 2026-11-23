@@ -146,6 +146,19 @@ namespace loops
         RISCV_VWREDSUMU_VS    = 128,
         RISCV_CSRRWI          = 129,
         RISCV_CSRRW           = 130,
+        RISCV_VMSEQ_VI        = 131,
+        RISCV_VMSLE_VI        = 132,
+        RISCV_VMSLEU_VI       = 133,
+        RISCV_VFCVT_F_XU_V    = 134,
+        RISCV_VFCVT_XU_F_V    = 135,
+        RISCV_VFCVT_RTZ_XU_F_V = 136,
+        RISCV_VNSRL_WX        = 137,
+        RISCV_VREDMAX_VS      = 138,
+        RISCV_VREDMAXU_VS     = 139,
+        RISCV_VREDMIN_VS      = 140,
+        RISCV_VREDMINU_VS     = 141,
+        RISCV_VFREDMAX_VS     = 142,
+        RISCV_VFREDMIN_VS     = 143,
     };
 
     class RiscVBackend : public Backend

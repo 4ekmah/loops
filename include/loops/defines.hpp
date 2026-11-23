@@ -28,8 +28,6 @@ See https://github.com/4ekmah/loops/LICENSE
     #error Unknown OS
 #endif
 
-        #define __LOOPS_ARCH   __LOOPS_RISCV
-/*
 #ifdef __GNUC__
     #if defined(__x86_64__)
         #define __LOOPS_ARCH   __LOOPS_INTEL64
@@ -51,6 +49,5 @@ See https://github.com/4ekmah/loops/LICENSE
 #else
     #error Unknown compiler
 #endif
-*/
 
 #endif //__LOOPSDEFS_HPP__
