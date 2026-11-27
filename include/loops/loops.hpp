@@ -354,7 +354,7 @@ public:
     Expr super;
 
     VExpr() {}
-    inline VExpr<_Tp>(const VReg<_Tp>& a_leaf);
+    inline VExpr(const VReg<_Tp>& a_leaf);
     inline VExpr(int a_opcode, std::initializer_list<Expr> a_children);
     inline VExpr(int a_opcode, std::vector<Expr> a_children);
     Expr notype() const {return super;}

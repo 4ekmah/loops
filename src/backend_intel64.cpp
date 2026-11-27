@@ -247,11 +247,6 @@ namespace loops
         return makeBitmask64(regNumbers);
     }
 
-    static inline uint64_t bm64(uint64_t bitNumber)
-    {
-        return bm64({bitNumber});
-    }
-
     static inline uint64_t bm64(int bitNumber)
     {
         return bm64({uint64_t(bitNumber)});
@@ -260,12 +255,6 @@ namespace loops
     static inline bool bm64_exclusive(uint64_t field, uint8_t flag)
     {
         return ((field & bm64(flag)) == 0) || (field == bm64(flag));
-    }
-
-    static inline bool bm64_exists(uint64_t field, int flag)
-    {
-        LOOPS_ASSERT(flag >= 0);
-        return (field == 0 || (bm64(flag) & field) != 0);
     }
 
     static inline bool bm64_exists(uint64_t field, const Syntop& index, int argnum)
@@ -606,7 +595,7 @@ namespace loops
         //TODO(ch): A lot of commands supports immediates of different widthes(8/32/64), but there are implemented just
         //fixed sizes(in most cases = 32). For space economy, it's better to implement different cases.
         using namespace BinTranslationConstruction;
-        enum { Xmm = HlfLan };
+        constexpr uint64_t Xmm = HlfLan;
         scs = true;
         switch (index.opcode)
         {
@@ -914,12 +903,10 @@ namespace loops
                                     return  BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0), BTreg(0, 3, In | Addr64), BTimm(1, 32) });//mov qword ptr [rax], <imm>
                             }
                         }
-                        else if(index[1].value > int64_t(0x7fffffff) || index[1].value < (-(int64_t(0x7fffffff) + 1)))
-                        {
-                            return BiT({ nBkb(1, index[0].idx < 8 ? 0x48 : 0x49, 5, 0b10111), BTreg(0, 3, Out), BTimm(1, 64) });   //mov rax, <imm64>
-                        }
+                        else if(signed_fits(index[1].value, 32))
+                            return BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0b11000), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm32>
                         else 
-                            return  BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0b11000), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm32>
+                            return BiT({ nBkb(1, index[0].idx < 8 ? 0x48 : 0x49, 5, 0b10111), BTreg(0, 3, Out), BTimm(1, 64) });   //mov rax, <imm64>
                     }
                 }
                 else if (index[0].tag == Arg::ISPILLED)
@@ -2377,12 +2364,12 @@ namespace loops
 
 #if __LOOPS_OS == __LOOPS_WINDOWS
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3 };
-    m_returnRegisters[RB_VEC] = { YMM0 };
+    m_returnRegisters[RB_VEC].assign(1, YMM0);
     m_callerSavedRegisters[RB_VEC] = { YMM5, YMM6, YMM7, YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
     m_calleeSavedRegisters[RB_VEC] = { YMM6, YMM7, YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
 #elif __LOOPS_OS == __LOOPS_LINUX || __LOOPS_OS == __LOOPS_MAC
     m_parameterRegisters[RB_VEC] = { YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7};
-    m_returnRegisters[RB_VEC] = { YMM0 };
+    m_returnRegisters[RB_VEC].assign(1, YMM0);
     m_callerSavedRegisters[RB_VEC] = { YMM8, YMM9, YMM10, YMM11, YMM12, YMM13, YMM14, YMM15 };
     m_calleeSavedRegisters[RB_VEC] = {  };
 #else
@@ -3029,8 +3016,9 @@ namespace loops
                 hex_printer->pos_n_sizes[opnum] = {/*position = */oppos, /*size = */opsize};
                 oppos += opsize;
             }
+            Syntfunc dummy;
             Assembly2Hex a2hPass(printer->backend);
-            a2hPass.process(*((Syntfunc*)(nullptr)), func);
+            a2hPass.process(dummy, func);
             hex_printer->binary = a2hPass.result_buffer();
         }
         const unsigned char* hexfield = hex_printer->binary->data() + hex_printer->pos_n_sizes[row].position;
