@@ -100,49 +100,46 @@ uint64_t Bitwriter::revertToken(uint64_t a_tok, int dwidth)
     return a_tok;
 }
 
-BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
-   , width(fieldsize)
-   , fieldOflags(0)
-   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
+BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound_size((int)lst.size()), m_bytewidth(0), m_bitwidth(0)
 {
-    if(tag != T_REG && tag != T_IMMEDIATE && tag != T_SPILLED && tag != T_OMIT)
-        throw loops::exception("Binary translator: wrong token constructor.");
-    if(tag == T_OMIT && fieldsize != 0) 
-        throw loops::exception("Binary translator: omit immediate must not have field width.");
+    LOOPS_ASSERT(m_compound_size <= COMPOUND_MAX);
+    int tokennum = 0;
+    for(const Token& token : lst)
+    {
+        m_compound[tokennum++] = token;
+        m_bitwidth += token.width;
+    }
+    m_bytewidth = (m_bitwidth + 7) / 8;
 }
 
-BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize):tag(tag)
-   , width(fieldsize)
-   , fieldOflags(val)
-   , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
+BinTranslation::BinTranslation(const std::vector<Token>& lst) : m_compound_size((int)lst.size()), m_bytewidth(0), m_bitwidth(0)
 {
-    if(tag != T_STATIC)
-        throw loops::exception("Binary translator: wrong token constructor.");
+    LOOPS_ASSERT(m_compound_size <= COMPOUND_MAX);
+    for(int tokennum = 0; tokennum < m_compound_size; ++tokennum)
+    {
+        m_compound[tokennum] = lst[tokennum];
+        m_bitwidth += lst[tokennum].width;
+    }
+    m_bytewidth = (m_bitwidth + 7) / 8;
 }
 
-BinTranslation::BinTranslation(std::initializer_list<Token> lst) : m_compound(lst), m_bytewidth(0)
+void BinTranslation::push_back(const Token& token)
 {
-    for (const Token& det:m_compound)
-        m_bytewidth += det.width;
-    m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
-}
-
-BinTranslation::BinTranslation(const std::vector<Token>& lst) : m_compound(lst), m_bytewidth(0)
-{
-    for (const Token& det:m_compound)
-        m_bytewidth += det.width;
-    m_bytewidth = m_bytewidth/8 + ((m_bytewidth%8)?1:0);
+    LOOPS_ASSERT(m_compound_size < COMPOUND_MAX);
+    m_compound[m_compound_size++] = token;
+    m_bitwidth += token.width;
+    m_bytewidth = (m_bitwidth + 7) / 8;
 }
 
 void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
 {
-    if(m_compound.size() == 0) 
+    if(m_compound_size == 0)
         return;
     if (bits == nullptr)
         throw loops::exception("Binary translator: null writer pointer.");
     bits->startInstruction();
     uint64_t argmask = (uint64_t(1) << op.size()) - 1;
-    for (const Token& det : m_compound)
+    for (const Token& det : *this)
     {
         uint64_t pos = (det.srcArgnum != UNDEFINED_ARGUMENT_NUMBER) ? uint64_t(1) << det.srcArgnum : 0;
 
@@ -172,7 +169,7 @@ void BinTranslation::applyNAppend(const Syntop& op, Bitwriter* bits) const
         };
     }
     LOOPS_ASSERT(argmask == 0);
-    for (const Token& det : m_compound)
+    for (const Token& det : *this)
     {
         if(det.tag == Token::T_OMIT)
             continue;

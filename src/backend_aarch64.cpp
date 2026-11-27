@@ -2034,7 +2034,7 @@ Aarch64Backend::Aarch64Backend()
 Aarch64Backend::~Aarch64Backend()
 {}
 
-int Aarch64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
+int Aarch64Backend::reusingPreferences(const Syntop& a_op, const fastset& undefinedArgNums) const
 {
     switch (a_op.opcode)
     {
@@ -2081,7 +2081,7 @@ int Aarch64Backend::spillSpaceNeeded(const Syntop& a_op, int basketNum) const
     return Backend::spillSpaceNeeded(a_op, basketNum);
 }
 
-std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+fastset Aarch64Backend::getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
     //TODO(ch): This specialized version of function must disappear after introducing snippets.
     //They will give info about used registers, like now instructions answers.
@@ -2090,7 +2090,7 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
     {
         case (OP_JCC):
         case (OP_JMP):
-            return std::set<int>();
+            return fastset();
         case (OP_MIN):
         case (OP_MAX):
         {
@@ -2098,9 +2098,9 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({1,2});
+                    return fastset({1,2});
                 if (AF_OUTPUT & flagmask)
-                    return std::set<int>({0});
+                    return fastset({0});
             }
             break;
         }
@@ -2111,9 +2111,9 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({1});
+                    return fastset({1});
                 if (AF_OUTPUT & flagmask)
-                    return std::set<int>({0});
+                    return fastset({0});
             }
             break;
         }
@@ -2129,21 +2129,21 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
                 }
             LOOPS_ASSERT(allRegs);
             if(basketNum == RB_VEC)
-                return std::set<int>({});
+                return fastset();
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
                 {
-                    std::set<int> res;
+                    fastset res;
                     for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
                     return res;
                 }
                 if (AF_OUTPUT & flagmask)
                 {
                     if(a_op.opcode == OP_CALL)
-                        return std::set<int>({0});
+                        return fastset({0});
                     else
-                        return std::set<int>({});
+                        return fastset();
                 }
             }
             break;
@@ -2154,13 +2154,13 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             LOOPS_ASSERT((a_op.size() == 4 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG) ||
                    (a_op.size() == 5 && a_op[0].tag == Arg::VREG && a_op[1].tag == Arg::VREG && a_op[2].tag == Arg::VREG && a_op[3].tag == Arg::VREG && a_op[4].tag == Arg::IIMMEDIATE));
             if(basketNum == RB_INT)
-                return std::set<int>({});
+                return fastset();
             else if (basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({1, 2, 3});
+                    return fastset({1, 2, 3});
                 else if (AF_OUTPUT & flagmask)
-                    return std::set<int>({0});
+                    return fastset({0});
             }
             break;
         }
@@ -2170,16 +2170,16 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
             if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({2});
+                    return fastset({2});
                 if (AF_OUTPUT & flagmask)
-                    return std::set<int>({});
+                    return fastset();
             }
             else if (basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
             {
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({});
+                    return fastset();
                 if (AF_OUTPUT & flagmask)
-                    return std::set<int>({0,1});
+                    return fastset({0,1});
             }
             break;
         }
@@ -2189,17 +2189,17 @@ std::set<int> Aarch64Backend::getUsedRegistersIdxs(const Syntop& a_op, int baske
                  ((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0) )
             {
                 if(basketNum == RB_VEC)
-                    return std::set<int>({});
+                    return fastset();
                 if (AF_INPUT & flagmask)
-                    return std::set<int>({});
+                    return fastset();
                 if (AF_OUTPUT & flagmask)
-                    return std::set<int>({0});
+                    return fastset({0});
             }
             break;
         default:
             break;
     };
-    return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+    return Backend::getUsedRegistersIdxsUncached(a_op, basketNum, flagmask);
 }
 
 AllocationRestriction Aarch64Backend::getRestriction(const Syntop& a_op) const

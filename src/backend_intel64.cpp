@@ -349,14 +349,14 @@ namespace loops
         uint32_t m_mmmm = (m_opcode == 0x0F ? 0b01 : (m_opcode == 0x0F38 ? 0b10 : (/*m_opcode == 0x0F3A ?*/0b11)));
         // pp:opcode extension providing equivalent functionality of a SIMD prefix: {00: None | 01: 66 | 10: F3 | 11: F2}
         uint32_t pp = pp_opcode == 0 ? 0 : (pp_opcode == 0x66 ? 0b01 : (pp_opcode == 0xF3 ? 0b10 : (/*pp_opcode == 0xF2 ?*/ 0b11 )));
-        std::vector<BinTranslation::Token> tokens;
+        BinTranslation tokens;
         if(index.args_size == 2 && (mrm_opcode == 0))
         {
             if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::VREG)
             {
                 synchronizeTypesBitmask(index, supportedTypesBitmask0, supportedTypesBitmask1, 0, 1);
                 if(!((index.args[0].tag == Arg::VREG && bm64_exists(supportedTypesBitmask0, index, 0) && bm64_exists(supportedTypesBitmask1, index, 1))))
-                    return BinTranslation();
+                    return tokens;
             }
             else if(index.args[0].tag == Arg::VREG && index.args[1].tag == Arg::IREG && bm64_exists(supportedTypesBitmask0, index, 0))
             {
@@ -393,7 +393,7 @@ namespace loops
                 }
             }
             else 
-                return BinTranslation();
+                return tokens;
         }
         else if(index.args_size == 3)
         {
@@ -468,7 +468,7 @@ namespace loops
                     bm64_exists(supportedTypesBitmask0, index, 0) && bm64_exists(supportedTypesBitmask1, index, 1) &&
                     (index.args[2].tag == Arg::IIMMEDIATE || bm64_exists(supportedTypesBitmask2, index, 2)) &&
                     (index.args[2].tag == Arg::IIMMEDIATE || mrm_opcode == 0))))
-                    return BinTranslation();
+                    return tokens;
                 if(index.args[2].tag != Arg::IIMMEDIATE)
                 {
                     vvvv_encode_reg = true; 
@@ -499,7 +499,7 @@ namespace loops
                 if(!(bm64_exists(supportedTypesBitmask0, index, 0) && bm64_exists(supportedTypesBitmask1, index, 1) && 
                      (index.args[2].tag == Arg::IREG || bm64_exists(supportedTypesBitmask2, index, 2)) &&
                      mrm_opcode == 0))
-                    return BinTranslation();
+                    return tokens;
                 vvvv_encode_reg = true; 
                 vvvv_reg_num = 1;
                 modRM_reg1_argnum = 2;
@@ -519,7 +519,7 @@ namespace loops
                     (supportedTypesBitmask2 == 0 || (bm64(index.args[2].elemtype) & supportedTypesBitmask2) != 0) &&
                     (supportedTypesBitmask3 == 0 || (bm64(index.args[3].elemtype) & supportedTypesBitmask3) != 0) && 
                     mrm_opcode == 0)))
-                    return BinTranslation();
+                    return tokens;
                 vvvv_encode_reg = true; 
                 vvvv_reg_num = 1; 
                 modRM_reg1_argnum = 2;
@@ -528,7 +528,7 @@ namespace loops
             }
         }
         else
-            return BinTranslation();
+            return tokens;
         const uint32_t R = mrm_opcode != 0 ? 1 : ((index.args[modRM_reg0_argnum].idx & 0b1000) == 0);
         const uint32_t X = sib_byte_present ? ((index.args[sib_reg0_argnum].idx & 0b1000) == 0) : 1;
         const uint32_t B = ((index.args[modRM_reg1_argnum].idx & 0b1000) == 0);
@@ -598,7 +598,7 @@ namespace loops
                 tokens.push_back(BTsta(ib, 8));
         }
         scs = true;
-        return BinTranslation(tokens);
+        return tokens;
     }
 
     BinTranslation i64BTLookup(const Syntop& index, bool& scs)
@@ -914,12 +914,10 @@ namespace loops
                                     return  BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0), BTreg(0, 3, In | Addr64), BTimm(1, 32) });//mov qword ptr [rax], <imm>
                             }
                         }
-                        else if(index[1].value > int64_t(0x7fffffff) || index[1].value < (-(int64_t(0x7fffffff) + 1)))
-                        {
-                            return BiT({ nBkb(1, index[0].idx < 8 ? 0x48 : 0x49, 5, 0b10111), BTreg(0, 3, Out), BTimm(1, 64) });   //mov rax, <imm64>
-                        }
+                        else if(signed_fits(index[1].value, 32))
+                            return BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0b11000), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm32>
                         else 
-                            return  BiT({ nBkb(2, index[0].idx < 8 ? 0x48c7 : 0x49c7, 5, 0b11000), BTreg(0, 3, Out), BTimm(1, 32) });//mov rax, <imm32>
+                            return BiT({ nBkb(1, index[0].idx < 8 ? 0x48 : 0x49, 5, 0b10111), BTreg(0, 3, Out), BTimm(1, 64) });   //mov rax, <imm64>
                     }
                 }
                 else if (index[0].tag == Arg::ISPILLED)
@@ -2393,19 +2391,19 @@ namespace loops
     Intel64Backend::~Intel64Backend()
     {}
 
-    std::set<int> Intel64Backend::filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const
+    fastset Intel64Backend::filterStackPlaceable(const Syntop& a_op, const fastset& toFilter) const
     {
         switch (a_op.opcode)
         {
         case(OP_MOV):
             if(toFilter.size() == 1 && a_op.size() == 2 && a_op[0].tag == Arg::IREG //This restriction is imm64 support
                 && a_op[1].tag == Arg::IIMMEDIATE && (a_op[1].value & uint64_t(0xFFFFFFFF00000000)) != 0)
-                return std::set<int>({});
+                return fastset();
             else if(toFilter.size() >= 1 && (a_op.args[*toFilter.begin()].tag == Arg::VREG || 
                     (toFilter.size() == 2 && a_op.args[*(++toFilter.begin())].tag == Arg::VREG))) 
-                return std::set<int>({});            
+                return fastset();
             else 
-                return (toFilter.size() < 2) ? toFilter : std::set<int>({ 1 });
+                return (toFilter.size() < 2) ? toFilter : fastset({ 1 });
         case(OP_AND):
         case(OP_OR):
         case(OP_XOR):
@@ -2417,9 +2415,9 @@ namespace loops
         case(OP_SAR):
         {
             LOOPS_ASSERT(a_op.size() == 3 && a_op[0].tag == Arg::IREG);
-            std::set<int> res = toFilter;
+            fastset res = toFilter;
             res.erase(1);
-            res = (res.size() < 2) ? res : std::set<int>({ 0 });
+            res = (res.size() < 2) ? res : fastset({ 0 });
             if (a_op[1].tag == Arg::IREG && a_op[0].idx == a_op[1].idx && (res.count(0) || res.count(1)))
             {
                 res.insert(0);
@@ -2430,23 +2428,23 @@ namespace loops
         case(OP_DIV):
         case(OP_MOD):
         case(OP_MUL):
-            return (toFilter.count(2)) ? std::set<int>({ 2 }) : std::set<int>({ });
+            return (toFilter.count(2)) ? fastset({ 2 }) : fastset({ });
         case(OP_NEG):
         case(OP_NOT):
         {
             LOOPS_ASSERT(a_op.size() == 2 && a_op[0].tag == Arg::IREG && a_op[1].tag == Arg::IREG);
             if (toFilter.size() == 2 && a_op[0].idx != a_op[1].idx) //{0,1}
-                return std::set<int>({ 1 });
+                return fastset({ 1 });
             else 
                 return toFilter;
         }
-        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : std::set<int>({ 0 });
+        case(OP_CMP): return (toFilter.size() < 2) ? toFilter : fastset({ 0 });
         case(OP_LOAD):
-        case(OP_STORE): return std::set<int>();
+        case(OP_STORE): return fastset();
             break;
         case(OP_SELECT):
         {
-            std::set<int> res = toFilter;
+            fastset res = toFilter;
             res.erase(0);
             if(regOrSpiEq(a_op.args[0], a_op.args[2]))
                 res.erase(2);
@@ -2457,22 +2455,22 @@ namespace loops
         }
         case(OP_IVERSON):
             LOOPS_ASSERT(a_op.size() == 2);
-            return (toFilter.count(0) ? std::set<int>({0}) : std::set<int>({}));
+            return (toFilter.count(0) ? fastset({0}) : fastset());
             break;
         case(OP_ABS):
             LOOPS_ASSERT(a_op.size() == 2);
-            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? std::set<int>({ 1 }) : std::set<int>({});
+            return (toFilter.count(1) && !regOrSpiEq(a_op[0], a_op[1])) ? fastset({ 1 }) : fastset();
             break;
         case(OP_CALL):
         case(OP_CALL_NORET):
-            return std::set<int>({});
+            return fastset();
         default:
             break;
         }
         return Backend::filterStackPlaceable(a_op, toFilter);
     }
 
-    int Intel64Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
+    int Intel64Backend::reusingPreferences(const Syntop& a_op, const fastset& undefinedArgNums) const
     {
         switch (a_op.opcode)
         {
@@ -2541,7 +2539,7 @@ namespace loops
         return Backend::spillSpaceNeeded(a_op, basketNum);
     }
 
-    std::set<int> Intel64Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+    fastset Intel64Backend::getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask) const
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
@@ -2703,7 +2701,7 @@ namespace loops
         };
         if (!bypass)
         {
-            std::set<int> res;
+            fastset res;
             auto checkAndAdd = [&res](uint64_t mask, int posnum)
             {
                 if (mask & (uint64_t(1) << posnum))
@@ -2719,7 +2717,7 @@ namespace loops
             return res;
         }
         else
-            return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+            return Backend::getUsedRegistersIdxsUncached(a_op, basketNum, flagmask);
     }
 
     AllocationRestriction Intel64Backend::getRestriction(const Syntop& a_op) const

@@ -11,11 +11,11 @@ See https://github.com/4ekmah/loops/LICENSE
 #include "liveness_analysis.hpp"
 #include "backend.hpp"
 #include "common.hpp"
+#include "acceleration.hpp"
 #include "pipeline.hpp"
 #include <algorithm>
 #include <map>
 #include <memory>
-#include <set>
 #include <unordered_set>
 
 namespace loops {
@@ -50,6 +50,8 @@ public:
     //If reservation is weak, it works like negative hint: pool have to try take another register, but 
     //if it is impossible, he can provide weakly reserved one.
     void reserveReg(int basket_num, RegIdx reg, int from, bool weak_reservation = false);
+    //Builds flat per-register ranges after a batch of reserveReg calls.
+    void commitReservations(int basket_num, bool weak = false);
     RegIdx provideReservedReg(int basket_num, RegIdx reg, RegIdx vidx, int from, int needed_until);
     void dropReservation(int basket_num, RegIdx reg, int from); 
     void clearReservations(int basket_num, bool weak = false);
@@ -63,7 +65,7 @@ public:
     RegIdx provideSpillPlaceholder(int basket_num);
     void clearSpillPlaceholders(int basket_num);
 
-    inline std::set<RegIdx> usedCallee(int basket_num) const { return m_usedCallee[basket_num]; }
+    inline fastset usedCallee(int basket_num) const { return m_usedCallee[basket_num]; }
 
     //Functions for summarizing information about separate register allocations.
     inline void mergeSpillPlaceholders(const RegisterPool& other);
@@ -91,14 +93,22 @@ private:
     uint64_t m_pool[RB_AMOUNT]; // Pool is used for easy registers amount calculation and spill placeholders management.
     uint64_t m_spillPlaceholders[RB_AMOUNT]; //There used outer register ordering
     uint64_t m_spillPlaceholdersAvailable[RB_AMOUNT];
-    std::set<RegIdx> m_usedCallee[RB_AMOUNT];
-    std::vector<int> m_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
-    std::vector<int> m_weak_reservations[RB_AMOUNT][REG_MAX]; //Start positions, the first m_reservationCursor ones are consumed.
+    fastset m_usedCallee[RB_AMOUNT];
+    struct Reservation
+    {
+        int start;
+        RegIdx reg;
+    };
+    std::vector<Reservation> m_pendingReservations[RB_AMOUNT][2];
+    std::vector<int> m_reservationStarts[RB_AMOUNT][2];
+    int m_reservationOffsets[RB_AMOUNT][2][REG_MAX + 1];
+    bool m_reservationsReady[RB_AMOUNT][2];
     RegIdx m_assigned[RB_AMOUNT][REG_MAX]; //Virtual register owning the hardware one, NOIDX for free(or unknown owner).
     int m_reservationCursor[RB_AMOUNT][REG_MAX];
     uint64_t m_reservedRegs[RB_AMOUNT]; //Registers with reservations not consumed yet: the only ones worth looking at.
     uint64_t m_reservedWeaklyRegs[RB_AMOUNT];
-    std::vector<int> m_registersO[RB_AMOUNT][VESS_AMOUNT];
+    int m_registersO[RB_AMOUNT][VESS_AMOUNT][REG_MAX];
+    uint8_t m_registersOSize[RB_AMOUNT][VESS_AMOUNT];
     int m_maxRegisterNumber[RB_AMOUNT];
 };
 
@@ -148,24 +158,29 @@ private:
 
     //===============Interval splitting===============
     typedef DisjointSetUnion<Arg> AssignedArg;
+    AssignedArg::Arena m_assigned_arena;
     struct RegisterReassignment
     {
-        std::vector<int> bounds;
-        std::vector<AssignedArg> args;
+        small_vector<int, 2> bounds;
+        small_vector<AssignedArg, 1> args;
         int splitNumAt(int opnum) const;
         Arg& getAt(int opnum);
         const Arg& getAt(int opnum) const;
         void overlaySplit(int start, int end, AssignedArg arg);
-        void overlaySplit(int start, int end, const Arg& arg) { overlaySplit(start, end, AssignedArg(arg)); }
         void appendSplits(const RegisterReassignment& tail);
+        void reset(int start, int end, AssignedArg base_replace)
+        {
+            bounds = {start, end};
+            args.clear();
+            args.push_back(std::move(base_replace));
+        }
         RegisterReassignment() {}
-        RegisterReassignment(int start, int end, const Arg& base_replace) :
-            bounds({start, end}), args({AssignedArg(base_replace)}) {}
         //Split holding the value on entry to a block starting at block_start(the value can be defined inside).
         inline int entrySplitNum(int block_start) const { return splitNumAt(block_start > bounds.front() ? block_start : bounds.front()); }
         inline Arg& getAtEntry(int block_start) { return *args[entrySplitNum(block_start)]; }
         inline bool coversBlock(const BasicBlocksTree& block) const { return bounds.front() <= block.start_pos && bounds.back() >= block.end_pos; }
     };
+    inline AssignedArg makeAssignedArg(const Arg& arg) { return AssignedArg(m_assigned_arena, arg); }
 
     //===============Blocks negotiation===============
     enum { NOASSIGNED = -1, SHARED = -2 }; //hw2reg: a register with no owner in the block / with several ones
@@ -183,29 +198,29 @@ private:
                                                                         const std::vector<std::unordered_set<RegIdx>>& live,
                                                                         std::vector<RegisterPool>& pools);
 
-    std::unordered_map<RegIdx, RegIdx> makeBlocksHints(std::vector<RegisterReassignment>& assignments,
-                                                       const std::vector<BasicBlocksTreePtr>& blocks);
+    std::vector<RegIdx> makeBlocksHints(std::vector<RegisterReassignment>& assignments,
+                                        const std::vector<BasicBlocksTreePtr>& blocks);
     void handleConsecutiveRestriction(int basket_num, const Syntfunc& a_source,
                                       const BasicBlocksTree& pseudoblock, const BasicBlocksTree& block,
                                       std::vector<RegisterReassignment>& block_reassignment,
                                       std::vector<RegisterReassignment>& negotiated_assignments,
                                       RegisterPool& result_pool,
-                                      std::unordered_map<RegIdx, RegIdx>& hints);
+                                      std::vector<RegIdx>& hints);
     
     //===============Allocation itself===============
     void linearScan(int basket_num, const Syntfunc& a_source,
-                    const std::multiset<LiveInterval, startordering>& liveintervals,
-                    std::multiset<LiveInterval, endordering>& active,
+                    const std::vector<LiveInterval>& liveintervals,
+                    std::vector<LiveInterval>& active,
                     std::vector<RegisterReassignment>& block_reassignment,
                     std::vector<RegisterReassignment>& negotiated_assignments,
                     RegisterPool& result_pool,
-                    std::unordered_map<RegIdx, RegIdx>& hints,
+                    std::vector<RegIdx>& hints,
                     const BasicBlocksTree& block); //Used regs have priority over non-used
 
     //Recursively allocates registers for a block(loop) of the BasicBlocksTree and its subtree.
     void allocateBlock(int basket_num, const BasicBlocksTree& node, const Syntfunc& a_source,
-                       const std::multiset<LiveInterval, startordering>& parentIntervals,
-                       std::multiset<LiveInterval, endordering>& active,
+                       const std::vector<LiveInterval>& parentIntervals,
+                       std::vector<LiveInterval>& active,
                        std::vector<RegisterReassignment>& block_reassignment,
                        RegisterPool& result_pool);
     
@@ -219,7 +234,7 @@ private:
     {
         std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> unspilledRenaming;
         std::array<std::vector<std::map<RegIdx, Arg> >, RB_AMOUNT> spilledRenaming;
-        std::array<std::vector<std::set<int> >, RB_AMOUNT> stackPlaceable;
+        std::array<std::vector<fastset>, RB_AMOUNT> stackPlaceable;
         int nettoSpills[RB_AMOUNT] = {0, 0};
         size_t basket_offset[RB_AMOUNT]; //Start postions of scalar and vector baskets in stack
         int64_t m_spoffset[RB_AMOUNT] = {0, 0}; 

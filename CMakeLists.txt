@@ -27,6 +27,7 @@ file(GLOB loops_srcs  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
 add_library(loops STATIC ${loops_hdrs} ${loops_himp} ${loops_srcs} ${loops_ihdrs})
 include_directories(loops "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_options(loops ${CMP_OPTIONS})
+target_compile_definitions(loops PRIVATE LOOPS_ACCTABLES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/acctables")
 
 #LOOPSLAYERS LIBRARY
 file(GLOB loopslayers_hdrs  "${CMAKE_CURRENT_SOURCE_DIR}/include/loopslayers/*.h")
@@ -71,6 +72,12 @@ if ((CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL 
 endif()
 target_compile_options(testperf ${CMP_OPTIONS})
 set_target_properties(testperf ${TESTFOLDER_PROPERTIES})
+
+#ACCTABLEGEN
+add_executable(acctablegen "${CMAKE_CURRENT_SOURCE_DIR}/devutils/acctablegen.cpp")
+target_include_directories(acctablegen PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(acctablegen loops)
+target_compile_options(acctablegen ${CMP_OPTIONS})
 
 #EXAMPLES 
 file(GLOB examples "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp")

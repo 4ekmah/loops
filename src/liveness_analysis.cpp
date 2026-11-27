@@ -156,9 +156,10 @@ private:
         SIEvent(RegIdx a_idx, int a_basket_num) : idx(a_idx), basket_num(a_basket_num) {}
     };
     friend struct LAEventIterator;
-    std::array<std::vector<std::vector<LiveInterval> >, RB_AMOUNT> m_subintervals; //TODO(ch): std::vector<std::list<LiveInterval> > will avoid moves and allocations.
-                                                                                    //but in this case m_subintervalHeaders must be std::vector<std::list<LiveInterval>::iterator>
-                                                                                    //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
+    std::array<std::vector<LiveInterval>, RB_AMOUNT> m_subintervals;
+    std::array<std::vector<int>, RB_AMOUNT> m_subintervalOffsets;
+    std::array<std::vector<int>, RB_AMOUNT> m_subintervalCursors;
+    //Header is number of subinterval in process of iteration over subintervals(keeping every interval in program).
     std::array<std::vector<int>, RB_AMOUNT> m_subintervalHeaders;
     std::array<std::deque<std::map<RegIdx, int> >, RB_AMOUNT> m_active_headers_stack;
     void push_active_state(const std::array<std::multiset<LiveInterval, endordering>, RB_AMOUNT>& a_lastActive, int a_endif);
@@ -169,9 +170,17 @@ private:
     int m_snippetCausedSpills;
     BasicBlocksTreePtr m_basic_blocks_tree;
     bool m_haveFunctionCalls;
-    inline int regAmount(int basket_num) const { return (int)m_subintervals[basket_num].size(); }
+    inline int regAmount(int basket_num) const { return (int)m_subintervalOffsets[basket_num].size() - 1; }
     inline int siAmount(int basket_num, RegIdx regNum) const;
-    inline bool defined(int basket_num, RegIdx regNum) const { return siAmount(basket_num, regNum) > 0; }
+    inline bool defined(int basket_num, RegIdx regNum) const { return m_subintervalCursors[basket_num][regNum] >= 0; }
+    inline LiveInterval& subinterval(int basket_num, RegIdx regNum, int sinum)
+    {
+        return m_subintervals[basket_num][m_subintervalOffsets[basket_num][regNum] + sinum];
+    }
+    inline const LiveInterval& subinterval(int basket_num, RegIdx regNum, int sinum) const
+    {
+        return m_subintervals[basket_num][m_subintervalOffsets[basket_num][regNum] + sinum];
+    }
     inline void def(int basket_num, RegIdx regNum, int opnum);
     inline void use(int basket_num, RegIdx regNum, int opnum);
     inline void spliceUntilSinum(int basket_num, RegIdx regNum, int siEnd, int siStart = UNDEFINED_OPERATION_NUMBER);
@@ -306,7 +315,11 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     bbtstack.push(m_basic_blocks_tree.get());
     
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
-        m_subintervals[basket_num].resize(a_source.regAmount[basket_num], std::vector<LiveInterval>());
+    {
+        m_subintervals[basket_num].clear();
+        m_subintervalOffsets[basket_num].assign(a_source.regAmount[basket_num] + 1, 0);
+        m_subintervalCursors[basket_num].assign(a_source.regAmount[basket_num], -1);
+    }
     
     //This function accomplishes four goals:
     //1.) Separates all register live intervals to small def-use subintervals. There can be a lot of usages in one subinterval, but only one definition.
@@ -379,18 +392,43 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             default:
                 for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
                 {
-                    std::set<RegIdx> IORegs = m_backend->getUsedRegisters(op, basket_num, AF_INPUT | AF_OUTPUT);
-                    std::set<RegIdx> inRegs = m_backend->getInRegisters(op, basket_num);
-                    std::set<RegIdx> outRegs = m_backend->getOutRegisters(op, basket_num);
-                    for(auto IO : IORegs)  //Register used in one instruction position as Input and Output simultaneously
-                    {                      //must not be redefined. First of all, it's usage, and it must be used
-                        inRegs.insert(IO); //via already known name.
-                        outRegs.erase(IO);
+                    const InOutRegisterIdxs register_idxs = m_backend->getInOutRegistersIdxs(op, basket_num);
+                    const fastset& input_args = register_idxs.input;
+                    const fastset& output_args = register_idxs.output;
+                    for(int in : input_args)
+                    {
+                        bool duplicate = false;
+                        for(int prev = 0; prev < in; prev++)
+                            if(input_args.count(prev) && op[prev].idx == op[in].idx)
+                            {
+                                duplicate = true;
+                                break;
+                            }
+                        if(!duplicate)
+                            use(basket_num, op[in].idx, opnum);
                     }
-                    for (RegIdx inreg : inRegs)
-                        use(basket_num, inreg, opnum);
-                    for (RegIdx outreg : outRegs)
-                        def(basket_num, outreg, opnum);
+                    const fastset io_args(input_args.raw() & output_args.raw());
+                    for(int out : output_args)
+                    {
+                        bool io_register = false;
+                        for(int io : io_args)
+                            if(op[io].idx == op[out].idx)
+                            {
+                                io_register = true;
+                                break;
+                            }
+                        if(io_register)
+                            continue;
+                        bool duplicate = false;
+                        for(int prev = 0; prev < out; prev++)
+                            if(output_args.count(prev) && op[prev].idx == op[out].idx)
+                            {
+                                duplicate = true;
+                                break;
+                            }
+                        if(!duplicate)
+                            def(basket_num, op[out].idx, opnum);
+                    }
                 }
                 break;
             }
@@ -399,6 +437,18 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
         for(int bex : basketElemX) 
             alignx = std::max(alignx, bex);
         m_snippetCausedSpills += m_snippetCausedSpills % alignx ? alignx - m_snippetCausedSpills % alignx : 0; 
+    }
+    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+    {
+        std::vector<int>& offsets = m_subintervalOffsets[basket_num];
+        for(int idx = 0; idx < regAmount(basket_num); idx++)
+            offsets[idx + 1] += offsets[idx];
+        std::vector<LiveInterval> ordered(m_subintervals[basket_num].size(), LiveInterval(0, 0));
+        std::copy(offsets.begin(), offsets.end() - 1, m_subintervalCursors[basket_num].begin());
+        //Preserve definition order within each register.
+        for(const LiveInterval& li : m_subintervals[basket_num])
+            ordered[m_subintervalCursors[basket_num][li.idx]++] = li;
+        m_subintervals[basket_num].swap(ordered);
     }
     LOOPS_ASSERT(bbtstack.size() == 1);
     { //2.) Calculating intervals crossing loops and embranchments.
@@ -411,7 +461,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             {
                 if (siAmount(basket_num, idx) == 0)
                     continue;
-                const int sintStart = m_subintervals[basket_num][idx][0].start;
+                const int sintStart = subinterval(basket_num, idx, 0).start;
                 int eventPos;
                 if (sintStart == 0)
                 {
@@ -480,7 +530,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         int firstUseMain = UNDEFINED_OPERATION_NUMBER, firstDefMain = UNDEFINED_OPERATION_NUMBER;
                         int firstUseElse = UNDEFINED_OPERATION_NUMBER, firstDefElse = UNDEFINED_OPERATION_NUMBER;
                         const RegIdx idx = ifidrator->first;
-                        bool afterlife = m_subintervals[basket_num][idx].back().end > endifPos + 1;
+                        bool afterlife = subinterval(basket_num, idx, siAmount(basket_num, idx) - 1).end > endifPos + 1;
                         if (!haveElse && !afterlife)
                             continue;
                         const int initSinum = ifidrator->second;
@@ -490,8 +540,8 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         int sinum = initSinum;
                         for (; sinum < siAmount(basket_num, idx); ++sinum)
                         {
-                            const int sistart = m_subintervals[basket_num][idx][sinum].start;
-                            const int siend = m_subintervals[basket_num][idx][sinum].end;
+                            const int sistart = subinterval(basket_num, idx, sinum).start;
+                            const int siend = subinterval(basket_num, idx, sinum).end;
                             if (sistart > endifPos)
                             {
                                 LOOPS_ASSERT(sinum > 0);
@@ -555,7 +605,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                             spliceUntilSinum(basket_num, idx, sinum, initSinum);
                             if(switchIpos > opnum)
                             {
-                                LiveInterval changedOne = m_subintervals[basket_num][idx][initSinum];
+                                LiveInterval changedOne = subinterval(basket_num, idx, initSinum);
                                 changedOne.end = deactivationOpnum(basket_num, idx);
                                 lastActiveChanged.insert(changedOne);
                                 auto removerator = lastActive[basket_num].find(LiveInterval(idx, switchIpos));;
@@ -582,7 +632,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                         const RegIdx idx = ifidrator->first;
                         const int si_start = ifidrator->second;
                         const int switchIpos = isIterateable(basket_num, idx) ? getNextSubinterval(basket_num, idx).start : deactivationOpnum(basket_num, idx);
-                        if(m_subintervals[basket_num][idx][si_start].end <= endwhilePos)
+                        if(subinterval(basket_num, idx, si_start).end <= endwhilePos)
                         {
                             expandUntilOpnum(basket_num, idx, endwhilePos + 1, si_start);
                             auto removerator = lastActive[basket_num].find(LiveInterval(idx, switchIpos));
@@ -590,7 +640,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                             if(removerator != lastActive[basket_num].end())
                             {
                                 lastActive[basket_num].erase(removerator);
-                                LiveInterval changedOne = m_subintervals[basket_num][idx][si_start];
+                                LiveInterval changedOne = subinterval(basket_num, idx, si_start);
                                 changedOne.end = deactivationOpnum(basket_num, idx);
                                 lastActiveChanged.insert(changedOne);
                                 moveEventLater(SIqueue, idx, switchIpos, changedOne.end);
@@ -619,10 +669,10 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             RegIdx pseudIdx = paramsAmount[basket_num];
             for (RegIdx idx = 0; idx < paramsAmount[basket_num]; idx++)
                 for (int si = 1; si < (int)siAmount(basket_num, idx); si++)
-                    m_subintervals[basket_num][idx][si].idx = pseudIdx++;
+                    subinterval(basket_num, idx, si).idx = pseudIdx++;
             for (RegIdx idx = paramsAmount[basket_num]; idx < regAmount(basket_num); idx++)
-                for (LiveInterval& li : m_subintervals[basket_num][idx])
-                    li.idx = pseudIdx++;
+                for (int si = 0; si < siAmount(basket_num, idx); si++)
+                    subinterval(basket_num, idx, si).idx = pseudIdx++;
             resSize[basket_num] = pseudIdx;
         }
 
@@ -644,7 +694,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
             }
             BasicBlocksTree* bbtop = bbtstack.top();
             Syntop& op = a_dest.program[opnum];
-            std::array<std::set<int>, RB_AMOUNT> outRegArnums;
+            std::array<fastset, RB_AMOUNT> outRegArnums;
             for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++ )
                 outRegArnums[basket_num] = m_backend->getOutRegistersIdxs(op, basket_num);
             for (int arnum = 0; arnum < (int)op.size(); arnum++)
@@ -667,7 +717,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     size_t sinum = getCurrentSinum(basket_num, arg.idx);
                     if (isIterateable(basket_num, arg.idx) && isOut && (getNextSubinterval(basket_num, arg.idx).start <= opnum))
                         sinum++;
-                    arg.idx = m_subintervals[basket_num][arg.idx][sinum].idx;
+                    arg.idx = subinterval(basket_num, arg.idx, sinum).idx;
                     bbtop->reg_occurencies[basket_num].insert(arg.idx);
                 }
             }
@@ -702,7 +752,7 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
                     for(int cnum = 0; cnum < (int)curr_block->children.size(); cnum++)
                     {
                         BasicBlocksTreePtr child = curr_block->children[cnum];
-                        curr_block->reg_occurencies[basket_num].insert(child->reg_occurencies[basket_num].begin(), child->reg_occurencies[basket_num].end());
+                        curr_block->reg_occurencies[basket_num] |= child->reg_occurencies[basket_num];
                     }
             }
         }
@@ -711,9 +761,8 @@ void LivenessAnalysisAlgoImpl::process(Syntfunc& a_dest, const Syntfunc& a_sourc
     for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
     {
         m_liveintervals[basket_num] = std::vector<LiveInterval>(resSize[basket_num], LiveInterval(0,0));
-        for (auto res : m_subintervals[basket_num])
-            for (auto pseud : res)
-                m_liveintervals[basket_num][pseud.idx] = pseud;
+        for (const LiveInterval& pseud : m_subintervals[basket_num])
+            m_liveintervals[basket_num][pseud.idx] = pseud;
         a_dest.regAmount[basket_num] = (int)m_liveintervals[basket_num].size();
     }
 }
@@ -764,7 +813,7 @@ std::map<RegIdx, int>::const_iterator LivenessAnalysisAlgoImpl::acs_end(int bask
 int LivenessAnalysisAlgoImpl::siAmount(int basket_num, RegIdx regNum) const
 {
     LOOPS_ASSERT(regNum!= NOIDX && regNum < regAmount(basket_num));
-    return (int)m_subintervals[basket_num][regNum].size();
+    return m_subintervalOffsets[basket_num][regNum + 1] - m_subintervalOffsets[basket_num][regNum];
 }
 
 void LivenessAnalysisAlgoImpl::def(int basket_num, RegIdx regNum, int opnum)
@@ -772,8 +821,10 @@ void LivenessAnalysisAlgoImpl::def(int basket_num, RegIdx regNum, int opnum)
     if (regNum != Syntfunc::RETREG)
     {
         LOOPS_ASSERT(regNum != NOIDX && regNum < regAmount(basket_num));
-        m_subintervals[basket_num][regNum].push_back(LiveInterval(regNum, opnum));
-        m_subintervals[basket_num][regNum].back().end = opnum + 1;
+        m_subintervalCursors[basket_num][regNum] = (int)m_subintervals[basket_num].size();
+        m_subintervals[basket_num].push_back(LiveInterval(regNum, opnum));
+        m_subintervals[basket_num].back().end = opnum + 1;
+        m_subintervalOffsets[basket_num][regNum + 1]++;
     }
 }
 
@@ -783,7 +834,7 @@ void LivenessAnalysisAlgoImpl::use(int basket_num, RegIdx regNum, int opnum)
     {
         if (regNum != NOIDX && !defined(basket_num, regNum))
             throw loops::exception("Compile error: using uninitialized register");
-        m_subintervals[basket_num][regNum].back().end = opnum + 1;
+        m_subintervals[basket_num][m_subintervalCursors[basket_num][regNum]].end = opnum + 1;
     }
 }
 
@@ -793,10 +844,17 @@ void LivenessAnalysisAlgoImpl::spliceUntilSinum(int basket_num, RegIdx regNum, i
     int siStart = m_subintervalHeaders[basket_num][regNum];
     LOOPS_ASSERT(siStart <= siEnd);
     LOOPS_ASSERT(siEnd != UNDEFINED_OPERATION_NUMBER && siEnd < siAmount(basket_num, regNum));
-    m_subintervals[basket_num][regNum][siStart].end = m_subintervals[basket_num][regNum][siEnd].end;
-    std::vector<LiveInterval>::iterator remove_start = m_subintervals[basket_num][regNum].begin() + siStart + 1;
-    std::vector<LiveInterval>::iterator remove_end = m_subintervals[basket_num][regNum].begin() + siEnd + 1;
-    m_subintervals[basket_num][regNum].erase(remove_start, remove_end);
+    subinterval(basket_num, regNum, siStart).end = subinterval(basket_num, regNum, siEnd).end;
+    if(siStart == siEnd)
+        return;
+    std::vector<int>& offsets = m_subintervalOffsets[basket_num];
+    std::vector<LiveInterval>& intervals = m_subintervals[basket_num];
+    const int remove_start = offsets[regNum] + siStart + 1;
+    const int remove_end = offsets[regNum] + siEnd + 1;
+    intervals.erase(intervals.begin() + remove_start, intervals.begin() + remove_end);
+    const int removed = siEnd - siStart;
+    for(int idx = regNum + 1; idx <= regAmount(basket_num); idx++)
+        offsets[idx] -= removed;
 }
 
 int LivenessAnalysisAlgoImpl::expandUntilOpnum(int basket_num, RegIdx regNum, int opnum, int a_siStart)
@@ -805,23 +863,23 @@ int LivenessAnalysisAlgoImpl::expandUntilOpnum(int basket_num, RegIdx regNum, in
     int si_start = m_subintervalHeaders[basket_num][regNum];
     int subinterval2erase = si_start + 1;
     for (; subinterval2erase < siAmount(basket_num, regNum); subinterval2erase++)
-        if (m_subintervals[basket_num][regNum][subinterval2erase].start >= opnum)
+        if (subinterval(basket_num, regNum, subinterval2erase).start >= opnum)
         {
             subinterval2erase--;
             break;
         }
         else
-            opnum = std::max(m_subintervals[basket_num][regNum][subinterval2erase].end, opnum);
+            opnum = std::max(subinterval(basket_num, regNum, subinterval2erase).end, opnum);
     subinterval2erase = std::min(subinterval2erase, siAmount(basket_num, regNum) - 1);
     spliceUntilSinum(basket_num, regNum, subinterval2erase);
-    m_subintervals[basket_num][regNum][si_start].end = opnum;
+    subinterval(basket_num, regNum, si_start).end = opnum;
     return opnum;
 }
 
 int LivenessAnalysisAlgoImpl::deactivationOpnum(int basket_num, RegIdx regNum)
 {
     int sinum = m_subintervalHeaders[basket_num][regNum];
-    return (sinum + 1 < siAmount(basket_num, regNum)) ? m_subintervals[basket_num][regNum][sinum + 1].start : m_subintervals[basket_num][regNum][sinum].end - 1;
+    return (sinum + 1 < siAmount(basket_num, regNum)) ? subinterval(basket_num, regNum, sinum + 1).start : subinterval(basket_num, regNum, sinum).end - 1;
 }
 
 void LivenessAnalysisAlgoImpl::initSubintervalHeaders(int initval)
@@ -829,7 +887,7 @@ void LivenessAnalysisAlgoImpl::initSubintervalHeaders(int initval)
     for(size_t sibNum = 0; sibNum < RB_AMOUNT; sibNum++)
     {
         m_subintervalHeaders[sibNum].clear();
-        m_subintervalHeaders[sibNum].resize(m_subintervals[sibNum].size(), initval);
+        m_subintervalHeaders[sibNum].resize(regAmount(sibNum), initval);
     }
 }
 
@@ -841,13 +899,13 @@ int LivenessAnalysisAlgoImpl::getCurrentSinum(int basket_num, RegIdx regNum) //r
 LiveInterval& LivenessAnalysisAlgoImpl::getCurrentSubinterval(int basket_num, RegIdx regNum)
 {
     LOOPS_ASSERT(m_subintervalHeaders[basket_num][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basket_num][regNum] < siAmount(basket_num, regNum));
-    return m_subintervals[basket_num][regNum][m_subintervalHeaders[basket_num][regNum]];
+    return subinterval(basket_num, regNum, m_subintervalHeaders[basket_num][regNum]);
 }
 
 LiveInterval& LivenessAnalysisAlgoImpl::getNextSubinterval(int basket_num, RegIdx regNum)
 {
     LOOPS_ASSERT(m_subintervalHeaders[basket_num][regNum] != UNDEFINED_OPERATION_NUMBER && m_subintervalHeaders[basket_num][regNum] + 1 < siAmount(basket_num, regNum));
-    return m_subintervals[basket_num][regNum][m_subintervalHeaders[basket_num][regNum] + 1];
+    return subinterval(basket_num, regNum, m_subintervalHeaders[basket_num][regNum] + 1);
 }
 
 bool LivenessAnalysisAlgoImpl::isIterateable(int basket_num, RegIdx regNum) const

@@ -8,6 +8,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include "runtime.hpp"
+#include "acceleration.hpp"
 #include <functional>
 #include <set>
 #include <stack>
@@ -17,6 +18,7 @@ See https://github.com/4ekmah/loops/LICENSE
 #include <memory>
 #include <atomic>
 #include <array>
+#include <deque>
 
 namespace loops
 {
@@ -391,44 +393,72 @@ namespace loops
     template <typename _Tp>
     class DisjointSetUnion
     {
-        struct Node
-        {
-            _Tp value;
-            std::shared_ptr<Node> parent;
-        };
-        std::shared_ptr<Node> node;
-        static std::shared_ptr<Node> find(std::shared_ptr<Node> n)
-        {
-            while (n->parent)
-            {
-                if (n->parent->parent)
-                    n->parent = n->parent->parent;
-                n = n->parent;
-            }
-            return n;
-        }
     public:
-        DisjointSetUnion(){}
-        DisjointSetUnion(const _Tp& initVal) : node(std::make_shared<Node>(Node{initVal, nullptr})) {}
+        struct Arena
+        {
+            //Fixed-capacity chunks keep element addresses stable; parent IDs do not own one another.
+            static constexpr size_t chunk_shift = 8;
+            static constexpr size_t chunk_size = size_t(1) << chunk_shift;
+            static constexpr size_t chunk_mask = chunk_size - 1;
+            int add(const _Tp& value)
+            {
+                if((parents.size() & chunk_mask) == 0)
+                {
+                    values.emplace_back();
+                    values.back().reserve(chunk_size);
+                }
+                values.back().push_back(value);
+                parents.push_back(-1);
+                return (int)parents.size() - 1;
+            }
+            _Tp& at(size_t index) { return values[index >> chunk_shift][index & chunk_mask]; }
+            std::vector<std::vector<_Tp>> values;
+            std::vector<int> parents;
+        };
+
+    private:
+        Arena* arena;
+        int node;
+        static int find(Arena& arena, int current)
+        {
+            while(arena.parents[current] >= 0)
+            {
+                const int parent = arena.parents[current];
+                if(arena.parents[parent] >= 0)
+                    arena.parents[current] = arena.parents[parent];
+                current = parent;
+            }
+            return current;
+        }
+
+    public:
+        DisjointSetUnion() : arena(nullptr), node(-1) {}
+        DisjointSetUnion(Arena& a_arena, const _Tp& initVal) : arena(&a_arena), node(a_arena.add(initVal)) {}
+        DisjointSetUnion makeIsolated(const _Tp& initVal) const
+        {
+            LOOPS_ASSERT(arena);
+            return DisjointSetUnion(*arena, initVal);
+        }
         bool isConnected(const DisjointSetUnion& who) const
         {
-            return node && who.node && find(node) == find(who.node);
+            return arena && arena == who.arena && node >= 0 && who.node >= 0 && find(*arena, node) == find(*arena, who.node);
         }
         bool isEmpty() const
         {
-            return node.get() == nullptr;
+            return node < 0;
         }
         void merge(const DisjointSetUnion& who)
         {
-            LOOPS_ASSERT(node && who.node);
-            auto a = find(node), b = find(who.node);
+            LOOPS_ASSERT(arena && arena == who.arena && node >= 0 && who.node >= 0);
+            int a = find(*arena, node);
+            int b = find(*arena, who.node);
             if(a != b)
-                a->parent = b;
+                arena->parents[a] = b;
         }
-        _Tp* operator->() const { return &find(node)->value; }
-        _Tp* operator->() { return &find(node)->value; }
-        _Tp& operator*()  const { return find(node)->value; }
-        _Tp& operator*() { return find(node)->value; }
+        _Tp* operator->() const { return &arena->at(find(*arena, node)); }
+        _Tp* operator->() { return &arena->at(find(*arena, node)); }
+        _Tp& operator*()  const { return arena->at(find(*arena, node)); }
+        _Tp& operator*() { return arena->at(find(*arena, node)); }
     };
 
     /*
@@ -454,7 +484,8 @@ namespace loops
         int start_pos;
         int end_pos;
         int else_pos;
-        std::array<std::unordered_set<RegIdx>, RB_AMOUNT> reg_occurencies;
+        std::array<dynamic_bitset, RB_AMOUNT> reg_occurencies;
+        std::array<std::vector<RegIdx>, RB_AMOUNT> ordered_clobbers; //Original iteration order for clobber-to-hardware matching.
         BasicBlocksTree() {}
         BasicBlocksTree(int a_type, int a_start_pos) : type(a_type), start_pos(a_start_pos) {}
     };

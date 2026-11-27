@@ -47,6 +47,7 @@ class MaxpoolGenerator
 public:
     MaxpoolGenerator(Context aCTX) : CTX(aCTX), m_done(false), lanes(CTX.vlanes<_Tp>()) {}
     typename MPGenTraits<_Tp>::maxpool_t generate(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha);
+    Func generateFunc(int kh_, int kw_, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x, int activation_type, float alpha);
     dwc_algs_limits calc_maxpool_algs_limits(int NC, int H, int W, int kh, int kw, int H0, int W0, int padding_top, int padding_left, int padding_bottom, int padding_right, int stride_y, int stride_x);
 private:
     Context CTX;
@@ -152,6 +153,12 @@ private:
 template<typename _Tp>
 typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int stride_y_, int stride_x_, int activation_type_, float alpha_)
 {
+    return (typename MPGenTraits<_Tp>::maxpool_t)generateFunc(kh_, kw_, padding_top_, padding_left_, padding_bottom_, padding_right_, stride_y_, stride_x_, activation_type_, alpha_).ptr();
+}
+
+template<typename _Tp>
+Func MaxpoolGenerator<_Tp>::generateFunc(int kh_, int kw_, int padding_top_, int padding_left_, int padding_bottom_, int padding_right_, int stride_y_, int stride_x_, int activation_type_, float alpha_)
+{
     if(m_done)
         throw std::runtime_error("One generator object can create only one function. Create another generator.");
     stride_y = stride_y_;
@@ -177,7 +184,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
     if(CTX.hasFunc(funcname))
     {
         m_done = true;
-        return (typename MPGenTraits<_Tp>::maxpool_t)(CTX.getFunc(funcname).ptr());
+        return CTX.getFunc(funcname);
     }
     horVecsPerOut = upDiv((lanes - 1)*stride_x + kw, lanes * stride_x);
     defect_s = (std::max(horVecsPerOut - 2, 0)*CTX.vbytes()*stride_x);
@@ -520,7 +527,7 @@ typename MPGenTraits<_Tp>::maxpool_t MaxpoolGenerator<_Tp>::generate(int kh_, in
         RETURN_(0);
     }
     m_done = true;
-    return (typename MPGenTraits<_Tp>::maxpool_t)(CTX.getFunc(funcname).ptr());
+    return CTX.getFunc(funcname);
 }
 
 template<typename _Tp>

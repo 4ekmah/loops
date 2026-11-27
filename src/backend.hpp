@@ -9,6 +9,7 @@ See https://github.com/4ekmah/loops/LICENSE
 
 #include "loops/loops.hpp"
 #include "common.hpp"
+#include "acceleration.hpp"
 #include "composer.hpp"
 #include "printer.hpp"
 #include <vector>
@@ -25,6 +26,7 @@ struct SyntopTranslation
     struct ArgTranslation
     {
         enum {T_FIXED, T_FROMSOURCE, T_TRANSFORMTOSPILL, T_COPYSHIFTRIGHT, T_SETELEMTYPE, T_ERROROFUSAGE};
+        ArgTranslation() = default;
         ArgTranslation(const Arg& a_fixed);
         ArgTranslation(int a_srcArgnum, uint64_t flags = 0);
         ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags);
@@ -34,13 +36,15 @@ struct SyntopTranslation
         int elemtype;
         uint64_t transitFlags;
     };
+    enum { ARG_NOT_USED = UNDEFINED_ARGUMENT_NUMBER, ARGS_MAX = Syntop::SYNTOP_ARGS_MAX };
     int m_tarop;
-    std::vector<ArgTranslation> m_argsList;
-    SyntopTranslation(): m_tarop(-1) {} //TODO(ch): ensure, that -1 will always be an error.
+    ArgTranslation m_argsList[ARGS_MAX];
+    int m_args_size;
+    SyntopTranslation(): m_tarop(-1), m_args_size(0) {} //TODO(ch): ensure, that -1 will always be an error.
     SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args);
     Syntop apply(const Syntop& a_source, const Backend* a_backend = nullptr) const;
+    void apply(const Syntop& a_source, Syntop& a_result, const Backend* a_backend = nullptr) const;
     int targetArgNum(int a_srcnum) const;
-    enum { ARG_NOT_USED = UNDEFINED_ARGUMENT_NUMBER };
 };
 
 namespace SyntopTranslationConstruction
@@ -130,21 +134,28 @@ struct AllocationRestriction
 
 AllocationRestriction operator|(const AllocationRestriction& r0, const AllocationRestriction& r1);
 
+struct InOutRegisterIdxs
+{
+    fastset input;
+    fastset output;
+};
+
 class Backend
 {
 public:
     virtual ~Backend();
     bool isImmediateFit(const Syntop& a_op, int argnum) const;
-    virtual std::set<int> filterStackPlaceable(const Syntop& a_op, const std::set<int>& toFilter) const;
-    virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const;
+    virtual fastset filterStackPlaceable(const Syntop& a_op, const fastset& toFilter) const;
+    virtual int reusingPreferences(const Syntop& a_op, const fastset& undefinedArgNums) const;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const;
 
     //About getUsedRegistersIdxs and getUsedRegisters: registers will return if it corresponds to ALL conditions given through flag mask,
     //if one condtion is true, and other is false, it will not return register.
     //Next three functions return NUMBERS OF ARGUMENT, not an register numbers.
-    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
-    std::set<int> getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
-    std::set<int> getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    fastset getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
+    fastset getOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    fastset getInRegistersIdxs(const Syntop& a_op, int basketNum) const;
+    InOutRegisterIdxs getInOutRegistersIdxs(const Syntop& a_op, int basketNum) const;
 
     //Next three functions return register numbers.
     std::set<RegIdx> getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const;
@@ -201,6 +212,9 @@ public:
     inline SyntopTranslation lookS2s(const Syntop& index) const;
 protected:
     Backend();
+    virtual fastset getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask) const;
+
+    friend class AccelerationTableGenerator;
 
     BinTranslation(*m_s2blookup)(const Syntop&, bool&);
     SyntopTranslation(*m_s2slookup)(const Backend*, const Syntop&, bool&);

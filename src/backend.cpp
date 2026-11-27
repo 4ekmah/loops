@@ -13,16 +13,32 @@ namespace loops
 SyntopTranslation::ArgTranslation::ArgTranslation(const Arg& a_fixed) : tag(T_FIXED), fixed(a_fixed), srcArgnum(UNDEFINED_ARGUMENT_NUMBER), transitFlags(0) {}
 SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, uint64_t flags) : tag(T_FROMSOURCE), srcArgnum(a_srcArgnum), transitFlags(flags) {}
 SyntopTranslation::ArgTranslation::ArgTranslation(int a_srcArgnum, int a_elemtype, uint64_t flags) : tag(T_SETELEMTYPE), srcArgnum(a_srcArgnum), elemtype(a_elemtype), transitFlags(flags) {}
-SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_argsList(a_args){}
-
-Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
+SyntopTranslation::SyntopTranslation(int a_tarop, std::initializer_list<ArgTranslation> a_args) : m_tarop(a_tarop), m_args_size((int)a_args.size())
 {
-    std::vector<Arg> resargs;
-    resargs.reserve(m_argsList.size());
-    for(const ArgTranslation& argt : m_argsList)
+    if(m_args_size > ARGS_MAX)
+        throw loops::exception(LOOPS_ERR_TOO_MUCH_ARGS);
+    int argnum = 0;
+    for(const ArgTranslation& arg : a_args)
+        m_argsList[argnum++] = arg;
+}
+
+Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend* a_backend) const
+{
+    Syntop result;
+    apply(a_source, result, a_backend);
+    return result;
+}
+
+void SyntopTranslation::apply(const Syntop& a_source, Syntop& result, const Backend*) const
+{
+    result.opcode = m_tarop;
+    result.args_size = 0;
+    for(int argnum = 0; argnum < m_args_size; ++argnum)
+    {
+        const ArgTranslation& argt = m_argsList[argnum];
         switch (argt.tag) {
             case ArgTranslation::T_FIXED:
-                resargs.push_back(argt.fixed);
+                result.args[result.args_size++] = argt.fixed;
                 break;
             case ArgTranslation::T_FROMSOURCE:
             {
@@ -30,7 +46,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                     throw loops::exception(LOOPS_SYN_T_NON_EXISTENT_ARG);
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
-                resargs.push_back(toAdd);
+                result.args[result.args_size++] = toAdd;
                 break;
             }
             case ArgTranslation::T_SETELEMTYPE:
@@ -40,7 +56,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                 Arg toAdd = a_source.args[argt.srcArgnum];
                 toAdd.flags |= argt.transitFlags;
                 toAdd.elemtype = argt.elemtype;
-                resargs.push_back(toAdd);
+                result.args[result.args_size++] = toAdd;
                 break;
             }
             case ArgTranslation::T_TRANSFORMTOSPILL:
@@ -49,7 +65,7 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                 LOOPS_ASSERT(a_source.args[argt.srcArgnum].tag == Arg::IIMMEDIATE);
                 Arg toAdd = argSpilled(RB_INT, a_source.args[argt.srcArgnum].value);
                 toAdd.flags |= argt.transitFlags;
-                resargs.push_back(toAdd);
+                result.args[result.args_size++] = toAdd;
                 break;
             }
             case ArgTranslation::T_COPYSHIFTRIGHT:
@@ -68,22 +84,22 @@ Syntop SyntopTranslation::apply(const Syntop& a_source, const Backend*) const
                         throw loops::exception("Syntop translator: argument alignment error.");
                 }
                 toAdd.flags |= argt.transitFlags;
-                resargs.push_back(toAdd);
+                result.args[result.args_size++] = toAdd;
                 break;
             }
             default:
                 throw loops::exception("Syntop translator: unknown type of argument translation.");
         }
-    return Syntop(m_tarop, resargs);
+    }
 }
 
 int SyntopTranslation::targetArgNum(int a_srcnum) const
 {
     int res = 0;
-    for(;res< (int)m_argsList.size(); ++res)
+    for(;res < m_args_size; ++res)
         if((m_argsList[res].tag == ArgTranslation::T_FROMSOURCE || m_argsList[res].tag == ArgTranslation::T_SETELEMTYPE) && m_argsList[res].srcArgnum == a_srcnum)
             break;
-    if (res == (int)m_argsList.size())
+    if (res == m_args_size)
         res = ARG_NOT_USED;
     return res;
 }
@@ -172,7 +188,7 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
     LOOPS_ASSERT(argnum < (int)tar_op.size() && tar_op.args[argnum].tag == Arg::IIMMEDIATE);
     bool neg = tar_op.args[argnum].value < 0;
     uint64_t val2BeFit = neg ? ~tar_op.args[argnum].value : tar_op.args[argnum].value;
-    for(const BinTranslation::Token& det : instemp.m_compound)
+    for(const BinTranslation::Token& det : instemp)
         if(det.srcArgnum == argnum)
         {
             if(det.tag == BinTranslation::Token::T_OMIT)
@@ -188,12 +204,12 @@ bool Backend::isImmediateFit(const Syntop& a_op, int argnum) const
     throw loops::exception("Binary translator: non-existent argument is requested.");
 }
 
-std::set<int> Backend::filterStackPlaceable(const Syntop& /*a_op*/, const std::set<int>& /*toFilter*/) const
+fastset Backend::filterStackPlaceable(const Syntop& /*a_op*/, const fastset& /*toFilter*/) const
 {
-    return std::set<int>();
+    return fastset();
 }
 
-int Backend::reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const
+int Backend::reusingPreferences(const Syntop& a_op, const fastset& undefinedArgNums) const
 {
     if(a_op.opcode == OP_MOV) 
         if (undefinedArgNums.count(1))
@@ -206,15 +222,46 @@ int Backend::spillSpaceNeeded(const Syntop& /*a_op*/, int /*basketNum*/) const
     return 0;
 }
 
-std::set<int> Backend::getUsedRegistersIdxs(const Syntop &a_op, int basketNum, uint64_t flagmask) const
+fastset Backend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
-    std::set<int> result;
+    const uint64_t key = syntopKey(a_op);
+    if(flagmask == AF_INPUT || flagmask == AF_OUTPUT)
+    {
+        const fasthash& table = flagmask == AF_INPUT ? inputAccelerationTable() : outputAccelerationTable();
+        const uint64_t* packed = table.find(key);
+        if(packed)
+            return unpackFastset(*packed, basketNum);
+    }
+    else if(flagmask == (AF_INPUT | AF_OUTPUT))
+    {
+        const uint64_t* inputs = inputAccelerationTable().find(key);
+        const uint64_t* outputs = outputAccelerationTable().find(key);
+        if(inputs && outputs)
+            return unpackFastset(*inputs & *outputs, basketNum);
+    }
+    return getUsedRegistersIdxsUncached(a_op, basketNum, flagmask);
+}
+
+InOutRegisterIdxs Backend::getInOutRegistersIdxs(const Syntop& a_op, int basketNum) const
+{
+    const uint64_t key = syntopKey(a_op);
+    const uint64_t* inputs = inputAccelerationTable().find(key);
+    const uint64_t* outputs = outputAccelerationTable().find(key);
+    if(inputs && outputs)
+        return InOutRegisterIdxs{unpackFastset(*inputs, basketNum), unpackFastset(*outputs, basketNum)};
+    return InOutRegisterIdxs{getUsedRegistersIdxsUncached(a_op, basketNum, AF_INPUT),
+                             getUsedRegistersIdxsUncached(a_op, basketNum, AF_OUTPUT)};
+}
+
+fastset Backend::getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+{
+    fastset result;
     if(a_op.opcode == OP_DEF || a_op.opcode == VOP_DEF)
     {
         int ioflags = flagmask&(AF_OUTPUT | AF_INPUT);
         if (ioflags == AF_OUTPUT && 
             ((a_op.opcode == OP_DEF && basketNum == RB_INT) || (a_op.opcode == VOP_DEF && basketNum == RB_VEC)))
-                result = std::set<int>({0});
+                result = fastset({0});
         return result;
     }
     bool foundSynTr;
@@ -224,7 +271,7 @@ std::set<int> Backend::getUsedRegistersIdxs(const Syntop &a_op, int basketNum, u
     Syntop tarop = s2s.apply(a_op);
     const BinTranslation& s2b = lookS2b(tarop);
     int desiredRegType = ((basketNum == RB_INT) ? Arg::IREG :Arg::VREG);
-    for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
+    for(int bpiecenum = 0; bpiecenum < s2b.m_compound_size; ++bpiecenum)
     {
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
             continue;   //Drop all statics
@@ -240,19 +287,19 @@ std::set<int> Backend::getUsedRegistersIdxs(const Syntop &a_op, int basketNum, u
     return result;
 }
 
-std::set<int> Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
+fastset Backend::getOutRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegistersIdxs(a_op, basketNum, AF_OUTPUT);
 }
 
-std::set<int> Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
+fastset Backend::getInRegistersIdxs(const Syntop& a_op, int basketNum) const
 {
     return getUsedRegistersIdxs(a_op, basketNum, AF_INPUT);
 }
 
 std::set<RegIdx> Backend::getUsedRegisters(const Syntop& a_op, int basketNum, uint64_t flagmask) const
 {
-    std::set<int> preres = getUsedRegistersIdxs(a_op, basketNum, flagmask);
+    fastset preres = getUsedRegistersIdxs(a_op, basketNum, flagmask);
     std::set<RegIdx> result;
     for(int argNum: preres)
     {
@@ -285,7 +332,7 @@ void Backend::fill_native_operand_flags(const Syntop* a_op, uint64_t* result) co
 {
     memset(result, 0, sizeof(uint64_t) * Syntop::SYNTOP_ARGS_MAX);
     const BinTranslation& s2b = lookS2b(*a_op);
-    for(size_t bpiecenum = 0; bpiecenum < s2b.m_compound.size(); ++bpiecenum)
+    for(int bpiecenum = 0; bpiecenum < s2b.m_compound_size; ++bpiecenum)
     {
         if(s2b.m_compound[bpiecenum].tag == BinTranslation::Token::T_STATIC)
             continue;   //Drop all statics

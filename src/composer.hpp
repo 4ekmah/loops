@@ -62,6 +62,7 @@ namespace loops
         {
             //TODO(ch): Actually, it looks like, we need only adresses, statics, and common-use-arguments.
             enum {T_STATIC, T_REG, T_IMMEDIATE, T_SPILLED, T_OMIT};
+            Token() = default;
             Token(int tag, int fieldsize);
             Token(int tag, uint64_t val, int fieldsize);
             int tag;
@@ -70,14 +71,40 @@ namespace loops
             inline uint64_t flags() { return fieldOflags;}
             int srcArgnum;
         };
-        std::vector<Token> m_compound;
+        enum { COMPOUND_MAX = 11 };
+        Token m_compound[COMPOUND_MAX];
+        int m_compound_size;
         int m_bytewidth;
-        BinTranslation(): m_bytewidth(0) {}
+        int m_bitwidth;
+        BinTranslation(): m_compound_size(0), m_bytewidth(0), m_bitwidth(0) {}
         BinTranslation(std::initializer_list<Token> lst);
         BinTranslation(const std::vector<Token>& lst);
         int size() const { return m_bytewidth; }
+        void push_back(const Token& token);
+        const Token* begin() const { return m_compound; }
+        const Token* end() const { return m_compound + m_compound_size; }
         void applyNAppend(const Syntop& op, Bitwriter* bits) const;
     };
+
+    inline BinTranslation::Token::Token(int tag, int fieldsize): tag(tag)
+       , width(fieldsize)
+       , fieldOflags(0)
+       , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
+    {
+        if(tag != T_REG && tag != T_IMMEDIATE && tag != T_SPILLED && tag != T_OMIT)
+            throw loops::exception("Binary translator: wrong token constructor.");
+        if(tag == T_OMIT && fieldsize != 0)
+            throw loops::exception("Binary translator: omit immediate must not have field width.");
+    }
+
+    inline BinTranslation::Token::Token(int tag, uint64_t val, int fieldsize): tag(tag)
+       , width(fieldsize)
+       , fieldOflags(val)
+       , srcArgnum(UNDEFINED_ARGUMENT_NUMBER)
+    {
+        if(tag != T_STATIC)
+            throw loops::exception("Binary translator: wrong token constructor.");
+    }
 
     namespace BinTranslationConstruction
     {

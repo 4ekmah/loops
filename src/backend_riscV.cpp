@@ -1583,7 +1583,7 @@ namespace loops
         }
     }
 
-    std::set<int> RiscVBackend::getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask) const
+    fastset RiscVBackend::getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask) const
     {
         //TODO(ch): This specialized version of function must disappear after introducing snippets. 
         //They will give info about used registers, like now instructions answers.
@@ -1595,11 +1595,11 @@ namespace loops
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if (AF_INPUT & flagmask)
-                        return std::set<int>({1,2});
+                        return fastset({1,2});
                     else 
-                        return std::set<int>({});
+                        return fastset();
                 } else if(basketNum == RB_VEC)
-                    return std::set<int>({});
+                    return fastset();
                 break;
             case (OP_IVERSON):
             {
@@ -1607,11 +1607,11 @@ namespace loops
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if (AF_OUTPUT & flagmask && ((AF_INPUT & flagmask) == 0))
-                        return std::set<int>({0});
+                        return fastset({0});
                     else if(((AF_OUTPUT & flagmask) == 0) && (AF_INPUT & flagmask))
-                        return ((a_op[3].tag == Arg::IIMMEDIATE) ? std::set<int>({2}) : ((a_op[2].tag == Arg::IIMMEDIATE) ? std::set<int>({3}) : std::set<int>({2, 3})));
+                        return ((a_op[3].tag == Arg::IIMMEDIATE) ? fastset({2}) : ((a_op[2].tag == Arg::IIMMEDIATE) ? fastset({3}) : fastset({2, 3})));
                     else
-                        return std::set<int>({});
+                        return fastset();
                 }
                 break;
             }
@@ -1620,11 +1620,11 @@ namespace loops
                 if((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if(basketNum != RB_VEC || flagmask == (AF_INPUT | AF_OUTPUT))
-                        return std::set<int>({});
+                        return fastset();
                     if(flagmask == AF_INPUT)
-                        return std::set<int>({1, 2});
+                        return fastset({1, 2});
                     if(flagmask == AF_OUTPUT)
-                        return std::set<int>({0});
+                        return fastset({0});
                 }
                 break;
             case (VOP_LD2):
@@ -1632,16 +1632,16 @@ namespace loops
                 if(basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if(AF_INPUT & flagmask)
-                        return std::set<int>({2});
+                        return fastset({2});
                     if(AF_OUTPUT & flagmask)
-                        return std::set<int>({});
+                        return fastset();
                 }
                 else if(basketNum == RB_VEC && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if(AF_INPUT & flagmask)
-                        return std::set<int>({});
+                        return fastset();
                     if(AF_OUTPUT & flagmask)
-                        return std::set<int>({0, 1});
+                        return fastset({0, 1});
                 }
                 break;
             case (VOP_FMA):
@@ -1649,19 +1649,19 @@ namespace loops
                 if((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if(basketNum != RB_VEC || flagmask == (AF_INPUT | AF_OUTPUT))
-                        return std::set<int>({});
+                        return fastset();
                     if(flagmask == AF_INPUT)
-                        return std::set<int>({1, 2, 3});
+                        return fastset({1, 2, 3});
                     if(flagmask == AF_OUTPUT)
-                        return std::set<int>({0});
+                        return fastset({0});
                 }
                 break;
             case (VOP_SELECT):
                 if((~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if((flagmask & (AF_INPUT | AF_OUTPUT)) == (AF_INPUT | AF_OUTPUT))
-                        return std::set<int>({});
-                    std::set<int> result;
+                        return fastset();
+                    fastset result;
                     if(flagmask & AF_INPUT)
                     {
                         if(basketNum == RB_VEC)
@@ -1692,21 +1692,21 @@ namespace loops
                     }
                 LOOPS_ASSERT(allRegs);
                 if(basketNum == RB_VEC)
-                    return std::set<int>({});
+                    return fastset();
                 if (basketNum == RB_INT && (~(AF_INPUT | AF_OUTPUT) & flagmask) == 0)
                 {
                     if (AF_INPUT & flagmask)
                     {
-                        std::set<int> res;
+                        fastset res;
                         for(int arnum = (a_op.opcode == OP_CALL? 1 : 0); arnum < a_op.size(); arnum++ ) res.insert(arnum);
                         return res;
                     }
                     if (AF_OUTPUT & flagmask)
                     {
                         if(a_op.opcode == OP_CALL)
-                            return std::set<int>({0});
+                            return fastset({0});
                         else
-                            return std::set<int>({});
+                            return fastset();
                     }
                 }
                 break;
@@ -1714,7 +1714,7 @@ namespace loops
             default:
                 break;
         };
-        return Backend::getUsedRegistersIdxs(a_op, basketNum, flagmask);
+        return Backend::getUsedRegistersIdxsUncached(a_op, basketNum, flagmask);
     }
 
     std::array<std::map<RegIdx, int>, RB_AMOUNT> RiscVBackend::getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const

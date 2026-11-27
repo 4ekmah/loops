@@ -80,7 +80,9 @@ public:
     virtual bool is_inplace() const override final { return false; }
     virtual std::string pass_id() const override final { return "CP_IR_TO_ASSEMBLY"; }
     virtual ~IR2Assembly() override {}
+    const std::vector<BinTranslation>* binTranslations() const { return &m_binTranslations; }
 protected:
+    std::vector<BinTranslation> m_binTranslations;
     struct label_ref_info
     {
         int opnum;
@@ -94,7 +96,7 @@ protected:
 class Assembly2Hex : public CompilerPass
 {
 public:
-    Assembly2Hex(const Backend* a_backend) : CompilerPass(a_backend), m_bitstream(a_backend) {}
+    Assembly2Hex(const Backend* a_backend, const std::vector<BinTranslation>* a_binTranslations = nullptr) : CompilerPass(a_backend), m_bitstream(a_backend), m_binTranslations(a_binTranslations) {}
     virtual void process(Syntfunc& a_dest, const Syntfunc& a_source) override final;
     virtual bool is_inplace() const override final { return true; }
     virtual std::string pass_id() const override final { return "CP_ASSEMBLY_TO_HEX"; }
@@ -102,6 +104,7 @@ public:
     const FuncBodyBuf result_buffer() const;
 private:
     Bitwriter m_bitstream;
+    const std::vector<BinTranslation>* m_binTranslations;
 };
 
 class Pipeline
@@ -124,6 +127,7 @@ private:
     void run();
     void run_pass(CompilerPass* a_pass);
     Syntfunc m_data;
+    Syntfunc m_spare;
     CodeCollecting m_codecol;
     Backend* m_backend;
     FuncBodyBuf m_buffer;

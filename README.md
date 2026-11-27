@@ -1,3 +1,9 @@
+# !!! IMPORTANT !!!
+
+This is an experimental acceleration branch made only for demonstration of potential speed. Checked only on x86_64.
+Main performance example is maxpool_compile_series. It measures compilation of maxpooling 13x13, big and sophisticated kernel(~1600 IR instructions). 
+Accordingly to measurements on Intel Core i9 10980Xe, it takes ~3.2ms(median in 200).
+
 # Loops
 
 Loops is a minimalistic, fast, cross-platform C++ JIT engine with register allocation, mainly intended for generating vectorized code.

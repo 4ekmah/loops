@@ -396,7 +396,11 @@ namespace loops
                 {
                     BasicBlocksTreePtr bbttoadd = std::make_shared<BasicBlocksTree>(BasicBlocksTree::BBT_ALLOCATION_RESTRICTION, markerpos); 
                     bbttoadd->end_pos = markerpos + 1;
-                    bbttoadd->reg_occurencies = fixed_markers_iterator->clobbers;
+                    for(int basket_num = 0; basket_num < RB_AMOUNT; basket_num++)
+                    {
+                        bbttoadd->reg_occurencies[basket_num].insert(fixed_markers_iterator->clobbers[basket_num].begin(), fixed_markers_iterator->clobbers[basket_num].end());
+                        bbttoadd->ordered_clobbers[basket_num].assign(fixed_markers_iterator->clobbers[basket_num].begin(), fixed_markers_iterator->clobbers[basket_num].end());
+                    }
                     block->children.insert(block->children.begin() + (cnum + 1), bbttoadd);
                     fixed_markers_iterator++;
                     continue;
@@ -512,6 +516,8 @@ namespace loops
         for (int basketNum = 0; basketNum < RB_AMOUNT; basketNum++)
             a_dest.regAmount[basketNum] = a_source.regAmount[basketNum];
         a_dest.program.reserve(2 * a_source.program.size());
+        m_binTranslations.clear();
+        m_binTranslations.reserve(2 * a_source.program.size());
         for (size_t opnum = 0; opnum < a_source.program.size(); opnum++)
         {
             const Syntop &op = a_source.program[opnum];
@@ -560,13 +566,15 @@ namespace loops
             case (VOP_DEF):
                 break;
             default:
-                a_dest.program.emplace_back(m_backend->lookS2s(op).apply(op, m_backend));
+                a_dest.program.emplace_back();
+                m_backend->lookS2s(op).apply(op, a_dest.program.back(), m_backend);
                 break;
             };
             for (size_t addedop = curr_tar_op; addedop < a_dest.program.size(); addedop++)
             {
                 const Syntop &lastop = a_dest.program[addedop];
-                current_offset += m_backend->lookS2b(lastop).size();
+                m_binTranslations.push_back(m_backend->lookS2b(lastop));
+                current_offset += m_binTranslations.back().size();
             }
         }
         for (auto label : label_ref_map)
@@ -590,8 +598,15 @@ namespace loops
 
     void Assembly2Hex::process(Syntfunc& /*a_dest*/, const Syntfunc &a_source)
     {
-        for (const Syntop &op : a_source.program)
-            m_backend->lookS2b(op).applyNAppend(op, &m_bitstream);
+        if(m_binTranslations)
+        {
+            LOOPS_ASSERT(m_binTranslations->size() == a_source.program.size());
+            for(size_t opnum = 0; opnum < a_source.program.size(); ++opnum)
+                (*m_binTranslations)[opnum].applyNAppend(a_source.program[opnum], &m_bitstream);
+        }
+        else
+            for (const Syntop &op : a_source.program)
+                m_backend->lookS2b(op).applyNAppend(op, &m_bitstream);
     }
 
     const FuncBodyBuf Assembly2Hex::result_buffer() const
@@ -716,7 +731,7 @@ namespace loops
             run_pass(araPass.get());
         IR2Assembly b2aPass(m_backend);
         run_pass(&b2aPass);
-        Assembly2Hex a2hPass(m_backend);
+        Assembly2Hex a2hPass(m_backend, b2aPass.binTranslations());
         run_pass(&a2hPass);
         m_buffer = a2hPass.result_buffer();
     }
@@ -737,9 +752,15 @@ namespace loops
                 a_pass->process(m_data, m_data);
             else
             {
-                Syntfunc oldcode = m_data;
+                m_spare.params = m_data.params;
+                m_spare.name = m_data.name;
+                for(int basket = 0; basket < RB_AMOUNT; ++basket)
+                    m_spare.regAmount[basket] = m_data.regAmount[basket];
+                m_spare.nextLabel = m_data.nextLabel;
+                m_spare.owner = m_data.owner;
+                m_spare.program.swap(m_data.program);
                 m_data.program.clear();
-                a_pass->process(m_data, oldcode);
+                a_pass->process(m_data, m_spare);
             }
         }
     }

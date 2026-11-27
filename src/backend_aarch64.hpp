@@ -126,9 +126,8 @@ class Aarch64Backend : public Backend
 public:
     Aarch64Backend();
     virtual ~Aarch64Backend() override;
-    virtual int reusingPreferences(const Syntop& a_op, const std::set<int>& undefinedArgNums) const override final;
+    virtual int reusingPreferences(const Syntop& a_op, const fastset& undefinedArgNums) const override final;
     virtual int spillSpaceNeeded(const Syntop& a_op, int basketNum) const override final;
-    virtual std::set<int> getUsedRegistersIdxs(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
     virtual AllocationRestriction getRestriction(const Syntop& a_op) const override final;
     virtual std::array<std::map<RegIdx, int>, RB_AMOUNT> getStackParameterLayout(const Syntfunc& a_func, const std::array<std::vector<int>, RB_AMOUNT>& regParsOverride) const override final;
     virtual int stackGrowthAlignment(int stackGrowth) const override final;
@@ -138,7 +137,8 @@ public:
     virtual column_printer_ptr get_opname_printer() const override final;
     virtual column_printer_ptr get_opargs_printer() const override final;
     virtual column_printer_ptr get_hex_printer() const override final;};
-
+protected:
+    virtual fastset getUsedRegistersIdxsUncached(const Syntop& a_op, int basketNum, uint64_t flagmask = AF_INPUT | AF_OUTPUT) const override final;
 }
 #endif //__LOOPS_ARCH == __LOOPS_AARCH64
 #endif //__LOOPS_BACKEND_AARCH64_HPP__
