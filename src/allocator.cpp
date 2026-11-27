@@ -139,11 +139,7 @@ void Allocator::protect2Execution(uint8_t* a_buffer)
     auto proret = mprotect(reinterpret_cast<void*>(roundAddr), m_table[a_buffer] + (iaddr - roundAddr), PROT_READ | PROT_EXEC);
     if (proret != 0)
         throw loops::exception(LOOPS_MEMORY_PROTECTION_FAILURE);
-#ifdef __clang__
-    __clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
-#else// __GNUC__
     __builtin___clear_cache((char*)a_buffer, (char*)a_buffer + m_table[a_buffer]);
-#endif
 }
 
 void Allocator::free(uint8_t* a_buffer)
